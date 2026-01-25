@@ -42,7 +42,7 @@ inline double random_double(double min, double max)
 // }
 
 // Common Headers
-#include "core/spectrum.h"
+#include "core/color3f.h"
 #include "core/interval.h"
 #include "core/ray.h"
 #include "core/vec3.h"

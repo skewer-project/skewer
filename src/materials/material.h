@@ -8,7 +8,7 @@ class material
 public:
     virtual ~material() = default;
 
-    virtual bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered) const
+    virtual bool scatter(const ray &r_in, const hit_record &rec, Color3f &attenuation, ray &scattered) const
     {
         return false;
     };
@@ -28,9 +28,9 @@ public:
 class lambertian : public material
 {
 public:
-    lambertian(const color &albedo) : albedo(albedo) {}
+    lambertian(const Color3f &albedo) : albedo(albedo) {}
 
-    bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered) const override
+    bool scatter(const ray &r_in, const hit_record &rec, Color3f &attenuation, ray &scattered) const override
     {
         auto scatter_direction = rec.normal + random_unit_vector();
 
@@ -44,15 +44,15 @@ public:
     }
 
 private:
-    color albedo;
+    Color3f albedo;
 };
 
 class metal : public material
 {
 public:
-    metal(const color &albedo, double fuzz) : albedo(albedo), fuzz(fuzz < 1 ? fuzz : 1) {}
+    metal(const Color3f &albedo, double fuzz) : albedo(albedo), fuzz(fuzz < 1 ? fuzz : 1) {}
 
-    bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered) const override
+    bool scatter(const ray &r_in, const hit_record &rec, Color3f &attenuation, ray &scattered) const override
     {
         vec3 reflected = reflect(r_in.direction(), rec.normal);
         reflected = unit_vector(reflected) + (fuzz * random_unit_vector());
@@ -62,7 +62,7 @@ public:
     }
 
 private:
-    color albedo;
+    Color3f albedo;
     double fuzz;
 };
 
@@ -71,9 +71,9 @@ class dielectric : public material
 public:
     dielectric(double refraction_index) : refraction_index(refraction_index) {}
 
-    bool scatter(const ray &r_in, const hit_record &rec, color &attenuation, ray &scattered) const override
+    bool scatter(const ray &r_in, const hit_record &rec, Color3f &attenuation, ray &scattered) const override
     {
-        attenuation = color(1.0, 1.0, 1.0);
+        attenuation = Color3f(1.0, 1.0, 1.0);
         double ri = rec.front_face ? (1.0 / refraction_index) : refraction_index; // inside/outside
 
         vec3 unit_direction = unit_vector(r_in.direction());
