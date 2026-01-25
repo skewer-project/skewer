@@ -157,7 +157,7 @@ void write_color(std::ostream &out, const Color3f &pixel_color)
     // beyond [0,1] range
 
     // Write out pixel components
-    out << static_cast<int>(256 * c.r) << ' ' << static_cast<int>(256 * c.r) << ' ' << static_cast<int>(256 * c.r) << '\n';
+    out << static_cast<int>(256 * c.r) << ' ' << static_cast<int>(256 * c.g) << ' ' << static_cast<int>(256 * c.b) << '\n';
 }
 
 #endif
