@@ -36,7 +36,7 @@ public:
             std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
             for (int i = 0; i < image_width; ++i)
             {
-                color pixel_color(0, 0, 0);
+                Color3f pixel_color(0, 0, 0);
                 for (int sample = 0; sample < samples_per_pixel; ++sample)
                 {
                     ray r = get_ray(i, j);
@@ -132,25 +132,25 @@ private:
     }
 
     // we're moving ray_color() here
-    color ray_color(const ray &r, int depth, const hittable &world) const
+    Color3f ray_color(const ray &r, int depth, const hittable &world) const
     {
         // Base case for ray bounce depth
         if (depth <= 0)
-            return color(0, 0, 0);
+            return Color3f(0, 0, 0);
 
         hit_record rec;
         if (world.hit(r, interval(0.001, infinity), rec)) // 0.001 for shadow acne (error tolerance point just below surface)
         {
             ray scattered;
-            color attenuation;
+            Color3f attenuation;
             if (rec.mat->scatter(r, rec, attenuation, scattered))
                 return attenuation * ray_color(scattered, depth - 1, world);
-            return color(0, 0, 0);
+            return Color3f(0, 0, 0);
         }
 
         vec3 unit_direction = unit_vector(r.direction());
-        auto a = 0.5 * (unit_direction.y() + 1.0);                          // want to scale unit_d [-1,1] to [0,1] range
-        return (1.0 - a) * color(1.0, 1.0, 1.0) + a * color(0.5, 0.7, 1.0); // linear interpolation white, blue
+        auto a = 0.5 * (unit_direction.y() + 1.0);                              // want to scale unit_d [-1,1] to [0,1] range
+        return (1.0 - a) * Color3f(1.0, 1.0, 1.0) + a * Color3f(0.5, 0.7, 1.0); // linear interpolation white, blue
     }
 };
 
