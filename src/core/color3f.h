@@ -13,6 +13,7 @@ struct Color3f
     Color3f() : r(0), g(0), b(0) {}
     Color3f(float r, float g, float b) : r(r), g(g), b(b) {}
     Color3f(double r, double g, double b) : r(static_cast<float>(r)), g(static_cast<float>(g)), b(static_cast<float>(b)) {}
+    Color3f(int r, int g, int b) : r(static_cast<float>(r)), g(static_cast<float>(g)), b(static_cast<float>(b)) {}
 
     float operator[](int i) const
     {
