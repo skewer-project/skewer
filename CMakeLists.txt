@@ -6,10 +6,17 @@ project(ray-tracer) # change name eventually
 # Set C++ Standard (C++17 is good for modern features)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Fetch nlohmann/json for scene loading
+include(FetchContent)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
 
 # Tell CMake where to look for header files
 # allows us to write #include "core/vec3.h" instead of "../src/core/vec3.h"
 include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories(${CMAKE_SOURCE_DIR}/external)
 
 # Define Source Files
 # list every .cpp file here. no need for .h
@@ -22,3 +29,4 @@ set(SOURCES
 
 # Create Executable
 add_executable(render_cli ${SOURCES})
+target_link_libraries(render_cli PRIVATE nlohmann_json::nlohmann_json)
