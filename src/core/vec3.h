@@ -1,6 +1,8 @@
 #ifndef VEC3_H
 #define VEC3_H
 
+#include "integrators/path_tracer.h"
+
 class vec3
 {
 public:
