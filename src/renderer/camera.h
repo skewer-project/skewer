@@ -1,6 +1,11 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
+#include <thread>
+#include <vector>
+#include <atomic>
+#include <mutex>
+
 #include "geometry/hittable.h"
 #include "materials/material.h"
 
@@ -24,32 +29,76 @@ public:
 
     double defocus_angle = 0; // Variation angle of rays through each pixel
     double focus_dist = 10;   // Distance from camera lookfrom point to plane of perfect focus
+    int num_threads = 0;  // Number of threads (0 = auto-detect)
 
-    void render(const hittable &world)
-    {
+    void render(const hittable &world) {
         initialize();
 
-        // Render
-        std::cout << "P3\n"
-                  << image_width << ' ' << image_height << "\n255\n";
+        // Determine number of threads
+        int thread_count = num_threads;
+        if (thread_count <= 0) {
+            thread_count = std::thread::hardware_concurrency();
+            if (thread_count == 0) thread_count = 4;  // Fallback
+        }
 
-        for (int j = 0; j < image_height; ++j)
-        {
-            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i)
-            {
-                color pixel_color(0, 0, 0);
-                for (int sample = 0; sample < samples_per_pixel; ++sample)
-                {
-                    ray r = get_ray(i, j);
-                    pixel_color += ray_color(r, max_depth, world);
+        std::clog << "Rendering with " << thread_count << " threads..." << std::endl;
+
+        // Allocate image buffer
+        std::vector<color> image_buffer(image_width * image_height);
+
+        // Atomic counter for progress tracking
+        std::atomic<int> scanlines_completed(0);
+        std::atomic<int> next_scanline(0);
+
+        // Mutex for progress output
+        std::mutex progress_mutex;
+
+        // Worker function - each thread grabs scanlines dynamically
+        auto render_worker = [&]() {
+            while (true) {
+                // Grab the next scanline to work on
+                int j = next_scanline.fetch_add(1);
+                if (j >= image_height) break;
+
+                // Render this scanline
+                for (int i = 0; i < image_width; i++) {
+                    color pixel_color(0, 0, 0);
+                    for (int sample = 0; sample < samples_per_pixel; sample++) {
+                        ray r = get_ray(i, j);
+                        pixel_color += ray_color(r, max_depth, world);
+                    }
+                    image_buffer[j * image_width + i] = pixel_samples_scale * pixel_color;
                 }
-                write_color(std::cout, pixel_samples_scale * pixel_color);
+
+                // Update progress
+                int completed = scanlines_completed.fetch_add(1) + 1;
+                std::lock_guard<std::mutex> lock(progress_mutex);
+                std::clog << "\rScanlines completed: " << completed << "/" << image_height << " " << std::flush;
+            }
+        };
+
+        // Launch worker threads
+        std::vector<std::thread> threads;
+        for (int t = 0; t < thread_count; t++) {
+            threads.emplace_back(render_worker);
+        }
+
+        // Wait for all threads to complete
+        for (auto& thread : threads) {
+            thread.join();
+        }
+
+        // Output the image
+        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+        for (int j = 0; j < image_height; j++) {
+            for (int i = 0; i < image_width; i++) {
+                write_color(std::cout, image_buffer[j * image_width + i]);
             }
         }
 
-        std::clog << "\rDone.		\n";
+        std::clog << "Done." << std::endl;
     }
+
 
 private:
     /* Private Camera Variables Here */
