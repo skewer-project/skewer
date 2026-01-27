@@ -22,6 +22,50 @@ class rtw_image
 public:
     rtw_image() {}
 
+    // Prevent double-free: disable copy operations since we manage raw pointers.
+    rtw_image(const rtw_image&) = delete;
+    rtw_image& operator=(const rtw_image&) = delete;
+
+    // Allow move operations for efficient transfers.
+    rtw_image(rtw_image&& other) noexcept
+        : fdata(other.fdata)
+        , bdata(other.bdata)
+        , image_width(other.image_width)
+        , image_height(other.image_height)
+        , bytes_per_scanline(other.bytes_per_scanline)
+    {
+        other.fdata = nullptr;
+        other.bdata = nullptr;
+        other.image_width = 0;
+        other.image_height = 0;
+        other.bytes_per_scanline = 0;
+    }
+
+    rtw_image& operator=(rtw_image&& other) noexcept
+    {
+        if (this != &other)
+        {
+            // Free existing resources
+            delete[] bdata;
+            STBI_FREE(fdata);
+
+            // Transfer ownership
+            fdata = other.fdata;
+            bdata = other.bdata;
+            image_width = other.image_width;
+            image_height = other.image_height;
+            bytes_per_scanline = other.bytes_per_scanline;
+
+            // Nullify source
+            other.fdata = nullptr;
+            other.bdata = nullptr;
+            other.image_width = 0;
+            other.image_height = 0;
+            other.bytes_per_scanline = 0;
+        }
+        return *this;
+    }
+
     rtw_image(const char* image_filename)
     {
         // Loads image data from the specified file. Searches for the image file
