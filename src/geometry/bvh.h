@@ -23,6 +23,16 @@ public:
 
     bvh_node(std::vector<shared_ptr<hittable>>& objects, size_t start, size_t end)
     {
+        size_t object_span = end - start;
+
+        if (object_span == 0)
+        {
+            // Empty BVH node: no children, empty bounding box.
+            left = right = nullptr;
+            bbox = aabb::empty;
+            return;
+        }
+
         // Build the bounding box of the span of source objects.
         bbox = aabb::empty;
         for (size_t object_index = start; object_index < end; object_index++)
@@ -33,8 +43,6 @@ public:
         auto comparator = (axis == 0) ? box_x_compare
                         : (axis == 1) ? box_y_compare
                                       : box_z_compare;
-
-        size_t object_span = end - start;
 
         if (object_span == 1)
         {
@@ -58,6 +66,10 @@ public:
     bool hit(const ray& r, interval ray_t, hit_record& rec) const override
     {
         if (!bbox.hit(r, ray_t))
+            return false;
+
+        // Empty BVH node (null children) cannot be hit.
+        if (!left)
             return false;
 
         bool hit_left = left->hit(r, ray_t, rec);
