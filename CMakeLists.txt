@@ -1,5 +1,4 @@
-# THIS IS A TEMPORARY ROOT CMAKELISTS.TXT WHILE FILES ARE BEING REFACTORED
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(ray-tracer) # change name eventually
 
@@ -23,7 +22,7 @@ include_directories(${CMAKE_SOURCE_DIR}/external)
 set(SOURCES
     apps/cli/main.cc         # Renamed main file for now
     # Add new .cc files here as they're created, e.g.:
-    # src/renderer/engine.cpp 
+    # src/renderer/engine.cpp
     # src/renderer/film.cpp
 )
 
