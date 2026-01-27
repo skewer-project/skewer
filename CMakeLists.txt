@@ -6,6 +6,8 @@ project(ray-tracer) # change name eventually
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Fixes CMake FetchContent warning (https://cmake.org/cmake/help/latest/policy/CMP0135.html)
+cmake_policy(SET CMP0135 NEW)
 
 # Fetch nlohmann/json for scene loading
 include(FetchContent)
