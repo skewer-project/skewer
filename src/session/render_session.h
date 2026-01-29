@@ -9,16 +9,20 @@
  * Orchestrates Scene + Integrator + Film
  */
 
-// Forward declarations to avoid circular includes
+// Forward declarations to avoid circular includes and having to include scene, integrator, etc
 namespace skwr
 {
     class Scene;
     class Integrator;
     class Film;
-}
 
-namespace skwr
-{
+    // class RenderOptions
+    // {
+    //     int width_;
+    //     int height_;
+    //     int samples_per_pixel_;
+    //     RenderOptions() width_(400)
+    // };
 
     class RenderSession
     {
@@ -26,14 +30,17 @@ namespace skwr
         RenderSession();
         ~RenderSession();
 
-        // 1. SETUP: Loads data from disk into the Scene object
+        // SETUP: Load data from disk into the Scene object
         void LoadScene(const std::string &filename);
 
-        // 2. CONFIGURE: Sets up the camera, resolution, and sampler
-        void SetOptions(int width, int height, int samples_per_pixel);
+        // CONFIGURE: Set up the camera, resolution, and sampler
+        // TODO: later, implement a dedicated options class: SetOptions(const RenderOptions &options)
+        void SetOptions(const int width, const int height, const int samples_per_pixel);
 
-        // 3. EXECUTE: Creates the Integrator and tells it to run on the Scene
+        // EXECUTE: Create the Integrator and tell it to run on the Scene
         void Render();
+
+        void Save(const std::string &filename) const;
 
     private:
         // The 'World' (Geometry, Lights, Accelerators)
