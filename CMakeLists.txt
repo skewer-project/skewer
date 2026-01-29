@@ -25,9 +25,10 @@ include_directories(${CMAKE_SOURCE_DIR}/external)
 set(SOURCES
     apps/cli/main.cc         # Renamed main file for now
     # Add new .cc files here as they're created, e.g.:
-    # src/renderer/engine.cpp 
+    # src/renderer/engine.cpp
     # src/renderer/film.cpp
 )
 
 # Create Executable
 add_executable(render_cli ${SOURCES})
+target_link_libraries(render_cli PRIVATE nlohmann_json::nlohmann_json)
