@@ -1,2 +1,10 @@
 .vscode/
 build/
+
+.cache
+.DS_Store
+
+# scene assets
+images/
+objects/
+scenes/
