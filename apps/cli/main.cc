@@ -6,34 +6,38 @@
 #include "materials/material.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
+#include "io/scene_loader.h"
 
-int main()
+#include <iostream>
+#include <string>
+
+void print_usage(const char* program_name)
+{
+    std::cerr << "Usage: " << program_name << " <scene.json>\n";
+    std::cerr << "       " << program_name << " --demo\n";
+    std::cerr << "\n";
+    std::cerr << "Options:\n";
+    std::cerr << "  <scene.json>  Path to a JSON scene file\n";
+    std::cerr << "  --demo        Run with a built-in demo scene\n";
+}
+
+void run_demo()
 {
     // World
     hittable_list world;
 
-    auto material_ground = std::make_shared<lambertian>(color(0.8, 0.8, 0.0));
-    auto material_center = std::make_shared<lambertian>(color(0.1, 0.2, 0.5));
-    auto material_left = std::make_shared<dielectric>(1.50);
-    auto material_bubble = std::make_shared<dielectric>(1.00 / 1.50);
-    auto material_right = std::make_shared<metal>(color(0.8, 0.6, 0.2), 1.0);
-    auto material_red = std::make_shared<lambertian>(color(1.0, 0, 0));
+    auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
+    auto material_center = make_shared<lambertian>(color(0.1, 0.2, 0.5));
+    auto material_left = make_shared<dielectric>(1.50);
+    auto material_bubble = make_shared<dielectric>(1.00 / 1.50);
+    auto material_right = make_shared<metal>(color(0.8, 0.6, 0.2), 1.0);
+    auto material_red = make_shared<lambertian>(color(1.0, 0, 0));
 
-    // world.add(std::make_shared<sphere>(point3(0, 0, -1), 0.5));
-    world.add(std::make_shared<sphere>(point3(0, -100.5, -1), 100.0, material_ground));
-    world.add(std::make_shared<sphere>(point3(0.0, 0.0, -1.2), 0.5, material_center));
-    // world.add(std::make_shared<sphere>(point3(-1.0, 0.0, -1.0), 0.5, material_left));
-    world.add(std::make_shared<sphere>(point3(-1.0, 0.0, -1.0), 0.4, material_bubble));
-    world.add(std::make_shared<sphere>(point3(1.0, 0.0, -1.0), 0.5, material_right));
-    world.add(std::make_shared<triangle>(point3(0, 0.5, -0.8), point3(-0.5, -0.5, -0.5), point3(0.5, -0.5, -0.5), material_red));
-    // world.add(std::make_shared<triangle>(point3(-2.0, 2.0, 0.0), point3(-3.0, 0.5, 1.0), point3(-1.0, 0.5, 1.0), material_red));
-
-    // // Wide-angle test
-    // auto R = std::cos(pi / 4);
-    // auto material_left = std::make_shared<lambertian>(color(0, 0, 1));
-    // auto material_right = std::make_shared<lambertian>(color(1, 0, 0));
-    // world.add(std::make_shared<sphere>(point3(-R, 0, -1), R, material_left));
-    // world.add(std::make_shared<sphere>(point3(R, 0, -1), R, material_right));
+    world.add(make_shared<sphere>(point3(0, -100.5, -1), 100.0, material_ground));
+    world.add(make_shared<sphere>(point3(0.0, 0.0, -1.2), 0.5, material_center));
+    world.add(make_shared<sphere>(point3(-1.0, 0.0, -1.0), 0.4, material_bubble));
+    world.add(make_shared<sphere>(point3(1.0, 0.0, -1.0), 0.5, material_right));
+    world.add(make_shared<triangle>(point3(0, 0.5, -0.8), point3(-0.5, -0.5, -0.5), point3(0.5, -0.5, -0.5), material_red));
 
     camera cam;
 
@@ -41,6 +45,7 @@ int main()
     cam.image_width = 500;
     cam.samples_per_pixel = 100;
     cam.max_depth = 50;
+    cam.background = color(0.70, 0.80, 1.00);  // Sky blue background
 
     cam.vfov = 20;
     cam.lookfrom = point3(-4, 4, 2);
@@ -51,70 +56,46 @@ int main()
     cam.focus_dist = 6.4;
 
     cam.render(world);
+}
 
-    // /* Cover Render */
-    // auto ground_material = std::make_shared<lambertian>(color(0.5, 0.5, 0.5));
-    // world.add(std::make_shared<sphere>(point3(0, -1000, 0), 1000, ground_material));
+int main(int argc, char* argv[])
+{
+    // Check for command line arguments
+    if (argc < 2)
+    {
+        print_usage(argv[0]);
+        return 1;
+    }
 
-    // for (int a = -11; a < 11; a++)
-    // {
-    // 	for (int b = -11; b < 11; b++)
-    // 	{
-    // 		auto choose_mat = random_double();
-    // 		point3 center(a + 0.9 * random_double(), 0.2, b + 0.9 * random_double());
+    std::string arg = argv[1];
 
-    // 		if ((center - point3(4, 0.2, 0)).length() > 0.9)
-    // 		{
-    // 			std::shared_ptr<material> sphere_material;
+    if (arg == "--demo" || arg == "-d")
+    {
+        std::clog << "Running demo scene...\n";
+        run_demo();
+    }
+    else if (arg == "--help" || arg == "-h")
+    {
+        print_usage(argv[0]);
+        return 0;
+    }
+    else
+    {
+        // Assume it's a scene file path
+        std::clog << "Loading scene from: " << arg << "\n";
 
-    // 			if (choose_mat < 0.8)
-    // 			{
-    // 				// diffuse
-    // 				auto albedo = color::random() * color::random();
-    // 				sphere_material = std::make_shared<lambertian>(albedo);
-    // 				world.add(std::make_shared<sphere>(center, 0.2, sphere_material));
-    // 			}
-    // 			else if (choose_mat < 0.95)
-    // 			{
-    // 				// metal
-    // 				auto albedo = color::random(0.5, 1);
-    // 				auto fuzz = random_double(0, 0.5);
-    // 				sphere_material = std::make_shared<metal>(albedo, fuzz);
-    // 				world.add(std::make_shared<sphere>(center, 0.2, sphere_material));
-    // 			}
-    // 			else
-    // 			{
-    // 				// glass
-    // 				sphere_material = std::make_shared<dielectric>(1.5);
-    // 				world.add(std::make_shared<sphere>(center, 0.2, sphere_material));
-    // 			}
-    // 		}
-    // 	}
-    // }
+        try
+        {
+            scene_data scene = load_scene(arg);
+            std::clog << "Scene loaded successfully.\n";
+            scene.cam.render(scene.world);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error loading scene: " << e.what() << "\n";
+            return 1;
+        }
+    }
 
-    // auto material1 = std::make_shared<dielectric>(1.5);
-    // world.add(std::make_shared<sphere>(point3(0, 1, 0), 1.0, material1));
-
-    // auto material2 = std::make_shared<lambertian>(color(0.4, 0.2, 0.1));
-    // world.add(std::make_shared<sphere>(point3(-4, 1, 0), 1.0, material2));
-
-    // auto material3 = std::make_shared<metal>(color(0.7, 0.6, 0.5), 0.0);
-    // world.add(std::make_shared<sphere>(point3(4, 1, 0), 1.0, material3));
-
-    // camera cam;
-
-    // cam.aspect_ratio = 16.0 / 9.0;
-    // cam.image_width = 1200;
-    // cam.samples_per_pixel = 500;
-    // cam.max_depth = 50;
-
-    // cam.vfov = 20;
-    // cam.lookfrom = point3(13, 2, 3);
-    // cam.lookat = point3(0, 0, 0);
-    // cam.vup = vec3(0, 1, 0);
-
-    // cam.defocus_angle = 0.6;
-    // cam.focus_dist = 10.0;
-
-    // cam.render(world);
+    return 0;
 }
