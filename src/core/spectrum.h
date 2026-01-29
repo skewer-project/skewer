@@ -1,23 +1,20 @@
 #ifndef SPECTRUM_H
 #define SPECTRUM_H
 
-#include "core/vec3.h"
 #include "core/interval.h"
+#include "core/vec3.h"
 
 // TODO: refactor to handle color physics separate from geometry
 
 using color = vec3;
 
 // accounting for gamma correction in our linear images
-inline double linear_to_gamma(double linear_component)
-{
-    if (linear_component > 0)
-        return std::sqrt(linear_component);
+inline double linear_to_gamma(double linear_component) {
+    if (linear_component > 0) return std::sqrt(linear_component);
     return 0;
 }
 
-void write_color(std::ostream &out, const color &pixel_color)
-{
+void write_color(std::ostream& out, const color& pixel_color) {
     auto r = pixel_color.x();
     auto g = pixel_color.y();
     auto b = pixel_color.z();
