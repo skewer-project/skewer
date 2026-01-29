@@ -1,6 +1,11 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
+#include <thread>
+#include <vector>
+#include <atomic>
+#include <mutex>
+
 #include "geometry/hittable.h"
 #include "materials/material.h"
 
@@ -15,6 +20,7 @@ public:
     int image_width = 100;      // In pixels
     int samples_per_pixel = 10; // Count of random samples for each pixel
     int max_depth = 10;         // Max number of ray bounces into scene
+    color background;           // Scene background color
 
     double vfov = 90;                  // Vertical view angle (field of view)
     point3 lookfrom = point3(0, 0, 0); // Point camera is looking from
@@ -23,31 +29,76 @@ public:
 
     double defocus_angle = 0; // Variation angle of rays through each pixel
     double focus_dist = 10;   // Distance from camera lookfrom point to plane of perfect focus
-    void render(const hittable &world)
-    {
+    int num_threads = 0;  // Number of threads (0 = auto-detect)
+
+    void render(const hittable &world) {
         initialize();
 
-        // Render
-        std::cout << "P3\n"
-                  << image_width << ' ' << image_height << "\n255\n";
+        // Determine number of threads
+        int thread_count = num_threads;
+        if (thread_count <= 0) {
+            thread_count = std::thread::hardware_concurrency();
+            if (thread_count == 0) thread_count = 4;  // Fallback
+        }
 
-        for (int j = 0; j < image_height; ++j)
-        {
-            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i)
-            {
-                color pixel_color(0, 0, 0);
-                for (int sample = 0; sample < samples_per_pixel; ++sample)
-                {
-                    ray r = get_ray(i, j);
-                    pixel_color += ray_color(r, max_depth, world);
+        std::clog << "Rendering with " << thread_count << " threads..." << std::endl;
+
+        // Allocate image buffer
+        std::vector<color> image_buffer(image_width * image_height);
+
+        // Atomic counter for progress tracking
+        std::atomic<int> scanlines_completed(0);
+        std::atomic<int> next_scanline(0);
+
+        // Mutex for progress output
+        std::mutex progress_mutex;
+
+        // Worker function - each thread grabs scanlines dynamically
+        auto render_worker = [&]() {
+            while (true) {
+                // Grab the next scanline to work on
+                int j = next_scanline.fetch_add(1);
+                if (j >= image_height) break;
+
+                // Render this scanline
+                for (int i = 0; i < image_width; i++) {
+                    color pixel_color(0, 0, 0);
+                    for (int sample = 0; sample < samples_per_pixel; sample++) {
+                        ray r = get_ray(i, j);
+                        pixel_color += ray_color(r, max_depth, world);
+                    }
+                    image_buffer[j * image_width + i] = pixel_samples_scale * pixel_color;
                 }
-                write_color(std::cout, pixel_samples_scale * pixel_color);
+
+                // Update progress
+                int completed = scanlines_completed.fetch_add(1) + 1;
+                std::lock_guard<std::mutex> lock(progress_mutex);
+                std::clog << "\rScanlines completed: " << completed << "/" << image_height << " " << std::flush;
+            }
+        };
+
+        // Launch worker threads
+        std::vector<std::thread> threads;
+        for (int t = 0; t < thread_count; t++) {
+            threads.emplace_back(render_worker);
+        }
+
+        // Wait for all threads to complete
+        for (auto& thread : threads) {
+            thread.join();
+        }
+
+        // Output the image
+        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+        for (int j = 0; j < image_height; j++) {
+            for (int i = 0; i < image_width; i++) {
+                write_color(std::cout, image_buffer[j * image_width + i]);
             }
         }
 
-        std::clog << "\rDone.		\n";
+        std::clog << "Done." << std::endl;
     }
+
 
 private:
     /* Private Camera Variables Here */
@@ -115,7 +166,9 @@ private:
         auto pixel_sample = pixel00_loc + ((i + offset.x()) * pixel_delta_u) + ((j + offset.y()) * pixel_delta_v);
         auto ray_origin = (defocus_angle <= 0) ? camera_center : defocus_disk_sample();
         auto ray_direction = pixel_sample - ray_origin;
-        return ray(ray_origin, ray_direction);
+        auto ray_time = random_double();
+
+        return ray(ray_origin, ray_direction, ray_time);
     }
 
     vec3 sample_square() const
@@ -139,18 +192,21 @@ private:
             return color(0, 0, 0);
 
         hit_record rec;
-        if (world.hit(r, interval(0.001, infinity), rec)) // 0.001 for shadow acne (error tolerance point just below surface)
-        {
-            ray scattered;
-            color attenuation;
-            if (rec.mat->scatter(r, rec, attenuation, scattered))
-                return attenuation * ray_color(scattered, depth - 1, world);
-            return color(0, 0, 0);
-        }
 
-        vec3 unit_direction = unit_vector(r.direction());
-        auto a = 0.5 * (unit_direction.y() + 1.0);                          // want to scale unit_d [-1,1] to [0,1] range
-        return (1.0 - a) * color(1.0, 1.0, 1.0) + a * color(0.5, 0.7, 1.0); // linear interpolation white, blue
+        // If the ray hits nothing, return the background color
+        if (!world.hit(r, interval(0.001, infinity), rec))
+            return background;
+
+        ray scattered;
+        color attenuation;
+        color color_from_emission = rec.mat->emitted(rec.u, rec.v, rec.p);
+
+        if (!rec.mat->scatter(r, rec, attenuation, scattered))
+            return color_from_emission;
+
+        color color_from_scatter = attenuation * ray_color(scattered, depth - 1, world);
+
+        return color_from_emission + color_from_scatter;
     }
 };
 
