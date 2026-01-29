@@ -1,6 +1,6 @@
+#include <algorithm>
 #include <iostream>
 #include <vector>
-#include <algorithm>
 
 // 1. Define what a "Deep Sample" is
 // In OpenEXR, this data sits in the file. Here, we make a struct.
@@ -15,19 +15,16 @@ struct DeepSample {
 // 2. The Logic: "Flatten" or "Composite" the deep pixel
 // This turns the list of samples into one final color.
 void compositeDeepPixel(std::vector<DeepSample>& samples) {
-    
     // STEP A: Sort samples by depth (Front to Back)
     // You MUST process the closest object first!
-    std::sort(samples.begin(), samples.end(), 
-        [](const DeepSample& a, const DeepSample& b) {
-            return a.depth < b.depth;
-        });
+    std::sort(samples.begin(), samples.end(),
+              [](const DeepSample& a, const DeepSample& b) { return a.depth < b.depth; });
 
     // STEP B: The "Over" Operator (Standard Compositing Math)
     float finalR = 0.0f;
     float finalG = 0.0f;
     float finalB = 0.0f;
-    float finalAlpha = 0.0f; // How much light we've blocked so far
+    float finalAlpha = 0.0f;  // How much light we've blocked so far
 
     std::cout << "--- Processing Pixel ---" << std::endl;
 
@@ -48,12 +45,12 @@ void compositeDeepPixel(std::vector<DeepSample>& samples) {
         // Math: A_new = A_old + (1 - A_old) * A_current
         finalAlpha += remainingVisibility * sample.alpha;
 
-        std::cout << "Hit object at Depth " << sample.depth 
-                  << " (Alpha: " << sample.alpha << ")" 
+        std::cout << "Hit object at Depth " << sample.depth << " (Alpha: " << sample.alpha << ")"
                   << " -> Accumulated Alpha is now: " << finalAlpha << std::endl;
     }
 
-    std::cout << "FINAL PIXEL COLOR: (" << finalR << ", " << finalG << ", " << finalB << ")" << std::endl;
+    std::cout << "FINAL PIXEL COLOR: (" << finalR << ", " << finalG << ", " << finalB << ")"
+              << std::endl;
 }
 
 int main() {
