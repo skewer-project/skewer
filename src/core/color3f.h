@@ -1,3 +1,21 @@
+#ifndef SKWR_CORE_COLOR3F_H_
+#define SKWR_CORE_COLOR3F_H_
+
+namespace skwr
+{
+
+    struct Color3f
+    {
+        float r, g, b;
+
+        Color3f() : r(0.0f), g(0.0f), b(0.0f) {}
+        Color3f(float r, float g, float b) : r(r), g(g), b(b) {}
+    };
+
+} // namespace skwr
+
+#endif // SKWR_CORE_COLOR3F_H_
+
 #ifndef COLOR3F_H
 #define COLOR3F_H
 
