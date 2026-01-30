@@ -6,8 +6,7 @@
 namespace skwr
 {
 
-    ImageBuffer::ImageBuffer(int width, int height)
-        : width_(width), height_(height)
+    ImageBuffer::ImageBuffer(int width, int height) : width_(width), height_(height)
     {
         pixels_.resize(width * height);
     }
