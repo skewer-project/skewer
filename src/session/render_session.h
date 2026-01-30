@@ -16,12 +16,12 @@ namespace skwr
     class Integrator;
     class Film;
 
-    // class RenderOptions
+    // struct RenderOptions
     // {
     //     int width_;
     //     int height_;
     //     int samples_per_pixel_;
-    //     RenderOptions() width_(400)
+    //     integrator;
     // };
 
     class RenderSession
@@ -51,6 +51,9 @@ namespace skwr
 
         // The 'Worker' (Path Tracer, Volumetric, etc.)
         std::unique_ptr<Integrator> integrator_;
+
+        // For now just storing directly. Later, store a RenderOptions struct...
+        int width_, height_, samples_per_pixel_;
     };
 
 } // namespace skwr
