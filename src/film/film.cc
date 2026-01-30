@@ -6,7 +6,7 @@ namespace skwr
 
     Film::Film(int width, int height) : width_(width), height_(height) {}
 
-    void Film::AddSample(int x, int y, const Spectrum &L, float weight = 1.0f)
+    void Film::AddSample(int x, int y, const Spectrum &L, float weight)
     {
         if (x < 0 || x >= width_ || y < 0 || y >= height_)
             return;
