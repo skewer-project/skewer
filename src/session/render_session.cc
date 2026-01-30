@@ -83,7 +83,7 @@ namespace skwr
     {
         if (film_)
         {
-            film_->WriteToDisk(filename);
+            film_->WriteImage(filename);
         }
     }
 } // namespace skwr
