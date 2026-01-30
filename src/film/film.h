@@ -45,8 +45,7 @@ namespace skwr
         // Standard Image: Adds color to a pixel (thread-safe!)
         void AddSample(int x, int y, const Spectrum &L, float weight);
 
-        // Deep Image: Records a sample at a specific depth
-        // TODO: Implement this for your "Phase 3"
+        // TODO: Deep sampling after standard pixels are supported
         void AddDeepSample(int x, int y, float depth, const Spectrum &L, float transmittance);
 
         // Saves to disk (PPM, EXR)
