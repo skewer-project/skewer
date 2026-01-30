@@ -23,8 +23,10 @@ FetchContent_MakeAvailable(nlohmann_json)
 set(SOURCES
     apps/cli/main.cc         # Renamed main file for now
     # Add new .cc files here as they're created, e.g.:
-    # src/session/render_session.cc
-    # src/film/film.cc
+    src/session/render_session.cc
+    src/film/film.cc
+    src/film/image_buffer.cc
+    
 )
 
 # Create Executable
