@@ -138,9 +138,9 @@ namespace skwr
         return t * c;
     }
 
-    inline Color3f operator/(Color3f &c, float t)
+    inline Color3f operator/(const Color3f &c, float t)
     {
-        return c *= (1.0 / t);
+        return c * (1.0 / t);
     }
 
     void write_color(std::ostream &out, const Color3f &pixel_color)
