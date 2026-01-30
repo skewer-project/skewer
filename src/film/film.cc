@@ -4,7 +4,10 @@
 namespace skwr
 {
 
-    Film::Film(int width, int height) : width_(width), height_(height) {}
+    Film::Film(int width, int height) : width_(width), height_(height)
+    {
+        pixels_.resize(width_ * height_);
+    }
 
     void Film::AddSample(int x, int y, const Spectrum &L, float weight)
     {
