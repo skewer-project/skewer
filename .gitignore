@@ -1,5 +1,5 @@
-.vscode/*
-!.vscode/settings.json
+.vscode/
+.zed/
 build/
 
 .cache
