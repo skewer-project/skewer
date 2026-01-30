@@ -18,6 +18,8 @@ namespace skwr
         pixels_[y * width_ + x] = color;
     }
 
+    // For debug and testing purposes, we can keep this PPM writer but
+    // ultimately we should move this to a separate src/io/image_io.h or something
     void ImageBuffer::WritePPM(const std::string &filename) const
     {
         std::ofstream out(filename);

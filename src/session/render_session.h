@@ -7,6 +7,9 @@
 /*
  * The entry point to the engine
  * Orchestrates Scene + Integrator + Film
+ *
+ * Several things are commented out for compilation
+ * These should be implemented as development progresses
  */
 
 // Forward declarations to avoid circular includes and having to include scene, integrator, etc
