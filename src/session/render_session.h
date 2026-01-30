@@ -12,7 +12,7 @@
 // Forward declarations to avoid circular includes and having to include scene, integrator, etc
 namespace skwr
 {
-    class Scene;
+    // class Scene;
     class Integrator;
     class Film;
 
@@ -44,13 +44,13 @@ namespace skwr
 
     private:
         // The 'World' (Geometry, Lights, Accelerators)
-        std::unique_ptr<Scene> scene_;
+        // std::unique_ptr<Scene> scene_;
 
         // The 'Canvas' (Where pixels end up)
         std::unique_ptr<Film> film_;
 
         // The 'Worker' (Path Tracer, Volumetric, etc.)
-        std::unique_ptr<Integrator> integrator_;
+        // std::unique_ptr<Integrator> integrator_;
 
         // For now just storing directly. Later, store a RenderOptions struct...
         int width_, height_, samples_per_pixel_;
