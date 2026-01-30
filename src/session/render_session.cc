@@ -33,12 +33,16 @@ namespace skwr
 
     void RenderSession::SetOptions(const int width, const int height, const int samples_per_pixel) // const RenderOptions &options
     {
+        width_ = width;
+        height_ = height;
+        samples_per_pixel_ = samples_per_pixel;
+
         // Create the Film
-        film_ = std::make_unique<Film>(width, height);
+        film_ = std::make_unique<Film>(width_, height_);
 
         std::cout << "[Session] Options Set: "
-                  << width << "x" << height
-                  << " | Samples: " << samples_per_pixel << "\n";
+                  << width_ << "x" << height_
+                  << " | Samples: " << samples_per_pixel_ << "\n";
     }
 
     void RenderSession::Render()
@@ -53,14 +57,14 @@ namespace skwr
 
         // --- TEST PATTERN (A "Fake" Integrator) ---
         // Later, this entire loop should move to src/integrators/path.cc
-        for (int y = 0; y < height; ++y)
+        for (int y = 0; y < height_; ++y)
         {
-            for (int x = 0; x < width; ++x)
+            for (int x = 0; x < width_; ++x)
             {
 
                 // 1. Generate Fake "Data"
-                float r = float(x) / (width - 1);
-                float g = float(y) / (height - 1);
+                float r = float(x) / (width_ - 1);
+                float g = float(y) / (height_ - 1);
                 float b = 0.25f;
 
                 // 2. Create a Spectrum (Color)
