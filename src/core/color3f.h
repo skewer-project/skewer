@@ -143,25 +143,25 @@ namespace skwr
         return c * (1.0 / t);
     }
 
-    void write_color(std::ostream &out, const Color3f &pixel_color)
-    {
-        if (std::isnan(pixel_color.r))
-            return;
+    // void write_color(std::ostream &out, const Color3f &pixel_color)
+    // {
+    //     if (std::isnan(pixel_color.r))
+    //         return;
 
-        // Copy so we can gamma correct
-        Color3f c = pixel_color;
+    //     // Copy so we can gamma correct
+    //     Color3f c = pixel_color;
 
-        c.applygammacorrection();
+    //     c.applygammacorrection();
 
-        // Translate [0,1] component values to rgb range [0,255]
-        c.clamp(0.0f, 0.999f);
+    //     // Translate [0,1] component values to rgb range [0,255]
+    //     c.clamp(0.0f, 0.999f);
 
-        // since adding average of all samples, need to clamp values to prevent going
-        // beyond [0,1] range
+    //     // since adding average of all samples, need to clamp values to prevent going
+    //     // beyond [0,1] range
 
-        // Write out pixel components
-        out << static_cast<int>(256 * c.r) << ' ' << static_cast<int>(256 * c.g) << ' ' << static_cast<int>(256 * c.b) << '\n';
-    }
+    //     // Write out pixel components
+    //     out << static_cast<int>(256 * c.r) << ' ' << static_cast<int>(256 * c.g) << ' ' << static_cast<int>(256 * c.b) << '\n';
+    // }
 } // namespace skwr
 
 #endif // SKWR_CORE_COLOR3F_H_
