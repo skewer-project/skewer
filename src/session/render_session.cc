@@ -31,7 +31,7 @@ namespace skwr
         scene_ = std::make_unique<Scene>();
     }
 
-    void RenderSession::SetOptions(const int width, const int height, const int samples_per_pixel) // const RenderOptions &options
+    void RenderSession::SetOptions(int width, int height, int samples_per_pixel) // const RenderOptions &options
     {
         width_ = width;
         height_ = height;

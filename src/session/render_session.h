@@ -35,7 +35,7 @@ namespace skwr
 
         // CONFIGURE: Set up the camera, resolution, and sampler
         // TODO: later, implement a dedicated options class: SetOptions(const RenderOptions &options)
-        void SetOptions(const int width, const int height, const int samples_per_pixel);
+        void SetOptions(int width, int height, int samples_per_pixel);
 
         // EXECUTE: Create the Integrator and tell it to run on the Scene
         void Render();
