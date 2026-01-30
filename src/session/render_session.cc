@@ -72,7 +72,7 @@ namespace skwr
 
                 // 3. Accumulate to Film
                 // Note: We use AddSample, not SetPixel directly!
-                film_->AddSample(x, y, color);
+                film_->AddSample(x, y, color, 1.0f);
             }
         }
 

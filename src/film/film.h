@@ -43,7 +43,7 @@ namespace skwr
         Film(int width, int height);
 
         // Standard Image: Adds color to a pixel (thread-safe!)
-        void AddSample(int x, int y, const Spectrum &L, float weight = 1.0f);
+        void AddSample(int x, int y, const Spectrum &L, float weight);
 
         // Deep Image: Records a sample at a specific depth
         // TODO: Implement this for your "Phase 3"
