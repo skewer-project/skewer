@@ -28,7 +28,7 @@ namespace skwr
         // scene_loader::Load(filename, scene_.get());
 
         // For now, just pretend we loaded something.
-        scene_ = std::make_unique<Scene>();
+        // scene_ = std::make_unique<Scene>();
     }
 
     void RenderSession::SetOptions(int width, int height, int samples_per_pixel) // const RenderOptions &options
