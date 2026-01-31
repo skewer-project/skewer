@@ -22,21 +22,10 @@ Renders the built-in demo scene (spheres and triangles).
 
 ```bash
 # Linux/macOS
-`./skewer-render --demo > demo.ppm`
+`./skewer-render --name output.ppm`
 
 # Windows (Command Prompt)
-`skewer-render.exe --demo > demo.ppm`
-```
-
-### Render a Scene File
-Loads a scene configuration from a JSON file.
-
-```bash
-# Linux/macOS
-`./skewer-render path/to/scene.json > output.ppm`
-
-# Windows (Command Prompt)
-`skewer-render.exe path\to\scene.json > output.ppm`
+`skewer-render.exe --name output.ppm`
 ```
 
 ### Help
