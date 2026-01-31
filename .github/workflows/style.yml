@@ -7,26 +7,20 @@ on:
     branches: ["main"]
 
 jobs:
-  build:
+  check-code-format:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - uses: llvm/actions/setup-clang@v1
+        with:
+          clang-version: 17
+
       - name: Install clang-format
         run: sudo apt-get install -y clang-format
 
-      - name: Make script executable
-        run: chmod +x scripts/format.sh
-
-      - name: Run formatting script
-        run: ./scripts/format.sh
-
-      - name: Check for changes
-        # If git diff finds changes, it means the code wasn't formatted correctly
-        run: git diff --exit-code
-
-        # Note:
-        # --exit-code
-        # makes the program exit with codes similar to diff(1). That is,
-        # it exits with 1 if there were differences and 0 means no differences.
+      - name: Format
+        run: find src include \
+          -type f \( -name "*.cc" -o -name "*.cpp" -o -name "*.h" \) \
+          -exec clang-format --dry-run --Werror {} +
