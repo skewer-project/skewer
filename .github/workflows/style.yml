@@ -16,9 +16,11 @@ jobs:
       - name: Install clang-format
         run: sudo apt-get install -y clang-format
 
-      - name: Run clang-format
-        # Run clang-format in-place (-i) on all .cpp and .h files
-        run: find src -name '*.cpp' -o -name '*.h' | xargs clang-format -i -style=file
+      - name: Make script executable
+        run: chmod +x scripts/format.sh
+
+      - name: Run formatting script
+        run: ./scripts/format.sh
 
       - name: Check for changes
         # If git diff finds changes, it means the code wasn't formatted correctly
