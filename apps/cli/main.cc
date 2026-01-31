@@ -1,11 +1,17 @@
 #include <session/render_session.h>
 
+#include <cstring>
 #include <iostream>
 #include <string>
-#include <cstring>
 
-void print_usage(const char* program_name)
-{
+#include "session/render_options.h"
+
+/**
+ * These are temporary parsing and help functions which
+ * should be refactored when implementing a more robust
+ * parser.
+ */
+void print_usage(const char *program_name) {
     std::cerr << "Usage: " << "\n";
     std::cerr << "       " << program_name << "\n";
     std::cerr << "       " << program_name << " --name outfile.ppm\n";
@@ -13,36 +19,44 @@ void print_usage(const char* program_name)
     std::cerr << "       " << program_name << " --help\n";
 }
 
-int main(int argc, char *argv[])
-{
+skwr::RenderOptions ParseArgs(int argc, char *argv[]) {
+    skwr::RenderOptions options;
+
     // Parse Args
     bool help = (argc == 2 && strcmp(argv[1], "--help"));
     bool bad_args = (argc != 3 && argc != 1);
-    if ( bad_args || help )
-    {
+    if (bad_args || help) {
         print_usage(argv[0]);
-        return 1;
+        exit(1);  // maybe replace with try-catch
     }
 
     std::string outfile = "test_render.ppm";
-    if (argc == 3 && strcmp(argv[1], "--name") == 0) // make name argument
+    if (argc == 3 && strcmp(argv[1], "--name") == 0)  // make name argument
         outfile = argv[2];
 
-    int width = 400;
-    int height = 225;
+    options.width = 500;
+    options.height = 225;
+    options.samples_per_pixel = 1;
+    options.outfile = outfile;
+    return options;  // pass by copy back to main
+}
+
+int main(int argc, char *argv[]) {
+    // Create configuration
+    skwr::RenderOptions options = ParseArgs(argc, argv);
 
     // Start a rendering instance (Session)
     skwr::RenderSession session;
 
     // session.LoadScene();
 
-    session.SetOptions(width, height, 1);
+    session.SetOptions(options);
 
     // Render
     session.Render();
 
     // Save
-    session.Save(outfile);
+    session.Save();
 
     return 0;
 }

@@ -6,26 +6,24 @@
 
 #include "core/color3f.h"
 
-namespace skwr
-{
+namespace skwr {
 
-    class ImageBuffer
-    {
-    public:
-        ImageBuffer(int width, int height);
+class ImageBuffer {
+  public:
+    ImageBuffer(int width, int height);
 
-        // Set a pixel's color (0,0 is top-left usually)
-        void SetPixel(int x, int y, const Color3f &color);
+    // Set a pixel's color (0,0 is top-left usually)
+    void SetPixel(int x, int y, const Color3f &color);
 
-        // Save the buffer to a PPM file
-        void WritePPM(const std::string &filename) const;
+    // Save the buffer to a PPM file
+    void WritePPM(const std::string &filename) const;
 
-    private:
-        int width_;
-        int height_;
-        std::vector<Color3f> pixels_;
-    };
+  private:
+    int width_;
+    int height_;
+    std::vector<Color3f> pixels_;
+};
 
-} // namespace skwr
+}  // namespace skwr
 
-#endif // SKWR_FILM_IMAGE_BUFFER_H_
+#endif  // SKWR_FILM_IMAGE_BUFFER_H_
