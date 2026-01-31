@@ -1,0 +1,30 @@
+name: Clang-Format Check
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: Run clang-format
+        # Run clang-format in-place (-i) on all .cpp and .h files
+        run: find src -name '*.cpp' -o -name '*.h' | xargs clang-format -i -style=file
+
+      - name: Check for changes
+        # If git diff finds changes, it means the code wasn't formatted correctly
+        run: git diff --exit-code
+
+        # Note:
+        # --exit-code
+        # makes the program exit with codes similar to diff(1). That is,
+        # it exits with 1 if there were differences and 0 means no differences.
