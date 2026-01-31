@@ -13,12 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: llvm/actions/setup-clang@v1
-        with:
-          clang-version: 17
-
       - name: Install clang-format
-        run: sudo apt-get install -y clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format-17
 
       - name: Format
         run: find src include \
