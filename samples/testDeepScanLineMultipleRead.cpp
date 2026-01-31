@@ -4,11 +4,8 @@
 //
 
 #ifdef NDEBUG
-#    undef NDEBUG
+#undef NDEBUG
 #endif
-
-#include "random.h"
-#include "testCompositeDeepScanLine.h"
 
 #include <ImfChannelList.h>
 #include <ImfDeepFrameBuffer.h>
@@ -17,17 +14,17 @@
 #include <ImfHeader.h>
 #include <ImfNamespace.h>
 #include <ImfPartType.h>
-
-#include <vector>
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <vector>
+
+#include "random.h"
+#include "testCompositeDeepScanLine.h"
 #include "tmpDir.h"
 
-namespace
-{
+namespace {
 
 using std::cout;
 using std::endl;
@@ -49,11 +46,8 @@ using OPENEXR_IMF_NAMESPACE::ZIPS_COMPRESSION;
 
 namespace IMF = OPENEXR_IMF_NAMESPACE;
 
-static void
-make_file (const char* filename)
-{
-
-    int width  = 4;
+static void make_file(const char* filename) {
+    int width = 4;
     int height = 48;
 
     //
@@ -61,109 +55,93 @@ make_file (const char* filename)
     // each with value 'x'
     //
 
-    Header header (width, height);
-    header.channels ().insert ("Z", Channel (IMF::FLOAT));
-    header.compression () = ZIPS_COMPRESSION;
-    header.setType (DEEPSCANLINE);
+    Header header(width, height);
+    header.channels().insert("Z", Channel(IMF::FLOAT));
+    header.compression() = ZIPS_COMPRESSION;
+    header.setType(DEEPSCANLINE);
 
-    remove (filename);
-    DeepScanLineOutputFile file (filename, header);
+    remove(filename);
+    DeepScanLineOutputFile file(filename, header);
 
     unsigned int sample_count;
-    float        sample;
-    float*       sample_ptr = &sample;
+    float sample;
+    float* sample_ptr = &sample;
 
     DeepFrameBuffer fb;
 
-    fb.insertSampleCountSlice (Slice (IMF::UINT, (char*) &sample_count));
-    fb.insert ("Z", DeepSlice (IMF::FLOAT, (char*) &sample_ptr));
+    fb.insertSampleCountSlice(Slice(IMF::UINT, (char*)&sample_count));
+    fb.insert("Z", DeepSlice(IMF::FLOAT, (char*)&sample_ptr));
 
-    file.setFrameBuffer (fb);
+    file.setFrameBuffer(fb);
 
-    for (int y = 0; y < height; y++)
-    {
+    for (int y = 0; y < height; y++) {
         //
         // ensure each scanline contains a different number of samples,
         // with different values. We don't care that each sample has the same
         // value, or that each pixel on the scanline is identical
         //
         sample_count = y;
-        sample       = y + 100.0;
+        sample = y + 100.0;
 
-        file.writePixels (1);
+        file.writePixels(1);
     }
 }
 
-static void
-read_file (const char* filename)
-{
-    DeepScanLineInputFile file (filename);
+static void read_file(const char* filename) {
+    DeepScanLineInputFile file(filename);
 
-    Box2i       datawin  = file.header ().dataWindow ();
-    int         width    = datawin.size ().x + 1;
-    int         height   = datawin.size ().y + 1;
-    int         x_offset = datawin.min.x;
-    int         y_offset = datawin.min.y;
-    const char* channel  = file.header ().channels ().begin ().name ();
+    Box2i datawin = file.header().dataWindow();
+    int width = datawin.size().x + 1;
+    int height = datawin.size().y + 1;
+    int x_offset = datawin.min.x;
+    int y_offset = datawin.min.y;
+    const char* channel = file.header().channels().begin().name();
 
-    vector<unsigned int> samplecounts (width);
-    vector<float*>       sample_pointers (width);
-    vector<float>        samples;
+    vector<unsigned int> samplecounts(width);
+    vector<float*> sample_pointers(width);
+    vector<float> samples;
 
     DeepFrameBuffer fb;
 
-    fb.insertSampleCountSlice (Slice (
-        IMF::UINT,
-        (char*) (&samplecounts[0] - x_offset),
-        sizeof (unsigned int)));
+    fb.insertSampleCountSlice(
+        Slice(IMF::UINT, (char*)(&samplecounts[0] - x_offset), sizeof(unsigned int)));
 
-    fb.insert (
-        channel,
-        DeepSlice (
-            IMF::FLOAT,
-            (char*) (&sample_pointers[0] - x_offset),
-            sizeof (float*),
-            0,
-            sizeof (float)));
+    fb.insert(channel, DeepSlice(IMF::FLOAT, (char*)(&sample_pointers[0] - x_offset),
+                                 sizeof(float*), 0, sizeof(float)));
 
-    file.setFrameBuffer (fb);
+    file.setFrameBuffer(fb);
 
-    for (int count = 0; count < 4000; count++)
-    {
-        int row = random_int (height) + y_offset;
+    for (int count = 0; count < 4000; count++) {
+        int row = random_int(height) + y_offset;
 
         //
         // read row y (at random)
         //
 
-        file.readPixelSampleCounts (row, row);
+        file.readPixelSampleCounts(row, row);
         //
         // check that's correct, and also resize samples array
         //
 
         int total_samples = 0;
-        for (int i = 0; i < width; i++)
-        {
-
-            if (samplecounts[i] != static_cast<unsigned int> (row))
-            {
-                cout << i << ", " << row << " error, sample counts should be "
-                     << row << ", is " << samplecounts[i] << endl
+        for (int i = 0; i < width; i++) {
+            if (samplecounts[i] != static_cast<unsigned int>(row)) {
+                cout << i << ", " << row << " error, sample counts should be " << row << ", is "
+                     << samplecounts[i] << endl
                      << flush;
             }
 
-            assert (samplecounts[i] == static_cast<unsigned int> (row));
+            assert(samplecounts[i] == static_cast<unsigned int>(row));
 
             total_samples += samplecounts[i];
         }
 
-        samples.resize (total_samples);
+        samples.resize(total_samples);
         //
         // set pointers to point to the correct place
         //
         int total = 0;
-        for (int i = 0; i < width && total < total_samples; i++)
-        {
+        for (int i = 0; i < width && total < total_samples; i++) {
             sample_pointers[i] = &samples[total];
             total += samplecounts[i];
         }
@@ -172,39 +150,33 @@ read_file (const char* filename)
         // read channel
         //
 
-        file.readPixels (row, row);
+        file.readPixels(row, row);
 
         //
         // check
         //
 
-        for (int i = 0; i < total_samples; i++)
-        {
-            if (samples[i] != row + 100.f)
-            {
-                cout << " sample " << i << " on row " << row
-                     << " error, should be " << 100.f + row << " got "
-                     << samples[i] << endl;
+        for (int i = 0; i < total_samples; i++) {
+            if (samples[i] != row + 100.f) {
+                cout << " sample " << i << " on row " << row << " error, should be " << 100.f + row
+                     << " got " << samples[i] << endl;
                 cout << flush;
             }
-            assert (samples[i] == row + 100.f);
+            assert(samples[i] == row + 100.f);
         }
     }
 }
-} // namespace
+}  // namespace
 
-void
-testDeepScanLineMultipleRead (const std::string& tempDir)
-{
-
+void testDeepScanLineMultipleRead(const std::string& tempDir) {
     cout << "\n\nTesting random re-reads from deep scanline file:\n" << endl;
 
     std::string source_filename = tempDir + "imf_test_multiple_read";
-    random_reseed (1);
+    random_reseed(1);
 
-    make_file (source_filename.c_str ());
-    read_file (source_filename.c_str ());
-    remove (source_filename.c_str ());
+    make_file(source_filename.c_str());
+    read_file(source_filename.c_str());
+    remove(source_filename.c_str());
 
     cout << " ok\n" << endl;
 }
