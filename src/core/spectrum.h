@@ -8,14 +8,13 @@
 // Color3f represents the human-visible RGB perception
 //
 
-namespace skwr
-{
+namespace skwr {
 
-    // CONFIGURATION:
-    // For now, we simulate light using RGB values.
-    // In the future, we can change this ONE line to switch to Spectral Rendering (8 wavelengths).
-    using Spectrum = Color3f;
+// CONFIGURATION:
+// For now, we simulate light using RGB values.
+// In the future, we can change this ONE line to switch to Spectral Rendering (8 wavelengths).
+using Spectrum = Color3f;
 
-} // namespace skwr
+}  // namespace skwr
 
-#endif // SKWR_CORE_SPECTRUM_H_
+#endif  // SKWR_CORE_SPECTRUM_H_
