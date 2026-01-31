@@ -5,14 +5,19 @@
 
 void print_usage(const char* program_name)
 {
-    std::cerr << "Usage: " << program_name << "\n";
+    std::cerr << "Usage: " << "\n";
+    std::cerr << "       " << program_name << "\n";
     std::cerr << "       " << program_name << " --name outfile.ppm\n";
+    std::cerr << "Help:  " << "\n";
+    std::cerr << "       " << program_name << " --help\n";
 }
 
 int main(int argc, char *argv[])
 {
-    // Parse Args (Hardcoded for now)
-    if (argc != 3 && argc != 1)
+    // Parse Args
+    bool help = (argc == 2 && strcmp(argv[1], "--help"));
+    bool bad_args = (argc != 3 && argc != 1);
+    if ( bad_args || help )
     {
         print_usage(argv[0]);
         return 1;
