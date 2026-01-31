@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstring>
 
 void print_usage(const char* program_name)
 {
