@@ -41,11 +41,11 @@ struct Vec3 {
     Vec3& operator/=(Float t) { return *this *= 1 / t; }
 
     // Utility Member Functions
-    Float length() const { return std::sqrt(length_squared()); }
-    Float length_squared() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
+    Float Length() const { return std::sqrt(Length_squared()); }
+    Float Length_squared() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
 
     // Return true if the vector is close to zero in all dimensions
-    bool near_zero() const {
+    bool Near_zero() const {
         auto s = 1e-8;
         return (std::fabs(e[0]) < s) && (std::fabs(e[1]) < s) && (std::fabs(e[2]) < s);
     }
@@ -84,16 +84,16 @@ inline Vec3 operator*(const Vec3& v, Float t) { return t * v; }
 
 inline Vec3 operator/(const Vec3& v, Float t) { return (1 / t) * v; }
 
-inline Float dot(const Vec3& u, const Vec3& v) {
+inline Float Dot(const Vec3& u, const Vec3& v) {
     return u.e[0] * v.e[0] + u.e[1] * v.e[1] + u.e[2] * v.e[2];
 }
 
-inline Vec3 cross(const Vec3& u, const Vec3& v) {
+inline Vec3 Cross(const Vec3& u, const Vec3& v) {
     return Vec3(u.e[1] * v.e[2] - u.e[2] * v.e[1], u.e[2] * v.e[0] - u.e[0] * v.e[2],
                 u.e[0] * v.e[1] - u.e[1] * v.e[0]);
 }
 
-inline Vec3 unit_vector(const Vec3& v) { return v / v.length(); }
+inline Vec3 unit_vector(const Vec3& v) { return v / v.Length(); }
 
 /** TODO: Move these to a sampling header when we implement advanced sampling */
 
@@ -102,7 +102,7 @@ inline Vec3 unit_vector(const Vec3& v) { return v / v.length(); }
 inline Vec3 random_unit_vector() {
     while (true) {
         auto p = Vec3::random(-1, 1);
-        auto lensq = p.length_squared();
+        auto lensq = p.Length_squared();
         // Add lower bound to avoid underflow error (small values -> 0 near center of sphere)
         if (1e-160 < lensq &&
             lensq <= 1) {  // normalize to produce unit vector if it's within unit sphere
@@ -114,7 +114,7 @@ inline Vec3 random_unit_vector() {
 // Check if unit vector is on the same hemisphere as normal (want it pointing away from surface)
 inline Vec3 random_on_hemisphere(const Vec3& normal) {
     Vec3 generated_unit_vec = random_unit_vector();
-    if (dot(generated_unit_vec, normal) > 0.0)  // aligned with normal
+    if (Dot(generated_unit_vec, normal) > 0.0)  // aligned with normal
         return generated_unit_vec;
     else
         return -generated_unit_vec;
@@ -125,7 +125,7 @@ inline Vec3 random_on_hemisphere(const Vec3& normal) {
 // We isolate downward force by projecting v onto n (b)
 // b = (v dot n) * n     <-   dot results in scalar so multiply by n for downward dir
 // -b just negates downward motion, so -2b reflects it opposite way
-inline Vec3 reflect(const Vec3& v, const Vec3& n) { return v - 2 * dot(v, n) * n; }
+inline Vec3 reflect(const Vec3& v, const Vec3& n) { return v - 2 * Dot(v, n) * n; }
 
 // Based on snells law: eta * sin(theta) = eta' * sin(theta')
 // refrated ray = sin(theta') = eta/eta' * sin(theta)
@@ -133,9 +133,9 @@ inline Vec3 reflect(const Vec3& v, const Vec3& n) { return v - 2 * dot(v, n) * n
 // R' can be split into perpendicular R' and parallel R' (to the normal n')
 // messy final equation but treated as fact for now
 inline Vec3 refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
-    auto cos_theta = std::fmin(dot(-uv, n), 1.0);
+    auto cos_theta = std::fmin(Dot(-uv, n), 1.0);
     Vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
-    Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.length_squared())) * n;
+    Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.Length_squared())) * n;
     return r_out_perp + r_out_parallel;
 }
 
@@ -143,7 +143,7 @@ inline Vec3 refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
 inline Vec3 random_in_unit_disk() {
     while (true) {
         auto p = Vec3(random_float(-1, 1), random_float(-1, 1), 0);
-        if (p.length_squared() < 1) return p;
+        if (p.Length_squared() < 1) return p;
     }
 }
 
