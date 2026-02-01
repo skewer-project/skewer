@@ -1,18 +1,16 @@
-#include "integrators/path_tracer.h"
-
-#include "renderer/camera.h"
-#include "geometry/hittable.h"
-#include "renderer/scene.h"
-#include "materials/material.h"
-#include "geometry/sphere.h"
-#include "geometry/triangle.h"
-#include "io/scene_loader.h"
-
 #include <iostream>
 #include <string>
 
-void print_usage(const char* program_name)
-{
+#include "geometry/hittable.h"
+#include "geometry/sphere.h"
+#include "geometry/triangle.h"
+#include "integrators/path_tracer.h"
+#include "io/scene_loader.h"
+#include "materials/material.h"
+#include "renderer/camera.h"
+#include "renderer/scene.h"
+
+void print_usage(const char* program_name) {
     std::cerr << "Usage: " << program_name << " <scene.json>\n";
     std::cerr << "       " << program_name << " --demo\n";
     std::cerr << "\n";
@@ -21,8 +19,7 @@ void print_usage(const char* program_name)
     std::cerr << "  --demo        Run with a built-in demo scene\n";
 }
 
-void run_demo()
-{
+void run_demo() {
     // World
     hittable_list world;
 
@@ -37,7 +34,8 @@ void run_demo()
     world.add(make_shared<sphere>(point3(0.0, 0.0, -1.2), 0.5, material_center));
     world.add(make_shared<sphere>(point3(-1.0, 0.0, -1.0), 0.4, material_bubble));
     world.add(make_shared<sphere>(point3(1.0, 0.0, -1.0), 0.5, material_right));
-    world.add(make_shared<triangle>(point3(0, 0.5, -0.8), point3(-0.5, -0.5, -0.5), point3(0.5, -0.5, -0.5), material_red));
+    world.add(make_shared<triangle>(point3(0, 0.5, -0.8), point3(-0.5, -0.5, -0.5),
+                                    point3(0.5, -0.5, -0.5), material_red));
 
     camera cam;
 
@@ -58,40 +56,30 @@ void run_demo()
     cam.render(world);
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     // Check for command line arguments
-    if (argc < 2)
-    {
+    if (argc < 2) {
         print_usage(argv[0]);
         return 1;
     }
 
     std::string arg = argv[1];
 
-    if (arg == "--demo" || arg == "-d")
-    {
+    if (arg == "--demo" || arg == "-d") {
         std::clog << "Running demo scene...\n";
         run_demo();
-    }
-    else if (arg == "--help" || arg == "-h")
-    {
+    } else if (arg == "--help" || arg == "-h") {
         print_usage(argv[0]);
         return 0;
-    }
-    else
-    {
+    } else {
         // Assume it's a scene file path
         std::clog << "Loading scene from: " << arg << "\n";
 
-        try
-        {
+        try {
             scene_data scene = load_scene(arg);
             std::clog << "Scene loaded successfully.\n";
             scene.cam.render(scene.world);
-        }
-        catch (const std::exception& e)
-        {
+        } catch (const std::exception& e) {
             std::cerr << "Error loading scene: " << e.what() << "\n";
             return 1;
         }
