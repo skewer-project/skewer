@@ -59,7 +59,7 @@ class Color {
         return Color(c[0] * inv, c[1] * inv, c[2] * inv);
     }
 
-    void applygammacorrection() {
+    void ApplyGammaCorrection() {
         auto lineartogamma = [](Float x) { return (x > 0) ? std::sqrt(x) : 0; };
         c[0] = lineartogamma(c[0]);
         c[1] = lineartogamma(c[1]);
@@ -67,13 +67,13 @@ class Color {
     }
 
     // Clamp helper
-    Color clamp(Float min = 0.0f, Float max = 1.0f) const {
+    Color Clamp(Float min = 0.0f, Float max = 1.0f) const {
         return Color(std::clamp(c[0], min, max), std::clamp(c[1], min, max),
                      std::clamp(c[2], min, max));
     }
     // Manual version if not C++17
     /*
-    Color clamped(Float min = 0.0f, Float max = 1.0f) const {
+    Color Clamped(Float min = 0.0f, Float max = 1.0f) const {
         auto c = [](Float val, Float low, Float high) {
             return val < low ? low : (val > high ? high : val);
         };
