@@ -1,1 +1,0 @@
-// Implement integrator abstract class.

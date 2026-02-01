@@ -26,7 +26,8 @@ set(SOURCES
     src/session/render_session.cc
     src/film/film.cc
     src/film/image_buffer.cc
-    
+    src/integrators/path_integrator.cc
+
 )
 
 # Create Executable

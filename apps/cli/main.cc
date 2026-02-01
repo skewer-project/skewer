@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     // Start a rendering instance (Session)
     skwr::RenderSession session;
 
-    // session.LoadScene();
+    session.LoadScene("temp");
 
     session.SetOptions(options);
 

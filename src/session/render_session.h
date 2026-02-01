@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 
+#include "film/film.h"
+#include "scene/scene.h"
 #include "session/render_options.h"
 
 /*
@@ -38,13 +40,13 @@ class RenderSession {
 
   private:
     // The 'World' (Geometry, Lights, Accelerators)
-    // std::unique_ptr<Scene> scene_;
+    std::unique_ptr<Scene> scene_;
 
     // The 'Canvas' (Where pixels end up)
     std::unique_ptr<Film> film_;
 
     // The 'Worker' (Path Tracer, Volumetric, etc.)
-    // std::unique_ptr<Integrator> integrator_;
+    std::unique_ptr<Integrator> integrator_;
 
     RenderOptions options_;
 };

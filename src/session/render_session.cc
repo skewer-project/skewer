@@ -1,14 +1,11 @@
-#include "core/spectrum.h"
+#include <iostream>
+#include <memory>
+
 #include "film/film.h"
+#include "integrators/integrator.h"
+#include "integrators/path_integrator.h"
 #include "session/render_options.h"
 #include "session/render_session.h"
-// #include "integrators/integrator.h"
-
-#include <iostream>
-
-// In the next phase, we should include the real Integrator and Scene
-// #include "integrators/path.h"
-// #include "scene/scene.h"
 
 namespace skwr {
 
@@ -21,7 +18,7 @@ void RenderSession::LoadScene(const std::string &filename) {
     std::cout << "[Session] Loading Scene: " << filename << " (STUB)\n";
 
     // TODO: When implementing scene/scene.h
-    // scene_ = std::make_unique<Scene>();
+    scene_ = std::make_unique<Scene>();
     // scene_loader::Load(filename, scene_.get());
 }
 
@@ -29,37 +26,23 @@ void RenderSession::SetOptions(const RenderOptions &options) {
     options_ = options;
     // Create the Film
     film_ = std::make_unique<Film>(options_.width, options_.height);
+    integrator_ = std::make_unique<PathIntegrator>();
 
     std::cout << "[Session] Options Set: " << options_.width << "x" << options_.height
               << " | Samples: " << options_.samples_per_pixel << "\n";
 }
 
-// TODO: Call a real integrator to begin the rendering process
 void RenderSession::Render() {
-    if (!film_) {
-        std::cerr << "[Error] Film not initialized. Call SetOptions first.\n";
+    if (!film_ || !integrator_ || !scene_) {
+        std::cerr << "[Error] Session not ready. Missing Film, Integrator, or Scene.\n";
         return;
     }
 
     std::cout << "[Session] Starting Render...\n";
 
-    // --- TEST PATTERN (A "Fake" Integrator) ---
-    // Later, this entire loop should move to src/integrators/path.cc
-    for (int y = 0; y < options_.height; ++y) {
-        for (int x = 0; x < options_.width; ++x) {
-            // Generating fake data
-            float r = float(x) / (options_.width - 1);
-            float g = float(y) / (options_.height - 1);
-            float b = 0.25f;
-
-            // Create a Spectrum (Color)
-            Spectrum color(r, g, b);
-
-            // Accumulate to Film
-            // Note: We use AddSample, not SetPixel directly!
-            film_->AddSample(x, y, color, 1.0f);
-        }
-    }
+    integrator_->Render(*scene_, film_.get());
+    // .get() extracts the raw pointer held inside. Integrator needs to write pixels to film, so
+    // it's mutable, but we don't want to transfer ownership
 
     std::cout << "[Session] Render Complete.\n";
 }
