@@ -48,6 +48,9 @@ class Film {
     // Saves to disk (PPM, EXR)
     void WriteImage(const std::string &filename) const;
 
+    int width() { return width_; }
+    int height() { return height_; }
+
   private:
     int width_, height_;
     std::vector<Pixel> pixels_;           // The flat image

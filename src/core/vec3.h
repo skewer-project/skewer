@@ -143,7 +143,6 @@ inline vec3 random_in_unit_disk() {
     }
 }
 
-
 /** Temp Pasted from old path_tracer.h */
 //==============================================================================================
 // Common includes, constants, and utility functions for the ray tracer.
