@@ -1,28 +1,32 @@
-#ifndef RAY_H
-#define RAY_H
+#ifndef SKWR_CORE_Ray_H_
+#define SKWR_CORE_Ray_H_
 
-#include "core/vec3.h"
+#include "core/Vec3.h"
 
-class ray {
+namespace skwr {
+
+class Ray {
   public:
-    ray() {}
+    Ray() {}
 
-    ray(const point3& origin, const vec3& direction, double time)
-        : orig(origin), dir(direction), tm(time) {}
+    // Ray(const Point3& origin, const Vec3& direction, double time)
+    //     : orig(origin), dir(direction), tm(time) {}
 
-    ray(const point3& origin, const vec3& direction) : ray(origin, direction, 0) {}
+    Ray(const Point3& origin, const Vec3& direction) : orig_(origin), dir_(direction) {}
 
-    const point3& origin() const { return orig; }
-    const vec3& direction() const { return dir; }
-    double time() const { return tm; }
+    const Point3& origin() const { return orig_; }
+    const Vec3& direction() const { return dir_; }
+    // double time() const { return tm_; }
 
-    // 3D pos (P) on ray is function of P(t) = A + tb, A = origin, b = ray direction
-    point3 at(double t) const { return orig + t * dir; }
+    // 3D pos (P) on Ray is function of P(t) = A + tb, A = origin, b = Ray direction
+    Point3 at(double t) const { return orig_ + t * dir_; }
 
   private:
-    point3 orig;
-    vec3 dir;
-    double tm;
+    Point3 orig_;
+    Vec3 dir_;
+    // double tm_;
 };
 
-#endif
+}  // namespace skwr
+
+#endif  // SKWR_CORE_Ray_H_
