@@ -1,3 +1,5 @@
+#include "session/render_session.h"
+
 #include <iostream>
 #include <memory>
 
@@ -5,7 +7,6 @@
 #include "integrators/integrator.h"
 #include "integrators/path_integrator.h"
 #include "session/render_options.h"
-#include "session/render_session.h"
 
 namespace skwr {
 
