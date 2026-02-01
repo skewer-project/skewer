@@ -1,9 +1,10 @@
+#include "film/image_buffer.h"
+
 #include <fstream>
 #include <iostream>
 #include <ostream>
 
 #include "core/spectrum.h"
-#include "film/image_buffer.h"
 
 namespace skwr {
 

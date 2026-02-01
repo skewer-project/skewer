@@ -1,6 +1,7 @@
+#include "integrators/path_integrator.h"
+
 #include "core/spectrum.h"
 #include "film/film.h"
-#include "integrators/path_integrator.h"
 #include "scene/scene.h"
 
 namespace skwr {
