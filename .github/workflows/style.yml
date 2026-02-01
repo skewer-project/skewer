@@ -18,6 +18,6 @@ jobs:
 
       - name: Format
         run: |
-          find src \
+          find . \
             -type f \( -name "*.cc" -o -name "*.cpp" -o -name "*.h" \) \
             -exec clang-format --dry-run --Werror {} +
