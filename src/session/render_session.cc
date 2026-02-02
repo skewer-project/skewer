@@ -1,3 +1,5 @@
+#include "session/render_session.h"
+
 #include <iostream>
 #include <memory>
 
@@ -10,7 +12,6 @@
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
-#include "session/render_session.h"
 
 namespace skwr {
 

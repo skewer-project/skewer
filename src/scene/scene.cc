@@ -1,6 +1,7 @@
+#include "scene/scene.h"
+
 #include "core/constants.h"
 #include "geometry/intersect_sphere.h"
-#include "scene/scene.h"
 
 namespace skwr {
 
