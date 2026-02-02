@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "core/spectrum.h"
+#include "film/image_buffer.h"
 
 namespace skwr {
 
@@ -29,10 +30,6 @@ struct Pixel {
     //     // This is called "Pixel Filtering" (Gaussian or Mitchell-Netravali filters).
     //     // FinalColor= ∑(SampleColor×FilterWeight)/∑FilterWeight
     // }
-};
-
-struct DeepPixel {
-    // TODO: Add list of samples {depth, color, transmittance} here
 };
 
 class Film {
