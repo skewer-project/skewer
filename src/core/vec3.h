@@ -41,8 +41,8 @@ struct Vec3 {
     Vec3& operator/=(Float t) { return *this *= 1 / t; }
 
     // Utility Member Functions
-    Float Length() const { return std::sqrt(Length_squared()); }
-    Float Length_squared() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
+    Float Length() const { return std::sqrt(LengthSquared()); }
+    Float LengthSquared() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
 
     // Return true if the vector is close to zero in all dimensions
     bool Near_zero() const {
@@ -102,7 +102,7 @@ inline Vec3 unit_vector(const Vec3& v) { return v / v.Length(); }
 inline Vec3 random_unit_vector() {
     while (true) {
         auto p = Vec3::random(-1, 1);
-        auto lensq = p.Length_squared();
+        auto lensq = p.LengthSquared();
         // Add lower bound to avoid underflow error (small values -> 0 near center of sphere)
         if (1e-160 < lensq &&
             lensq <= 1) {  // normalize to produce unit vector if it's within unit sphere
@@ -135,7 +135,7 @@ inline Vec3 reflect(const Vec3& v, const Vec3& n) { return v - 2 * Dot(v, n) * n
 inline Vec3 refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
     auto cos_theta = std::fmin(Dot(-uv, n), 1.0);
     Vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
-    Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.Length_squared())) * n;
+    Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.LengthSquared())) * n;
     return r_out_perp + r_out_parallel;
 }
 
@@ -143,7 +143,7 @@ inline Vec3 refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
 inline Vec3 random_in_unit_disk() {
     while (true) {
         auto p = Vec3(random_float(-1, 1), random_float(-1, 1), 0);
-        if (p.Length_squared() < 1) return p;
+        if (p.LengthSquared() < 1) return p;
     }
 }
 
