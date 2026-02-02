@@ -37,7 +37,7 @@ class Camera {
     // takes normalized coords from 0.0 to 1.0 and returns a World Ray
     Ray GetRay(Float s, Float t) const {
         return Ray(origin_,
-                   Normalize(lower_left_corner_ + (horizontal_ * s) + (vertical_ * t) - origin_))
+                   Normalize(lower_left_corner_ + (horizontal_ * s) + (vertical_ * t) - origin_));
     }
 
   private:
