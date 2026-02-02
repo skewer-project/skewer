@@ -1,11 +1,3 @@
-// #ifndef TRIANGLE_H
-// #define TRIANGLE_H
-// //==============================================================================================
-// // Triangle primitive for ray tracing with support for smooth shading and UV coordinates.
-// //==============================================================================================
-
-// #include "geometry/hittable.h"
-
 // class triangle : public hittable {
 //   public:
 //     // Constructor with vertices, material, and optional per-vertex normals and UVs
@@ -160,5 +152,3 @@
 //         if (bbox.z.size() < delta) bbox.z = bbox.z.expand(delta);
 //     }
 // };
-
-// #endif
