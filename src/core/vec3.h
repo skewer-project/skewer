@@ -93,7 +93,7 @@ inline Vec3 Cross(const Vec3& u, const Vec3& v) {
                 u.e[0] * v.e[1] - u.e[1] * v.e[0]);
 }
 
-inline Vec3 unit_vector(const Vec3& v) { return v / v.Length(); }
+inline Vec3 Normalize(const Vec3& v) { return v / v.Length(); }
 
 /** TODO: Move these to a sampling header when we implement advanced sampling */
 
