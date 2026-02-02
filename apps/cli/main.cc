@@ -34,10 +34,11 @@ skwr::RenderOptions ParseArgs(int argc, char *argv[]) {
     if (argc == 3 && strcmp(argv[1], "--name") == 0)  // make name argument
         outfile = argv[2];
 
-    options.width = 500;
-    options.height = 225;
+    options.width = 800;
+    options.height = 450;
     options.samples_per_pixel = 1;
     options.outfile = outfile;
+    options.integrator = skwr::IntegratorType::Normals;
     return options;  // pass by copy back to main
 }
 
