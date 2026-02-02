@@ -5,10 +5,16 @@
 
 namespace skwr {
 
+enum class IntegratorType {
+    PathTrace,
+    Normals,
+};
+
 struct RenderOptions {
     int width;
     int height;
     int samples_per_pixel;
+    IntegratorType integrator;
     std::string outfile;
 };
 
