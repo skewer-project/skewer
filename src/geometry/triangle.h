@@ -12,6 +12,6 @@ struct Triangle {
     uint32_t v_idx;    // Starting index in the index buffer (0, 3, 6...)
 };
 
-}
+}  // namespace skwr
 
-#endif // SKWR_GEOMETRY_TRIANGLE_H_
+#endif  // SKWR_GEOMETRY_TRIANGLE_H_

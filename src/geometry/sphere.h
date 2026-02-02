@@ -5,16 +5,14 @@
 
 namespace skwr {
 
-struct  Sphere {
+struct Sphere {
     Vec3 center;
     float radius;
 };
 
-} // namespace skwr
+}  // namespace skwr
 
-#endif // SKWR_GEOMETRY_SPHERE_H_
-
-
+#endif  // SKWR_GEOMETRY_SPHERE_H_
 
 // Force 16-byte align for easy mapping to GPU float4 in future alignas(16)
 // Implicit padding rn but explicit better for GPU later

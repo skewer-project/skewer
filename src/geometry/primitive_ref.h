@@ -12,10 +12,10 @@ enum class PrimitiveType : uint8_t {
 
 // The shape reference (abstraction for BVH)
 struct PrimitiveRef {
-    uint32_t index; // Index into type-specific array
-    PrimitiveType type; // what array to index
+    uint32_t index;      // Index into type-specific array
+    PrimitiveType type;  // what array to index
 };
 
-} // namespace skwr
+}  // namespace skwr
 
-#endif // SKWR_GEOMETRY_SHAPE_H_
+#endif  // SKWR_GEOMETRY_SHAPE_H_
