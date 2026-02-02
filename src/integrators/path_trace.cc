@@ -1,12 +1,13 @@
-#include "integrators/path_integrator.h"
+#include "integrators/path_trace.h"
 
 #include "core/spectrum.h"
 #include "film/film.h"
+#include "scene/camera.h"
 #include "scene/scene.h"
 
 namespace skwr {
 
-void PathIntegrator::Render(const Scene &scene, Film *film) {
+void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film) {
     int width = film->width();
     int height = film->height();
 
