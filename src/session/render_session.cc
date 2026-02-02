@@ -31,6 +31,9 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
 RenderSession::RenderSession() {}
 RenderSession::~RenderSession() = default;  // Unique_ptr handles cleanup automatically
 
+/**
+ * Loads file into scene format
+ */
 void RenderSession::LoadScene(const std::string &filename) {
     std::cout << "[Session] Loading Scene: " << filename << " (STUB)\n";
 
@@ -47,6 +50,9 @@ void RenderSession::LoadScene(const std::string &filename) {
     camera_ = std::make_unique<Camera>(Vec3(0, 0, 0), Vec3(0, 0, -1), Vec3(0, 1, 0), 90.0f, aspect);
 }
 
+/**
+ * Set user options
+ */
 void RenderSession::SetOptions(const RenderOptions &options) {
     options_ = options;
     film_ = std::make_unique<Film>(options_.width, options_.height);
@@ -56,6 +62,9 @@ void RenderSession::SetOptions(const RenderOptions &options) {
               << " | Samples: " << options_.samples_per_pixel << "\n";
 }
 
+/**
+ * Call integrator render loop
+ */
 void RenderSession::Render() {
     if (!film_ || !integrator_ || !scene_) {
         std::cerr << "[Error] Session not ready. Missing Film, Integrator, or Scene.\n";
@@ -64,13 +73,16 @@ void RenderSession::Render() {
 
     std::cout << "[Session] Starting Render...\n";
 
-    integrator_->Render(*scene_, film_.get());
+    integrator_->Render(*scene_, *camera_, film_.get());
     // .get() extracts the raw pointer held inside. Integrator needs to write pixels to film, so
     // it's mutable, but we don't want to transfer ownership
 
     std::cout << "[Session] Render Complete.\n";
 }
 
+/**
+ * Convert film to image or deep buffer
+ */
 void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.outfile);
