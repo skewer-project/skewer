@@ -1,10 +1,9 @@
-#include "integrators/normals.h"
-
 #include "core/constants.h"
 #include "core/ray.h"
 #include "core/spectrum.h"  // Assuming you have a Vec3 or Color class here
 #include "core/vec3.h"
 #include "film/film.h"
+#include "integrators/normals.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/surface_interaction.h"
@@ -32,7 +31,7 @@ void Normals::Render(const Scene &scene, const Camera &cam, Film *film) {
             } else {
                 // RTIOW blue gradient sky background
                 Vec3 unit_direction = Normalize(r.direction());
-                auto a = 0.5 * (-unit_direction.y() + 1.0);
+                auto a = 0.5 * (unit_direction.y() + 1.0);
                 color = (1.0 - a) * Spectrum(1.0, 1.0, 1.0) + a * Spectrum(0.5, 0.7, 1.0);
             }
             film->AddSample(x, y, color, 1.0f);
