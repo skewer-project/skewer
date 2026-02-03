@@ -5,7 +5,6 @@
 #include <iostream>
 
 #include "core/constants.h"
-#include "core/random_utils.h"
 
 namespace skwr {
 
@@ -49,13 +48,6 @@ struct Vec3 {
         auto s = 1e-8;
         return (std::fabs(e[0]) < s) && (std::fabs(e[1]) < s) && (std::fabs(e[2]) < s);
     }
-
-    // Generating arbitrary random vectors
-    static Vec3 random() { return Vec3(random_float(), random_float(), random_float()); }
-
-    static Vec3 random(Float min, Float max) {
-        return Vec3(random_float(min, max), random_float(min, max), random_float(min, max));
-    }
 };
 
 // point alias for Vec3
@@ -95,31 +87,6 @@ inline Vec3 Cross(const Vec3& u, const Vec3& v) {
 
 inline Vec3 Normalize(const Vec3& v) { return v / v.Length(); }
 
-/** TODO: Move these to a sampling header when we implement advanced sampling */
-
-// Rejection method for generating random vector on surface of a unit sphere (simple but
-// inefficient)
-inline Vec3 random_unit_vector() {
-    while (true) {
-        auto p = Vec3::random(-1, 1);
-        auto lensq = p.LengthSquared();
-        // Add lower bound to avoid underflow error (small values -> 0 near center of sphere)
-        if (1e-160 < lensq &&
-            lensq <= 1) {  // normalize to produce unit vector if it's within unit sphere
-            return p / sqrt(lensq);
-        }
-    }
-}
-
-// Check if unit vector is on the same hemisphere as normal (want it pointing away from surface)
-inline Vec3 random_on_hemisphere(const Vec3& normal) {
-    Vec3 generated_unit_vec = random_unit_vector();
-    if (Dot(generated_unit_vec, normal) > 0.0)  // aligned with normal
-        return generated_unit_vec;
-    else
-        return -generated_unit_vec;
-}
-
 // A ray v coming in down-right with a normal n pointing straight up hits the surface,
 // the downward force must reflect while the sideways motion remains constant.
 // We isolate downward force by projecting v onto n (b)
@@ -137,14 +104,6 @@ inline Vec3 refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
     Vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
     Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.LengthSquared())) * n;
     return r_out_perp + r_out_parallel;
-}
-
-// Defocus disk
-inline Vec3 random_in_unit_disk() {
-    while (true) {
-        auto p = Vec3(random_float(-1, 1), random_float(-1, 1), 0);
-        if (p.LengthSquared() < 1) return p;
-    }
 }
 
 }  // namespace skwr
