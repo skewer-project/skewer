@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <ostream>
+#include <cassert>
 
 #include "core/spectrum.h"
 
@@ -44,5 +45,18 @@ void ImageBuffer::WritePPM(const std::string &filename) const {
     out.close();
     std::cout << "Wrote image to " << filename << "\n";
 }
+
+void DeepImageBuffer::SetPixel(int x, int y, const DeepPixel &p) {
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_); // should crash if out of bounds
+
+    pixels_[y * width_ + x] = p;
+}
+
+DeepPixel& DeepImageBuffer::GetPixel(int x, int y) {
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_); // crash if out of bounds
+
+    return pixels_[y * width_ + x];
+}
+
 
 }  // namespace skwr

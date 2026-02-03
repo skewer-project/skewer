@@ -27,10 +27,17 @@ class ImageBuffer {
 
 struct DeepSample {
     // Depth information
-    float z_front;
-    float z_back; // for volumes. Can just be z_front for hard surfaces
+    Float z_front;
+    Float z_back; // for volumes. Can just be z_front for hard surfaces
     Spectrum color;
-    float transmittance;
+    Float alpha; // opacity
+
+    // For sorting later on
+    bool operator<(const DeepSample& other) const {
+        if (z_front != other.z_front)
+            return z_front < other.z_front;
+        return z_back < other.z_back;
+    }
 };
 
 struct DeepPixel {
@@ -41,23 +48,18 @@ struct DeepPixel {
 
 class DeepImageBuffer {
     public:
-      DeepImageBuffer(int width, int height);
+      DeepImageBuffer(int width, int height)
+        : width_(width), height_(height), pixels_(width * height) {};
 
-      // Set a pixel's color (0,0 is top-left usually)
+      // Set a pixel's color (0,0 is will be bottom left)
       void SetPixel(int x, int y, const DeepPixel &p);
+
+      DeepPixel& GetPixel(int x, int y);
 
     private:
       int width_;
       int height_;
-      std::vector<DeepPixel> pixels_; // Contiguous memory but allows [x][y] indexing
-
-      // NOTE: might have to change from array of structures (DeepPixel) to structure of arrays
-      // std::vector<half> z_;
-      // std::vector<half> r_;
-      // std::vector<half> g_;
-      // std::vector<half> b_;
-      // std::vector<half> a_;
-
+      std::vector<DeepPixel> pixels_;
 };
 
 class FlatImageBuffer {
