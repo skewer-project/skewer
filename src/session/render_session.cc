@@ -1,17 +1,19 @@
-#include "session/render_session.h"
-
+#include <cstdint>
 #include <iostream>
 #include <memory>
 
+#include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
 #include "geometry/sphere.h"
 #include "integrators/integrator.h"
 #include "integrators/normals.h"
 #include "integrators/path_trace.h"
+#include "materials/material.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
+#include "session/render_session.h"
 
 namespace skwr {
 
@@ -42,13 +44,42 @@ void RenderSession::LoadScene(const std::string &filename) {
 
     // Temporarily hardcoding sphere into scene...
     // TODO: Reconnect tinyobjloader and asset loading
-    scene_->AddSphere(Sphere{Vec3(0, 0, -3), 1.0f});
+    Material mat_ground;
+    mat_ground.type = MaterialType::Lambertian;
+    mat_ground.albedo = Spectrum(0.8f, 0.8f, 0.0f);
+    mat_ground.roughness = 1.0f;  // Ignored for Lambertian usually
+    uint32_t id_ground = scene_->AddMaterial(mat_ground);
+
+    Material mat_glass;
+    mat_glass.type = MaterialType::Dielectric;
+    mat_glass.albedo = Spectrum(1.0f, 1.0f, 1.0f);  // Glass doesn't absorb light
+    mat_glass.roughness = 0.0f;
+    mat_glass.ior = 1.5f;  // Standard Glass
+    uint32_t id_glass = scene_->AddMaterial(mat_glass);
+
+    Material metal;
+    metal.type = MaterialType::Metal;
+    metal.roughness = 0.0;
+    metal.albedo = Spectrum(0.8f);
+    uint32_t metal_id = scene_->AddMaterial(metal);
+    scene_->AddSphere(Sphere{Vec3(-2.1f, 0.0f, -3.0f), 1.0f, metal_id});
+
+    Material mat_red;
+    mat_red.type = MaterialType::Lambertian;
+    mat_red.albedo = Spectrum(0.7f, 0.3f, 0.3f);
+    uint32_t id_red = scene_->AddMaterial(mat_red);
+
+    scene_->AddSphere(Sphere{Vec3(0.0f, -1001.0f, -1.0f), 1000.0f, id_ground});
+    scene_->AddSphere(Sphere{Vec3(0.0f, 0.0f, -3.0f), 1.0f, id_glass});
+    scene_->AddSphere(Sphere{Vec3(2.1f, 0.0f, -3.0f), 1.0f, id_red});
 
     // Initilize camera
     // Looking from (0, 0, 0) to (0, 0, -1)
     // Should these be a part of RenderOptions? Maybe refactor camera first...
     Float aspect = 16.0f / 9.0f;
-    camera_ = std::make_unique<Camera>(Vec3(0, 0, 0), Vec3(0, 0, -1), Vec3(0, 1, 0), 90.0f, aspect);
+    camera_ = std::make_unique<Camera>(Vec3(0.0f, 1.0f, 1.5f),   // LookFrom
+                                       Vec3(0.0f, 0.0f, -3.0f),  // LookAt
+                                       Vec3(0.0f, 1.0f, 0.0f), 90.0f, aspect);
 }
 
 /**

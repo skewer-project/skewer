@@ -1,11 +1,14 @@
 #ifndef SKWR_SCENE_SCENE_H_
 #define SKWR_SCENE_SCENE_H_
 
+#include <sys/types.h>
+
 #include <cstdint>
 #include <vector>
 
 #include "core/ray.h"
 #include "geometry/sphere.h"
+#include "materials/material.h"
 #include "scene/surface_interaction.h"
 // #include "accelerators/bvh.h"
 
@@ -29,6 +32,13 @@ class Scene {
         return static_cast<uint32_t>(spheres_.size() - 1);
     }
 
+    uint32_t AddMaterial(const Material &m) {
+        materials_.push_back(m);
+        return static_cast<uint32_t>(materials_.size() - 1);
+    }
+
+    const Material &GetMaterial(uint32_t id) const { return materials_[id]; }
+
     // void Build();  // Constructs the BVH from the shapes list
 
     // THE CRITICAL HOT-PATH FUNCTION
@@ -40,7 +50,8 @@ class Scene {
     // const std::vector<Light> &GetLights() const;
 
   private:
-    std::vector<Sphere> spheres_;  // Raw list of spheres
+    std::vector<Sphere> spheres_;
+    std::vector<Material> materials_;
     // BVH bvh_;                    // The acceleration structure
 };
 
