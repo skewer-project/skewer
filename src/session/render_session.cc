@@ -86,7 +86,7 @@ void RenderSession::Render() {
  */
 void RenderSession::Save() const {
     if (film_) {
-        film_->WriteImage(options_.image_config);
+        film_->WriteImage(options_.image_config.outfile);
     }
 }
 
