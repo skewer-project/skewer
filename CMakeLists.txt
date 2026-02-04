@@ -35,7 +35,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   Imath
   GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
-  GIT_TAG        v3.1.9  # Use a specific version tag for stability
+  GIT_TAG        v3.1.10
 )
 
 FetchContent_Declare(
