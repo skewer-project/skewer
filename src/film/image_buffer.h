@@ -40,6 +40,11 @@ struct DeepSample {
     }
 };
 
+// Necessary for Film interface
+struct DeepPixel {
+    std::vector<DeepSample> samples;
+};
+
 struct DeepPixelView {
     const DeepSample* data;  // Pointer to the actual data
     size_t count;
@@ -48,14 +53,23 @@ struct DeepPixelView {
     const DeepSample& operator[](size_t i) const { return data[i]; }
 };
 
+struct MutableDeepPixelView {
+    DeepSample* data;  // Mutable pointer
+    size_t count;
+
+    // Helper for array-like access
+    DeepSample& operator[](size_t i) { return data[i]; }
+};
+
 class DeepImageBuffer {
   public:
-    DeepImageBuffer(int width, int height, const std::vector<unsigned int>& sampleCounts);
+    DeepImageBuffer(int width, int height, size_t totalSamples, const Imf::Array2D<unsigned int>& sampleCounts);
 
     // Set a pixel's color (0,0 is will be bottom left)
     void SetPixel(int x, int y, const std::vector<DeepSample>& newSamples);
 
     DeepPixelView GetPixel(int x, int y) const;
+    MutableDeepPixelView GetMutablePixel(int x, int y);
 
   private:
     int width_;

@@ -10,6 +10,7 @@
 
 #include <cassert>
 #include <optional>
+#include <vector>
 
 #include "ImfMultiPartInputFile.h"
 #include "ImfPixelType.h"
@@ -74,7 +75,6 @@ static bool isDeepEXR(const std::string& filename) noexcept {
     }
 }
 
-// TODO: detect z_back channel in list of file.header().channels();
 DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     // NOTE: If inputs are TILED, change this to Imf::MultiPartInputFile
     // or Imf::DeepTiledInputFile.
@@ -88,10 +88,11 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     int minX = dataWindow.min.x;
     int minY = dataWindow.min.y;
 
-    // defined by the positions of the pixels in the upper left and lower right corners, (x min, y
-    // min) and (x max, y max). Imath::Box2i displayWindow = header.displayWindow(); // don't really
-    // need it here
-
+    /*
+     * Defined by the positions of the pixels in the upper left and lower right corners, (x min, y
+     * min) and (x max, y max). Imath::Box2i displayWindow = header.displayWindow(); // don't really
+     * need it here
+     */
     int width = dataWindow.max.x - dataWindow.min.x + 1;
     int height = dataWindow.max.y - dataWindow.min.y + 1;
 
@@ -132,23 +133,25 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
      *  Reads only the table of contents for the file. It goes through the file and finds out how
      * many samples exist for every single pixel in the specified row range.
      */
-    auto sampleCount = Imf::Array2D<unsigned int>(height, width);
+    auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
 
-    // Insert the sample count slice
-    //
-    // We can't use the simpler setFrameBuffer interface for this part easily without constructing a
-    // partial FrameBuffer, but reading sample counts is a specific operation in
-    // DeepScanLineInputFile.
-    //
-    // However, readPixelSampleCounts DOES NOT look at the setFrameBuffer. It just reads the counts.
-    // The frame buffer is only needed for readPixels.
+
+    /* Insert the sample count slice
+     *
+     * We can't use the simpler setFrameBuffer interface for this part easily without constructing a
+     * partial FrameBuffer, but reading sample counts is a specific operation in
+     * DeepScanLineInputFile.
+     *
+     * However, readPixelSampleCounts DOES NOT look at the setFrameBuffer. It just reads the counts.
+     * The frame buffer is only needed for readPixels.
+     */
     file.readPixelSampleCounts(dataWindow.min.y, dataWindow.max.y);
 
     // Calculate total samples to allocate contiguous memory
     size_t totalSamples = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            totalSamples += sampleCount[y][x];
+            totalSamples += sampleCounts[y][x];
         }
     }
 
@@ -179,7 +182,7 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     size_t offset = 0;  // offset corresponds to the space needed for the number of samples inserted
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            unsigned int count = sampleCount[y][x];
+            unsigned int count = sampleCounts[y][x];
             if (count > 0) {
                 rPtrs[y][x] = rData.data() + offset;
                 gPtrs[y][x] = gData.data() + offset;
@@ -203,12 +206,12 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
         }
     }
 
-    // 5. Configure FrameBuffer
+    // Configure FrameBuffer
     Imf::DeepFrameBuffer frameBuffer;
 
     // Insert sample count slice (still needed for readPixels validation internally by OpenEXR)
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_1::UINT, (char*)(&sampleCount[0][0] - dataWindow.min.x - dataWindow.min.y * width),
+        Imf_3_1::UINT, (char*)(&sampleCounts[0][0] - dataWindow.min.x - dataWindow.min.y * width),
         sizeof(unsigned int) * 1,        // xStride
         sizeof(unsigned int) * width));  // yStride
 
@@ -229,40 +232,24 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     file.readPixels(dataWindow.min.y, dataWindow.max.y);
 
     // Populate DeepImageBuffer
-    DeepImageBuffer deepbuf(width, height);
+    DeepImageBuffer deepbuf(width, height, totalSamples, sampleCounts);
 
-    // NOTE: If we wanted to be super efficient, we could make DeepImageBuffer wrap these vectors
-    // directly, but DeepImageBuffer currently uses Array-of-Structures (vector<DeepSample>), so we
-    // must copy/convert.
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            unsigned int count = sampleCount[y][x];
+            unsigned int count = sampleCounts[y][x];
             if (count == 0) continue;
 
-            DeepPixel& pixel = deepbuf.GetPixel(x, y);  // Get ref to fill
+            MutableDeepPixelView pixel = deepbuf.GetMutablePixel(x, y);  // Get mutable view
 
             // Get pointers for this pixel
             // We can reuse the ptrs array, or calculate offset again. Using ptrs array is easier.
-            const half* pR = rPtrs[y][x];
-            const half* pG = gPtrs[y][x];
-            const half* pB = bPtrs[y][x];
-            const half* pA = aPtrs[y][x];
-            const float* pZ = zPtrs[y][x];
-            const float* pZBack = hasZBack ? (*zBackPtrs)[y][x] : nullptr;
-
             for (unsigned int i = 0; i < count; i++) {
-                DeepSample sample;
-                sample.alpha = pA[i];
-                sample.color = Spectrum(pR[i], pG[i], pB[i]);
-                sample.z_front = pZ[i];
-
-                if (hasZBack) {
-                    sample.z_back = pZBack[i];
-                } else {
-                    sample.z_back = sample.z_front;  // Or some default
-                }
-
-                pixel.samples.push_back(sample);
+                pixel[i] = {
+                    .alpha = aPtrs[y][x][i],
+                    .color = Spectrum(rPtrs[y][x][i], gPtrs[y][x][i], bPtrs[y][x][i]),
+                    .z_front = zPtrs[y][x][i],
+                    .z_back = hasZBack ? (*zBackPtrs)[y][x][i] : zPtrs[y][x][i]
+                };
             }
         }
     }

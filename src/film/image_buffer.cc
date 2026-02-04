@@ -53,6 +53,9 @@ void DeepImageBuffer::SetPixel(int x, int y, const std::vector<DeepSample>& newS
     size_t start = pixelOffsets_[idx];
     size_t end = pixelOffsets_[idx + 1];
 
+    size_t slotSize = end - start;
+    assert(newSamples.size() == slotSize && "SetPixel called with the wrong number of samples!"); // Safety Check
+
     // Mem-copy all samples in place
     std::copy(newSamples.begin(), newSamples.end(), allSamples_.begin() + start);
 }
@@ -67,20 +70,31 @@ DeepPixelView DeepImageBuffer::GetPixel(int x, int y) const {
     return {&allSamples_[start], end - start};
 }
 
-DeepImageBuffer::DeepImageBuffer(int width, int height, const std::vector<unsigned int>& counts)
+// A mutable version for setting samples at a given pixel
+MutableDeepPixelView DeepImageBuffer::GetMutablePixel(int x, int y) {
+    assert(x >= 0 && x < width_);
+
+    size_t idx = y * width_ + x;
+    size_t start = pixelOffsets_[idx];
+    size_t end = pixelOffsets_[idx + 1];
+
+    return {&allSamples_[start], end - start};
+}
+
+DeepImageBuffer::DeepImageBuffer(int width, int height, size_t totalSamples, const Imf::Array2D<unsigned int>& sampleCounts)
     : width_(width), height_(height) {
     // At the very least the offsets needs to be allocated
     size_t numPixels = width * height;
-    pixelOffsets_.resize(numPixels + 1);
+    pixelOffsets_.resize(numPixels + 1); // for sentinel
+    allSamples_.resize(totalSamples);
 
     size_t currentOffset = 0;
     for (size_t i = 0; i < numPixels; ++i) {
         pixelOffsets_[i] = currentOffset;
-        currentOffset += counts[i];
+        currentOffset += sampleCounts[i / width][i % width];
     }
     pixelOffsets_[numPixels] = currentOffset;  // Sentinel
 
-    allSamples_.resize(currentOffset);  // Allocate strictly what is needed
 }
 
 }  // namespace skwr
