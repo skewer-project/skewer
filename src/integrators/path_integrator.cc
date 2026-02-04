@@ -6,7 +6,7 @@
 
 namespace skwr {
 
-void PathIntegrator::Render(const Scene &scene, Film *film) {
+void PathIntegrator::Render(const Scene& scene, Film* film) {
     int width = film->width();
     int height = film->height();
 

@@ -2,12 +2,13 @@
 #define DEEP_IMAGE_H
 
 #include <string>
+
 #include "film/image_buffer.h"
 
 namespace skwr {
 
 class ImageIO {
- public:
+  public:
     static void SavePPM(const FlatImageBuffer& film);
 
     static void SaveEXR(const DeepImageBuffer& film);
@@ -23,6 +24,6 @@ struct ChannelInfo {
     bool present;
 };
 
-}
+}  // namespace skwr
 
 #endif

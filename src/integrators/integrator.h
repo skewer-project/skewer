@@ -11,7 +11,7 @@ class Integrator {
   public:
     virtual ~Integrator() = default;
 
-    virtual void Render(const Scene &scene, Film *film) = 0;
+    virtual void Render(const Scene& scene, Film* film) = 0;
 
   protected:
     // Calculates Radiance (Li) along a single ray

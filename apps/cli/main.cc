@@ -11,7 +11,7 @@
  * should be refactored when implementing a more robust
  * parser.
  */
-void print_usage(const char *program_name) {
+void print_usage(const char* program_name) {
     std::cerr << "Usage: " << "\n";
     std::cerr << "       " << program_name << "\n";
     std::cerr << "       " << program_name << " --name outfile.ppm\n";
@@ -19,7 +19,7 @@ void print_usage(const char *program_name) {
     std::cerr << "       " << program_name << " --help\n";
 }
 
-skwr::RenderOptions ParseArgs(int argc, char *argv[]) {
+skwr::RenderOptions ParseArgs(int argc, char* argv[]) {
     skwr::RenderOptions options;
 
     // Parse Args
@@ -41,7 +41,7 @@ skwr::RenderOptions ParseArgs(int argc, char *argv[]) {
     return options;  // pass by copy back to main
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     // Create configuration
     skwr::RenderOptions options = ParseArgs(argc, argv);
 

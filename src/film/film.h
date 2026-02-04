@@ -37,13 +37,13 @@ class Film {
     Film(int width, int height);
 
     // Standard Image: Adds color to a pixel (thread-safe!)
-    void AddSample(int x, int y, const Spectrum &L, float weight);
+    void AddSample(int x, int y, const Spectrum& L, float weight);
 
     // TODO: Deep sampling after standard pixels are supported
-    void AddDeepSample(int x, int y, float depth, const Spectrum &L, float transmittance);
+    void AddDeepSample(int x, int y, float depth, const Spectrum& L, float transmittance);
 
     // Saves to disk (PPM, EXR)
-    void WriteImage(const std::string &filename) const;
+    void WriteImage(const std::string& filename) const;
 
     int width() { return width_; }
     int height() { return height_; }

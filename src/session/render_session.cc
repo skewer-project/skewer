@@ -15,7 +15,7 @@ namespace skwr {
 RenderSession::RenderSession() {}
 RenderSession::~RenderSession() = default;  // Unique_ptr handles cleanup automatically
 
-void RenderSession::LoadScene(const std::string &filename) {
+void RenderSession::LoadScene(const std::string& filename) {
     std::cout << "[Session] Loading Scene: " << filename << " (STUB)\n";
 
     // TODO: When implementing scene/scene.h
@@ -23,7 +23,7 @@ void RenderSession::LoadScene(const std::string &filename) {
     // scene_loader::Load(filename, scene_.get());
 }
 
-void RenderSession::SetOptions(const RenderOptions &options) {
+void RenderSession::SetOptions(const RenderOptions& options) {
     options_ = options;
     // Create the Film
     film_ = std::make_unique<Film>(options_.width, options_.height);
