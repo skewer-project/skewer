@@ -47,6 +47,21 @@ inline Vec3 RandomInUnitDisk(RNG& rng) {
     }
 }
 
+// Fully deterministic per-pixel RNG, thread-order independent
+inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t sample_index) {
+    // Get linear pixel ID
+    uint64_t pixel_id = (uint64_t)y * width + x;
+
+    // Mix pixel ID to generate a unique stream (sequence)
+    // Use a simple hash / integer mixing function to avoid correlation
+    uint64_t seq = pixel_id * 0x9E3779B97F4A7C15ULL;  // golden ratio hash
+
+    // Sample index as the RNG offset
+    uint64_t seed = sample_index;
+
+    return RNG(seq, seed);
+}
+
 }  // namespace skwr
 
 #endif  // SKWR_CORE_SAMPLER_H_
