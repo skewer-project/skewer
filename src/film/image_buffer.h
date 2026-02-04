@@ -63,7 +63,8 @@ struct MutableDeepPixelView {
 
 class DeepImageBuffer {
   public:
-    DeepImageBuffer(int width, int height, size_t totalSamples, const Imf::Array2D<unsigned int>& sampleCounts);
+    DeepImageBuffer(int width, int height, size_t totalSamples,
+                    const Imf::Array2D<unsigned int>& sampleCounts);
 
     // Set a pixel's color (0,0 is will be bottom left)
     void SetPixel(int x, int y, const std::vector<DeepSample>& newSamples);

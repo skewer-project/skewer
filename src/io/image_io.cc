@@ -135,7 +135,6 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
      */
     auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
 
-
     /* Insert the sample count slice
      *
      * We can't use the simpler setFrameBuffer interface for this part easily without constructing a
@@ -244,12 +243,10 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
             // Get pointers for this pixel
             // We can reuse the ptrs array, or calculate offset again. Using ptrs array is easier.
             for (unsigned int i = 0; i < count; i++) {
-                pixel[i] = {
-                    .alpha = aPtrs[y][x][i],
-                    .color = Spectrum(rPtrs[y][x][i], gPtrs[y][x][i], bPtrs[y][x][i]),
-                    .z_front = zPtrs[y][x][i],
-                    .z_back = hasZBack ? (*zBackPtrs)[y][x][i] : zPtrs[y][x][i]
-                };
+                pixel[i] = {.alpha = aPtrs[y][x][i],
+                            .color = Spectrum(rPtrs[y][x][i], gPtrs[y][x][i], bPtrs[y][x][i]),
+                            .z_front = zPtrs[y][x][i],
+                            .z_back = hasZBack ? (*zBackPtrs)[y][x][i] : zPtrs[y][x][i]};
             }
         }
     }
