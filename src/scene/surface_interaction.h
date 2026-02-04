@@ -1,6 +1,8 @@
 #ifndef SKWR_SCENE_SURFACE_INTERACTION_H_
 #define SKWR_SCENE_SURFACE_INTERACTION_H_
 
+#include <cstdint>
+
 #include "core/ray.h"
 #include "core/vec3.h"
 
@@ -13,6 +15,7 @@ struct SurfaceInteraction {
     Vec3 n;           // Surface normal (geometric)
     Float t;          // Distance along the ray
     bool front_face;  // Is normal pointing at ray? (Is it the outside face?)
+    uint32_t material_id;
 
     // Future: UVs, dpdu, dpdv, Material*
 
