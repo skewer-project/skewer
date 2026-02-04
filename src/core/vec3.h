@@ -92,14 +92,14 @@ inline Vec3 Normalize(const Vec3& v) { return v / v.Length(); }
 // We isolate downward force by projecting v onto n (b)
 // b = (v dot n) * n     <-   dot results in scalar so multiply by n for downward dir
 // -b just negates downward motion, so -2b reflects it opposite way
-inline Vec3 reflect(const Vec3& v, const Vec3& n) { return v - 2 * Dot(v, n) * n; }
+inline Vec3 Reflect(const Vec3& v, const Vec3& n) { return v - 2 * Dot(v, n) * n; }
 
 // Based on snells law: eta * sin(theta) = eta' * sin(theta')
 // refrated ray = sin(theta') = eta/eta' * sin(theta)
 // On refracted side of surface, there's refracted ray R' and normal n', with angle theta'
 // R' can be split into perpendicular R' and parallel R' (to the normal n')
 // messy final equation but treated as fact for now
-inline Vec3 refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
+inline Vec3 Refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
     auto cos_theta = std::fmin(Dot(-uv, n), 1.0);
     Vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
     Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.LengthSquared())) * n;
