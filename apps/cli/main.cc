@@ -36,7 +36,7 @@ skwr::RenderOptions ParseArgs(int argc, char *argv[]) {
 
     options.image_config.width = 800;
     options.image_config.height = 450;
-    options.integrator_config.samples_per_pixel = 1;
+    options.integrator_config.samples_per_pixel = 10;
     options.integrator_config.max_depth = 5;
     options.image_config.outfile = outfile;
     options.integrator_type = skwr::IntegratorType::PathTrace;

@@ -36,7 +36,7 @@ inline bool Scatter(const Material &mat, const Ray &r_in, const SurfaceInteracti
             // degenerate scatter direction case (if random is opposite of normal)
             if (scatter_direction.Near_zero()) scatter_direction = si.n;
 
-            r_scattered = Ray(si.p + (si.n * 0.001f), Normalize(scatter_direction));
+            r_scattered = Ray(si.p + (si.n * kShadowEpsilon), Normalize(scatter_direction));
             return true;
         }
         //------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ inline bool Scatter(const Material &mat, const Ray &r_in, const SurfaceInteracti
                 reflected = reflected + (mat.roughness * RandomInUnitSphere(rng));
             }
 
-            r_scattered = Ray(si.p + (si.n * 0.001f), reflected);
+            r_scattered = Ray(si.p + (si.n * kShadowEpsilon), reflected);
 
             return (Dot(r_scattered.direction(), si.n) > 0);
         }
@@ -85,7 +85,7 @@ inline bool Scatter(const Material &mat, const Ray &r_in, const SurfaceInteracti
             else
                 direction = Refract(unit_direction, normal, refraction_ratio);
 
-            r_scattered = Ray(si.p + (normal * 0.001f), direction);
+            r_scattered = Ray(si.p + (normal * kShadowEpsilon), direction);
             return true;
         }
     }
