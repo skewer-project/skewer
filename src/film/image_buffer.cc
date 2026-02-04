@@ -1,10 +1,9 @@
-#include "film/image_buffer.h"
-
 #include <fstream>
 #include <iostream>
 #include <ostream>
 
 #include "core/spectrum.h"
+#include "film/image_buffer.h"
 
 namespace skwr {
 
@@ -31,7 +30,7 @@ void ImageBuffer::WritePPM(const std::string &filename) const {
 
     for (const auto &pixel : pixels_) {
         Color c = pixel.ToColor();
-        // c.ApplyGammaCorrection();
+        c.ApplyGammaCorrection();
         c.Clamp(0.0f, 1.0f);
         // Convert float (0.0-1.0) to int (0-255)
         int ir = static_cast<int>(255.999 * c.r());
