@@ -5,9 +5,10 @@
 #include "core/constants.h"
 #include "core/sampling.h"
 #include "core/spectrum.h"
-#include "core/vec3.h"
 #include "film/film.h"
+#include "materials/material.h"
 #include "scene/camera.h"
+#include "scene/material_scatter.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
 
@@ -34,11 +35,11 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
             for (int s = 0; s < config.samples_per_pixel; ++s) {
                 RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
                 Float u = (Float(x) + rng.UniformFloat()) / width;
-                Float v = (Float(y) + rng.UniformFloat()) / height;
+                Float v = 1.0f - (Float(y) + rng.UniformFloat()) / height;
 
                 Ray r = cam.GetRay(u, v);
                 SurfaceInteraction si;
-                const Float t_min = 0.001f;
+                const Float t_min = kShadowEpsilon;
                 Spectrum L(0.0f);     // Accumulated Radiance (color)
                 Spectrum beta(1.0f);  // Throughput (attenuation)
 
@@ -55,26 +56,20 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
 
                     /* Emission check for if we hit a light */
 
+                    const Material &mat = scene.GetMaterial(si.material_id);
+
+                    Spectrum attenuation;
+                    Ray scattered_ray;
+
                     /* Scattering check */
-                    // We assuming everything is lambertian (diffuse)
-                    // PDF of cosine sampling (top of sphere?) = cos(theta) / PI
-
-                    Vec3 scatter_direction = si.n + RandomUnitVector(rng);
-
-                    // degenerate scatter direction case
-                    if (scatter_direction.Near_zero()) scatter_direction = si.n;
-
-                    // Update Beta
-                    // Monte Carlo integration for sampling..
-                    // For Lambertian: f = Albedo / PI
-                    // PDF = Cos / PI
-                    // Update = (f * Cos) / PDF  ---> (Albedo/PI * Cos) / (Cos/PI) = Albedo
-                    // So for pure random diffuse, we just multiply by Albedo.
-
-                    Spectrum albedo(0.5f);  // gray for now
-                    beta *= albedo;
-
-                    r = Ray(si.p + (si.n * 0.001f), Normalize(scatter_direction));
+                    if (Scatter(mat, r, si, rng, attenuation, scattered_ray)) {
+                        // Update beta
+                        beta *= attenuation;
+                        r = scattered_ray;
+                    } else {
+                        // Absorbed (black body)
+                        break;
+                    }
 
                     // Russian Roulette method to kill weak rays early
                     // is an optimization cause weak rays = weak influence on final
