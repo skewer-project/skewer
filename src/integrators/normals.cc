@@ -1,9 +1,10 @@
+#include "integrators/normals.h"
+
 #include "core/constants.h"
 #include "core/ray.h"
 #include "core/spectrum.h"  // Assuming you have a Vec3 or Color class here
 #include "core/vec3.h"
 #include "film/film.h"
-#include "integrators/normals.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/surface_interaction.h"
