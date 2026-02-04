@@ -17,6 +17,12 @@ class ImageIO {
     static DeepImageBuffer LoadEXR(const std::string filename);
 };
 
+struct ChannelInfo {
+    const char* name;
+    bool required;
+    bool present;
+};
+
 }
 
 #endif
