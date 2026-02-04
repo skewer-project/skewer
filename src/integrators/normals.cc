@@ -1,17 +1,18 @@
-#include "integrators/normals.h"
-
 #include "core/constants.h"
 #include "core/ray.h"
 #include "core/spectrum.h"  // Assuming you have a Vec3 or Color class here
 #include "core/vec3.h"
 #include "film/film.h"
+#include "integrators/normals.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "scene/surface_interaction.h"
+#include "session/render_options.h"
 
 namespace skwr {
 
-void Normals::Render(const Scene &scene, const Camera &cam, Film *film) {
+void Normals::Render(const Scene &scene, const Camera &cam, Film *film,
+                     const IntegratorConfig &config) {
     for (int y = 0; y < film->height(); ++y) {
         for (int x = 0; x < film->width(); ++x) {
             // Integrator calculates normalized coords

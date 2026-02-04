@@ -7,7 +7,8 @@ namespace skwr {
 
 class Normals : public Integrator {
   public:
-    void Render(const Scene &scene, const Camera &cam, Film *film) override;
+    void Render(const Scene &scene, const Camera &cam, Film *film,
+                const IntegratorConfig &config) override;
 };
 
 }  // namespace skwr

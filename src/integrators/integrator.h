@@ -3,16 +3,19 @@
 
 namespace skwr {
 
-class Scene;  // Forward declarations
+// Forward declarations
+class Scene;
 class Camera;
 class Film;
+class IntegratorConfig;
 
 // Abstract base class (or just use a single PathTracer class for now)
 class Integrator {
   public:
     virtual ~Integrator() = default;
 
-    virtual void Render(const Scene &scene, const Camera &cam, Film *film) = 0;
+    virtual void Render(const Scene &scene, const Camera &cam, Film *film,
+                        const IntegratorConfig &config) = 0;
 
   protected:
     // Calculates Radiance (Li) along a single ray
