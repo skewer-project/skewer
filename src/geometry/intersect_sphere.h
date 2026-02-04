@@ -29,6 +29,7 @@ inline bool IntersectSphere(const Ray& r, const Sphere& s, float t_min, float t_
     si->t = root;
     si->p = r.origin() + root * r.direction();
     si->n = (si->p - s.center) / s.radius;
+    si->SetFaceNormal(r, si->n);
     return true;
 }
 
