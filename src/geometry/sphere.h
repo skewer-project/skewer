@@ -1,6 +1,8 @@
 #ifndef SKWR_GEOMETRY_SPHERE_H_
 #define SKWR_GEOMETRY_SPHERE_H_
 
+#include <cstdint>
+
 #include "core/vec3.h"
 
 namespace skwr {
@@ -8,6 +10,7 @@ namespace skwr {
 struct Sphere {
     Vec3 center;
     float radius;
+    uint32_t material_id;
 };
 
 }  // namespace skwr
