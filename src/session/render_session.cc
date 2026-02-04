@@ -1,5 +1,3 @@
-#include "session/render_session.h"
-
 #include <iostream>
 #include <memory>
 
@@ -12,6 +10,7 @@
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
+#include "session/render_session.h"
 
 namespace skwr {
 
@@ -56,11 +55,12 @@ void RenderSession::LoadScene(const std::string &filename) {
  */
 void RenderSession::SetOptions(const RenderOptions &options) {
     options_ = options;
-    film_ = std::make_unique<Film>(options_.width, options_.height);
-    integrator_ = CreateIntegrator(options_.integrator);
+    film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
+    integrator_ = CreateIntegrator(options_.integrator_type);
 
-    std::cout << "[Session] Options Set: " << options_.width << "x" << options_.height
-              << " | Samples: " << options_.samples_per_pixel << "\n";
+    std::cout << "[Session] Options Set: " << options_.image_config.width << "x"
+              << options_.image_config.height
+              << " | Samples: " << options_.integrator_config.samples_per_pixel << "\n";
 }
 
 /**
@@ -74,7 +74,7 @@ void RenderSession::Render() {
 
     std::cout << "[Session] Starting Render...\n";
 
-    integrator_->Render(*scene_, *camera_, film_.get());
+    integrator_->Render(*scene_, *camera_, film_.get(), options_.integrator_config);
     // .get() extracts the raw pointer held inside. Integrator needs to write pixels to film, so
     // it's mutable, but we don't want to transfer ownership
 
@@ -86,7 +86,7 @@ void RenderSession::Render() {
  */
 void RenderSession::Save() const {
     if (film_) {
-        film_->WriteImage(options_.outfile);
+        film_->WriteImage(options_.image_config);
     }
 }
 
