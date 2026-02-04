@@ -1,9 +1,9 @@
 #include "film/image_buffer.h"
 
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <ostream>
-#include <cassert>
 
 #include "core/spectrum.h"
 
@@ -13,14 +13,14 @@ ImageBuffer::ImageBuffer(int width, int height) : width_(width), height_(height)
     pixels_.resize(width * height);
 }
 
-void ImageBuffer::SetPixel(int x, int y, const Spectrum &s) {
+void ImageBuffer::SetPixel(int x, int y, const Spectrum& s) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
     pixels_[y * width_ + x] = s;
 }
 
 // For debug and testing purposes, we can keep this PPM writer but
 // ultimately we should move this to a separate src/io/image_io.h or something
-void ImageBuffer::WritePPM(const std::string &filename) const {
+void ImageBuffer::WritePPM(const std::string& filename) const {
     std::ofstream out(filename);
     if (!out) {
         std::cerr << "Error: Could not open " << filename << " for writing.\n";
@@ -30,7 +30,7 @@ void ImageBuffer::WritePPM(const std::string &filename) const {
     // PPM Header: P3 = ASCII RGB, then width, height, max_val
     out << "P3\n" << width_ << " " << height_ << "\n255\n";
 
-    for (const auto &pixel : pixels_) {
+    for (const auto& pixel : pixels_) {
         Color c = pixel.ToColor();
         c.ApplyGammaCorrection();
         c.Clamp(0.0f, 1.0f);
@@ -46,17 +46,41 @@ void ImageBuffer::WritePPM(const std::string &filename) const {
     std::cout << "Wrote image to " << filename << "\n";
 }
 
-void DeepImageBuffer::SetPixel(int x, int y, const DeepPixel &p) {
-    assert(x < 0 || x >= width_ || y < 0 || y >= height_); // should crash if out of bounds
+void DeepImageBuffer::SetPixel(int x, int y, const std::vector<DeepSample>& newSamples) {
+    assert(x >= 0 && x < width_);  // should crash if out of bounds
 
-    pixels_[y * width_ + x] = p;
+    size_t idx = y * width_ + x;
+    size_t start = pixelOffsets_[idx];
+    size_t end = pixelOffsets_[idx + 1];
+
+    // Mem-copy all samples in place
+    std::copy(newSamples.begin(), newSamples.end(), allSamples_.begin() + start);
 }
 
-DeepPixel& DeepImageBuffer::GetPixel(int x, int y) {
-    assert(x < 0 || x >= width_ || y < 0 || y >= height_); // crash if out of bounds
+DeepPixelView DeepImageBuffer::GetPixel(int x, int y) const {
+    assert(x >= 0 && x < width_);  // crash if out of bounds
 
-    return pixels_[y * width_ + x];
+    size_t idx = y * width_ + x;
+    size_t start = pixelOffsets_[idx];
+    size_t end = pixelOffsets_[idx + 1];
+
+    return {&allSamples_[start], end - start};
 }
 
+DeepImageBuffer::DeepImageBuffer(int width, int height, const std::vector<unsigned int>& counts)
+    : width_(width), height_(height) {
+    // At the very least the offsets needs to be allocated
+    size_t numPixels = width * height;
+    pixelOffsets_.resize(numPixels + 1);
+
+    size_t currentOffset = 0;
+    for (size_t i = 0; i < numPixels; ++i) {
+        pixelOffsets_[i] = currentOffset;
+        currentOffset += counts[i];
+    }
+    pixelOffsets_[numPixels] = currentOffset;  // Sentinel
+
+    allSamples_.resize(currentOffset);  // Allocate strictly what is needed
+}
 
 }  // namespace skwr
