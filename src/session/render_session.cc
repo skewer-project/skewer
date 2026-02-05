@@ -1,5 +1,3 @@
-#include "session/render_session.h"
-
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -16,6 +14,7 @@
 #include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
+#include "session/render_session.h"
 
 namespace skwr {
 
@@ -87,6 +86,9 @@ void RenderSession::LoadScene(const std::string &filename) {
 
     // Create and Upload
     scene_->AddMesh(CreateQuad(p0, p1, p2, p3, id_ground));
+
+    // Build BVH
+    scene_->Build();
 
     // Initilize camera
     // Looking from (0, 0, 0) to (0, 0, -1)
