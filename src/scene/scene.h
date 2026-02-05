@@ -6,10 +6,10 @@
 #include <cstdint>
 #include <vector>
 
-#include "core/ray.h"
+#include "geometry/mesh.h"
 #include "geometry/sphere.h"
+#include "geometry/triangle.h"
 #include "materials/material.h"
-#include "scene/surface_interaction.h"
 // #include "accelerators/bvh.h"
 
 /**
@@ -19,6 +19,10 @@
  */
 
 namespace skwr {
+
+// Forward declarations of pointers
+struct Ray;
+struct SurfaceInteraction;
 
 class Scene {
   public:
@@ -39,6 +43,28 @@ class Scene {
 
     const Material &GetMaterial(uint32_t id) const { return materials_[id]; }
 
+    // Returns mesh_id (index in the meshes_ vector)
+    uint32_t AddMesh(Mesh &&m) {
+        meshes_.push_back(std::move(m));
+        uint32_t mesh_id = (uint32_t)meshes_.size() - 1;
+
+        // AUTO-GENERATE TRIANGLES
+        // When we add a mesh, we immediately break it into Triangle primitives
+        // so the renderer can see them.
+        const Mesh &mesh_ref = meshes_.back();
+        for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
+            Triangle t;
+            t.mesh_id = mesh_id;
+            t.v_idx = (uint32_t)i;  // Points to the first index of the triplet
+            triangles_.push_back(t);
+        }
+
+        return mesh_id;
+    }
+
+    // We need to look up meshes by ID during intersection
+    const Mesh &GetMesh(uint32_t id) const { return meshes_[id]; }
+
     // void Build();  // Constructs the BVH from the shapes list
 
     // THE CRITICAL HOT-PATH FUNCTION
@@ -52,6 +78,8 @@ class Scene {
   private:
     std::vector<Sphere> spheres_;
     std::vector<Material> materials_;
+    std::vector<Mesh> meshes_;
+    std::vector<Triangle> triangles_;
     // BVH bvh_;                    // The acceleration structure
 };
 
