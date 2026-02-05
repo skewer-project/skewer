@@ -1,3 +1,5 @@
+#include "scene/scene.h"
+
 #include <cstdint>
 
 #include "accelerators/bvh.h"
@@ -7,7 +9,6 @@
 #include "geometry/intersect_triangle.h"
 #include "geometry/mesh.h"
 #include "geometry/triangle.h"
-#include "scene/scene.h"
 #include "scene/surface_interaction.h"
 
 namespace skwr {

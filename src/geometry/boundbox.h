@@ -83,6 +83,31 @@ class BoundBox {
         return true;
     }
 
+    // 0 thickness error fix
+    void PadToMinimums() {
+        // Adjust based on scene scale
+        // good for scenes sized 1.0 - 1000.0
+        constexpr Float delta = 0.0001f;
+
+        Vec3 diag = max_ - min_;
+
+        // Check X
+        if (diag.x() < delta) {
+            min_[0] -= delta * 0.5f;
+            max_[0] += delta * 0.5f;
+        }
+        // Check Y
+        if (diag.y() < delta) {
+            min_[1] -= delta * 0.5f;
+            max_[1] += delta * 0.5f;
+        }
+        // Check Z
+        if (diag.z() < delta) {
+            min_[2] -= delta * 0.5f;
+            max_[2] += delta * 0.5f;
+        }
+    }
+
     // Box Operations
     void Expand(const Point3& p) {
         min_ = Point3(std::fmin(min_.x(), p.x()), std::fmin(min_.y(), p.y()),

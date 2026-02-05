@@ -1,7 +1,8 @@
+#include "accelerators/bvh.h"
+
 #include <algorithm>  // for std::partition
 #include <cstdint>
 
-#include "accelerators/bvh.h"
 #include "geometry/boundbox.h"
 
 namespace skwr {
@@ -53,6 +54,8 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
         BoundBox tri_box = GetBounds(triangles[first_tri + i], meshes);
         node.bounds.Expand(tri_box);
     }
+
+    node.bounds.PadToMinimums();
 
     // Leaf Stop condition
     // Stop if we have few triangles, to avoid overhead of deep trees
