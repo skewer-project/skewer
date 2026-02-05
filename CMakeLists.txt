@@ -28,6 +28,7 @@ set(SOURCES
     src/film/image_buffer.cc
     src/integrators/path_trace.cc
     src/integrators/normals.cc
+    src/accelerators/bvh.cc
 
 )
 
