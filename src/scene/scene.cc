@@ -2,6 +2,8 @@
 
 #include "core/constants.h"
 #include "geometry/intersect_sphere.h"
+#include "geometry/intersect_triangle.h"
+#include "geometry/mesh.h"
 
 namespace skwr {
 
@@ -17,10 +19,14 @@ bool Scene::Intersect(const Ray &r, Float t_min, Float t_max, SurfaceInteraction
         }
     }
 
-    // 2. Check Triangles (Linear Scan - Placeholder for now)
-    // for (const auto& tri : triangles_) {
-    //    if (IntersectTriangle(r, tri, meshes_, closest_t, si)) { ... }
-    // }
+    // Check Triangles (Linear Scan - Placeholder for now)
+    for (const auto &tri : triangles_) {
+        const Mesh &mesh = meshes_[tri.mesh_id];
+        if (IntersectTriangle(r, tri, mesh, t_min, closest_t, si)) {
+            hit_anything = true;
+            closest_t = si->t;
+        }
+    }
 
     return hit_anything;
 }
