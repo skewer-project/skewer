@@ -11,7 +11,7 @@ class ImageIO {
   public:
     static void SavePPM(const FlatImageBuffer& buf, const std::string filename);
 
-    static void SaveEXR(const DeepImageBuffer& buf, const std::string filename);
+    static void SaveEXR(DeepImageBuffer& buf, const std::string filename);
 
     static FlatImageBuffer LoadPPM(const std::string filename);
 

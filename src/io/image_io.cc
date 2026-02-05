@@ -21,6 +21,9 @@ namespace skwr {
 
 #define POINTER_SIZE 4
 #define ZBACK 5
+#define RED 0
+#define GREEN 1
+#define BLUE 2
 
 // Helper to compute the base pointer offset for OpenEXR frame buffers
 template <typename T>
@@ -202,9 +205,9 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
                 // Since Spectrum uses FLOAT but you want to read HALF, this is risky without casting
                 float* rawColor = reinterpret_cast<float*>(&firstSample->color);
 
-                rPtrs[y][x] = rawColor + 0;
-                gPtrs[y][x] = rawColor + 1;
-                bPtrs[y][x] = rawColor + 2;
+                rPtrs[y][x] = &rawColor[RED];
+                gPtrs[y][x] = &rawColor[GREEN];
+                bPtrs[y][x] = &rawColor[BLUE];
 
                 // Alpha and Z are usually standard types
                 aPtrs[y][x] = &firstSample->alpha;
@@ -261,16 +264,85 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
 
 // OpenEXR File Layout: https://openexr.com/en/latest/OpenEXRFileLayout.html
 
-/*
- * Strategy for `SaveEXR`:
-    1. Create Temporary Pointer Arrays: Create std::vector<float*> zPtrs, std::vector<half*> rPtrs,
- etc., that are width * height in size.
-    2. Point to your Data: Loop through your DeepImageBuffer. For each pixel, point the zPtrs[i] to
- &pixel.samples[0].Z. NOTE: DeepSample struct must be standard layout. If you have struct { float Z;
- Spectrum c; }, the stride for Z is sizeof(DeepSample).
-    3. Configure FrameBuffer:
-        - insert("Z", DeepSlice(FLOAT, (char*)zPtrs.data()..., sizeof(float*), sizeof(float*)*width,
- sizeof(DeepSample)))
-        - Note the last argument!!! The sampleStride is now sizeof(DeepSample), not sizeof(float).
- This tells OpenEXR to skip over the Color bytes to find the next Z value.
- */
+void ImageIO::SaveEXR(DeepImageBuffer& buf, const std::string filename) {
+    // Box2i takes (min, max). Note the -1 because it is inclusive.
+    const int width = buf.GetWidth();
+    const int height = buf.GetHeight();
+
+    auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
+
+    // Initialize header information
+    Imath::Box2i dataWindow(Imath::V2i(0, 0), Imath::V2i(width - 1, height - 1));
+    Imf::Header header(width, height, dataWindow);
+    int minX = dataWindow.min.x;
+    int minY = dataWindow.min.y;
+
+    header.channels().insert("R", Imf_3_1::Channel(Imf_3_1::FLOAT));
+    header.channels().insert("G", Imf_3_1::Channel(Imf_3_1::FLOAT));
+    header.channels().insert("B", Imf_3_1::Channel(Imf_3_1::FLOAT));
+    header.channels().insert("A", Imf_3_1::Channel(Imf_3_1::FLOAT));
+    header.channels().insert("Z", Imf_3_1::Channel(Imf_3_1::FLOAT));
+    header.channels().insert("ZBack", Imf_3_1::Channel(Imf_3_1::FLOAT));
+    header.setType(Imf_3_1::DEEPSCANLINE);  // NOTE: may change to DEEEPTILE later
+    header.compression() =
+        Imf_3_1::ZIPS_COMPRESSION;  // what the sample uses. should investigate types further
+
+    Imf_3_1::DeepScanLineOutputFile file(filename.c_str(), header);
+
+    // Create pointer arrays that OpenEXR expects (one pointer per pixel)
+    // These pointers will point into our contiguous vectors.
+    Imf::Array2D<float*> rPtrs(height, width);
+    Imf::Array2D<float*> gPtrs(height, width);
+    Imf::Array2D<float*> bPtrs(height, width);
+    Imf::Array2D<float*> aPtrs(height, width);
+    Imf::Array2D<float*> zPtrs(height, width);
+    Imf::Array2D<float*> zBackPtrs(height, width);
+
+    // Set up pointers for the deep slices
+    size_t offset = 0;  // offset corresponds to the space needed for the number of samples inserted
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            MutableDeepPixelView pixel = buf.GetMutablePixel(x, y);
+            unsigned int count = pixel.count;
+            if (count > 0) {
+                rPtrs[y][x] = &pixel.data -> color.data()[RED];
+                rPtrs[y][x] = &pixel.data -> color.data()[GREEN];
+                rPtrs[y][x] = &pixel.data -> color.data()[BLUE];
+                aPtrs[y][x] = &pixel.data->alpha;
+                zPtrs[y][x] = &pixel.data->z_front;
+                zBackPtrs[y][x] = &pixel.data->z_back;
+
+                offset += count;
+            } else {
+                rPtrs[y][x] = nullptr;
+                gPtrs[y][x] = nullptr;
+                bPtrs[y][x] = nullptr;
+                aPtrs[y][x] = nullptr;
+                zPtrs[y][x] = nullptr;
+                zBackPtrs[y][x] = nullptr;
+            }
+        }
+    }
+
+    // Create and populate frameBuffer
+    Imf_3_1::DeepFrameBuffer frameBuffer;
+
+    // Insert sample count slice (still needed for readPixels validation internally by OpenEXR)
+    frameBuffer.insertSampleCountSlice(Imf::Slice(
+        Imf_3_1::UINT, (char*)(&sampleCounts[0][0] - dataWindow.min.x - dataWindow.min.y * width),
+        sizeof(unsigned int) * 1,        // xStride
+        sizeof(unsigned int) * width));  // yStride
+
+    size_t sampleStride = sizeof(DeepSample);
+
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+
+    file.setFrameBuffer(frameBuffer);
+
+   file.writePixels(height);
+}
