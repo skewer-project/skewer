@@ -13,6 +13,7 @@
 #include "integrators/path_trace.h"
 #include "materials/material.h"
 #include "scene/camera.h"
+#include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
 
@@ -70,9 +71,22 @@ void RenderSession::LoadScene(const std::string &filename) {
     mat_red.albedo = Spectrum(0.7f, 0.3f, 0.3f);
     uint32_t id_red = scene_->AddMaterial(mat_red);
 
-    scene_->AddSphere(Sphere{Vec3(0.0f, -1001.0f, -1.0f), 1000.0f, id_ground});
+    // scene_->AddSphere(Sphere{Vec3(0.0f, -1001.0f, -1.0f), 1000.0f, id_ground});
     scene_->AddSphere(Sphere{Vec3(0.0f, 0.0f, -3.0f), 1.0f, id_glass});
     scene_->AddSphere(Sphere{Vec3(2.1f, 0.0f, -3.0f), 1.0f, id_red});
+    // NEW: Floor Quad
+    // Let's make it 20x20 units, centered at Y=-1.0
+    float size = 10.0f;
+    float y_floor = -1.0f;
+
+    // Define corners (Counter-Clockwise order looking from top)
+    Vec3 p0(-size, y_floor, size);   // Front-Left
+    Vec3 p1(size, y_floor, size);    // Front-Right
+    Vec3 p2(size, y_floor, -size);   // Back-Right
+    Vec3 p3(-size, y_floor, -size);  // Back-Left
+
+    // Create and Upload
+    scene_->AddMesh(CreateQuad(p0, p1, p2, p3, id_ground));
 
     // Initilize camera
     // Looking from (0, 0, 0) to (0, 0, -1)
