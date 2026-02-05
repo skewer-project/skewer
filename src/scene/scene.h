@@ -6,11 +6,12 @@
 #include <cstdint>
 #include <vector>
 
+#include "accelerators/bvh.h"
+#include "core/constants.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
 #include "materials/material.h"
-// #include "accelerators/bvh.h"
 
 /**
  * ├── scene/               # The "World" Container
@@ -65,12 +66,13 @@ class Scene {
     // We need to look up meshes by ID during intersection
     const Mesh &GetMesh(uint32_t id) const { return meshes_[id]; }
 
-    // void Build();  // Constructs the BVH from the shapes list
+    void Build();  // Construct the BVH from the shapes list
 
     // THE CRITICAL HOT-PATH FUNCTION
     // The Integrator calls this millions of times.
     // rn loops through linearly, but when BVH is implemented, should be faster
     bool Intersect(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const;
+    bool IntersectBVH(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const;
 
     // Needed for light sampling (picking a random light)
     // const std::vector<Light> &GetLights() const;
@@ -80,7 +82,7 @@ class Scene {
     std::vector<Material> materials_;
     std::vector<Mesh> meshes_;
     std::vector<Triangle> triangles_;
-    // BVH bvh_;                    // The acceleration structure
+    BVH bvh_;
 };
 
 }  // namespace skwr
