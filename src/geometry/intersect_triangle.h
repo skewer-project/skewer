@@ -41,7 +41,7 @@ inline bool IntersectTriangle(const Ray &r, const Triangle &tri, const Mesh &mes
     Vec3 s = r.origin() - p0;
     Float u = inv_det * Dot(s, ray_cross_e2);
 
-    if (u < 0.0f || u > 0.0f) return false;
+    if (u < 0.0f || u > 1.0f) return false;
 
     Vec3 s_cross_e1 = Cross(s, e1);
     Float v = inv_det * Dot(r.direction(), s_cross_e1);
