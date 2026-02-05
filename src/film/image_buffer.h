@@ -72,9 +72,12 @@ class DeepImageBuffer {
     DeepPixelView GetPixel(int x, int y) const;
     MutableDeepPixelView GetMutablePixel(int x, int y);
 
+    int GetWidth(void) const;
+    int GetHeight(void) const;
+
   private:
-    int width_;
-    int height_;
+    const int width_;
+    const int height_;
 
     std::vector<DeepSample> allSamples_;
     std::vector<size_t> pixelOffsets_;
