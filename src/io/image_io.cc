@@ -9,9 +9,9 @@
 #include <ImfPartType.h>
 
 #include <cassert>
-#include <optional>
 #include <vector>
 
+#include "ImfCompression.h"
 #include "ImfMultiPartInputFile.h"
 #include "ImfPixelType.h"
 #include "film/image_buffer.h"
@@ -47,11 +47,27 @@ static constexpr int getPixelTypeSize(Imf_3_1::PixelType type) {
 }
 
 // Helper to insert a deep slice with consistent parameters
-static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void** ptrs,
+static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* ptrs,
                             Imf_3_1::PixelType pixelType, int minX, int minY, int width) {
+    // Cast to char** so the pointer arithmetic steps by 'sizeof(char*)' (usually 8 bytes)
+    // instead of 1 byte or crashing.
+    char** ptrArray = reinterpret_cast<char**>(ptrs);
+
     fb.insert(name,
               Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width), POINTER_SIZE,
                              POINTER_SIZE * width, getPixelTypeSize(pixelType)));
+}
+
+// With custom stride overload
+static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* ptrs,
+                            Imf_3_1::PixelType pixelType, int minX, int minY, int width, size_t stride) {
+    // Cast to char** so the pointer arithmetic steps by 'sizeof(char*)' (usually 8 bytes)
+    // instead of 1 byte or crashing.
+    char** ptrArray = reinterpret_cast<char**>(ptrs);
+
+    fb.insert(name,
+              Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width), POINTER_SIZE,
+                             POINTER_SIZE * width, stride));
 }
 
 // Check if image exists and is even deep
@@ -135,18 +151,21 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
      */
     auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
 
-    /* Insert the sample count slice
-     *
-     * We can't use the simpler setFrameBuffer interface for this part easily without constructing a
-     * partial FrameBuffer, but reading sample counts is a specific operation in
-     * DeepScanLineInputFile.
-     *
-     * However, readPixelSampleCounts DOES NOT look at the setFrameBuffer. It just reads the counts.
-     * The frame buffer is only needed for readPixels.
-     */
+    // Configure FrameBuffer
+    Imf::DeepFrameBuffer frameBuffer;
+
+    // Insert sample count slice to get total Samples
+    frameBuffer.insertSampleCountSlice(Imf::Slice(
+        Imf_3_1::UINT, (char*)(&sampleCounts[0][0] - dataWindow.min.x - dataWindow.min.y * width),
+        sizeof(unsigned int) * 1,        // xStride
+        sizeof(unsigned int) * width));  // yStride
+
+    file.setFrameBuffer(frameBuffer);
+
     file.readPixelSampleCounts(dataWindow.min.y, dataWindow.max.y);
 
-    // Calculate total samples to allocate contiguous memory
+    // Calculate total samples to allocate contiguous memory instead of a pointer for each channel
+    // at each pixel
     size_t totalSamples = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -156,97 +175,83 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
 
     std::clog << "    Total samples: " << totalSamples << std::endl;
 
-    // Allocate contiguous storage for all sample data
-    // Using vectors ensures RAII cleanup and better cache locality.
-    std::vector<half> rData(totalSamples);
-    std::vector<half> gData(totalSamples);
-    std::vector<half> bData(totalSamples);
-    std::vector<half> aData(totalSamples);
-    std::vector<float> zData(totalSamples);
-    std::vector<float> zBackData(hasZBack ? totalSamples : 0);
-
     // Create pointer arrays that OpenEXR expects (one pointer per pixel)
     // These pointers will point into our contiguous vectors.
-    Imf::Array2D<half*> rPtrs(height, width);
-    Imf::Array2D<half*> gPtrs(height, width);
-    Imf::Array2D<half*> bPtrs(height, width);
-    Imf::Array2D<half*> aPtrs(height, width);
+    Imf::Array2D<float*> rPtrs(height, width);
+    Imf::Array2D<float*> gPtrs(height, width);
+    Imf::Array2D<float*> bPtrs(height, width);
+    Imf::Array2D<float*> aPtrs(height, width);
     Imf::Array2D<float*> zPtrs(height, width);
-    std::optional<Imf::Array2D<float*>> zBackPtrs;
-    if (hasZBack) {
-        zBackPtrs.emplace(height, width);
-    }
+    Imf::Array2D<float*> zBackPtrs(height, width); // always needed to handle offset logic
+
+    // Automatically populate deepbuf in one take with readPixels
+    DeepImageBuffer deepbuf(width, height, totalSamples, sampleCounts);
 
     // Set up pointers for the deep slices
     size_t offset = 0;  // offset corresponds to the space needed for the number of samples inserted
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             unsigned int count = sampleCounts[y][x];
+
             if (count > 0) {
-                rPtrs[y][x] = rData.data() + offset;
-                gPtrs[y][x] = gData.data() + offset;
-                bPtrs[y][x] = bData.data() + offset;
-                aPtrs[y][x] = aData.data() + offset;
-                zPtrs[y][x] = zData.data() + offset;
-                if (hasZBack) {
-                    (*zBackPtrs)[y][x] = zBackData.data() + offset;
-                }
-                offset += count;
+                // Get pointer to the FIRST sample of this pixel in your final buffer
+                // Note: GetMutablePixel returns a view, &view[0] gets the raw DeepSample*
+                DeepSample* firstSample = &deepbuf.GetMutablePixel(x, y)[0];
+
+                // --- DANGEROUS POINTER MATH (To access inside Spectrum) ---
+                // Since Spectrum uses FLOAT but you want to read HALF, this is risky without casting
+                float* rawColor = reinterpret_cast<float*>(&firstSample->color);
+
+                rPtrs[y][x] = rawColor + 0;
+                gPtrs[y][x] = rawColor + 1;
+                bPtrs[y][x] = rawColor + 2;
+
+                // Alpha and Z are usually standard types
+                aPtrs[y][x] = &firstSample->alpha;
+                zPtrs[y][x] = &firstSample->z_front;
+                zBackPtrs[y][x] = (float*)&firstSample->z_back; // wire it up and fix later
+
             } else {
                 rPtrs[y][x] = nullptr;
                 gPtrs[y][x] = nullptr;
                 bPtrs[y][x] = nullptr;
                 aPtrs[y][x] = nullptr;
                 zPtrs[y][x] = nullptr;
-                if (hasZBack) {
-                    (*zBackPtrs)[y][x] = nullptr;
-                }
+                zBackPtrs[y][x] = nullptr;
             }
         }
     }
 
-    // Configure FrameBuffer
-    Imf::DeepFrameBuffer frameBuffer;
+    size_t sampleStride = sizeof(DeepSample);
 
-    // Insert sample count slice (still needed for readPixels validation internally by OpenEXR)
-    frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_1::UINT, (char*)(&sampleCounts[0][0] - dataWindow.min.x - dataWindow.min.y * width),
-        sizeof(unsigned int) * 1,        // xStride
-        sizeof(unsigned int) * width));  // yStride
-
-    insertDeepSlice(frameBuffer, "R", (void**)&rPtrs[0][0], Imf_3_1::HALF, minX, minY, width);
-    insertDeepSlice(frameBuffer, "G", (void**)&gPtrs[0][0], Imf_3_1::HALF, minX, minY, width);
-    insertDeepSlice(frameBuffer, "B", (void**)&bPtrs[0][0], Imf_3_1::HALF, minX, minY, width);
-    insertDeepSlice(frameBuffer, "A", (void**)&aPtrs[0][0], Imf_3_1::HALF, minX, minY, width);
-    insertDeepSlice(frameBuffer, "Z", (void**)&zPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width);
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_1::FLOAT, minX, minY, width, sampleStride);
     if (hasZBack) {
-        insertDeepSlice(frameBuffer, "ZBack", (void**)&((*zBackPtrs)[0][0]), Imf_3_1::FLOAT, minX,
-                        minY, width);
+        insertDeepSlice(frameBuffer, "ZBack", (char**)&zBackPtrs[0][0], Imf_3_1::FLOAT, minX,
+                        minY, width, sampleStride);
     }
 
-    file.setFrameBuffer(frameBuffer);
+    file.setFrameBuffer(frameBuffer);  // set updated frame buffer to read pixels
 
     // Read the pixels, filling each ptr with the corresponding channel info per sample, based on
     // the slices
     file.readPixels(dataWindow.min.y, dataWindow.max.y);
 
-    // Populate DeepImageBuffer
-    DeepImageBuffer deepbuf(width, height, totalSamples, sampleCounts);
+    // Handle missing ZBack channel
+    // If the file was hard-surface (no ZBack), we must initialize z_back = z_front manually.
+    if (!hasZBack) {
+        // We can use the pointers we already set up to do this quickly
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                unsigned int count = sampleCounts[y][x];
 
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            unsigned int count = sampleCounts[y][x];
-            if (count == 0) continue;
-
-            MutableDeepPixelView pixel = deepbuf.GetMutablePixel(x, y);  // Get mutable view
-
-            // Get pointers for this pixel
-            // We can reuse the ptrs array, or calculate offset again. Using ptrs array is easier.
-            for (unsigned int i = 0; i < count; i++) {
-                pixel[i] = {.alpha = aPtrs[y][x][i],
-                            .color = Spectrum(rPtrs[y][x][i], gPtrs[y][x][i], bPtrs[y][x][i]),
-                            .z_front = zPtrs[y][x][i],
-                            .z_back = hasZBack ? (*zBackPtrs)[y][x][i] : zPtrs[y][x][i]};
+                for(unsigned int i = 0; i < count; ++i) {
+                     // Array notation works on pointers too
+                     zBackPtrs[y][x][i] = zPtrs[y][x][i];
+                }
             }
         }
     }
