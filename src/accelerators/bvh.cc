@@ -1,8 +1,7 @@
-#include "accelerators/bvh.h"
-
 #include <algorithm>  // for std::partition
 #include <cstdint>
 
+#include "accelerators/bvh.h"
 #include "geometry/boundbox.h"
 
 namespace skwr {
@@ -31,7 +30,7 @@ void BVH::Build(std::vector<Triangle>& triangles, const std::vector<Mesh>& meshe
 
     // Reset
     nodes_.clear();
-    nodes_.reserve(triangles.size() * 2);
+    nodes_.reserve(triangles.size() * 2);  // mem alloc
 
     // Create Root Node
     BVHNode& root = nodes_.emplace_back();  // we not using pushback for efficiency
@@ -50,8 +49,8 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
     // We loop through the range of triangles assigned and grow bounding volume
     node.bounds = BoundBox();  // Reset to invalid
 
-    for (uint32_t i = 0; i < node.tri_count; ++i) {
-        BoundBox tri_box = GetBounds(triangles[node.left_first + i], meshes);
+    for (uint32_t i = 0; i < tri_count; ++i) {
+        BoundBox tri_box = GetBounds(triangles[first_tri + i], meshes);
         node.bounds.Expand(tri_box);
     }
 
@@ -92,12 +91,12 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
 
     // Create Children
     // We allocate 2 nodes contiguously.
-    // Right child will be left_child_idx + 1
+    // Depth-first but sibling-contiguous basically
     uint32_t left_child_idx = (uint32_t)nodes_.size();
     nodes_.emplace_back();
     nodes_.emplace_back();
 
-    // Re-fetch node (emplace_back invalidates references!)
+    // Re-fetch node (emplace_back invalidates references)
     nodes_[node_idx].left_first = left_child_idx;
     nodes_[node_idx].tri_count = 0;  // Mark as INTERNAL (count = 0)
 
