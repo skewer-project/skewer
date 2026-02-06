@@ -1,273 +1,259 @@
-#ifndef OBJ_LOADER_H
-#define OBJ_LOADER_H
-//==============================================================================================
-// OBJ file loader for ray tracing. Loads .obj files with .mtl material support.
-// Converts OBJ materials to raytracer materials and builds a BVH for acceleration.
-//==============================================================================================
+#ifndef SKWR_IO_OBJ_LOADER_H_
+#define SKWR_IO_OBJ_LOADER_H_
 
+// OBJ file loader for v2 renderer.
+// Loads .obj files via tinyobjloader, converts materials to v2 Material structs,
+// and populates a Scene with Mesh geometry.
+
+#include <cstdint>
+#include <iostream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "geometry/bvh.h"
-#include "geometry/hittable.h"
-#include "geometry/triangle.h"
+#include "core/constants.h"
+#include "core/vec3.h"
+#include "geometry/mesh.h"
 #include "materials/material.h"
-#include "materials/texture.h"
-#include "renderer/scene.h"
+#include "scene/scene.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-// Convert a tinyobj material to a raytracer material
-// Uses PBR-first approach to properly handle Blender's Principled BSDF exports
-inline shared_ptr<material> convert_obj_material(const tinyobj::material_t& mtl,
-                                                 const std::string& base_path) {
-    // Helper to format color for debug output
-    auto fmt_color = [](float r, float g, float b) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "(%.3f, %.3f, %.3f)", r, g, b);
-        return std::string(buf);
-    };
+namespace skwr {
 
-    std::clog << "  Material: \"" << mtl.name << "\"" << std::endl;
-    std::clog << "    Kd=" << fmt_color(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2])
-              << " Ks=" << fmt_color(mtl.specular[0], mtl.specular[1], mtl.specular[2])
-              << " Ke=" << fmt_color(mtl.emission[0], mtl.emission[1], mtl.emission[2])
-              << std::endl;
-    std::clog << "    Ns=" << mtl.shininess << " Ni=" << mtl.ior << " d=" << mtl.dissolve
-              << " illum=" << mtl.illum << std::endl;
-    std::clog << "    Pm=" << mtl.metallic << " Pr=" << mtl.roughness << std::endl;
+// Convert a tinyobj material to a v2 Material struct.
+// Mapping strategy (mirrors v1 priority order):
+//   1. PBR metallic >= 0.5        -> Metal
+//   2. Dissolve < 0.99 or glass   -> Dielectric
+//   3. High specular (non-PBR)    -> Metal
+//   4. Default                    -> Lambertian
+inline Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
+    Material mat{};
 
-    // 1. EMISSION - emissive materials become lights
-    double emission_intensity = mtl.emission[0] + mtl.emission[1] + mtl.emission[2];
-    if (emission_intensity > 0.001) {
-        std::clog << "    -> diffuse_light (emission detected)" << std::endl;
-        return make_shared<diffuse_light>(color(mtl.emission[0], mtl.emission[1], mtl.emission[2]));
+    std::clog << "  Material: \"" << mtl.name << "\""
+              << " Kd=(" << mtl.diffuse[0] << ", " << mtl.diffuse[1] << ", " << mtl.diffuse[2]
+              << ") Pm=" << mtl.metallic << " Pr=" << mtl.roughness << " d=" << mtl.dissolve
+              << " Ni=" << mtl.ior << std::endl;
+
+    // 1. PBR METALLIC
+    if (mtl.metallic >= 0.5f) {
+        mat.type = MaterialType::Metal;
+        mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
+        mat.roughness = std::max(0.0f, std::min(1.0f, mtl.roughness * 0.5f));
+        std::clog << "    -> Metal (PBR)" << std::endl;
+        return mat;
     }
 
-    // 2. PBR METALLIC - Blender's Principled BSDF metallic workflow
-    if (mtl.metallic >= 0.5) {
-        color albedo(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
-        double fuzz = mtl.roughness * 0.5;
-        fuzz = std::max(0.0, std::min(1.0, fuzz));
-        std::clog << "    -> metal (PBR metallic=" << mtl.metallic << ", fuzz=" << fuzz << ")"
-                  << std::endl;
-        return make_shared<metal>(albedo, fuzz);
-    }
-
-    // 3. TRANSPARENCY - only when explicitly transparent
+    // 2. TRANSPARENCY / GLASS
     bool is_glass_illum = (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
-    if (mtl.dissolve < 0.99 || is_glass_illum) {
-        double ior = (mtl.ior > 1.0) ? mtl.ior : 1.5;
-        std::clog << "    -> dielectric (dissolve=" << mtl.dissolve << ", illum=" << mtl.illum
-                  << ", ior=" << ior << ")" << std::endl;
-        return make_shared<dielectric>(ior);
+    if (mtl.dissolve < 0.99f || is_glass_illum) {
+        mat.type = MaterialType::Dielectric;
+        mat.albedo = Spectrum(1.0f, 1.0f, 1.0f);
+        mat.roughness = 0.0f;
+        mat.ior = (mtl.ior > 1.0f) ? mtl.ior : 1.5f;
+        std::clog << "    -> Dielectric (ior=" << mat.ior << ")" << std::endl;
+        return mat;
     }
 
-    // 4. TRADITIONAL SPECULAR METAL (fallback for non-PBR OBJ files)
-    double spec_intensity = (mtl.specular[0] + mtl.specular[1] + mtl.specular[2]) / 3.0;
-    if (spec_intensity > 0.5 && mtl.metallic < 0.001) {
-        double fuzz = 1.0 - std::min(1.0, mtl.shininess / 1000.0);
-        fuzz = std::max(0.0, std::min(0.5, fuzz));
-        color albedo(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
-        std::clog << "    -> metal (traditional specular=" << spec_intensity << ", fuzz=" << fuzz
-                  << ")" << std::endl;
-        return make_shared<metal>(albedo, fuzz);
+    // 3. TRADITIONAL SPECULAR (non-PBR fallback)
+    float spec_intensity = (mtl.specular[0] + mtl.specular[1] + mtl.specular[2]) / 3.0f;
+    if (spec_intensity > 0.5f && mtl.metallic < 0.001f) {
+        mat.type = MaterialType::Metal;
+        mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
+        float fuzz = 1.0f - std::min(1.0f, mtl.shininess / 1000.0f);
+        mat.roughness = std::max(0.0f, std::min(0.5f, fuzz));
+        std::clog << "    -> Metal (specular)" << std::endl;
+        return mat;
     }
 
-    // 5. DEFAULT - lambertian diffuse material
-    // Check if there's a diffuse texture
-    if (!mtl.diffuse_texname.empty()) {
-        std::string tex_path = base_path;
-        if (!tex_path.empty() && tex_path.back() != '/') {
-            tex_path += "/";
-        }
-        tex_path += mtl.diffuse_texname;
-        std::clog << "    -> lambertian with texture: " << tex_path << std::endl;
-        auto tex = make_shared<image_texture>(tex_path.c_str());
-        return make_shared<lambertian>(tex);
-    }
+    // 4. DEFAULT - Lambertian diffuse
+    mat.type = MaterialType::Lambertian;
+    mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
+    mat.roughness = 1.0f;
 
-    // Solid color lambertian
-    color diffuse_color(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
-
-    // If diffuse is black/zero, use a default gray
-    if (diffuse_color.length_squared() < 0.001) {
-        diffuse_color = color(0.5, 0.5, 0.5);
-        std::clog << "    -> lambertian (default gray, Kd was near-zero)" << std::endl;
+    // If diffuse is near-zero, use a default gray
+    if (mtl.diffuse[0] + mtl.diffuse[1] + mtl.diffuse[2] < 0.001f) {
+        mat.albedo = Spectrum(0.5f, 0.5f, 0.5f);
+        std::clog << "    -> Lambertian (default gray)" << std::endl;
     } else {
-        std::clog << "    -> lambertian (diffuse)" << std::endl;
+        std::clog << "    -> Lambertian" << std::endl;
     }
 
-    return make_shared<lambertian>(diffuse_color);
+    return mat;
 }
 
-// Load an OBJ file and return a hittable (BVH of triangles)
-// Parameters:
-//   filename: Path to the .obj file
-//   scale: Scale factor for each axis (default 1,1,1)
-//   translate_offset: Translation to apply after scaling (default 0,0,0)
-//   rotate_y_angle: Rotation around Y axis in degrees (default 0)
-//   default_mat: If provided, overrides all materials from the OBJ file
-inline shared_ptr<hittable> load_obj(const std::string& filename, const vec3& scale = vec3(1, 1, 1),
-                                     const vec3& translate_offset = vec3(0, 0, 0),
-                                     double rotate_y_angle = 0.0,
-                                     shared_ptr<material> default_mat = nullptr) {
+// Load an OBJ file and populate the Scene with meshes and materials.
+// scale: per-axis scale applied to vertex positions (e.g. Vec3(1,1,1) = no scaling).
+// Returns true on success.
+inline bool LoadOBJ(const std::string& filename, Scene& scene,
+                    const Vec3& scale = Vec3(1.0f, 1.0f, 1.0f)) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
     std::string warn, err;
 
     // Extract base path for material/texture loading
-    std::string base_path = "";
+    std::string base_path;
     size_t last_slash = filename.find_last_of("/\\");
     if (last_slash != std::string::npos) {
         base_path = filename.substr(0, last_slash);
     }
 
-    // Load the OBJ file (triangulate = true to ensure all faces are triangles)
-    bool success = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str(),
-                                    base_path.empty() ? nullptr : base_path.c_str(),
-                                    true  // triangulate
-    );
+    std::clog << "[OBJ] Loading: " << filename << std::endl;
 
-    if (!warn.empty()) {
-        std::cerr << "OBJ Loader Warning: " << warn << std::endl;
-    }
+    bool success =
+        tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str(),
+                         base_path.empty() ? nullptr : base_path.c_str(), true /* triangulate */);
 
-    if (!err.empty()) {
-        std::cerr << "OBJ Loader Error: " << err << std::endl;
-    }
-
+    if (!warn.empty()) std::cerr << "[OBJ] Warning: " << warn << std::endl;
+    if (!err.empty()) std::cerr << "[OBJ] Error: " << err << std::endl;
     if (!success) {
-        std::cerr << "Failed to load OBJ file: " << filename << std::endl;
-        // Return an empty hittable_list wrapped in BVH
-        return make_shared<bvh_node>(hittable_list());
+        std::cerr << "[OBJ] Failed to load: " << filename << std::endl;
+        return false;
     }
 
-    // Convert OBJ materials to raytracer materials
-    std::vector<shared_ptr<material>> converted_materials;
+    // Auto-fit: compute bounding box and normalize so the object fits in a 2-unit cube
+    // (matching the diameter of the sphere it replaces). User scale is applied on top.
+    Vec3 bbox_min(kInfinity, kInfinity, kInfinity);
+    Vec3 bbox_max(-kInfinity, -kInfinity, -kInfinity);
+    for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
+        for (int a = 0; a < 3; a++) {
+            if (attrib.vertices[i + a] < bbox_min[a]) bbox_min[a] = attrib.vertices[i + a];
+            if (attrib.vertices[i + a] > bbox_max[a]) bbox_max[a] = attrib.vertices[i + a];
+        }
+    }
+    Vec3 extent = bbox_max - bbox_min;
+    Float max_extent = std::max({extent.x(), extent.y(), extent.z()});
+    Float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
+    Vec3 final_scale(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
+
+    std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
+    std::clog << "[OBJ] Auto-fit scale: " << normalize
+              << ", final scale: (" << final_scale << ")" << std::endl;
+
+    // Convert OBJ materials -> v2 Material IDs
+    // material_id_map[obj_mat_index] = scene material ID
+    std::vector<uint32_t> material_id_map;
+    material_id_map.reserve(materials.size());
+
+    std::clog << "[OBJ] Converting " << materials.size() << " materials" << std::endl;
     for (const auto& mtl : materials) {
-        converted_materials.push_back(convert_obj_material(mtl, base_path));
+        Material converted = ConvertObjMaterial(mtl);
+        material_id_map.push_back(scene.AddMaterial(converted));
     }
 
-    // Default material if none provided and OBJ has no materials
-    auto fallback_mat = default_mat ? default_mat : make_shared<lambertian>(color(0.5, 0.5, 0.5));
+    // Fallback material for faces with no material assignment
+    uint32_t fallback_mat_id = UINT32_MAX;
 
-    // Collect all triangles
-    hittable_list triangles;
+    auto GetOrCreateFallback = [&]() -> uint32_t {
+        if (fallback_mat_id == UINT32_MAX) {
+            Material fallback{};
+            fallback.type = MaterialType::Lambertian;
+            fallback.albedo = Spectrum(0.5f, 0.5f, 0.5f);
+            fallback.roughness = 1.0f;
+            fallback_mat_id = scene.AddMaterial(fallback);
+        }
+        return fallback_mat_id;
+    };
+
+    // Process each shape.
+    // Since v2 Mesh has a single material_id, we group faces by material
+    // within each shape and create one Mesh per (shape, material) group.
+    uint32_t total_triangles = 0;
 
     for (const auto& shape : shapes) {
-        size_t index_offset = 0;
+        // Group face indices by material ID
+        // Key: OBJ material index (-1 for no material)
+        std::unordered_map<int, std::vector<size_t>> mat_to_faces;
 
-        // Iterate over faces
         for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
-            size_t fv = shape.mesh.num_face_vertices[f];
+            int mat_id = shape.mesh.material_ids[f];
+            mat_to_faces[mat_id].push_back(f);
+        }
 
-            // We requested triangulation, so fv should always be 3
-            if (fv != 3) {
-                std::cerr << "Warning: Non-triangle face encountered (skipping)" << std::endl;
-                index_offset += fv;
-                continue;
+        // Create one Mesh per material group
+        for (auto& [obj_mat_id, face_indices] : mat_to_faces) {
+            Mesh mesh;
+
+            // Resolve material
+            if (obj_mat_id >= 0 && obj_mat_id < static_cast<int>(material_id_map.size())) {
+                mesh.material_id = material_id_map[obj_mat_id];
+            } else {
+                mesh.material_id = GetOrCreateFallback();
             }
 
-            // Get vertex indices for this face
-            tinyobj::index_t idx0 = shape.mesh.indices[index_offset + 0];
-            tinyobj::index_t idx1 = shape.mesh.indices[index_offset + 1];
-            tinyobj::index_t idx2 = shape.mesh.indices[index_offset + 2];
+            // Vertex deduplication map: original OBJ vertex index -> local mesh index
+            // Key is (vertex_index, normal_index) pair encoded as uint64
+            std::unordered_map<uint64_t, uint32_t> vertex_map;
+            bool has_normals = !attrib.normals.empty();
 
-            // Extract and scale vertex positions
-            point3 v0(attrib.vertices[3 * idx0.vertex_index + 0] * scale.x(),
-                      attrib.vertices[3 * idx0.vertex_index + 1] * scale.y(),
-                      attrib.vertices[3 * idx0.vertex_index + 2] * scale.z());
-            point3 v1(attrib.vertices[3 * idx1.vertex_index + 0] * scale.x(),
-                      attrib.vertices[3 * idx1.vertex_index + 1] * scale.y(),
-                      attrib.vertices[3 * idx1.vertex_index + 2] * scale.z());
-            point3 v2(attrib.vertices[3 * idx2.vertex_index + 0] * scale.x(),
-                      attrib.vertices[3 * idx2.vertex_index + 1] * scale.y(),
-                      attrib.vertices[3 * idx2.vertex_index + 2] * scale.z());
+            for (size_t f : face_indices) {
+                size_t fv = shape.mesh.num_face_vertices[f];
+                if (fv != 3)
+                    continue;  // Skip non-triangles (shouldn't happen with triangulate=true)
 
-            // Get material for this face
-            shared_ptr<material> face_mat;
-            if (default_mat) {
-                face_mat = default_mat;
-            } else {
-                int mat_id = shape.mesh.material_ids[f];
-                if (mat_id >= 0 && mat_id < static_cast<int>(converted_materials.size())) {
-                    face_mat = converted_materials[mat_id];
-                } else {
-                    face_mat = fallback_mat;
+                // Compute the face's index offset into the shape's index buffer
+                size_t index_offset = 0;
+                for (size_t k = 0; k < f; k++) {
+                    index_offset += shape.mesh.num_face_vertices[k];
                 }
+
+                uint32_t tri_indices[3];
+
+                for (int v = 0; v < 3; v++) {
+                    tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
+
+                    // Encode vertex+normal index pair for deduplication
+                    uint64_t key = (static_cast<uint64_t>(idx.vertex_index) << 32);
+                    if (has_normals && idx.normal_index >= 0) {
+                        key |= static_cast<uint64_t>(static_cast<uint32_t>(idx.normal_index));
+                    }
+
+                    auto it = vertex_map.find(key);
+                    if (it != vertex_map.end()) {
+                        tri_indices[v] = it->second;
+                    } else {
+                        uint32_t local_idx = static_cast<uint32_t>(mesh.p.size());
+                        vertex_map[key] = local_idx;
+                        tri_indices[v] = local_idx;
+
+                        // Position (with auto-fit + user scale)
+                        mesh.p.push_back(Vec3(
+                            attrib.vertices[3 * idx.vertex_index + 0] * final_scale.x(),
+                            attrib.vertices[3 * idx.vertex_index + 1] * final_scale.y(),
+                            attrib.vertices[3 * idx.vertex_index + 2] * final_scale.z()));
+
+                        // Normal (if available)
+                        if (has_normals && idx.normal_index >= 0) {
+                            mesh.n.push_back(Vec3(attrib.normals[3 * idx.normal_index + 0],
+                                                  attrib.normals[3 * idx.normal_index + 1],
+                                                  attrib.normals[3 * idx.normal_index + 2]));
+                        }
+                    }
+                }
+
+                mesh.indices.push_back(tri_indices[0]);
+                mesh.indices.push_back(tri_indices[1]);
+                mesh.indices.push_back(tri_indices[2]);
             }
 
-            // Check if we have normals
-            bool has_normals =
-                (idx0.normal_index >= 0) && (idx1.normal_index >= 0) && (idx2.normal_index >= 0);
-
-            // Check if we have texture coordinates
-            bool has_texcoords = (idx0.texcoord_index >= 0) && (idx1.texcoord_index >= 0) &&
-                                 (idx2.texcoord_index >= 0);
-
-            if (has_normals && has_texcoords) {
-                // Full constructor with normals and UVs
-                vec3 n0(attrib.normals[3 * idx0.normal_index + 0],
-                        attrib.normals[3 * idx0.normal_index + 1],
-                        attrib.normals[3 * idx0.normal_index + 2]);
-                vec3 n1(attrib.normals[3 * idx1.normal_index + 0],
-                        attrib.normals[3 * idx1.normal_index + 1],
-                        attrib.normals[3 * idx1.normal_index + 2]);
-                vec3 n2(attrib.normals[3 * idx2.normal_index + 0],
-                        attrib.normals[3 * idx2.normal_index + 1],
-                        attrib.normals[3 * idx2.normal_index + 2]);
-
-                vec3 uv0(attrib.texcoords[2 * idx0.texcoord_index + 0],
-                         attrib.texcoords[2 * idx0.texcoord_index + 1], 0);
-                vec3 uv1(attrib.texcoords[2 * idx1.texcoord_index + 0],
-                         attrib.texcoords[2 * idx1.texcoord_index + 1], 0);
-                vec3 uv2(attrib.texcoords[2 * idx2.texcoord_index + 0],
-                         attrib.texcoords[2 * idx2.texcoord_index + 1], 0);
-
-                triangles.add(
-                    make_shared<triangle>(v0, v1, v2, face_mat, n0, n1, n2, uv0, uv1, uv2));
-            } else if (has_normals) {
-                // Constructor with normals only
-                vec3 n0(attrib.normals[3 * idx0.normal_index + 0],
-                        attrib.normals[3 * idx0.normal_index + 1],
-                        attrib.normals[3 * idx0.normal_index + 2]);
-                vec3 n1(attrib.normals[3 * idx1.normal_index + 0],
-                        attrib.normals[3 * idx1.normal_index + 1],
-                        attrib.normals[3 * idx1.normal_index + 2]);
-                vec3 n2(attrib.normals[3 * idx2.normal_index + 0],
-                        attrib.normals[3 * idx2.normal_index + 1],
-                        attrib.normals[3 * idx2.normal_index + 2]);
-
-                triangles.add(make_shared<triangle>(v0, v1, v2, face_mat, n0, n1, n2));
-            } else {
-                // Basic constructor (flat shading)
-                triangles.add(make_shared<triangle>(v0, v1, v2, face_mat));
+            // If normals were partially available, clear them to avoid mismatched sizes
+            if (!mesh.n.empty() && mesh.n.size() != mesh.p.size()) {
+                mesh.n.clear();
             }
 
-            index_offset += fv;
+            total_triangles += static_cast<uint32_t>(mesh.indices.size() / 3);
+            scene.AddMesh(std::move(mesh));
         }
     }
 
-    std::clog << "Loaded OBJ: " << filename << " with " << triangles.objects.size() << " triangles"
-              << std::endl;
+    std::clog << "[OBJ] Loaded " << shapes.size() << " shapes, " << total_triangles
+              << " triangles, " << materials.size() << " materials" << std::endl;
 
-    // Build BVH from all triangles
-    shared_ptr<hittable> result = make_shared<bvh_node>(triangles);
-
-    // Apply rotation if specified
-    if (std::fabs(rotate_y_angle) > 0.001) {
-        result = make_shared<rotate_y>(result, rotate_y_angle);
-    }
-
-    // Apply translation if specified
-    if (translate_offset.length_squared() > 0.000001) {
-        result = make_shared<translate>(result, translate_offset);
-    }
-
-    return result;
+    return true;
 }
 
-#endif
+}  // namespace skwr
+
+#endif  // SKWR_IO_OBJ_LOADER_H_
