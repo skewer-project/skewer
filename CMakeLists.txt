@@ -35,13 +35,13 @@ FetchContent_Declare(
 FetchContent_Declare(
   Imath
   GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/Imath.git
-  GIT_TAG        v3.1.10
+  GIT_TAG        v3.1.11
 )
 
 FetchContent_Declare(
   OpenEXR
   GIT_REPOSITORY https://github.com/AcademySoftwareFoundation/openexr.git
-  GIT_TAG        v3.1.9
+  GIT_TAG        v3.2.4
 )
 
 FetchContent_MakeAvailable(nlohmann_json Imath OpenEXR)
