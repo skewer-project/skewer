@@ -55,14 +55,6 @@ struct DeepPixelView {
     const DeepSample& operator[](size_t i) const { return data[i]; }
 };
 
-struct MutableDeepPixelView {
-    DeepSample* data;  // Mutable pointer
-    size_t count;
-
-    // Helper for array-like access
-    DeepSample& operator[](size_t i) { return data[i]; }
-};
-
 class DeepImageBuffer {
     // This gives ImageIO full access to private/protected members
     friend class ImageIO;
@@ -75,7 +67,6 @@ class DeepImageBuffer {
     void SetPixel(int x, int y, const std::vector<DeepSample>& newSamples);
 
     DeepPixelView GetPixel(int x, int y) const;
-    MutableDeepPixelView GetMutablePixel(int x, int y);
 
     int GetWidth(void) const;
     int GetHeight(void) const;
