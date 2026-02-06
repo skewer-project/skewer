@@ -47,6 +47,22 @@ inline Vec3 RandomInUnitDisk(RNG& rng) {
     }
 }
 
+// Returns a random direction in the Local Frame (Z is up)
+// The probability of picking a direction is proportional to Cosine(theta)
+inline Vec3 RandomCosineDirection(RNG& rng) {
+    Float r1 = rng.UniformFloat();
+    Float r2 = rng.UniformFloat();
+
+    // Standard mapping from unit square to hemisphere
+    Float phi = 2.0f * kPi * r1;
+
+    Float x = std::cos(phi) * std::sqrt(r1);  // Sqrt corrects the density
+    Float y = std::sin(phi) * std::sqrt(r1);
+    Float z = std::sqrt(1.0f - r1);  // This ensures z^2 + r^2 = 1
+
+    return Vec3(x, y, z);
+}
+
 // Fully deterministic per-pixel RNG, thread-order independent
 inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t sample_index) {
     // Get linear pixel ID
