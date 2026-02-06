@@ -147,7 +147,7 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
             if (count > 0) {
                 // Grab the address information of the sample at the start of the pixel
                 size_t start = deepbuf.pixelOffsets_[y * width + x];
-                DeepSample firstSample = deepbuf.allSamples_[start];
+                DeepSample& firstSample = deepbuf.allSamples_[start];
 
                 rPtrs[y][x] = &firstSample.color.data()[RED];
                 gPtrs[y][x] = &firstSample.color.data()[GREEN];
@@ -214,19 +214,19 @@ void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string filename) {
 
     auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
 
-    Imf::Array2D<float*> rPtrs(height, width);
-    Imf::Array2D<float*> gPtrs(height, width);
-    Imf::Array2D<float*> bPtrs(height, width);
-    Imf::Array2D<float*> aPtrs(height, width);
-    Imf::Array2D<float*> zPtrs(height, width);
-    Imf::Array2D<float*> zBackPtrs(height, width);
+    Imf::Array2D<const float*> rPtrs(height, width);
+    Imf::Array2D<const float*> gPtrs(height, width);
+    Imf::Array2D<const float*> bPtrs(height, width);
+    Imf::Array2D<const float*> aPtrs(height, width);
+    Imf::Array2D<const float*> zPtrs(height, width);
+    Imf::Array2D<const float*> zBackPtrs(height, width);
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             // Grab the address information of the sample at the start of the pixel
             size_t start = buf.pixelOffsets_[y * width + x];
             size_t end = buf.pixelOffsets_[y * width + x + 1];
-            DeepSample firstSample = buf.allSamples_[start];
+            const DeepSample& firstSample = buf.allSamples_[start];
 
             unsigned int count = static_cast<unsigned int>(end - start);
             sampleCounts[y][x] = count;

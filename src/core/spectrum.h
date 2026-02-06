@@ -56,7 +56,7 @@ class Spectrum {
     }
 
     // Raw Data Access (Needed for IO / OpenEXR)
-    Float* data() { return c; }
+    Float* data() { return c; } const Float* data() const { return c; }
 
     bool IsBlack() const { return c[0] == 0 && c[1] == 0 && c[2] == 0; }
     bool HasNaNs() const { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
