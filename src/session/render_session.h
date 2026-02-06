@@ -5,7 +5,6 @@
 #include <string>
 
 #include "film/film.h"
-#include "scene/scene.h"
 #include "session/render_options.h"
 
 /*
@@ -16,9 +15,11 @@
  * These should be implemented as development progresses
  */
 
-// Forward declarations to avoid circular includes and having to include scene, integrator, etc
 namespace skwr {
-// class Scene;
+
+// Forward declarations to avoid circular includes and having to include scene, integrator, etc
+class Scene;
+class Camera;
 class Integrator;
 class Film;
 
@@ -41,6 +42,7 @@ class RenderSession {
   private:
     // The 'World' (Geometry, Lights, Accelerators)
     std::unique_ptr<Scene> scene_;
+    std::unique_ptr<Camera> camera_;
 
     // The 'Canvas' (Where pixels end up)
     std::unique_ptr<Film> film_;
