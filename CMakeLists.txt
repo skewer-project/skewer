@@ -44,7 +44,17 @@ FetchContent_Declare(
   GIT_TAG        v3.2.4
 )
 
-FetchContent_MakeAvailable(nlohmann_json Imath OpenEXR)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(nlohmann_json Imath OpenEXR googletest)
+
+set(BUILD_TESTING ON CACHE BOOL "" FORCE)
+
 # Define Source Files
 # list every .cpp file here. no need for .h
 set(SOURCES
@@ -53,6 +63,7 @@ set(SOURCES
     src/session/render_session.cc
     src/film/film.cc
     src/film/image_buffer.cc
+    src/io/image_io.cc
     src/integrators/path_integrator.cc
 )
 
@@ -77,3 +88,7 @@ target_link_libraries(skewer-render
     OpenEXR::OpenEXR
     ZLIB::ZLIB
 )
+
+include(GoogleTest)
+enable_testing()
+add_subdirectory(tests)
