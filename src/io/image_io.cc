@@ -14,9 +14,6 @@
 #include <cassert>
 #include <iostream>
 
-#include "stb_image.h"
-#include "stb_image_write.h"
-
 #include "film/image_buffer.h"
 
 namespace skwr {
@@ -58,8 +55,9 @@ static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* pt
     size_t xStride = sizeof(float*);
     size_t yStride = xStride * width;
 
-    fb.insert(name, Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width, xStride, yStride),
-                                   xStride, yStride, sampleStride));
+    fb.insert(name,
+              Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width, xStride, yStride),
+                             xStride, yStride, sampleStride));
 }
 
 // =============================================================================================
@@ -102,19 +100,26 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     size_t countYStride = countXStride * width;
 
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT, makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
+        Imf_3_2::UINT,
+        makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
         countXStride, countYStride));
 
     size_t sampleStride = sizeof(DeepSample);
 
-    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
 
     if (hasZBack) {
-        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                        sampleStride);
     }
 
     file.setFrameBuffer(frameBuffer);
@@ -240,17 +245,24 @@ void ImageIO::SaveEXR(DeepImageBuffer& buf, const std::string filename) {
     size_t countYStride = countXStride * width;
 
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT, makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
+        Imf_3_2::UINT,
+        makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
         countXStride, countYStride));
 
     size_t sampleStride = sizeof(DeepSample);
 
-    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
 
     file.setFrameBuffer(frameBuffer);
     file.writePixels(height);
