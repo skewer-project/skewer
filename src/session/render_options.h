@@ -13,6 +13,7 @@ enum class IntegratorType {
 struct IntegratorConfig {
     int max_depth;
     int samples_per_pixel;
+    int num_threads = 0;  // 0 = auto-detect (hardware_concurrency)
 };
 
 struct ImageConfig {
