@@ -25,12 +25,14 @@ namespace skwr {
  * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
  * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
  */
-void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
-                       const IntegratorConfig &config) {
+void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
+                       const IntegratorConfig& config) {
     int width = film->width();
     int height = film->height();
 
     for (int y = 0; y < height; ++y) {
+        std::clog << "[Session] Scanlines: " << y << " of " << height << "\t\r" << std::flush;
+        std::clog.flush();
         for (int x = 0; x < width; ++x) {
             for (int s = 0; s < config.samples_per_pixel; ++s) {
                 RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
@@ -56,7 +58,7 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
 
                     /* Emission check for if we hit a light */
 
-                    const Material &mat = scene.GetMaterial(si.material_id);
+                    const Material& mat = scene.GetMaterial(si.material_id);
 
                     Spectrum attenuation;
                     Ray scattered_ray;
