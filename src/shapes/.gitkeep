@@ -1,4 +1,0 @@
-├── shapes/              # Geometric Data
-    │   ├── triangle.h       # Raw struct (Mesh storage)
-    │   └── sphere.h         # Raw struct
-    src/shapes/triangle.h: Contains the raw data (vertices, indices) and math. It knows nothing about polymorphism.

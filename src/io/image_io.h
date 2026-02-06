@@ -1,5 +1,5 @@
-#ifndef DEEP_IMAGE_H
-#define DEEP_IMAGE_H
+#ifndef IMAGE_IO_H
+#define IMAGE_IO_H
 
 #include <string>
 
