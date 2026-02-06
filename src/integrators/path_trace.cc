@@ -6,9 +6,9 @@
 #include "core/sampling.h"
 #include "core/spectrum.h"
 #include "film/film.h"
+#include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/camera.h"
-#include "scene/material_scatter.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
 
@@ -61,8 +61,8 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
                     Spectrum attenuation;
                     Ray scattered_ray;
 
-                    /* Scattering check */
-                    if (Scatter(mat, r, si, rng, attenuation, scattered_ray)) {
+                    /* BSDF check */
+                    if (Sample_BSDF(mat, r, si, rng, scattered_ray, attenuation)) {
                         // Update beta
                         beta *= attenuation;
                         r = scattered_ray;
