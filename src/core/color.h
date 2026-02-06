@@ -14,10 +14,6 @@ class Color {
     Color() : c{0, 0, 0} {}
     Color(Float r, Float g, Float b) : c{r, g, b} {}
     explicit Color(Float v) : c{v, v, v} {}
-    // explicit Color(double r, double g, double b)
-    //     : r(static_cast<Float>(r)), g(static_cast<Float>(g)), b(static_cast<Float>(b)) {}
-    // Color(int r, int g, int b)
-    //     : r(static_cast<Float>(r)), g(static_cast<Float>(g)), b(static_cast<Float>(b)) {}
 
     Float r() const { return c[0]; }
     Float g() const { return c[1]; }

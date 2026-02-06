@@ -58,13 +58,15 @@ set(BUILD_TESTING ON CACHE BOOL "" FORCE)
 # Define Source Files
 # list every .cpp file here. no need for .h
 set(SOURCES
-    apps/cli/main.cc         # Renamed main file for now
-    # Add new .cc files here as they're created, e.g.:
+    apps/cli/main.cc
     src/session/render_session.cc
+    src/scene/scene.cc
     src/film/film.cc
     src/film/image_buffer.cc
+    src/integrators/path_trace.cc
+    src/integrators/normals.cc
+    src/accelerators/bvh.cc
     src/io/image_io.cc
-    src/integrators/path_integrator.cc
 )
 
 # Create Executable

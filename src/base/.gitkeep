@@ -1,6 +1,0 @@
-├── base/                # PBRT v4 Interfaces (The Tagged Unions)
-    │   ├── shape.h          # std::variant<Sphere, Triangle...>
-    │   ├── material.h       # std::variant<Lambertian, Dielectric...>
-    │   └── light.h          # std::variant<PointLight, AreaLight...>
-
-    src/base/shape.h: Contains the Wrapper (the std::variant or TaggedPointer). This is what the Scene stores.

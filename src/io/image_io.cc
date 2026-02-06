@@ -58,8 +58,9 @@ static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* pt
     size_t xStride = sizeof(float*);
     size_t yStride = xStride * width;
 
-    fb.insert(name, Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width, xStride, yStride),
-                                   xStride, yStride, sampleStride));
+    fb.insert(name,
+              Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width, xStride, yStride),
+                             xStride, yStride, sampleStride));
 }
 
 // =============================================================================================
@@ -102,19 +103,26 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     size_t countYStride = countXStride * width;
 
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT, makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
+        Imf_3_2::UINT,
+        makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
         countXStride, countYStride));
 
     size_t sampleStride = sizeof(DeepSample);
 
-    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
 
     if (hasZBack) {
-        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                        sampleStride);
     }
 
     file.setFrameBuffer(frameBuffer);
@@ -137,17 +145,18 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
         for (int x = 0; x < width; ++x) {
             unsigned int count = sampleCounts[y][x];
             if (count > 0) {
-                DeepSample* firstSample = &deepbuf.GetMutablePixel(x, y)[0];
-                float* rawColor = reinterpret_cast<float*>(&firstSample->color);
+                // Grab the address information of the sample at the start of the pixel
+                size_t start = deepbuf.pixelOffsets_[y * width + x];
+                DeepSample firstSample = deepbuf.allSamples_[start];
 
-                rPtrs[y][x] = &rawColor[RED];
-                gPtrs[y][x] = &rawColor[GREEN];
-                bPtrs[y][x] = &rawColor[BLUE];
-                aPtrs[y][x] = &firstSample->alpha;
-                zPtrs[y][x] = &firstSample->z_front;
+                rPtrs[y][x] = &firstSample.color.data()[RED];
+                gPtrs[y][x] = &firstSample.color.data()[GREEN];
+                bPtrs[y][x] = &firstSample.color.data()[BLUE];
+                aPtrs[y][x] = &firstSample.alpha;
+                zPtrs[y][x] = &firstSample.z_front;
 
                 if (hasZBack) {
-                    zBackPtrs[y][x] = &firstSample->z_back;
+                    zBackPtrs[y][x] = &firstSample.z_back;
                 } else {
                     zBackPtrs[y][x] = nullptr;
                 }
@@ -169,9 +178,12 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     if (!hasZBack) {
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                MutableDeepPixelView pixel = deepbuf.GetMutablePixel(x, y);
-                for (size_t i = 0; i < pixel.count; ++i) {
-                    pixel[i].z_back = pixel[i].z_front;
+                size_t start = deepbuf.pixelOffsets_[y * width + x];
+                size_t end = deepbuf.pixelOffsets_[y * width + x + 1];
+                size_t count = end - start;
+
+                for (size_t i = 0; i < count; ++i) {
+                    deepbuf.allSamples_[start + i].z_back = deepbuf.allSamples_[start + i].z_front;
                 }
             }
         }
@@ -180,7 +192,7 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     return deepbuf;
 }
 
-void ImageIO::SaveEXR(DeepImageBuffer& buf, const std::string filename) {
+void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string filename) {
     const int width = buf.GetWidth();
     const int height = buf.GetHeight();
 
@@ -211,18 +223,21 @@ void ImageIO::SaveEXR(DeepImageBuffer& buf, const std::string filename) {
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            MutableDeepPixelView pixel = buf.GetMutablePixel(x, y);
-            unsigned int count = static_cast<unsigned int>(pixel.count);
+            // Grab the address information of the sample at the start of the pixel
+            size_t start = buf.pixelOffsets_[y * width + x];
+            size_t end = buf.pixelOffsets_[y * width + x + 1];
+            DeepSample firstSample = buf.allSamples_[start];
 
+            unsigned int count = static_cast<unsigned int>(end - start);
             sampleCounts[y][x] = count;
 
             if (count > 0) {
-                rPtrs[y][x] = &pixel.data->color.data()[RED];
-                gPtrs[y][x] = &pixel.data->color.data()[GREEN];
-                bPtrs[y][x] = &pixel.data->color.data()[BLUE];
-                aPtrs[y][x] = &pixel.data->alpha;
-                zPtrs[y][x] = &pixel.data->z_front;
-                zBackPtrs[y][x] = &pixel.data->z_back;
+                rPtrs[y][x] = &firstSample.color.data()[RED];
+                gPtrs[y][x] = &firstSample.color.data()[GREEN];
+                bPtrs[y][x] = &firstSample.color.data()[BLUE];
+                aPtrs[y][x] = &firstSample.alpha;
+                zPtrs[y][x] = &firstSample.z_front;
+                zBackPtrs[y][x] = &firstSample.z_back;
             } else {
                 rPtrs[y][x] = nullptr;
                 gPtrs[y][x] = nullptr;
@@ -240,17 +255,24 @@ void ImageIO::SaveEXR(DeepImageBuffer& buf, const std::string filename) {
     size_t countYStride = countXStride * width;
 
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT, makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
+        Imf_3_2::UINT,
+        makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
         countXStride, countYStride));
 
     size_t sampleStride = sizeof(DeepSample);
 
-    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
+    insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+                    sampleStride);
 
     file.setFrameBuffer(frameBuffer);
     file.writePixels(height);
