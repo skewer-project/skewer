@@ -5,11 +5,8 @@ enable_testing()
 
 # Locate source files (excluding main.cc)
 set(TEST_SOURCES
-    ../src/session/render_session.cc
-    ../src/film/film.cc
     ../src/film/image_buffer.cc
     ../src/io/image_io.cc
-    ../src/integrators/path_integrator.cc
 )
 
 # Create the test executable
