@@ -10,9 +10,11 @@
 
 namespace skwr {
 
+// Tells compiler "ImageIO" exists
+class ImageIO;
+
 class ImageBuffer {
-  public:
-    ImageBuffer(int width, int height);
+  public:ImageBuffer(int width, int height);
 
     // Set a pixel's color (0,0 is top-left usually)
     void SetPixel(int x, int y, const Spectrum& s);
@@ -62,7 +64,10 @@ struct MutableDeepPixelView {
 };
 
 class DeepImageBuffer {
-  public:
+    // This gives ImageIO full access to private/protected members
+    friend class ImageIO;
+
+ public:
     DeepImageBuffer(int width, int height, size_t totalSamples,
                     const Imf::Array2D<unsigned int>& sampleCounts);
 
