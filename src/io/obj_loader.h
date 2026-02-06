@@ -124,11 +124,13 @@ inline bool LoadOBJ(const std::string& filename, Scene& scene,
         }
     }
     Vec3 extent = bbox_max - bbox_min;
+    Vec3 bbox_center = (bbox_min + bbox_max) * 0.5f;
     Float max_extent = std::max({extent.x(), extent.y(), extent.z()});
     Float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
     Vec3 final_scale(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
 
     std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
+    std::clog << "[OBJ] Center: (" << bbox_center << ")" << std::endl;
     std::clog << "[OBJ] Auto-fit scale: " << normalize
               << ", final scale: (" << final_scale << ")" << std::endl;
 
@@ -218,11 +220,11 @@ inline bool LoadOBJ(const std::string& filename, Scene& scene,
                         vertex_map[key] = local_idx;
                         tri_indices[v] = local_idx;
 
-                        // Position (with auto-fit + user scale)
+                        // Position: center at origin, then apply auto-fit + user scale
                         mesh.p.push_back(Vec3(
-                            attrib.vertices[3 * idx.vertex_index + 0] * final_scale.x(),
-                            attrib.vertices[3 * idx.vertex_index + 1] * final_scale.y(),
-                            attrib.vertices[3 * idx.vertex_index + 2] * final_scale.z()));
+                            (attrib.vertices[3 * idx.vertex_index + 0] - bbox_center.x()) * final_scale.x(),
+                            (attrib.vertices[3 * idx.vertex_index + 1] - bbox_center.y()) * final_scale.y(),
+                            (attrib.vertices[3 * idx.vertex_index + 2] - bbox_center.z()) * final_scale.z()));
 
                         // Normal (if available)
                         if (has_normals && idx.normal_index >= 0) {
