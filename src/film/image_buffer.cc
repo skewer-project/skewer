@@ -114,15 +114,4 @@ DeepPixelView DeepImageBuffer::GetPixel(int x, int y) const {
     return {&allSamples_[start], end - start};
 }
 
-// A mutable version for setting samples at a given pixel
-MutableDeepPixelView DeepImageBuffer::GetMutablePixel(int x, int y) {
-    assert(x >= 0 && x < width_);
-
-    size_t idx = y * width_ + x;
-    size_t start = pixelOffsets_[idx];
-    size_t end = pixelOffsets_[idx + 1];
-
-    return {&allSamples_[start], end - start};
-}
-
 }  // namespace skwr

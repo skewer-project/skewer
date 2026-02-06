@@ -1,3 +1,0 @@
-├── accelerators/        # Acceleration Structures
-    │   ├── bvh.h            # Linear BVH Node struct
-    │   └── bvh_builder.cpp  # SAH Construction logic
