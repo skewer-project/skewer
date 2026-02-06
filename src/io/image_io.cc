@@ -14,12 +14,13 @@
 #include <cassert>
 #include <iostream>
 
+#include "stb_image.h"
+#include "stb_image_write.h"
+
 #include "film/image_buffer.h"
 
 namespace skwr {
 
-#define POINTER_SIZE 4
-#define ZBACK 5
 #define RED 0
 #define GREEN 1
 #define BLUE 2
@@ -30,8 +31,10 @@ namespace skwr {
 
 // Helper to compute the base pointer offset for OpenEXR frame buffers
 template <typename T>
-static char* makeBasePointer(T* data, int minX, int minY, int width) {
-    return reinterpret_cast<char*>((char*)data - minX - static_cast<ptrdiff_t>(minY) * width);
+static char* makeBasePointer(T* data, int minX, int minY, int width, size_t xStride,
+                             size_t yStride) {
+    return reinterpret_cast<char*>(data) - static_cast<ptrdiff_t>(minX) * xStride -
+           static_cast<ptrdiff_t>(minY) * yStride;
 }
 
 // This is computed at compile-time when possible
@@ -51,16 +54,17 @@ static constexpr int getPixelTypeSize(Imf_3_2::PixelType type) {
 // With custom stride overload
 static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* ptrs,
                             Imf_3_2::PixelType pixelType, int minX, int minY, int width,
-                            size_t stride) {
-    fb.insert(name, Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width),
-                                   POINTER_SIZE, POINTER_SIZE * width, stride));
+                            size_t sampleStride) {
+    size_t xStride = sizeof(float*);
+    size_t yStride = xStride * width;
+
+    fb.insert(name, Imf::DeepSlice(pixelType, makeBasePointer(ptrs, minX, minY, width, xStride, yStride),
+                                   xStride, yStride, sampleStride));
 }
 
 // =============================================================================================
 // PPM / Flat Image I/O
 // =============================================================================================
-
-
 
 // =============================================================================================
 // Deep Image I/O (OpenEXR)
@@ -82,30 +86,8 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     Imf::ChannelList channels = header.channels();
     const bool hasZBack = channels.findChannel("ZBack") != nullptr;
 
-    // Read Sample Counts
+    // Prepare all pointer arrays (even if we don't have data yet)
     auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
-    Imf::DeepFrameBuffer frameBuffer;
-
-    frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT, (char*)(&sampleCounts[0][0] - dataWindow.min.x - dataWindow.min.y * width),
-        sizeof(unsigned int) * 1,        // xStride
-        sizeof(unsigned int) * width));  // yStride
-
-    file.setFrameBuffer(frameBuffer);
-    file.readPixelSampleCounts(dataWindow.min.y, dataWindow.max.y);
-
-    // Calculate total samples
-    size_t totalSamples = 0;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            totalSamples += sampleCounts[y][x];
-        }
-    }
-
-    // Allocate Buffer
-    DeepImageBuffer deepbuf(width, height, totalSamples, sampleCounts);
-
-    // Setup Pointers
     Imf::Array2D<float*> rPtrs(height, width);
     Imf::Array2D<float*> gPtrs(height, width);
     Imf::Array2D<float*> bPtrs(height, width);
@@ -113,6 +95,44 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     Imf::Array2D<float*> zPtrs(height, width);
     Imf::Array2D<float*> zBackPtrs(height, width);
 
+    // Configure FrameBuffer with everything
+    Imf::DeepFrameBuffer frameBuffer;
+
+    size_t countXStride = sizeof(unsigned int);
+    size_t countYStride = countXStride * width;
+
+    frameBuffer.insertSampleCountSlice(Imf::Slice(
+        Imf_3_2::UINT, makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
+        countXStride, countYStride));
+
+    size_t sampleStride = sizeof(DeepSample);
+
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+
+    if (hasZBack) {
+        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
+    }
+
+    file.setFrameBuffer(frameBuffer);
+
+    // Read Sample Counts
+    file.readPixelSampleCounts(dataWindow.min.y, dataWindow.max.y);
+
+    // Calculate total samples and allocate
+    size_t totalSamples = 0;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            totalSamples += sampleCounts[y][x];
+        }
+    }
+
+    DeepImageBuffer deepbuf(width, height, totalSamples, sampleCounts);
+
+    // Now populate the pointers in our arrays
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             unsigned int count = sampleCounts[y][x];
@@ -126,8 +146,6 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
                 aPtrs[y][x] = &firstSample->alpha;
                 zPtrs[y][x] = &firstSample->z_front;
 
-                // If file has ZBack, point to ZBack. Else point to null (handled later)
-                // OpenEXR requires a valid pointer if we ask to read it. But we only add the slice if hasZBack is true.
                 if (hasZBack) {
                     zBackPtrs[y][x] = &firstSample->z_back;
                 } else {
@@ -144,19 +162,7 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
         }
     }
 
-    size_t sampleStride = sizeof(DeepSample);
-
-    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-
-    if (hasZBack) {
-        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width, sampleStride);
-    }
-
-    file.setFrameBuffer(frameBuffer);
+    // Read Pixels (pointers in rPtrs etc. are now valid)
     file.readPixels(dataWindow.min.y, dataWindow.max.y);
 
     // Handle missing ZBack channel manually
@@ -208,14 +214,12 @@ void ImageIO::SaveEXR(DeepImageBuffer& buf, const std::string filename) {
             MutableDeepPixelView pixel = buf.GetMutablePixel(x, y);
             unsigned int count = static_cast<unsigned int>(pixel.count);
 
-            // Populate sampleCounts!
             sampleCounts[y][x] = count;
 
             if (count > 0) {
-                // Point to the FIRST sample's data. OpenEXR strides will handle the rest.
                 rPtrs[y][x] = &pixel.data->color.data()[RED];
-                gPtrs[y][x] = &pixel.data->color.data()[GREEN];  // FIXED
-                bPtrs[y][x] = &pixel.data->color.data()[BLUE];   // FIXED
+                gPtrs[y][x] = &pixel.data->color.data()[GREEN];
+                bPtrs[y][x] = &pixel.data->color.data()[BLUE];
                 aPtrs[y][x] = &pixel.data->alpha;
                 zPtrs[y][x] = &pixel.data->z_front;
                 zBackPtrs[y][x] = &pixel.data->z_back;
@@ -232,10 +236,12 @@ void ImageIO::SaveEXR(DeepImageBuffer& buf, const std::string filename) {
 
     Imf_3_2::DeepFrameBuffer frameBuffer;
 
+    size_t countXStride = sizeof(unsigned int);
+    size_t countYStride = countXStride * width;
+
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT, (char*)(&sampleCounts[0][0] - dataWindow.min.x - dataWindow.min.y * width),
-        sizeof(unsigned int) * 1,
-        sizeof(unsigned int) * width));
+        Imf_3_2::UINT, makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
+        countXStride, countYStride));
 
     size_t sampleStride = sizeof(DeepSample);
 
