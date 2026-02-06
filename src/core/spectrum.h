@@ -19,35 +19,35 @@ class Spectrum {
     Float g() const { return c[1]; }
     Float b() const { return c[2]; }
 
-    Spectrum &operator+=(const Spectrum &v) {
+    Spectrum& operator+=(const Spectrum& v) {
         c[0] += v.c[0];
         c[1] += v.c[1];
         c[2] += v.c[2];
         return *this;
     }
 
-    Spectrum &operator-=(const Spectrum &v) {
+    Spectrum& operator-=(const Spectrum& v) {
         c[0] -= v.c[0];
         c[1] -= v.c[1];
         c[2] -= v.c[2];
         return *this;
     }
 
-    Spectrum &operator*=(const Spectrum &v) {
+    Spectrum& operator*=(const Spectrum& v) {
         c[0] *= v.c[0];
         c[1] *= v.c[1];
         c[2] *= v.c[2];
         return *this;
     }
 
-    Spectrum &operator*=(Float t) {
+    Spectrum& operator*=(Float t) {
         c[0] *= t;
         c[1] *= t;
         c[2] *= t;
         return *this;
     }
 
-    Spectrum &operator/=(Float t) {
+    Spectrum& operator/=(Float t) {
         Float k = 1.0 / t;
         c[0] *= k;
         c[1] *= k;
@@ -62,7 +62,7 @@ class Spectrum {
     Color ToColor() const { return Color(c[0], c[1], c[2]); }
 
     // Convert Data -> Physics (For Textures)
-    static Spectrum FromColor(const Color &color) {
+    static Spectrum FromColor(const Color& color) {
         return Spectrum(color.r(), color.g(), color.b());
     }
 
@@ -70,29 +70,29 @@ class Spectrum {
     Float c[3];
 };
 
-inline std::ostream &operator<<(std::ostream &out, const Spectrum &c) {
+inline std::ostream& operator<<(std::ostream& out, const Spectrum& c) {
     return out << c.r() << ' ' << c.g() << ' ' << c.b();
 }
 
-inline Spectrum operator+(const Spectrum &c, const Spectrum &d) {
+inline Spectrum operator+(const Spectrum& c, const Spectrum& d) {
     return Spectrum(c.r() + d.r(), c.g() + d.g(), c.b() + d.b());
 }
 
-inline Spectrum operator-(const Spectrum &c, const Spectrum &d) {
+inline Spectrum operator-(const Spectrum& c, const Spectrum& d) {
     return Spectrum(c.r() - d.r(), c.g() - d.g(), c.b() - d.b());
 }
 
-inline Spectrum operator*(const Spectrum &c, const Spectrum &d) {
+inline Spectrum operator*(const Spectrum& c, const Spectrum& d) {
     return Spectrum(c.r() * d.r(), c.g() * d.g(), c.b() * d.b());
 }
 
-inline Spectrum operator*(Float t, const Spectrum &c) {
+inline Spectrum operator*(Float t, const Spectrum& c) {
     return Spectrum(t * c.r(), t * c.g(), t * c.b());
 }
 
-inline Spectrum operator*(const Spectrum &c, Float t) { return t * c; }
+inline Spectrum operator*(const Spectrum& c, Float t) { return t * c; }
 
-inline Spectrum operator/(const Spectrum &c, Float t) { return c * (1.0 / t); }
+inline Spectrum operator/(const Spectrum& c, Float t) { return c * (1.0 / t); }
 
 // void write_color(std::ostream &out, const Spectrum &pixel_color)
 // {

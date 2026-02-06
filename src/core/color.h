@@ -25,7 +25,7 @@ class Color {
 
     // Array Access (for loops)
     Float operator[](int i) const { return c[i]; }
-    Float &operator[](int i) { return c[i]; }
+    Float& operator[](int i) { return c[i]; }
 
     // Float operator[](int i) const {
     //     if (i == 0) return r;
@@ -40,14 +40,14 @@ class Color {
     //     return b;
     // }
 
-    Color &operator+=(const Color &v) {
+    Color& operator+=(const Color& v) {
         c[0] += v.c[0];
         c[1] += v.c[1];
         c[2] += v.c[2];
         return *this;
     }
 
-    Color &operator*=(Float t) {
+    Color& operator*=(Float t) {
         c[0] *= t;
         c[1] *= t;
         c[2] *= t;
@@ -87,27 +87,27 @@ class Color {
     Float c[3];
 };
 
-inline std::ostream &operator<<(std::ostream &out, const Color &c) {
+inline std::ostream& operator<<(std::ostream& out, const Color& c) {
     return out << c.r() << ' ' << c.g() << ' ' << c.b();
 }
 
-inline Color operator+(const Color &c, const Color &d) {
+inline Color operator+(const Color& c, const Color& d) {
     return Color(c.r() + d.r(), c.g() + d.g(), c.b() + d.b());
 }
 
-inline Color operator-(const Color &c, const Color &d) {
+inline Color operator-(const Color& c, const Color& d) {
     return Color(c.r() - d.r(), c.g() - d.g(), c.b() - d.b());
 }
 
-inline Color operator*(const Color &c, const Color &d) {
+inline Color operator*(const Color& c, const Color& d) {
     return Color(c.r() * d.r(), c.g() * d.g(), c.b() * d.b());
 }
 
-inline Color operator*(Float t, const Color &c) { return Color(t * c.r(), t * c.g(), t * c.b()); }
+inline Color operator*(Float t, const Color& c) { return Color(t * c.r(), t * c.g(), t * c.b()); }
 
-inline Color operator*(const Color &c, Float t) { return t * c; }
+inline Color operator*(const Color& c, Float t) { return t * c; }
 
-inline Color operator/(const Color &c, Float t) { return c * (1.0 / t); }
+inline Color operator/(const Color& c, Float t) { return c * (1.0 / t); }
 
 }  // namespace skwr
 

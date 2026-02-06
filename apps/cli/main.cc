@@ -12,7 +12,7 @@
  * should be refactored when implementing a more robust
  * parser.
  */
-void print_usage(const char *program_name) {
+void print_usage(const char* program_name) {
     std::cerr << "Usage: " << "\n";
     std::cerr << "       " << program_name << "\n";
     std::cerr << "       " << program_name << " --name outfile.ppm\n";
@@ -44,7 +44,7 @@ CLIArgs ParseArgs(int argc, char* argv[]) {
             args.obj_file = argv[++i];
         } else {
             std::cerr << "Unknown option: " << argv[i] << "\n";
-        print_usage(argv[0]);
+            print_usage(argv[0]);
             exit(1);
         }
     }

@@ -13,10 +13,10 @@ class ImageBuffer {
     ImageBuffer(int width, int height);
 
     // Set a pixel's color (0,0 is top-left usually)
-    void SetPixel(int x, int y, const Spectrum &s);
+    void SetPixel(int x, int y, const Spectrum& s);
 
     // Save the buffer to a PPM file
-    void WritePPM(const std::string &filename) const;
+    void WritePPM(const std::string& filename) const;
 
   private:
     int width_;
