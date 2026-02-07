@@ -131,8 +131,8 @@ inline bool LoadOBJ(const std::string& filename, Scene& scene,
 
     std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
     std::clog << "[OBJ] Center: (" << bbox_center << ")" << std::endl;
-    std::clog << "[OBJ] Auto-fit scale: " << normalize
-              << ", final scale: (" << final_scale << ")" << std::endl;
+    std::clog << "[OBJ] Auto-fit scale: " << normalize << ", final scale: (" << final_scale << ")"
+              << std::endl;
 
     // Convert OBJ materials -> v2 Material IDs
     // material_id_map[obj_mat_index] = scene material ID
@@ -221,10 +221,13 @@ inline bool LoadOBJ(const std::string& filename, Scene& scene,
                         tri_indices[v] = local_idx;
 
                         // Position: center at origin, then apply auto-fit + user scale
-                        mesh.p.push_back(Vec3(
-                            (attrib.vertices[3 * idx.vertex_index + 0] - bbox_center.x()) * final_scale.x(),
-                            (attrib.vertices[3 * idx.vertex_index + 1] - bbox_center.y()) * final_scale.y(),
-                            (attrib.vertices[3 * idx.vertex_index + 2] - bbox_center.z()) * final_scale.z()));
+                        mesh.p.push_back(
+                            Vec3((attrib.vertices[3 * idx.vertex_index + 0] - bbox_center.x()) *
+                                     final_scale.x(),
+                                 (attrib.vertices[3 * idx.vertex_index + 1] - bbox_center.y()) *
+                                     final_scale.y(),
+                                 (attrib.vertices[3 * idx.vertex_index + 2] - bbox_center.z()) *
+                                     final_scale.z()));
 
                         // Normal (if available)
                         if (has_normals && idx.normal_index >= 0) {
