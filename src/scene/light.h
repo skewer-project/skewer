@@ -1,24 +1,32 @@
-#pragma once
-#include <cstdint>
+#ifndef SKWR_SCENE_LIGHT_H_
+#define SKWR_SCENE_LIGHT_H_
 
+#include "core/rng.h"
 #include "core/spectrum.h"
-
-// THIS IS JUST A TEMP FILE WHILE TESTING!!
+#include "core/vec3.h"
 
 namespace skwr {
-// A "Light" is just a reference to a primitive that emits energy.
-// We use this for Importance Sampling (picking a light to shoot at).
+
+class Scene;
+
+// A lightweight reference to an emissive primitive in the Scene
 struct AreaLight {
-    // 1. What is it?
-    // We can use a union or variant if we have multiple types
     enum Type { Sphere, Triangle } type;
     uint32_t primitive_index;  // Index into scene.spheres_ or scene.meshes_
-
-    // 2. How bright is it?
-    // We cache this so we don't have to look up the material every time
-    Spectrum emission;
-
-    // 3. Where is it? (Bounding Box for optimization)
-    // BoundBox bounds;
+    Spectrum emission;         // cache the emission
+    // BoundBox bounds;           // Bounding Box for optimization
 };
+
+struct LightSample {
+    Vec3 p;             // Point on the light
+    Vec3 n;             // Normal at that point
+    Spectrum emission;  // Radiance (Le) or color
+    Float pdf;          // Probability density = (1 / Area)
+};
+
+// Returns a random point on the surface of the light
+LightSample Sample_Light(const Scene& scene, const AreaLight& light, RNG& rng);
+
 }  // namespace skwr
+
+#endif  // SKWR_SCENE_LIGHT_H_
