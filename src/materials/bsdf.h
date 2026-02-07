@@ -6,10 +6,38 @@
 #include "core/rng.h"
 #include "core/sampling.h"
 #include "core/spectrum.h"
+#include "core/vec3.h"
 #include "materials/material.h"
 #include "scene/surface_interaction.h"
 
 namespace skwr {
+
+/**
+ * Evaluation
+ * Returns the BSDF value: f(wo, wi) = Albedo / Pi (reflectance)
+ * wo = out vector to camera, wi = in vector to Light/Next bounce
+ */
+inline Spectrum Eval_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
+    // Specular materials (Metal, Glass) are Dirac Deltas (infinity) at the right angle, 0 otherwise
+    // so just return Black here because Sample() should handle them
+    if (mat.type != MaterialType::Lambertian) return Spectrum(0.f);
+
+    Float cosine = Dot(wi, n);
+    if (cosine <= 0) return Spectrum(0.f);  // if light coming from below surface, block it
+    return mat.albedo * (1.0f / kPi);       // Lambertian is constant
+}
+
+/**
+ * PROBABILITY DENSITY (PDF)
+ * Returns the probability of sampling direction 'wi'
+ */
+inline Float Pdf_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
+    if (mat.type != MaterialType::Lambertian) return 0.f;
+
+    Float cosine = Dot(wi, n);
+    if (cosine <= 0) return 0.f;
+    return cosine * (1.0f / kPi);  // Cos-weighted sampling
+}
 
 inline Float Reflectance(Float cosine, Float refraction_ratio) {
     // Use Schlick's approximation for reflectance.
@@ -18,39 +46,42 @@ inline Float Reflectance(Float cosine, Float refraction_ratio) {
     return r0 + (1 - r0) * std::pow((1 - cosine), 5);
 }
 
-inline bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng,
-                             Ray& r_out, Spectrum& attenuation) {
+inline bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
+                             Float& pdf, Spectrum& f) {
     ONB uvw;
     uvw.BuildFromW(si.n);
 
     Vec3 local_dir = RandomCosineDirection(rng);
-    Vec3 scatter_dir = uvw.Local(local_dir);
+    wi = uvw.Local(local_dir);
 
-    r_out = Ray(si.p + (scatter_dir * kShadowEpsilon), Normalize(scatter_dir));
-    attenuation = mat.albedo;
+    // Explicit PDF and Eval
+    Float cosine = std::fmax(0.0f, Dot(wi, si.n));
+    pdf = cosine / kPi;
+    f = mat.albedo * (1.0f / kPi);
     return true;
 }
 
-inline bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Ray& r_out,
-                        Spectrum& attenuation) {
-    Vec3 reflected = Reflect(-si.wo, si.n);  // We reflect "incoming view" = -wo
-
+inline bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
+                        Float& pdf, Spectrum& f) {
+    wi = Reflect(-si.wo, si.n);  // We reflect "incoming view" = -wo
     if (mat.roughness > 0) {
-        reflected = Normalize(reflected + (mat.roughness * RandomInUnitSphere(rng)));
+        wi = Normalize(wi + (mat.roughness * RandomInUnitSphere(rng)));
     }
 
-    r_out = Ray(si.p + (reflected * kShadowEpsilon), reflected);
-    attenuation = mat.albedo;
-    return (Dot(r_out.direction(), si.n) > 0);
+    // Check if valid (above surface)
+    Float cosine = Dot(wi, si.n);
+    if (cosine <= 0) return false;
+
+    // Delta Distribution Logic
+    pdf = 1.0f;
+    f = mat.albedo / cosine;  // Cancels the cosine in the rendering equation
+    return true;
 }
 
-inline bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng,
-                             Ray& r_out, Spectrum& attenuation) {
-    attenuation = Spectrum(1.0f);
-
+inline bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
+                             Float& pdf, Spectrum& f) {
     // if front_face, we are entering the glass. If false, trying to leave
     Float refraction_ratio = si.front_face ? 1.0f / mat.ior : mat.ior;
-
     Vec3 unit_direction = -si.wo;  // wo points out to camera. -wo is the IN direction
 
     Float cos_theta = std::fmin(Dot(si.wo, si.n), 1.0f);
@@ -67,9 +98,9 @@ inline bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, 
         direction = Refract(unit_direction, si.n, refraction_ratio);
     }
 
-    // Push along NEW direction vector
-    r_out = Ray(si.p + (direction * kShadowEpsilon), direction);
-
+    // Delta distr logic
+    pdf = 1.0f;
+    f = Spectrum(1.0f) / std::abs(Dot(wi, si.n));  // Cancels cosine
     return true;
 }
 
@@ -80,16 +111,16 @@ inline bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, 
  * Dispatches to correct material type sampling function
  */
 inline bool Sample_BSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si,
-                        RNG& rng, Ray& r_out, Spectrum& attenuation) {
+                        RNG& rng, Vec3& wi, Float& pdf, Spectrum& f) {
     switch (mat.type) {
         case MaterialType::Lambertian:
-            return SampleLambertian(mat, si, rng, r_out, attenuation);
+            return SampleLambertian(mat, si, rng, wi, pdf, f);
 
         case MaterialType::Metal:
-            return SampleMetal(mat, si, rng, r_out, attenuation);
+            return SampleMetal(mat, si, rng, wi, pdf, f);
 
         case MaterialType::Dielectric:
-            return SampleDielectric(mat, si, rng, r_out, attenuation);  // Implement similarly
+            return SampleDielectric(mat, si, rng, wi, pdf, f);  // Implement similarly
     }
     return false;
 }

@@ -5,6 +5,7 @@
 #include "core/constants.h"
 #include "core/sampling.h"
 #include "core/spectrum.h"
+#include "core/vec3.h"
 #include "film/film.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
@@ -55,17 +56,22 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
                     }
 
                     /* Emission check for if we hit a light */
+                    // L += beta * mat.emission;
 
                     const Material &mat = scene.GetMaterial(si.material_id);
 
-                    Spectrum attenuation;
-                    Ray scattered_ray;
+                    Vec3 wi;
+                    Float pdf;
+                    Spectrum f;
 
                     /* BSDF check */
-                    if (Sample_BSDF(mat, r, si, rng, scattered_ray, attenuation)) {
-                        // Update beta
-                        beta *= attenuation;
-                        r = scattered_ray;
+                    if (Sample_BSDF(mat, r, si, rng, wi, pdf, f)) {
+                        if (pdf > 0) {
+                            Float cos_theta = std::abs(Dot(wi, si.n));
+                            Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
+                            beta *= weight;
+                            r = Ray(si.p + (wi * kShadowEpsilon), wi);
+                        }
                     } else {
                         // Absorbed (black body)
                         break;
