@@ -78,6 +78,14 @@ inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t
     return RNG(seq, seed);
 }
 
+// Power Heuristic for MIS (beta = 2 is standard)
+// Calculates the weight for technique 'f' given the probability of 'f' and 'g'
+inline Float PowerHeuristic(Float pdf_f, Float pdf_g) {
+    Float f2 = pdf_f * pdf_f;
+    Float g2 = pdf_g * pdf_g;
+    return f2 / (f2 + g2);
+}
+
 }  // namespace skwr
 
 #endif  // SKWR_CORE_SAMPLER_H_
