@@ -91,11 +91,10 @@ inline bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, 
     bool cannot_refract = refraction_ratio * sin_theta > 1.0f;
 
     // Fresnel + scatter
-    Vec3 direction;
     if (cannot_refract || Reflectance(cos_theta, refraction_ratio) > rng.UniformFloat()) {
-        direction = Reflect(unit_direction, si.n);
+        wi = Reflect(unit_direction, si.n);
     } else {
-        direction = Refract(unit_direction, si.n, refraction_ratio);
+        wi = Refract(unit_direction, si.n, refraction_ratio);
     }
 
     // Delta distr logic
