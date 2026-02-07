@@ -18,8 +18,11 @@ struct Material {
 
     // Data params
     Spectrum albedo;  // Color (Diffuse or Specular)
+    Spectrum emission;
     Float roughness;  // 0.0 = Perfect Mirror, 1.0 = Matte
     Float ior;        // Index of refraction
+
+    bool IsEmissive() const { return emission.r() > 0 || emission.g() > 0 || emission.b() > 0; }
 };
 
 }  // namespace skwr
