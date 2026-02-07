@@ -6,6 +6,7 @@
 namespace skwr {
 
 using Float = float;  // Global precision switch (can change to double)
+// typedef float Float;  // Global precision switch (can change to double)
 
 constexpr Float kInfinity = std::numeric_limits<Float>::infinity();
 constexpr Float kPi = 3.1415926535897932385f;

@@ -16,11 +16,6 @@ class Integrator {
 
     virtual void Render(const Scene &scene, const Camera &cam, Film *film,
                         const IntegratorConfig &config) = 0;
-
-  protected:
-    // Calculates Radiance (Li) along a single ray
-    // This is where your recursion/iteration happens!
-    // virtual Spectrum Li(const Ray &ray, const Scene &scene, Sampler &sampler) const = 0;
 };
 
 }  // namespace skwr
