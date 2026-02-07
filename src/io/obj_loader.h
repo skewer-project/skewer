@@ -31,10 +31,9 @@ namespace skwr {
 inline Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     Material mat{};
 
-    std::clog << "  Material: \"" << mtl.name << "\""
-              << " Kd=(" << mtl.diffuse[0] << ", " << mtl.diffuse[1] << ", " << mtl.diffuse[2]
-              << ") Pm=" << mtl.metallic << " Pr=" << mtl.roughness << " d=" << mtl.dissolve
-              << " Ni=" << mtl.ior << std::endl;
+    std::clog << "  Material: \"" << mtl.name << "\"" << " Kd=(" << mtl.diffuse[0] << ", "
+              << mtl.diffuse[1] << ", " << mtl.diffuse[2] << ") Pm=" << mtl.metallic
+              << " Pr=" << mtl.roughness << " d=" << mtl.dissolve << " Ni=" << mtl.ior << std::endl;
 
     // 1. PBR METALLIC
     if (mtl.metallic >= 0.5f) {

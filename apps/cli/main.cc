@@ -13,12 +13,10 @@
  * parser.
  */
 void print_usage(const char* program_name) {
-    std::cerr << "Usage: "
-              << "\n";
+    std::cerr << "Usage: " << "\n";
     std::cerr << "       " << program_name << "\n";
     std::cerr << "       " << program_name << " --name outfile.ppm\n";
-    std::cerr << "Help:  "
-              << "\n";
+    std::cerr << "Help:  " << "\n";
     std::cerr << "       " << program_name << " --help\n";
 }
 
