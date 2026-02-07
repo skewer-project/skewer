@@ -99,8 +99,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
             int done = scanlines_completed.fetch_add(1) + 1;
             std::lock_guard<std::mutex> lock(progress_mutex);
-            std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r"
-                      << std::flush;
+            std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" << std::flush;
         }
     };
 
