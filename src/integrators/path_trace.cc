@@ -50,15 +50,16 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
                 for (int depth = 0; depth < config.max_depth; ++depth) {
                     if (!scene.Intersect(r, t_min, kInfinity, &si)) {
                         // if we dont hit anything, sky color
-                        Spectrum sky_color(0.5f, 0.7f, 1.0f);
+                        // Spectrum sky_color(0.5f, 0.7f, 1.0f);
+                        Spectrum sky_color(0.f, 0.f, 0.f);
                         L += beta * sky_color;  // <-- beta was 1 but by this point, is a fraction
                         break;
                     }
 
-                    /* Emission check for if we hit a light */
-                    // L += beta * mat.emission;
-
                     const Material &mat = scene.GetMaterial(si.material_id);
+
+                    /* Emission check for if we hit a light */
+                    L += beta * mat.emission;
 
                     Vec3 wi;
                     Float pdf;

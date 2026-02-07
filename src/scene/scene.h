@@ -12,12 +12,7 @@
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
 #include "materials/material.h"
-
-/**
- * ├── scene/               # The "World" Container
-    │   ├── scene.h          # Holds: vector<Shape>, vector<Light>, BVH
-    │   └── camera.h         # Camera logic
- */
+#include "scene/light.h"
 
 namespace skwr {
 
@@ -34,6 +29,17 @@ class Scene {
     // Returns the index of the added sphere (for debugging rn)
     uint32_t AddSphere(const Sphere &s) {
         spheres_.push_back(s);
+        const Material &mat = materials_[s.material_id];
+        if (mat.IsEmissive()) {
+            // Create the Light Wrapper
+            AreaLight light;
+            light.type = AreaLight::Sphere;
+            light.primitive_index = (uint32_t)spheres_.size() - 1;
+            light.emission = mat.emission;
+
+            // 4. Add to the "Cheat Sheet"
+            lights_.push_back(light);
+        }
         return static_cast<uint32_t>(spheres_.size() - 1);
     }
 
@@ -74,14 +80,12 @@ class Scene {
     bool Intersect(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const;
     bool IntersectBVH(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const;
 
-    // Needed for light sampling (picking a random light)
-    // const std::vector<Light> &GetLights() const;
-
   private:
     std::vector<Sphere> spheres_;
     std::vector<Material> materials_;
     std::vector<Mesh> meshes_;
     std::vector<Triangle> triangles_;
+    std::vector<AreaLight> lights_;
     BVH bvh_;
 };
 
