@@ -14,8 +14,7 @@
  */
 void print_usage(const char* program_name) {
     std::cerr << "Usage:\n";
-    std::cerr << "  " << program_name
-              << " [--obj model.obj] [--name outfile.ppm] [--threads N]\n";
+    std::cerr << "  " << program_name << " [--obj model.obj] [--name outfile.ppm] [--threads N]\n";
     std::cerr << "Help:\n";
     std::cerr << "  " << program_name << " --help\n";
 }
