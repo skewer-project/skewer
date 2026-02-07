@@ -1,6 +1,7 @@
+# THIS IS A TEMPORARY ROOT CMAKELISTS.TXT WHILE FILES ARE BEING REFACTORED
 cmake_minimum_required(VERSION 3.16)
 
-project(ray-tracer) # change name eventually
+project(Skewer LANGUAGES CXX)
 
 # Set C++ Standard (C++17 is good for modern features)
 set(CMAKE_CXX_STANDARD 17)
@@ -11,23 +12,35 @@ cmake_policy(SET CMP0135 NEW)
 
 # Fetch nlohmann/json for scene loading
 include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
-FetchContent_MakeAvailable(json)
-
-# Tell CMake where to look for header files
-# allows us to write #include "core/vec3.h" instead of "../src/core/vec3.h"
-include_directories(${CMAKE_SOURCE_DIR}/src)
-include_directories(${CMAKE_SOURCE_DIR}/external)
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 # Define Source Files
 # list every .cpp file here. no need for .h
 set(SOURCES
-    apps/cli/main.cc         # Renamed main file for now
-    # Add new .cc files here as they're created, e.g.:
-    # src/renderer/engine.cpp
-    # src/renderer/film.cpp
+    apps/cli/main.cc
+    src/session/render_session.cc
+    src/scene/scene.cc
+    src/film/film.cc
+    src/film/image_buffer.cc
+    src/integrators/path_trace.cc
+    src/integrators/normals.cc
+    src/accelerators/bvh.cc
+
 )
 
 # Create Executable
-add_executable(render_cli ${SOURCES})
-target_link_libraries(render_cli PRIVATE nlohmann_json::nlohmann_json)
+add_executable(skewer-render ${SOURCES})
+
+# Include directories tell CMake where to look for header files
+target_include_directories(skewer-render
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/external
+)
+
+# Link libraries
+target_link_libraries(skewer-render PRIVATE nlohmann_json::nlohmann_json)

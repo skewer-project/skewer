@@ -1,5 +1,5 @@
-# Ray Tracer CLI
-A C++ ray tracer capable of rendering procedurally generated scenes or loading scenes from a JSON object manifest.
+# Skewer
+A physically-based ray tracer capable of deep rendering and compositing
 
 ## Build Instructions
 This project uses CMake. To build the executable:
@@ -22,25 +22,14 @@ Renders the built-in demo scene (spheres and triangles).
 
 ```bash
 # Linux/macOS
-`./render_cli --demo > demo.ppm`
+`./skewer-render --name output.ppm`
 
 # Windows (Command Prompt)
-`render_cli.exe --demo > demo.ppm`
-```
-
-### Render a Scene File
-Loads a scene configuration from a JSON file.
-
-```bash
-# Linux/macOS
-`./render_cli path/to/scene.json > output.ppm`
-
-# Windows (Command Prompt)
-`render_cli.exe path\to\scene.json > output.ppm`
+`skewer-render.exe --name output.ppm`
 ```
 
 ### Help
-`./render_cli --help`
+`./skewer-render --help`
 
 Now open the `.ppm` to see if image renders correctly
 

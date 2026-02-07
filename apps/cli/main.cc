@@ -1,89 +1,64 @@
+#include <session/render_session.h>
+
+#include <cstring>
 #include <iostream>
 #include <string>
 
-#include "geometry/hittable.h"
-#include "geometry/sphere.h"
-#include "geometry/triangle.h"
-#include "integrators/path_tracer.h"
-#include "io/scene_loader.h"
-#include "materials/material.h"
-#include "renderer/camera.h"
-#include "renderer/scene.h"
+#include "session/render_options.h"
 
-void print_usage(const char* program_name) {
-    std::cerr << "Usage: " << program_name << " <scene.json>\n";
-    std::cerr << "       " << program_name << " --demo\n";
-    std::cerr << "\n";
-    std::cerr << "Options:\n";
-    std::cerr << "  <scene.json>  Path to a JSON scene file\n";
-    std::cerr << "  --demo        Run with a built-in demo scene\n";
+/**
+ * These are temporary parsing and help functions which
+ * should be refactored when implementing a more robust
+ * parser.
+ */
+void print_usage(const char *program_name) {
+    std::cerr << "Usage: " << "\n";
+    std::cerr << "       " << program_name << "\n";
+    std::cerr << "       " << program_name << " --name outfile.ppm\n";
+    std::cerr << "Help:  " << "\n";
+    std::cerr << "       " << program_name << " --help\n";
 }
 
-void run_demo() {
-    // World
-    hittable_list world;
+skwr::RenderOptions ParseArgs(int argc, char *argv[]) {
+    skwr::RenderOptions options;
 
-    auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
-    auto material_center = make_shared<lambertian>(color(0.1, 0.2, 0.5));
-    auto material_left = make_shared<dielectric>(1.50);
-    auto material_bubble = make_shared<dielectric>(1.00 / 1.50);
-    auto material_right = make_shared<metal>(color(0.8, 0.6, 0.2), 1.0);
-    auto material_red = make_shared<lambertian>(color(1.0, 0, 0));
+    // Parse Args
+    bool help = (argc == 2 && strcmp(argv[1], "--help"));
+    bool bad_args = (argc != 3 && argc != 1);
+    if (bad_args || help) {
+        print_usage(argv[0]);
+        exit(1);  // maybe replace with try-catch
+    }
 
-    world.add(make_shared<sphere>(point3(0, -100.5, -1), 100.0, material_ground));
-    world.add(make_shared<sphere>(point3(0.0, 0.0, -1.2), 0.5, material_center));
-    world.add(make_shared<sphere>(point3(-1.0, 0.0, -1.0), 0.4, material_bubble));
-    world.add(make_shared<sphere>(point3(1.0, 0.0, -1.0), 0.5, material_right));
-    world.add(make_shared<triangle>(point3(0, 0.5, -0.8), point3(-0.5, -0.5, -0.5),
-                                    point3(0.5, -0.5, -0.5), material_red));
+    std::string outfile = "test_render.ppm";
+    if (argc == 3 && strcmp(argv[1], "--name") == 0)  // make name argument
+        outfile = argv[2];
 
-    camera cam;
-
-    cam.aspect_ratio = 16.0 / 9.0;
-    cam.image_width = 500;
-    cam.samples_per_pixel = 100;
-    cam.max_depth = 50;
-    cam.background = color(0.70, 0.80, 1.00);  // Sky blue background
-
-    cam.vfov = 20;
-    cam.lookfrom = point3(-4, 4, 2);
-    cam.lookat = point3(0, 0, -1);
-    cam.vup = vec3(0, 1, 0);
-
-    cam.defocus_angle = 0.6;
-    cam.focus_dist = 6.4;
-
-    cam.render(world);
+    options.image_config.width = 800;
+    options.image_config.height = 450;
+    options.integrator_config.samples_per_pixel = 10;
+    options.integrator_config.max_depth = 5;
+    options.image_config.outfile = outfile;
+    options.integrator_type = skwr::IntegratorType::PathTrace;
+    return options;  // pass by copy back to main
 }
 
-int main(int argc, char* argv[]) {
-    // Check for command line arguments
-    if (argc < 2) {
-        print_usage(argv[0]);
-        return 1;
-    }
+int main(int argc, char *argv[]) {
+    // Create configuration
+    skwr::RenderOptions options = ParseArgs(argc, argv);
 
-    std::string arg = argv[1];
+    // Start a rendering instance (Session)
+    skwr::RenderSession session;
 
-    if (arg == "--demo" || arg == "-d") {
-        std::clog << "Running demo scene...\n";
-        run_demo();
-    } else if (arg == "--help" || arg == "-h") {
-        print_usage(argv[0]);
-        return 0;
-    } else {
-        // Assume it's a scene file path
-        std::clog << "Loading scene from: " << arg << "\n";
+    session.LoadScene("temp");
 
-        try {
-            scene_data scene = load_scene(arg);
-            std::clog << "Scene loaded successfully.\n";
-            scene.cam.render(scene.world);
-        } catch (const std::exception& e) {
-            std::cerr << "Error loading scene: " << e.what() << "\n";
-            return 1;
-        }
-    }
+    session.SetOptions(options);
+
+    // Render
+    session.Render();
+
+    // Save
+    session.Save();
 
     return 0;
 }
