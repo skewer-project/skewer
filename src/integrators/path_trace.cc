@@ -1,5 +1,3 @@
-#include "integrators/path_trace.h"
-
 #include <algorithm>
 #include <cmath>
 
@@ -8,6 +6,7 @@
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
+#include "integrators/path_trace.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/camera.h"
@@ -28,12 +27,14 @@ namespace skwr {
  * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
  * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
  */
-void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
-                       const IntegratorConfig &config) {
+void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
+                       const IntegratorConfig& config) {
     int width = film->width();
     int height = film->height();
 
     for (int y = 0; y < height; ++y) {
+        std::clog << "[Session] Scanlines: " << y << " of " << height << "\t\r" << std::flush;
+        std::clog.flush();
         for (int x = 0; x < width; ++x) {
             for (int s = 0; s < config.samples_per_pixel; ++s) {
                 RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
@@ -59,7 +60,7 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
                         break;
                     }
 
-                    const Material &mat = scene.GetMaterial(si.material_id);
+                    const Material& mat = scene.GetMaterial(si.material_id);
 
                     /* Emission check for if we hit a light */
                     if (mat.IsEmissive()) {
@@ -72,7 +73,7 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
                     if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric &&
                         !scene.Lights().empty()) {
                         int light_index = int(rng.UniformFloat() * scene.Lights().size());
-                        const AreaLight &light = scene.Lights()[light_index];
+                        const AreaLight& light = scene.Lights()[light_index];
                         LightSample ls = Sample_Light(scene, light, rng);
 
                         // Shadow Ray setup
