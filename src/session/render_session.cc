@@ -46,7 +46,7 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
 
     scene_ = std::make_unique<Scene>();
 
-    // // A. White Walls (Floor, Ceiling, Back)
+    // A. White Walls (Floor, Ceiling, Back)
     std::cout << "[Session] Building Cornell Box Test...\n";
     Material mat_white;
     mat_white.type = MaterialType::Lambertian;
@@ -65,8 +65,7 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
     mat_green.albedo = Spectrum(0.12f, 0.45f, 0.15f);
     uint32_t id_green = scene_->AddMaterial(mat_green);
 
-    // D. LIGHT (Crucial!)
-    // Very bright emission (15.0) to illuminate the room
+    // D. LIGHT
     Material mat_light;
     mat_light.type =
         MaterialType::Lambertian;          // Material type doesn't matter much for pure emitters
@@ -86,34 +85,25 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
     mat_mirror.roughness = 0.0f;
     uint32_t id_mirror = scene_->AddMaterial(mat_mirror);
 
-    // Helpers for Quad Creation
-    auto AddQuad = [&](const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3,
-                       uint32_t mat_id) { scene_->AddMesh(CreateQuad(p0, p1, p2, p3, mat_id)); };
+    // Floor
+    scene_->AddMesh(CreateQuad(Vec3(5, -5, -5), Vec3(-5, -5, -5), Vec3(-5, -5, -15),
+                               Vec3(5, -5, -15), id_white));
+    // Ceiling (y = 5)
+    scene_->AddMesh(
+        CreateQuad(Vec3(5, 5, -15), Vec3(-5, 5, -15), Vec3(-5, 5, -5), Vec3(5, 5, -5), id_white));
+    // Back Wall (z = -15)
+    scene_->AddMesh(CreateQuad(Vec3(5, -5, -15), Vec3(-5, -5, -15), Vec3(-5, 5, -15),
+                               Vec3(5, 5, -15), id_white));
+    // Left Wall (Red, x = -5)
+    scene_->AddMesh(
+        CreateQuad(Vec3(-5, -5, -15), Vec3(-5, -5, -5), Vec3(-5, 5, -5), Vec3(-5, 5, -15), id_red));
+    // Right Wall (Green, x = 5)
+    scene_->AddMesh(
+        CreateQuad(Vec3(5, -5, -5), Vec3(5, -5, -15), Vec3(5, 5, -15), Vec3(5, 5, -5), id_green));
 
-    // Floor (y=0)
-    AddQuad(Vec3(555, 0, 0), Vec3(0, 0, 0), Vec3(0, 0, 555), Vec3(555, 0, 555), id_white);
-
-    // Ceiling (y=555)
-    AddQuad(Vec3(555, 555, 555), Vec3(0, 555, 555), Vec3(0, 555, 0), Vec3(555, 555, 0), id_white);
-
-    // Back Wall (z=555)
-    AddQuad(Vec3(555, 0, 555), Vec3(0, 0, 555), Vec3(0, 555, 555), Vec3(555, 555, 555), id_white);
-
-    // Right Wall (Green, x=0)
-    AddQuad(Vec3(0, 0, 555), Vec3(0, 0, 0), Vec3(0, 555, 0), Vec3(0, 555, 555), id_green);
-
-    // Left Wall (Red, x=555)
-    AddQuad(Vec3(555, 0, 0), Vec3(555, 0, 555), Vec3(555, 555, 555), Vec3(555, 555, 0), id_red);
-
-    // The Light (Small quad on ceiling)
-    // Centered at x=278, z=279. Size ~130.
-    AddQuad(Vec3(343, 554, 332), Vec3(213, 554, 332), Vec3(213, 554, 227), Vec3(343, 554, 227),
-            id_light);
-    // Large Glass Sphere
-    scene_->AddSphere(Sphere{Vec3(190, 90, 190), 90, id_glass});
-
-    // Mirror Sphere
-    scene_->AddSphere(Sphere{Vec3(370, 90, 370), 90, id_mirror});
+    // Ceiling Light (Centered at y = 4.9)
+    scene_->AddMesh(CreateQuad(Vec3(2, 4.95, -9), Vec3(-2, 4.95, -9), Vec3(-2, 4.95, -11),
+                               Vec3(2, 4.95, -11), id_light));
 
     // -- Materials --
     Material mat_ground;
@@ -122,15 +112,9 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
     mat_ground.roughness = 1.0f;
     uint32_t id_ground = scene_->AddMaterial(mat_ground);
 
-    Material metal;
-    metal.type = MaterialType::Metal;
-    metal.roughness = 0.0;
-    metal.albedo = Spectrum(0.8f);
-    uint32_t metal_id = scene_->AddMaterial(metal);
-
     // -- Spheres (left and right) --
-    scene_->AddSphere(Sphere{Vec3(-2.1f, 0.0f, -3.0f), 1.0f, metal_id});
-    scene_->AddSphere(Sphere{Vec3(2.1f, 0.0f, -3.0f), 1.0f, id_red});
+    scene_->AddSphere(Sphere{Vec3(-2.5f, -3.5f, -12.0f), 1.5f, id_mirror});
+    scene_->AddSphere(Sphere{Vec3(2.5f, -3.5f, -8.0f), 1.5f, id_glass});
 
     // -- Center object: OBJ file or fallback sphere --
     if (!obj_file.empty()) {
@@ -139,18 +123,19 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
             std::cerr << "[Session] Failed to load OBJ: " << obj_file << "\n";
         }
     } else {
+        std::cout << "no obj file!!!\n";
         Material mat_glass;
         mat_glass.type = MaterialType::Dielectric;
         mat_glass.albedo = Spectrum(1.0f, 1.0f, 1.0f);
         mat_glass.roughness = 0.0f;
         mat_glass.ior = 1.5f;
         uint32_t id_glass = scene_->AddMaterial(mat_glass);
-        scene_->AddSphere(Sphere{Vec3(0.0f, 0.0f, -3.0f), 1.0f, id_glass});
+        scene_->AddSphere(Sphere{Vec3(0.0f, -3.5f, -10.0f), 1.5f, id_glass});
     }
 
     // -- Floor quad --
     float size = 10.0f;
-    float y_floor = -1.0f;
+    float y_floor = -5.0f;
     Vec3 p0(-size, y_floor, size);
     Vec3 p1(size, y_floor, size);
     Vec3 p2(size, y_floor, -size);
@@ -162,14 +147,8 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
 
     // Initialize camera
     Float aspect = 16.0f / 9.0f;
-    // camera_ = std::make_unique<Camera>(Vec3(0.0f, 1.0f, 1.5f),   // LookFrom
-    //                                    Vec3(0.0f, 0.0f, -3.0f),  // LookAt
-    //                                    Vec3(0.0f, 1.0f, 0.0f), 90.0f, aspect);
-    camera_ = std::make_unique<Camera>(Vec3(278, 278, -800),  // LookFrom (Back out of the box)
-                                       Vec3(278, 278, 0),     // LookAt (Center of back wall)
-                                       Vec3(0, 1, 0),         // Up
-                                       40.0f, aspect          // Narrow FOV (40 deg)
-    );
+    camera_ = std::make_unique<Camera>(Vec3(0.0f, 0.0f, 4.0f), Vec3(0.0f, 0.0f, -10.0f),
+                                       Vec3(0.0f, 1.0f, 0.0f), 50.0f, aspect);
 }
 
 /**
