@@ -1,3 +1,5 @@
+#include "integrators/path_trace.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -6,7 +8,6 @@
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
-#include "integrators/path_trace.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/camera.h"
