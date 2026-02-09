@@ -25,8 +25,8 @@ namespace skwr {
  * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
  * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
  */
-void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
-                       const IntegratorConfig &config) {
+void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
+                       const IntegratorConfig& config) {
     int width = film->width();
     int height = film->height();
 
@@ -56,7 +56,7 @@ void PathTrace::Render(const Scene &scene, const Camera &cam, Film *film,
 
                     /* Emission check for if we hit a light */
 
-                    const Material &mat = scene.GetMaterial(si.material_id);
+                    const Material& mat = scene.GetMaterial(si.material_id);
 
                     Spectrum attenuation;
                     Ray scattered_ray;

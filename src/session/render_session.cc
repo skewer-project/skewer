@@ -39,7 +39,7 @@ RenderSession::~RenderSession() = default;  // Unique_ptr handles cleanup automa
 /**
  * Loads file into scene format
  */
-void RenderSession::LoadScene(const std::string &filename) {
+void RenderSession::LoadScene(const std::string& filename) {
     std::cout << "[Session] Loading Scene: " << filename << " (STUB)\n";
 
     scene_ = std::make_unique<Scene>();
@@ -103,7 +103,7 @@ void RenderSession::LoadScene(const std::string &filename) {
 /**
  * Set user options
  */
-void RenderSession::SetOptions(const RenderOptions &options) {
+void RenderSession::SetOptions(const RenderOptions& options) {
     options_ = options;
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
     integrator_ = CreateIntegrator(options_.integrator_type);
