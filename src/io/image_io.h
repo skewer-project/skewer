@@ -24,11 +24,10 @@ class ImageIO {
 };
 
 struct KebabHeader {
-    char magic[4] = {'K', 'E', 'B', 'B'}; // New Magic: KEBB
+    char magic[4] = {'K', 'E', 'B', 'B'}; // Unique Magic: KEBB
     uint32_t width;
     uint32_t height;
     uint64_t totalSamples;
-    uint32_t totalPixels;
 };
 
 }  // namespace skwr

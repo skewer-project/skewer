@@ -312,7 +312,6 @@ void ImageIO::SaveKebab(const DeepImageBuffer& buf, const std::string& filename)
         .width = static_cast<uint32_t>(buf.width_),
         .height = static_cast<uint32_t>(buf.height_),
         .totalSamples = static_cast<uint64_t>(buf.allSamples_.size()),
-        .totalPixels = static_cast<uint32_t>(buf.pixelOffsets_.size())
     };
     out.write(reinterpret_cast<const char*>(&header), sizeof(header));
 
