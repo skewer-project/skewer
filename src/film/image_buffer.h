@@ -14,7 +14,8 @@ namespace skwr {
 class ImageIO;
 
 class ImageBuffer {
-  public:ImageBuffer(int width, int height);
+  public:
+    ImageBuffer(int width, int height);
 
     // Set a pixel's color (0,0 is top-left usually)
     void SetPixel(int x, int y, const Spectrum& s);
@@ -55,7 +56,7 @@ class DeepImageBuffer {
     // This gives ImageIO full access to private/protected members
     friend class ImageIO;
 
- public:
+  public:
     DeepImageBuffer(int width, int height, size_t totalSamples,
                     const Imf::Array2D<unsigned int>& sampleCounts);
 
