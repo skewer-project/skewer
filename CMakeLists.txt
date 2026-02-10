@@ -56,12 +56,8 @@ set(SOURCES
     src/integrators/path_trace.cc
     src/integrators/normals.cc
     src/accelerators/bvh.cc
-<<<<<<< HEAD
     src/scene/light.cc
-=======
     src/io/obj_loader.cc
-
->>>>>>> main
 )
 
 # Create Executable
