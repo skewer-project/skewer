@@ -26,10 +26,10 @@ struct CLIArgs {
 
 CLIArgs ParseArgs(int argc, char* argv[]) {
     CLIArgs args;
-    args.options.image_config.width = 1920;
-    args.options.image_config.height = 1080;
-    args.options.integrator_config.samples_per_pixel = 400;
-    args.options.integrator_config.max_depth = 70;
+    args.options.image_config.width = 800;
+    args.options.image_config.height = 450;
+    args.options.integrator_config.samples_per_pixel = 100;
+    args.options.integrator_config.max_depth = 10;
     args.options.image_config.outfile = "test_render.ppm";
     args.options.integrator_type = skwr::IntegratorType::PathTrace;
 

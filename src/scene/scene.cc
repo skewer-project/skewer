@@ -22,11 +22,11 @@ void Scene::Build() {
     }
 }
 
-bool Scene::Intersect(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const {
+bool Scene::Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const {
     bool hit_anything = false;
     Float closest_t = t_max;
     // 1. Check Spheres (Linear Scan)
-    for (const auto &sphere : spheres_) {
+    for (const auto& sphere : spheres_) {
         // We pass 'closest_t' as the new max distance to prune objects behind the hit
         if (IntersectSphere(r, sphere, t_min, closest_t, si)) {
             hit_anything = true;
@@ -42,14 +42,14 @@ bool Scene::Intersect(const Ray &r, Float t_min, Float t_max, SurfaceInteraction
     return hit_anything;
 }
 
-bool Scene::IntersectBVH(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const {
+bool Scene::IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const {
     if (bvh_.IsEmpty()) return false;
 
     bool hit_anything = false;
     Float closest_t = t_max;
 
     // using precomputed inverse for aabb check
-    const Vec3 &inv_dir = r.inv_direction();
+    const Vec3& inv_dir = r.inv_direction();
     const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
 
     // stack of 64 is standard 2^64 triangles = a lot of tris
@@ -60,15 +60,15 @@ bool Scene::IntersectBVH(const Ray &r, Float t_min, Float t_max, SurfaceInteract
     while (to_visit_offset >= 0) {
         // pop from stack
         int current_node_idx = nodes_to_visit[to_visit_offset--];
-        const BVHNode &node = bvh_.GetNodes()[current_node_idx];
+        const BVHNode& node = bvh_.GetNodes()[current_node_idx];
 
         // Calculate bbox intersection
         if (node.bounds.Intersect(r, t_min, closest_t)) {
             // if leaf, intersect the triangles
             if (node.tri_count > 0) {
                 for (uint32_t i = 0; i < node.tri_count; ++i) {
-                    const Triangle &tri = triangles_[node.left_first + i];
-                    const Mesh &mesh = meshes_[tri.mesh_id];
+                    const Triangle& tri = triangles_[node.left_first + i];
+                    const Mesh& mesh = meshes_[tri.mesh_id];
 
                     if (IntersectTriangle(r, tri, mesh, t_min, closest_t, si)) {
                         hit_anything = true;
@@ -96,10 +96,10 @@ bool Scene::IntersectBVH(const Ray &r, Float t_min, Float t_max, SurfaceInteract
     return hit_anything;
 }
 
-uint32_t Scene::AddSphere(const Sphere &s) {
+uint32_t Scene::AddSphere(const Sphere& s) {
     spheres_.push_back(s);
     uint32_t sphere_index = (uint32_t)spheres_.size() - 1;
-    const Material &mat = materials_[s.material_id];
+    const Material& mat = materials_[s.material_id];
     if (mat.IsEmissive()) {
         // Create the Light Wrapper
         AreaLight light;
@@ -111,20 +111,20 @@ uint32_t Scene::AddSphere(const Sphere &s) {
     return sphere_index;
 }
 
-uint32_t Scene::AddMaterial(const Material &m) {
+uint32_t Scene::AddMaterial(const Material& m) {
     materials_.push_back(m);
     return static_cast<uint32_t>(materials_.size() - 1);
 }
 
-uint32_t Scene::AddMesh(Mesh &&m) {
+uint32_t Scene::AddMesh(Mesh&& m) {
     meshes_.push_back(std::move(m));
     uint32_t mesh_id = (uint32_t)meshes_.size() - 1;
-    const Material &mat = materials_[m.material_id];
+    const Material& mat = materials_[m.material_id];
 
     // AUTO-GENERATE TRIANGLES
     // When we add a mesh, we immediately break it into Triangle primitives
     // so the renderer can see them.
-    const Mesh &mesh_ref = meshes_.back();
+    const Mesh& mesh_ref = meshes_.back();
     for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
         Triangle t;
         t.mesh_id = mesh_id;
