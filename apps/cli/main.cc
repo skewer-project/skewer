@@ -13,11 +13,10 @@
  * parser.
  */
 void print_usage(const char* program_name) {
-    std::cerr << "Usage: " << "\n";
-    std::cerr << "       " << program_name << "\n";
-    std::cerr << "       " << program_name << " --name outfile.ppm\n";
-    std::cerr << "Help:  " << "\n";
-    std::cerr << "       " << program_name << " --help\n";
+    std::cerr << "Usage:\n";
+    std::cerr << "  " << program_name << " [--obj model.obj] [--name outfile.ppm] [--threads N]\n";
+    std::cerr << "Help:\n";
+    std::cerr << "  " << program_name << " --help\n";
 }
 
 struct CLIArgs {
@@ -42,6 +41,8 @@ CLIArgs ParseArgs(int argc, char* argv[]) {
             args.options.image_config.outfile = argv[++i];
         } else if (strcmp(argv[i], "--obj") == 0 && i + 1 < argc) {
             args.obj_file = argv[++i];
+        } else if (strcmp(argv[i], "--threads") == 0 && i + 1 < argc) {
+            args.options.integrator_config.num_threads = std::atoi(argv[++i]);
         } else {
             std::cerr << "Unknown option: " << argv[i] << "\n";
             print_usage(argv[0]);
