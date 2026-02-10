@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package renderer.v1;
+
+option go_package = "./api/proto/renderer/v1";
+
+/*
+   Server: Renderer (main workers)
+   Client: Coordinator
+*/
+
+// RendererService provides an API for rendering an image
+service RendererService {
+  // Tells worker to render an entire logical layer (e.g., "Background" or "Characters")
+  rpc RenderLayer(RenderLayerRequest) returns (RenderLayerResponse);
+}
+
+message RenderLayerRequest {
+  // Global image dimensions
+  int32 width = 1;
+  int32 height = 2;
+
+  // Logical Layer definition
+  string layer_name = 3;
+  repeated uint32 include_object_ids = 4; // IDs of meshes belonging to this layer
+
+  // Quality settings
+  int32 samples_per_pixel = 5;
+  int32 max_depth = 6;
+  uint32 seed = 7; // To ensure deterministic sampling across the layer
+
+  // Worker-level threading (how many internal tiles to run in parallel)
+  int32 num_threads = 8;
+
+  // Scene context
+  string scene_file = 9;
+
+  // Bucket destination
+  string output_target_uri = 10;
+}
+
+message RenderLayerResponse {
+  // Success flag
+  bool success = 1;
+  string error_msg = 2;
+
+  // Confirmation of where file was actually saved
+  string output_uri = 3;
+
+  // Stats for the coordinator
+  int64 render_time_ms = 4;
+  int64 total_samples = 5;
+}

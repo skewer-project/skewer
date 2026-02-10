@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package coordinator.v1;
+
+option go_package = "./api/proto/coordinator/v1";
+
+/*
+   Server: Coordinator
+   Clients: User + Renderer workers + Compositor worker
+*/
+
+service CoordinatorService {
+  // User submits a job to the cluster
+  rpc SubmitJob(SubmitJobRequest) returns (SubmitJobResponse);
+
+  // User checks the current status of a job
+  rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
+
+  // Workers call this to register themselves with the coordinator
+  rpc RegisterWorker(RegisterWorkerRequest) returns (RegisterWorkerResponse);
+
+  // Workers call this periodically to report status
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+message SubmitJobRequest {
+  // Job data for the requested scene
+  string scene_file_uri = 1; // URI to the scene (e.g. .obj or custom manifest)
+  int32 width = 2;
+  int32 height = 3;
+  int32 samples_per_pixel = 4;
+  int32 max_depth = 5;
+
+  // Logical layers requested for this job
+  repeated string layer_names = 6;
+
+  // The base bucket/prefix where all layer files and final output should be stored
+  // e.g., "gs://my-bucket/jobs/job_uuid/"
+  string output_base_uri = 7;
+}
+
+message SubmitJobResponse {
+  string job_id = 1;
+}
+
+message GetJobStatusRequest {
+  string job_id = 1;
+}
+
+message GetJobStatusResponse {
+  enum JobState {
+    JOB_STATE_PENDING_UNSPECIFIED = 0;
+    JOB_STATE_RUNNING = 1;
+    JOB_STATE_COMPLETED = 2;
+    JOB_STATE_FAILED = 3;
+  }
+  JobState state = 1;
+  float progress = 2; // 0.0 to 1.0
+  string error_message = 3;
+
+  // The final composited image URI (only valid if COMPLETED)
+  string final_output_uri = 4;
+
+  // Status of individual layers
+  map<string, string> layer_uris = 5;
+  /*
+   * It should look something like this:
+   *
+   * Layer1: gs://bucket/job1/burger.exr (Done)
+   * Layer2: rendering... (Not Done)
+   * Layer3: gs://bucket/job1/panda.exr (Done)
+   */
+}
+
+message RegisterWorkerRequest {
+  string ip_address = 1;
+  int32 cpu_cores = 2;
+  string worker_version = 3;
+}
+
+message RegisterWorkerResponse {
+  string worker_id = 1;
+}
+
+// Reports status of a worker
+message HeartbeatRequest {
+  string worker_id = 1;
+  float load_average = 2;
+  bool is_rendering = 3;
+}
+
+message HeartbeatResponse {
+  enum Command {
+    COMMAND_CONTINUE_UNSPECIFIED = 0;
+    COMMAND_SHUTDOWN = 1;
+  }
+  Command command = 1;
+}

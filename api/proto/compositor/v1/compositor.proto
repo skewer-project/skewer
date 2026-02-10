@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package compositor.v1;
+
+option go_package = "./api/proto/compositor/v1";
+
+/*
+   Server: Compositor (maybe 1 or two workers/nodes)
+   Client: Coordinator
+*/
+
+// CompositorService provides an API for merging multiple deep image layers stored in buckets
+service CompositorService {
+  // Merges multiple deep layers (EXR files) into a single image
+  rpc CompositeDeepLayers(CompositeDeepLayersRequest) returns (CompositeDeepLayersResponse);
+}
+
+message DeepLayerInput {
+  string layer_name = 1;
+  string input_uri = 2; // URI to the .exr file for this layer
+}
+
+message CompositeDeepLayersRequest {
+  repeated DeepLayerInput layers = 1;
+
+  // If true, the compositor flattens and produces a standard RGBA EXR/PNG.
+  // If false, it produces a merged Deep EXR.
+  bool flatten_output = 2;
+
+  // Destination URI for the composited result
+  string output_target_uri = 3;
+}
+
+message CompositeDeepLayersResponse {
+  bool success = 1;
+  string error_msg = 2;
+
+  // URI of the final composited image
+  string output_uri = 3;
+
+  int64 processing_time_ms = 4;
+}
