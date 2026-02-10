@@ -6,12 +6,12 @@
 
 namespace skwr {
 
-LightSample Sample_Light(const Scene &scene, const AreaLight &light, RNG &rng) {
+LightSample Sample_Light(const Scene& scene, const AreaLight& light, RNG& rng) {
     LightSample result;
     result.emission = light.emission;  // Cache in AreaLight for speed
 
     if (light.type == AreaLight::Sphere) {
-        const Sphere &s = scene.Spheres()[light.primitive_index];
+        const Sphere& s = scene.Spheres()[light.primitive_index];
 
         Vec3 random_point = RandomUnitVector(rng);  // uniform surface sample
 
@@ -21,8 +21,8 @@ LightSample Sample_Light(const Scene &scene, const AreaLight &light, RNG &rng) {
         Float area = 4.0f * kPi * s.radius * s.radius;
         result.pdf = 1.0f / area;
     } else if (light.type == AreaLight::Triangle) {
-        const Triangle &t = scene.Triangles()[light.primitive_index];
-        const Mesh &m = scene.GetMesh(t.mesh_id);
+        const Triangle& t = scene.Triangles()[light.primitive_index];
+        const Mesh& m = scene.GetMesh(t.mesh_id);
 
         Vec3 p0 = m.p[m.indices[t.v_idx]];
         Vec3 p1 = m.p[m.indices[t.v_idx + 1]];

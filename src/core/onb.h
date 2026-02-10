@@ -17,7 +17,7 @@ struct ONB {
 
     // Build basis from normal vector
     // Creates u, v st (u, v, w) are all perpendicular to each other
-    void BuildFromW(const Vec3 &n) {
+    void BuildFromW(const Vec3& n) {
         axis[2] = Normalize(n);  // w is the normal
 
         // Arbitrary helper vector that isn't parallel to w
@@ -27,12 +27,12 @@ struct ONB {
         axis[0] = Cross(axis[1], axis[2]);       // u
     }
 
-    const Vec3 &u() const { return axis[0]; }
-    const Vec3 &v() const { return axis[1]; }
-    const Vec3 &w() const { return axis[2]; }
+    const Vec3& u() const { return axis[0]; }
+    const Vec3& v() const { return axis[1]; }
+    const Vec3& w() const { return axis[2]; }
 
     // Transform vector to match local space
-    Vec3 Local(Vec3 &a) const { return (u() * a.x()) + (v() * a.y()) + (w() * a.z()); }
+    Vec3 Local(Vec3& a) const { return (u() * a.x()) + (v() * a.y()) + (w() * a.z()); }
 
     Vec3 axis[3];  // u, v, w
 };

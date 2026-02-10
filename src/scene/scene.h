@@ -24,20 +24,20 @@ class Scene {
   public:
     Scene() = default;
 
-    uint32_t AddSphere(const Sphere &s);
-    uint32_t AddMaterial(const Material &m);
-    uint32_t AddMesh(Mesh &&m);  // Returns mesh_id (index in the meshes_ vector)
+    uint32_t AddSphere(const Sphere& s);
+    uint32_t AddMaterial(const Material& m);
+    uint32_t AddMesh(Mesh&& m);  // Returns mesh_id (index in the meshes_ vector)
 
-    const Material &GetMaterial(uint32_t id) const { return materials_[id]; }
-    const Mesh &GetMesh(uint32_t id) const { return meshes_[id]; }
-    const std::vector<Sphere> &Spheres() const { return spheres_; }
-    const std::vector<Triangle> &Triangles() const { return triangles_; }
-    const std::vector<Material> &Materials() const { return materials_; }
-    const std::vector<AreaLight> &Lights() const { return lights_; }
+    const Material& GetMaterial(uint32_t id) const { return materials_[id]; }
+    const Mesh& GetMesh(uint32_t id) const { return meshes_[id]; }
+    const std::vector<Sphere>& Spheres() const { return spheres_; }
+    const std::vector<Triangle>& Triangles() const { return triangles_; }
+    const std::vector<Material>& Materials() const { return materials_; }
+    const std::vector<AreaLight>& Lights() const { return lights_; }
 
     void Build();  // Construct the BVH from the shapes list
-    bool Intersect(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const;
-    bool IntersectBVH(const Ray &r, Float t_min, Float t_max, SurfaceInteraction *si) const;
+    bool Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const;
+    bool IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const;
 
   private:
     std::vector<Sphere> spheres_;
