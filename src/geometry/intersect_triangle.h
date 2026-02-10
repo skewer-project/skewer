@@ -11,8 +11,8 @@
 
 namespace skwr {
 
-inline bool IntersectTriangle(const Ray &r, const Triangle &tri, const Mesh &mesh, Float t_min,
-                              Float t_max, SurfaceInteraction *si) {
+inline bool IntersectTriangle(const Ray& r, const Triangle& tri, const Mesh& mesh, Float t_min,
+                              Float t_max, SurfaceInteraction* si) {
     /**
      * Mesh stores vertices of all triangles
      *  And indices of which vertices make up a triangle
