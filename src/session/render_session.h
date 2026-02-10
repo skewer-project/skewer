@@ -29,10 +29,10 @@ class RenderSession {
     ~RenderSession();
 
     // SETUP: Load data from disk into the Scene object
-    void LoadScene(const std::string &filename);
+    void LoadScene(const std::string& filename);
 
     // CONFIGURE: Set up the camera, resolution, and sampler
-    void SetOptions(const RenderOptions &options);
+    void SetOptions(const RenderOptions& options);
 
     // EXECUTE: Create the Integrator and tell it to run on the Scene
     void Render();
