@@ -31,6 +31,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     int height = film->height();
 
     for (int y = 0; y < height; ++y) {
+        std::clog << "[Session] Scanlines: " << y << " of " << height << "\t\r" << std::flush;
+        std::clog.flush();
         for (int x = 0; x < width; ++x) {
             for (int s = 0; s < config.samples_per_pixel; ++s) {
                 RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
