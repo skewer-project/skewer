@@ -78,10 +78,10 @@ class DeepImageBuffer {
 
 class FlatImageBuffer {
   public:
-    FlatImageBuffer(int width, int height) : width_(width), height_(height), pixels_({}) {};
+    FlatImageBuffer(int width, int height) : width_(width), height_(height), pixels_({}){};
 
     FlatImageBuffer(int width, int height, std::vector<Spectrum> pixels)
-        : width_(width), height_(height), pixels_(pixels) {};
+        : width_(width), height_(height), pixels_(pixels){};
 
     // Set a pixel's color (0,0 is top-left usually)
     void SetPixel(int x, int y, const Spectrum& s);
