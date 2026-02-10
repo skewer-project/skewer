@@ -29,6 +29,7 @@ set(SOURCES
     src/integrators/path_trace.cc
     src/integrators/normals.cc
     src/accelerators/bvh.cc
+    src/io/obj_loader.cc
 
 )
 
