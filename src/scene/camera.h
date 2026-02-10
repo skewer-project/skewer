@@ -13,7 +13,7 @@ namespace skwr {
 // Basically RTIOW's camera, we just shifted the starting pixel to lower-left corner
 class Camera {
   public:
-    Camera(const Vec3 &look_from, const Vec3 &look_at, const Vec3 &vup, Float vfov,
+    Camera(const Vec3& look_from, const Vec3& look_at, const Vec3& vup, Float vfov,
            Float aspect_ratio) {
         auto theta = vfov * kPi / 180.0f;
         auto h = std::tan(theta / 2.0f);
