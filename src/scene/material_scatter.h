@@ -24,8 +24,8 @@ inline Float Reflectance(Float cosine, Float refraction_ratio) {
  * - Scattered Ray: The new direction the photon travels.
  */
 // Returns true if the ray scatters, false if it is absorbed (black body)
-inline bool Scatter(const Material &mat, const Ray &r_in, const SurfaceInteraction &si, RNG &rng,
-                    Spectrum &attenuation, Ray &r_scattered) {
+inline bool Scatter(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
+                    Spectrum& attenuation, Ray& r_scattered) {
     attenuation = mat.albedo;  // Most materials just tint the light ig
     switch (mat.type) {
         //------------------------------------------------------------------------------

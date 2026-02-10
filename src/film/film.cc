@@ -8,7 +8,7 @@ Film::Film(int width, int height) : width_(width), height_(height) {
     pixels_.resize(width_ * height_);
 }
 
-void Film::AddSample(int x, int y, const Spectrum &L, float weight) {
+void Film::AddSample(int x, int y, const Spectrum& L, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
 
     int index = y * width_ + x;  // row-major order
@@ -19,9 +19,9 @@ void Film::AddSample(int x, int y, const Spectrum &L, float weight) {
     pixels_[index].weight_sum += weight;
 }
 
-void Film::AddDeepSample(int x, int y, float depth, const Spectrum &L, float transmittance) {}
+void Film::AddDeepSample(int x, int y, float depth, const Spectrum& L, float transmittance) {}
 
-void Film::WriteImage(const std::string &filename) const {
+void Film::WriteImage(const std::string& filename) const {
     // Create a TEMPORARY buffer just for this export
     ImageBuffer temp_buffer(width_, height_);
 
@@ -29,7 +29,7 @@ void Film::WriteImage(const std::string &filename) const {
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             int index = y * width_ + x;
-            const Pixel &p = pixels_[index];
+            const Pixel& p = pixels_[index];
 
             Spectrum final_color(0, 0, 0);
             if (p.weight_sum > 0) {
