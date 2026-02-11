@@ -1,4 +1,7 @@
-#include "bsdf.h"
+#include "materials/bsdf.h"
+
+#include "core/onb.h"
+#include "core/sampling.h"
 
 namespace skwr {
 
@@ -23,13 +26,13 @@ Float Pdf_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n
 bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
                       Float& pdf, Spectrum& f) {
     ONB uvw;
-    uvw.BuildFromW(si.n);
+    uvw.BuildFromW(si.n_geom);
 
     Vec3 local_dir = RandomCosineDirection(rng);
     wi = uvw.Local(local_dir);
 
     // Explicit PDF and Eval
-    Float cosine = std::fmax(0.0f, Dot(wi, si.n));
+    Float cosine = std::fmax(0.0f, Dot(wi, si.n_geom));
     pdf = cosine / kPi;
     f = mat.albedo * (1.0f / kPi);
     return true;
@@ -37,13 +40,13 @@ bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rn
 
 bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, Float& pdf,
                  Spectrum& f) {
-    wi = Reflect(-si.wo, si.n);  // We reflect "incoming view" = -wo
+    wi = Reflect(-si.wo, si.n_geom);  // We reflect "incoming view" = -wo
     if (mat.roughness > 0) {
         wi = Normalize(wi + (mat.roughness * RandomInUnitSphere(rng)));
     }
 
     // Check if valid (above surface)
-    Float cosine = Dot(wi, si.n);
+    Float cosine = Dot(wi, si.n_geom);
     if (cosine <= 0) return false;
 
     // Delta Distribution Logic
@@ -58,7 +61,7 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
     Float refraction_ratio = si.front_face ? 1.0f / mat.ior : mat.ior;
     Vec3 unit_direction = -si.wo;  // wo points out to camera. -wo is the IN direction
 
-    Float cos_theta = std::fmin(Dot(si.wo, si.n), 1.0f);
+    Float cos_theta = std::fmin(Dot(si.wo, si.n_geom), 1.0f);
     Float sin_theta = std::sqrt(1.0f - cos_theta * cos_theta);
 
     // Total Internal Reflection
@@ -66,14 +69,14 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
 
     // Fresnel + scatter
     if (cannot_refract || Reflectance(cos_theta, refraction_ratio) > rng.UniformFloat()) {
-        wi = Reflect(unit_direction, si.n);
+        wi = Reflect(unit_direction, si.n_geom);
     } else {
-        wi = Refract(unit_direction, si.n, refraction_ratio);
+        wi = Refract(unit_direction, si.n_geom, refraction_ratio);
     }
 
     // Delta distr logic
     pdf = 1.0f;
-    f = Spectrum(1.0f) / std::abs(Dot(wi, si.n));  // Cancels cosine
+    f = Spectrum(1.0f) / std::abs(Dot(wi, si.n_geom));  // Cancels cosine
     return true;
 }
 
