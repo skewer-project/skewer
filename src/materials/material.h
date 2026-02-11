@@ -10,17 +10,12 @@ namespace skwr {
 enum class MaterialType : uint8_t { Lambertian, Metal, Dielectric };
 
 // 32-byte aligned to fit in cache?
-struct Material {
-    MaterialType type;
-
-    // padding to align data types
-    uint8_t _padding[3];
-
-    // Data params
+struct alignas(16) Material {
     Spectrum albedo;  // Color (Diffuse or Specular)
     Spectrum emission;
     Float roughness;  // 0.0 = Perfect Mirror, 1.0 = Matte
     Float ior;        // Index of refraction
+    MaterialType type;
 
     bool IsEmissive() const { return emission.r() > 0 || emission.g() > 0 || emission.b() > 0; }
 };
