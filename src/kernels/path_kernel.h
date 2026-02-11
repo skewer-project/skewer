@@ -1,3 +1,6 @@
+#ifndef SKWR_KERNELS_PATH_KERNEL_H_
+#define SKWR_KERNELS_PATH_KERNEL_H_
+
 #include <algorithm>
 
 #include "core/constants.h"
@@ -106,3 +109,5 @@ inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const Integrato
 }
 
 }  // namespace skwr
+
+#endif  // SKWR_KERNELS_PATH_KERNEL_H_
