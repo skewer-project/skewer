@@ -45,12 +45,12 @@ inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const Integrato
             LightSample ls = Sample_Light(scene, light, rng);
 
             // Shadow Ray setup
-            Vec3 to_light = ls.p - si.p;
+            Vec3 to_light = ls.p - si.point;
             Float dist_sq = to_light.LengthSquared();
             Float dist = std::sqrt(dist_sq);
             Vec3 wi_light = to_light / dist;
 
-            Ray shadow_ray(si.p + (wi_light * kShadowEpsilon), wi_light);
+            Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
             SurfaceInteraction shadow_si;  // dummy
             if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon, &shadow_si)) {
                 Float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
@@ -59,8 +59,8 @@ inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const Integrato
                     Float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
                     // BSDF Evaluation
-                    Float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n));
-                    Spectrum f_val = Eval_BSDF(mat, si.wo, wi_light, si.n);
+                    Float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n_geom));
+                    Spectrum f_val = Eval_BSDF(mat, si.wo, wi_light, si.n_geom);
 
                     // Accumulate
                     // Weight = 1.0 / (N_lights * PDF_w)
@@ -79,10 +79,10 @@ inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const Integrato
         /* BSDF check */
         if (Sample_BSDF(mat, r, si, rng, wi, pdf, f)) {
             if (pdf > 0) {
-                Float cos_theta = std::abs(Dot(wi, si.n));
+                Float cos_theta = std::abs(Dot(wi, si.n_geom));
                 Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
                 beta *= weight;
-                r = Ray(si.p + (wi * kShadowEpsilon), wi);
+                r = Ray(si.point + (wi * kShadowEpsilon), wi);
 
                 // If this bounce was sharp (Metal/Glass), next hit counts as
                 // specular
