@@ -14,6 +14,7 @@ cmake_policy(SET CMP0135 NEW)
 # Use system-installed OpenEXR and Imath (install via apt-get or brew)
 find_package(Imath REQUIRED)
 find_package(OpenEXR REQUIRED)
+find_package(ZLIB REQUIRED) # Apparently zlib is sometimes required (I guess for compression?)
 
 # Fetch nlohmann/json for scene loading
 include(FetchContent)
@@ -47,9 +48,6 @@ target_include_directories(skewer-render
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/external
 )
-
-# Apparently zlib is sometimes required (I guess for compression?)
-find_package(ZLIB REQUIRED)
 
 # Link libraries
 target_link_libraries(skewer-render
