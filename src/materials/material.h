@@ -11,13 +11,16 @@ enum class MaterialType : uint8_t { Lambertian, Metal, Dielectric };
 
 // 32-byte aligned to fit in cache?
 struct alignas(16) Material {
-    Spectrum albedo;  // Color (Diffuse or Specular)
-    Spectrum emission;
-    Float roughness;  // 0.0 = Perfect Mirror, 1.0 = Matte
-    Float ior;        // Index of refraction
+    Spectrum albedo;                    // Color (Diffuse or Specular)
+    Spectrum emission;                  //
+    Float roughness;                    // 0.0 = Perfect Mirror, 1.0 = Matte
+    Float ior;                          // Index of refraction
+    Spectrum opacity = Spectrum(1.0f);  // 1 = opaque, 0 = fully transparent
+    // OR: texture reference later
     MaterialType type;
 
-    bool IsEmissive() const { return emission.r() > 0 || emission.g() > 0 || emission.b() > 0; }
+    bool IsEmissive() const { return emission.MaxComponent() > 0.0f; }
+    bool IsTransparent() const { return opacity.MinComponent() < 1.0f; }
 };
 
 }  // namespace skwr
