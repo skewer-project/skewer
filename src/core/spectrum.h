@@ -1,6 +1,7 @@
 #ifndef SKWR_CORE_SPECTRUM_H_
 #define SKWR_CORE_SPECTRUM_H_
 
+#include <algorithm>
 #include <iostream>
 
 #include "core/color.h"
@@ -69,6 +70,10 @@ class Spectrum {
     static Spectrum FromColor(const Color& color) {
         return Spectrum(color.r(), color.g(), color.b());
     }
+
+    int Size() const { return sizeof(c) / sizeof(c[0]); }
+    float MaxComponent() const { return *std::max_element(c, c + Size()); }
+    float MinComponent() const { return *std::min_element(c, c + Size()); }
 
   private:
     Float c[3];
