@@ -39,11 +39,6 @@ struct DeepSample {
     float alpha;  // opacity
 };
 
-// Necessary for Film interface
-struct DeepPixel {
-    std::vector<DeepSample> samples;
-};
-
 struct DeepPixelView {
     const DeepSample* data;  // Pointer to the actual data
     size_t count;
