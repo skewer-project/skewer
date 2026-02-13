@@ -116,7 +116,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                                     // BSDF Evaluation
                                     Float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n));
-                                    Spectrum f_val = Eval_BSDF(mat, si.wo, wi_light, si.n);
+                                    Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n);
 
                                     // Accumulate
                                     // Weight = 1.0 / (N_lights * PDF_w)
@@ -134,7 +134,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                         Spectrum f;
 
                         /* BSDF check */
-                        if (Sample_BSDF(mat, r, si, rng, wi, pdf, f)) {
+                        if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
                             if (pdf > 0) {
                                 Float cos_theta = std::abs(Dot(wi, si.n));
                                 Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
