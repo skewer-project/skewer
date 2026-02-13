@@ -7,8 +7,8 @@
 
 #include "core/constants.h"
 #include "core/sampling.h"
-#include "core/spectrum.h"
 #include "film/film.h"
+#include "integrators/path_sample.h"
 #include "kernels/path_kernel.h"
 #include "scene/camera.h"
 #include "scene/light.h"
@@ -17,17 +17,6 @@
 
 namespace skwr {
 
-/**
- * In a recursive renderer (RTIOW), light is calculated as:
- *          Color = DirectLight + Albedo × RecursiveCall()
- * In our iterative renderer, we keep a running variable called Throughput (β or beta).
- * It represents "what fraction of light from the next bounce will actually make it back to the
- * camera?" AKA the fraction of light that survives up to this point (from the camera)
- * Start: β = 1.0 (White)
- * Bounce 1 (Red Wall): β = 1.0 × 0.5(Red) = 0.5
- * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
- * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
- */
 void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                        const IntegratorConfig& config) {
     int width = film->width();
@@ -62,10 +51,12 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                     Ray r = cam.GetRay(u, v);
 
-                    Spectrum L = Li(r, scene, rng, config);
-                    // Accumulate to Film
-                    // Note: We use AddSample, not SetPixel directly!
-                    film->AddSample(x, y, L, 1.0f);
+                    PathSample result = Li(r, scene, rng, config);
+
+                    float weight = 1.0f;
+                    film->AddSample(x, y, result.L, weight);
+
+                    if (config.enable_deep) film->AddDeepSample(x, y, result, weight);
                 }
             }
 
