@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package renderer.v1;
+package api.proto.renderer.v1;
 
 option go_package = "./api/proto/renderer/v1";
 
