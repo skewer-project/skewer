@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package coordinator.v1;
+package api.proto.coordinator.v1;
 
 option go_package = "./api/proto/coordinator/v1";
 

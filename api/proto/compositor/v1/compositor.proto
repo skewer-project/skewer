@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package compositor.v1;
+package api.proto.compositor.v1;
 
 option go_package = "./api/proto/compositor/v1";
 
