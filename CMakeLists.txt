@@ -58,6 +58,7 @@ set(SOURCES
     src/accelerators/bvh.cc
     src/scene/light.cc
     src/io/obj_loader.cc
+    src/io/image_io.cc
     src/materials/bsdf.cc
 )
 

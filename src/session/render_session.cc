@@ -7,10 +7,12 @@
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
+#include "film/image_buffer.h"
 #include "geometry/sphere.h"
 #include "integrators/integrator.h"
 #include "integrators/normals.h"
 #include "integrators/path_trace.h"
+#include "io/image_io.h"
 #include "io/obj_loader.h"
 #include "materials/material.h"
 #include "scene/camera.h"
@@ -110,7 +112,7 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
                                Vec3(2, 4.95, -11), id_light));
 
     // -- Spheres (left and right) --
-    scene_->AddSphere(Sphere{Vec3(-2.5f, -3.5f, -12.0f), 1.5f, id_mirror});
+    // scene_->AddSphere(Sphere{Vec3(-2.5f, -3.5f, -12.0f), 1.5f, id_mirror});
     scene_->AddSphere(Sphere{Vec3(2.5f, -3.5f, -8.0f), 1.5f, id_glass});
 
     // -- Center object: OBJ file or fallback sphere --
@@ -176,6 +178,10 @@ void RenderSession::Render() {
 void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
+        if (options_.integrator_config.enable_deep) {
+            std::unique_ptr<DeepImageBuffer> buf = film_->CreateDeepBuffer();
+            ImageIO::SaveEXR(*buf, options_.image_config.exrfile);
+        }
     }
 }
 
