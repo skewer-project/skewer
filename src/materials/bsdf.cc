@@ -2,7 +2,7 @@
 
 namespace skwr {
 
-Spectrum Eval_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
+Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
     // Specular materials (Metal, Glass) are Dirac Deltas (infinity) at the right angle, 0 otherwise
     // so just return Black here because Sample() should handle them
     if (mat.type != MaterialType::Lambertian) return Spectrum(0.f);
@@ -12,7 +12,7 @@ Spectrum Eval_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Ve
     return mat.albedo * (1.0f / kPi);       // Lambertian is constant
 }
 
-Float Pdf_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
+Float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
     if (mat.type != MaterialType::Lambertian) return 0.f;
 
     Float cosine = Dot(wi, n);
@@ -77,8 +77,8 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
     return true;
 }
 
-bool Sample_BSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                 Vec3& wi, Float& pdf, Spectrum& f) {
+bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
+                Vec3& wi, Float& pdf, Spectrum& f) {
     switch (mat.type) {
         case MaterialType::Lambertian:
             return SampleLambertian(mat, si, rng, wi, pdf, f);
