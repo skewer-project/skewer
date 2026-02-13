@@ -97,7 +97,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                             mat.type != MaterialType::Dielectric && !scene.Lights().empty()) {
                             int light_index = int(rng.UniformFloat() * scene.Lights().size());
                             const AreaLight& light = scene.Lights()[light_index];
-                            LightSample ls = Sample_Light(scene, light, rng);
+                            LightSample ls = SampleLight(scene, light, rng);
 
                             // Shadow Ray setup
                             Vec3 to_light = ls.p - si.p;
