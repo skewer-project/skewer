@@ -15,13 +15,13 @@ namespace skwr {
  * Returns the BSDF value: f(wo, wi) = Albedo / Pi (reflectance)
  * wo = out vector to camera, wi = in vector to Light/Next bounce
  */
-Spectrum Eval_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n);
+Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n);
 
 /**
  * PROBABILITY DENSITY (PDF)
  * Returns the probability of sampling direction 'wi'
  */
-Float Pdf_BSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n);
+Float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n);
 
 inline Float Reflectance(Float cosine, Float refraction_ratio) {
     // Use Schlick's approximation for reflectance.
@@ -45,8 +45,8 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
  * - Scattered Ray: The new direction the photon travels.
  * Dispatches to correct material type sampling function
  */
-bool Sample_BSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                 Vec3& wi, Float& pdf, Spectrum& f);
+bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
+                Vec3& wi, Float& pdf, Spectrum& f);
 
 }  // namespace skwr
 

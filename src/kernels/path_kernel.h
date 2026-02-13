@@ -90,7 +90,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             !scene.Lights().empty()) {
             int light_index = int(rng.UniformFloat() * scene.Lights().size());
             const AreaLight& light = scene.Lights()[light_index];
-            LightSample ls = Sample_Light(scene, light, rng);
+            LightSample ls = SampleLight(scene, light, rng);
 
             // Shadow Ray setup
             Vec3 to_light = ls.p - si.point;
@@ -108,7 +108,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
                     // BSDF Evaluation
                     Float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n_geom));
-                    Spectrum f_val = Eval_BSDF(mat, si.wo, wi_light, si.n_geom);
+                    Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n_geom);
 
                     // Accumulate
                     // Weight = 1.0 / (N_lights * PDF_w)
@@ -130,7 +130,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         Spectrum f;
 
         /* BSDF check */
-        if (Sample_BSDF(mat, r, si, rng, wi, pdf, f)) {
+        if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
             if (pdf > 0) {
                 Float cos_theta = std::abs(Dot(wi, si.n_geom));
                 Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
