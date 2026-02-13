@@ -8,6 +8,7 @@
 #include "core/rng.h"
 #include "core/spectrum.h"
 #include "core/vec3.h"
+#include "integrators/path_sample.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/scene.h"
@@ -16,27 +17,72 @@
 
 namespace skwr {
 
-inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config) {
+inline void AddSegment(PathSample& sample, const float& t_min, const float& t_max,
+                       const Spectrum& L, const float& alpha) {
+    sample.segments.push_back({t_min, t_max, L, alpha});
+}
+
+/**
+ * In a recursive renderer (RTIOW), light is calculated as:
+ *          Color = DirectLight + Albedo × RecursiveCall()
+ * In our iterative renderer, we keep a running variable called Throughput (β or beta).
+ * It represents "what fraction of light from the next bounce will actually make it back to the
+ * camera?" AKA the fraction of light that survives up to this point (from the camera)
+ * Start: β = 1.0 (White)
+ * Bounce 1 (Red Wall): β = 1.0 × 0.5(Red) = 0.5
+ * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
+ * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
+ */
+inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config) {
+    PathSample result;
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
     Ray r = ray;
     bool specular_bounce = true;
+    float t_prev = 0.0f;  // where last segment ended
 
     // "Bounce" loop - calculates Li: how much Radiance (L) is incoming (i)
     // by multiplying the total light by the amount lost at the end
     for (int depth = 0; depth < config.max_depth; ++depth) {
         SurfaceInteraction si;
         if (!scene.Intersect(r, kShadowEpsilon, kInfinity, &si)) {
-            L += beta * Spectrum(0.0f);
+            // Environment Segment
+            Spectrum env_L = beta * Spectrum(0.0f);
+            AddSegment(result, t_prev, kInfinity, env_L, 0.0f);
+            L += env_L;
             break;
         }
 
+        // Empty Space Segment (Volume/Air)
+        // If we had volumetrics, we would ray-march here and accumulate L/Alpha.
+        AddSegment(result, t_prev, si.t, Spectrum(0.0f), 0.0f);
+
         const Material& mat = scene.GetMaterial(si.material_id);
+
+        // Calculate surface opacity (alpha for this segment)
+        Spectrum opacity = mat.opacity;
+        float alpha = opacity.Average();  // Or use max/luminance depending on your needs
 
         /* Emission check for if we hit a light */
         if (mat.IsEmissive()) {
             if (specular_bounce) {
-                L += beta * mat.emission;
+                Spectrum emission_contrib = beta * mat.emission;
+                AddSegment(result, si.t, si.t + kShadowEpsilon, emission_contrib, alpha);
+                L += emission_contrib;
+            }
+        }
+
+        /* Handle transparency - straight-through transmission */
+        if (mat.IsTransparent()) {
+            // For non-refractive transparent surfaces (like foliage, smoke, etc.)
+            // This is separate from Dielectric refraction
+
+            Spectrum transmittance = Spectrum(1.0f) - opacity;
+
+            if (transmittance.MaxComponent() > 0.0f) {
+                // Continue ray through surface for the transmitted portion
+                // This requires spawning a transmission ray
+                // For now, we'll handle this in the BSDF sampling below
             }
         }
 
@@ -69,7 +115,12 @@ inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const Integrato
                     // Weight = 1.0 / (N_lights * PDF_w)
                     // L += beta * f * Le * cos_surf * Weight
                     Float selection_prob = 1.0f / scene.Lights().size();
-                    L += beta * f_val * ls.emission * cos_surf / (light_pdf_w * selection_prob);
+                    Spectrum direct_L =
+                        beta * f_val * ls.emission * cos_surf / (light_pdf_w * selection_prob);
+                    direct_L *= opacity;
+
+                    AddSegment(result, si.t, si.t + kShadowEpsilon, direct_L, alpha);
+                    L += direct_L;
                 }
             }
         }
@@ -84,18 +135,28 @@ inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const Integrato
             if (pdf > 0) {
                 Float cos_theta = std::abs(Dot(wi, si.n_geom));
                 Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
+
+                // Modulate throughput by opacity for non-specular bounces
+                // For Dielectrics/Metals, opacity is typically 1.0
+                // For transparent diffuse, we need to account for absorption
+                if (mat.type == MaterialType::Lambertian) {
+                    weight *= opacity;  // Absorb based on opacity
+                }
+
                 beta *= weight;
                 r = Ray(si.point + (wi * kShadowEpsilon), wi);
 
-                // If this bounce was sharp (Metal/Glass), next hit counts as
-                // specular
+                // If this bounce was sharp (Metal/Glass), next hit counts as specular
                 specular_bounce =
                     (mat.type == MaterialType::Metal || mat.type == MaterialType::Dielectric);
             }
         } else {
             // Absorbed (black body)
+            AddSegment(result, si.t, si.t + kShadowEpsilon, Spectrum(0.0f), alpha);
             break;
         }
+
+        t_prev = si.t + kShadowEpsilon;
 
         // Russian Roulette method to kill weak rays early
         // is an optimization cause weak rays = weak influence on final
@@ -105,7 +166,9 @@ inline Spectrum Li(const Ray& ray, const Scene& scene, RNG& rng, const Integrato
             beta = beta * (1.0f / p);
         }
     }
-    return L;
+
+    result.L = L;
+    return result;
 }
 
 }  // namespace skwr
