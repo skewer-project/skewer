@@ -34,10 +34,33 @@ Renders the built-in demo scene (spheres and triangles).
 Now open the `.ppm` to see if image renders correctly
 
 ## Dependencies
-- CMake (3.14+)
-- nlohmann/json (Fetched automatically via CMake)
-- stb_image (included in `src`)
-- tiny_obj_loader (included in `src`)
+
+### Prerequisites
+Ensure you have the following installed before building:
+* **C++ Compiler** (C++17 support required)
+    * *Linux:* GCC or Clang
+    * *macOS:* Xcode Command Line Tools (`xcode-select --install`)
+    * *Windows:* MSVC (Visual Studio) or MinGW
+* **CMake** (Version 3.14 or higher)
+* **OpenEXR** & **Imath** (Required for high-dynamic-range output)
+
+**macOS (Homebrew)**
+```bash
+# Installs CMake and OpenEXR (which includes Imath)
+brew install cmake openexr
+```
+
+**Linux (Ubuntu/Debian)**
+```bash
+sudo apt-get update
+sudo apt-get install build-essential cmake libopenexr-dev libimath-dev
+```
+
+### Libraries (Managed Automatically)
+The following libraries are included in the source or fetched automatically by CMake. **You do not need to install these manually.**
+* [nlohmann/json](https://github.com/nlohmann/json) (via CMake FetchContent)
+* [stb_image](https://github.com/nothings/stb) (Vendored)
+* [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) (Vendored)
 
 ## Authors
 - [AkshatAdsule](https://github.com/AkshatAdsule)
