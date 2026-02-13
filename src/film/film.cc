@@ -73,7 +73,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weig
         DeepSegmentNode& node = deep_pool_[node_index];
         node.z_front = seg.z_front;
         node.z_back = seg.z_back;
-        node.L = seg.L * weight;  // Apply sample weight
+        node.L = seg.L;
         node.alpha = seg.alpha;
         node.next = prev_head;
         prev_head = node_index;
@@ -134,10 +134,14 @@ std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer() const {
                 head = node.next;
             }
 
-            // Sort by Depth (Required for OpenEXR)
-            // std::sort(
-            //     segments.begin(), segments.end(),
-            //     [](const DeepSample& a, const DeepSample& b) { return a.z_front < b.z_front; });
+            // // Sort by Depth (Required for OpenEXR)
+            // std::sort(segments.begin(), segments.end(),
+            //           [](const DeepSample& a, const DeepSample& b) {
+            //               if (std::abs(a.z_front - b.z_front) < 1e-5f) {
+            //                   return a.z_back < b.z_back;  // Tiebreaker
+            //               }
+            //               return a.z_front < b.z_front;
+            //           });
 
             // segments = MergeDeepSegments(segments);
 
@@ -154,30 +158,70 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
     if (input.size() <= 1) return input;
 
     std::vector<DeepSample> merged;
-    merged.reserve(input.size());
+    merged.reserve(input.size() / 4);  // estimate
+
+    const float depth_epsilon = 1e-4;  // Tolerance for "same depth"
 
     DeepSample current = input[0];
+    int sample_count = 1;  // How many samples we're averaging at this depth
 
     for (size_t i = 1; i < input.size(); ++i) {
         const DeepSample& next = input[i];
+        if (next.alpha <= 0.0f) continue;
 
-        // Check if segments overlap or are adjacent
-        const float epsilon = 1e-4f;  // TODO: maybe refactor this constant
-        if (next.z_front <= current.z_back + epsilon) {
-            // Merge: extend current segment and accumulate color
-            current.z_back = std::max(current.z_back, next.z_back);
+        // Check if this is at the "same depth" as current
+        bool same_depth = (std::abs(next.z_front - current.z_front) < depth_epsilon) &&
+                          (std::abs(next.z_back - current.z_back) < depth_epsilon);
+
+        if (same_depth) {
             current.r += next.r;
             current.g += next.g;
             current.b += next.b;
-            current.alpha = 1.0f - (1.0f - current.alpha) * (1.0f - next.alpha);  // Over operator
+            current.alpha += next.alpha;
+            sample_count++;
         } else {
-            // No overlap - save current and start new
+            // Different depth - finalize current segment
+            // if (sample_count > 1) {
+            //     // Average the accumulated values
+            //     float inv_count = 1.0f / sample_count;
+            //     current.r *= inv_count;
+            //     current.g *= inv_count;
+            //     current.b *= inv_count;
+            //     current.alpha *= inv_count;
+            // }
+            current.alpha = std::min(1.0f, current.alpha);
+
             merged.push_back(current);
+
+            // Start new segment
             current = next;
+            sample_count = 1;
         }
     }
 
+    // Don't forget the last segment
+    if (sample_count > 1) {
+        current.alpha = std::min(1.0f, current.alpha);
+
+        // float inv_count = 1.0f / sample_count;
+        // current.r *= inv_count;
+        // current.g *= inv_count;
+        // current.b *= inv_count;
+        // current.alpha *= inv_count;
+    }
+
     merged.push_back(current);
+
+    static std::atomic<int> log_count{0};
+    if (log_count.fetch_add(1) % 10000 == 0) {  // Log every 10000th pixel
+        std::cout << "Merge: " << input.size() << " → " << merged.size() << " segments\n";
+        if (merged.size() > 0) {
+            std::cout << "  First segment: z=" << merged[0].z_front << " rgb=(" << merged[0].r
+                      << "," << merged[0].g << "," << merged[0].b << ")"
+                      << " alpha=" << merged[0].alpha << "\n";
+        }
+    }
+
     return merged;
 }
 

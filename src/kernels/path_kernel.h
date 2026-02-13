@@ -61,14 +61,13 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
         // Calculate surface opacity (alpha for this segment)
         Spectrum opacity = mat.opacity;
-        float alpha = opacity.Average();  // Or use max/luminance depending on your needs
+        float alpha = mat.IsTransparent() ? opacity.Average() : 1.0f;
 
         /* Emission check for if we hit a light */
         if (mat.IsEmissive()) {
             if (specular_bounce) {
-                Spectrum emission_contrib = beta * mat.emission;
-                AddSegment(result, si.t, si.t + kShadowEpsilon, emission_contrib, alpha);
-                L += emission_contrib;
+                AddSegment(result, si.t, si.t + kShadowEpsilon, mat.emission, alpha);
+                L += beta * mat.emission;
             }
         }
 
