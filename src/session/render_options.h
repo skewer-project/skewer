@@ -21,6 +21,7 @@ struct ImageConfig {
     int width;
     int height;
     std::string outfile;
+    std::string exrfile;
 };
 
 struct RenderOptions {
