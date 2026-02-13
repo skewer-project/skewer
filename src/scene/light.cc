@@ -6,7 +6,7 @@
 
 namespace skwr {
 
-LightSample Sample_Light(const Scene& scene, const AreaLight& light, RNG& rng) {
+LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
     LightSample result;
     result.emission = light.emission;  // Cache in AreaLight for speed
 
