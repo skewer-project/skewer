@@ -88,7 +88,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weig
     }
 }
 
-std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer() const {
+std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer(const int total_pixel_samples) const {
     // Pass 1: Count samples per pixel
     Imf::Array2D<unsigned int> counts(height_, width_);
     size_t total_segments = 0;
@@ -134,16 +134,16 @@ std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer() const {
                 head = node.next;
             }
 
-            // // Sort by Depth (Required for OpenEXR)
-            // std::sort(segments.begin(), segments.end(),
-            //           [](const DeepSample& a, const DeepSample& b) {
-            //               if (std::abs(a.z_front - b.z_front) < 1e-5f) {
-            //                   return a.z_back < b.z_back;  // Tiebreaker
-            //               }
-            //               return a.z_front < b.z_front;
-            //           });
+            // Sort by Depth (Required for OpenEXR)
+            std::sort(segments.begin(), segments.end(),
+                      [](const DeepSample& a, const DeepSample& b) {
+                          if (std::abs(a.z_front - b.z_front) < 1e-5f) {
+                              return a.z_back < b.z_back;  // Tiebreaker
+                          }
+                          return a.z_front < b.z_front;
+                      });
 
-            // segments = MergeDeepSegments(segments);
+            segments = MergeDeepSegments(segments, total_pixel_samples);
 
             // Write to your buffer
             buffer->SetPixel(x, y, segments);
@@ -154,7 +154,8 @@ std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer() const {
 }
 
 // Helper: Merge overlapping/adjacent segments
-std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input) const {
+std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
+                                                const int total_pixel_samples) const {
     if (input.size() <= 1) return input;
 
     std::vector<DeepSample> merged;
@@ -163,7 +164,6 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
     const float depth_epsilon = 1e-4;  // Tolerance for "same depth"
 
     DeepSample current = input[0];
-    int sample_count = 1;  // How many samples we're averaging at this depth
 
     for (size_t i = 1; i < input.size(); ++i) {
         const DeepSample& next = input[i];
@@ -178,39 +178,25 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
             current.g += next.g;
             current.b += next.b;
             current.alpha += next.alpha;
-            sample_count++;
         } else {
-            // Different depth - finalize current segment
-            // if (sample_count > 1) {
-            //     // Average the accumulated values
-            //     float inv_count = 1.0f / sample_count;
-            //     current.r *= inv_count;
-            //     current.g *= inv_count;
-            //     current.b *= inv_count;
-            //     current.alpha *= inv_count;
-            // }
-            current.alpha = std::min(1.0f, current.alpha);
-
             merged.push_back(current);
-
-            // Start new segment
             current = next;
-            sample_count = 1;
         }
     }
 
-    // Don't forget the last segment
-    if (sample_count > 1) {
-        current.alpha = std::min(1.0f, current.alpha);
-
-        // float inv_count = 1.0f / sample_count;
-        // current.r *= inv_count;
-        // current.g *= inv_count;
-        // current.b *= inv_count;
-        // current.alpha *= inv_count;
-    }
-
     merged.push_back(current);
+
+    float norm = 1.0f / total_pixel_samples;
+
+    for (auto& seg : merged) {
+        seg.r *= norm;
+        seg.g *= norm;
+        seg.b *= norm;
+        seg.alpha *= norm;
+
+        // Safety clamp (though mathematically it shouldn't exceed 1.0 if samples <= total)
+        if (seg.alpha > 1.0f) seg.alpha = 1.0f;
+    }
 
     static std::atomic<int> log_count{0};
     if (log_count.fetch_add(1) % 10000 == 0) {  // Log every 10000th pixel

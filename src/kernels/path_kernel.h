@@ -2,6 +2,7 @@
 #define SKWR_KERNELS_PATH_KERNEL_H_
 
 #include <algorithm>
+#include <cstdlib>
 
 #include "core/constants.h"
 #include "core/ray.h"
@@ -39,7 +40,12 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
     Spectrum beta(1.0f);  // Throughput (attenuation)
     Ray r = ray;
     bool specular_bounce = true;
-    float t_prev = 0.0f;  // where last segment ended
+
+    // Deep Info
+    bool valid_deep_hit = false;
+    Point3 deep_hit_point = r.at(kInfinity);
+    Vec3 deep_origin = r.origin();
+    float deep_hit_alpha = 1.0f;  // default solid
 
     // "Bounce" loop - calculates Li: how much Radiance (L) is incoming (i)
     // by multiplying the total light by the amount lost at the end
@@ -48,16 +54,29 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         if (!scene.Intersect(r, kShadowEpsilon, kInfinity, &si)) {
             // Environment Segment
             Spectrum env_L = beta * Spectrum(0.0f);
-            AddSegment(result, t_prev, kInfinity, env_L, 0.0f);
             L += env_L;
+
+            if (!valid_deep_hit) {
+                valid_deep_hit = true;
+            }
             break;
         }
 
         // Empty Space Segment (Volume/Air)
         // If we had volumetrics, we would ray-march here and accumulate L/Alpha.
-        AddSegment(result, t_prev, si.t, Spectrum(0.0f), 0.0f);
+        // AddSegment(result, t_prev, si.t, Spectrum(0.0f), 0.0f);
 
         const Material& mat = scene.GetMaterial(si.material_id);
+
+        // Record if it's the first deep hit
+        if (!valid_deep_hit) {
+            // For simplicity, just have all hits update the depth
+            // and we rely on the loop finishing to define the color.
+            deep_hit_point = si.point;
+            valid_deep_hit = true;
+            // For volumetrics, we RAY MARCH here from r.origin to si.point
+            // and AddSegment() continuously.
+        }
 
         // Calculate surface opacity (alpha for this segment)
         Spectrum opacity = mat.opacity;
@@ -66,24 +85,23 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         /* Emission check for if we hit a light */
         if (mat.IsEmissive()) {
             if (specular_bounce) {
-                AddSegment(result, si.t, si.t + kShadowEpsilon, mat.emission, alpha);
                 L += beta * mat.emission;
             }
         }
 
-        /* Handle transparency - straight-through transmission */
-        if (mat.IsTransparent()) {
-            // For non-refractive transparent surfaces (like foliage, smoke, etc.)
-            // This is separate from Dielectric refraction
+        // /* Handle transparency - straight-through transmission */
+        // if (mat.IsTransparent()) {
+        //     // For non-refractive transparent surfaces (like foliage, smoke, etc.)
+        //     // This is separate from Dielectric refraction
 
-            Spectrum transmittance = Spectrum(1.0f) - opacity;
+        //     Spectrum transmittance = Spectrum(1.0f) - opacity;
 
-            if (transmittance.MaxComponent() > 0.0f) {
-                // Continue ray through surface for the transmitted portion
-                // This requires spawning a transmission ray
-                // For now, we'll handle this in the BSDF sampling below
-            }
-        }
+        //     if (transmittance.MaxComponent() > 0.0f) {
+        //         // Continue ray through surface for the transmitted portion
+        //         // This requires spawning a transmission ray
+        //         // For now, we'll handle this in the BSDF sampling below
+        //     }
+        // }
 
         /* Next Event Estimation */
         if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric &&
@@ -117,8 +135,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     Spectrum direct_L =
                         beta * f_val * ls.emission * cos_surf / (light_pdf_w * selection_prob);
                     direct_L *= opacity;
-
-                    AddSegment(result, si.t, si.t + kShadowEpsilon, direct_L, alpha);
                     L += direct_L;
                 }
             }
@@ -132,7 +148,14 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         /* BSDF check */
         if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
             if (pdf > 0) {
-                Float cos_theta = std::abs(Dot(wi, si.n_geom));
+                float refract = Dot(wi, si.n_geom);
+
+                // check if we refract through surf, undo deep hit if so
+                if (refract < 0.0f) {
+                    valid_deep_hit = false;
+                }
+
+                Float cos_theta = std::abs(refract);
                 Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
 
                 // Modulate throughput by opacity for non-specular bounces
@@ -151,11 +174,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             }
         } else {
             // Absorbed (black body)
-            AddSegment(result, si.t, si.t + kShadowEpsilon, Spectrum(0.0f), alpha);
             break;
         }
-
-        t_prev = si.t + kShadowEpsilon;
 
         // Russian Roulette method to kill weak rays early
         // is an optimization cause weak rays = weak influence on final
@@ -166,6 +186,13 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         }
     }
 
+    if (valid_deep_hit) {
+        Vec3 to_hit = deep_hit_point - deep_origin;
+        float z_depth = Dot(to_hit, config.cam_w);
+        // Ensure we don't get negative depth behind camera
+        if (z_depth < 0.0f) z_depth = 0.0f;
+        AddSegment(result, z_depth, z_depth + kShadowEpsilon, L, deep_hit_alpha);
+    }
     result.L = L;
     return result;
 }

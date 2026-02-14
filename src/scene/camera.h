@@ -40,6 +40,8 @@ class Camera {
                    Normalize(lower_left_corner_ + (horizontal_ * s) + (vertical_ * t) - origin_));
     }
 
+    Vec3 GetW() const { return w_; }
+
   private:
     Vec3 origin_;
     Vec3 lower_left_corner_;  // We are using a standard right-handed system +X: Right, +Y: Up, -Z:

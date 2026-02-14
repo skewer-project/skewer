@@ -34,7 +34,7 @@ class Film {
 
     // Saves to disk (PPM, EXR)
     void WriteImage(const std::string& filename) const;
-    std::unique_ptr<DeepImageBuffer> CreateDeepBuffer() const;
+    std::unique_ptr<DeepImageBuffer> CreateDeepBuffer(const int total_pixel_samples) const;
 
     int width() { return width_; }
     int height() { return height_; }
@@ -42,7 +42,8 @@ class Film {
   private:
     Pixel& GetPixel(int x, int y) { return pixels_[y * width_ + x]; }
     const Pixel& GetPixel(int x, int y) const { return pixels_[y * width_ + x]; }
-    std::vector<DeepSample> MergeDeepSegments(const std::vector<DeepSample>& input) const;
+    std::vector<DeepSample> MergeDeepSegments(const std::vector<DeepSample>& input,
+                                              const int total_pixel_samples) const;
 
     int width_, height_;
     std::vector<Pixel> pixels_;
