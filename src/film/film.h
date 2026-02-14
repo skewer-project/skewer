@@ -1,6 +1,7 @@
 #ifndef SKWR_FILM_FILM_H_
 #define SKWR_FILM_FILM_H_
 
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <vector>
