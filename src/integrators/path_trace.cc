@@ -57,12 +57,12 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             for (int x = 0; x < width; ++x) {
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
-                    Float u = (Float(x) + rng.UniformFloat()) / width;
-                    Float v = 1.0f - (Float(y) + rng.UniformFloat()) / height;
+                    float u = (float(x) + rng.Uniformfloat()) / width;
+                    float v = 1.0f - (float(y) + rng.Uniformfloat()) / height;
 
                     Ray r = cam.GetRay(u, v);
                     SurfaceInteraction si;
-                    const Float t_min = kShadowEpsilon;
+                    const float t_min = kShadowEpsilon;
                     Spectrum L(0.0f);     // Accumulated Radiance (color)
                     Spectrum beta(1.0f);  // Throughput (attenuation)
 
@@ -88,8 +88,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                         // Russian Roulette
                         if (depth > 3) {
-                            Float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
-                            if (rng.UniformFloat() > p) break;
+                            float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
+                            if (rng.Uniformfloat() > p) break;
                             beta = beta * (1.0f / p);
                         }
                     }

@@ -7,17 +7,17 @@
 namespace skwr {
 
 // Helper func. Generates random float in [min, max) using explicit RNG
-inline Float RandomFloat(RNG& rng, Float min, Float max) {
-    return min + (max - min) * rng.UniformFloat();
+inline float Randomfloat(RNG& rng, float min, float max) {
+    return min + (max - min) * rng.Uniformfloat();
 }
 
 // Generating arbitrary random vectors
 inline Vec3 RandomVec3(RNG& rng) {
-    return Vec3(rng.UniformFloat(), rng.UniformFloat(), rng.UniformFloat());
+    return Vec3(rng.Uniformfloat(), rng.Uniformfloat(), rng.Uniformfloat());
 }
 
-inline Vec3 RandomVec3(RNG& rng, Float min, Float max) {
-    return Vec3(RandomFloat(rng, min, max), RandomFloat(rng, min, max), RandomFloat(rng, min, max));
+inline Vec3 RandomVec3(RNG& rng, float min, float max) {
+    return Vec3(Randomfloat(rng, min, max), Randomfloat(rng, min, max), Randomfloat(rng, min, max));
 }
 
 // Rejection method for generating random vector on surface of a unit sphere
@@ -42,7 +42,7 @@ inline Vec3 RandomOnHemisphere(RNG& rng, const Vec3& normal) {
 // Defocus disk
 inline Vec3 RandomInUnitDisk(RNG& rng) {
     while (true) {
-        auto p = Vec3(RandomFloat(rng, -1, 1), RandomFloat(rng, -1, 1), 0);
+        auto p = Vec3(Randomfloat(rng, -1, 1), Randomfloat(rng, -1, 1), 0);
         if (p.LengthSquared() < 1) return p;
     }
 }
