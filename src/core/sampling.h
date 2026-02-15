@@ -47,6 +47,22 @@ inline Vec3 RandomInUnitDisk(RNG& rng) {
     }
 }
 
+// Returns a random direction in the Local Frame (Z is up)
+// The probability of picking a direction is proportional to Cosine(theta)
+inline Vec3 RandomCosineDirection(RNG& rng) {
+    Float r1 = rng.UniformFloat();
+    Float r2 = rng.UniformFloat();
+
+    // Standard mapping from unit square to hemisphere
+    Float phi = 2.0f * kPi * r1;
+
+    Float x = std::cos(phi) * std::sqrt(r1);  // Sqrt corrects the density
+    Float y = std::sin(phi) * std::sqrt(r1);
+    Float z = std::sqrt(1.0f - r1);  // This ensures z^2 + r^2 = 1
+
+    return Vec3(x, y, z);
+}
+
 // Fully deterministic per-pixel RNG, thread-order independent
 inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t sample_index) {
     // Get linear pixel ID
@@ -60,6 +76,14 @@ inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t
     uint64_t seed = sample_index;
 
     return RNG(seq, seed);
+}
+
+// Power Heuristic for MIS (beta = 2 is standard)
+// Calculates the weight for technique 'f' given the probability of 'f' and 'g'
+inline Float PowerHeuristic(Float pdf_f, Float pdf_g) {
+    Float f2 = pdf_f * pdf_f;
+    Float g2 = pdf_g * pdf_g;
+    return f2 / (f2 + g2);
 }
 
 }  // namespace skwr
