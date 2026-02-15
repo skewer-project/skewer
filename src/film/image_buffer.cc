@@ -71,7 +71,6 @@ void ImageBuffer::WritePPM(const std::string& filename) const {
 
 DeepImageBuffer::DeepImageBuffer(int width, int height, size_t totalSamples)
     : width_(width), height_(height) {
-
     pixelOffsets_.resize(width * height + 1);
     allSamples_.resize(totalSamples);
 }

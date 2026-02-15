@@ -276,10 +276,12 @@ DeepImageBuffer ImageIO::LoadKebab(const std::string& filename) {
     DeepImageBuffer buf(header.width, header.height, header.totalSamples);
 
     // Read pixel offset data
-    in.read(reinterpret_cast<char*>(buf.pixelOffsets_.data()), buf.pixelOffsets_.size() * sizeof(size_t));
+    in.read(reinterpret_cast<char*>(buf.pixelOffsets_.data()),
+            buf.pixelOffsets_.size() * sizeof(size_t));
 
     // Read sample data
-    in.read(reinterpret_cast<char*>(buf.allSamples_.data()), buf.allSamples_.size() * sizeof(DeepSample));
+    in.read(reinterpret_cast<char*>(buf.allSamples_.data()),
+            buf.allSamples_.size() * sizeof(DeepSample));
 
     in.close();
 
