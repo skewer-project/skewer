@@ -18,8 +18,8 @@ struct Material {
 
     // Data params
     Spectrum albedo;  // Color (Diffuse or Specular)
-    Float roughness;  // 0.0 = Perfect Mirror, 1.0 = Matte
-    Float ior;        // Index of refraction
+    float roughness;  // 0.0 = Perfect Mirror, 1.0 = Matte
+    float ior;        // Index of refraction
 };
 
 }  // namespace skwr

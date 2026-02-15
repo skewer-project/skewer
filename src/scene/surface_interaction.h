@@ -13,7 +13,7 @@ namespace skwr {
 struct SurfaceInteraction {
     Point3 p;         // Exact point of intersection
     Vec3 n;           // Surface normal (geometric)
-    Float t;          // Distance along the ray
+    float t;          // Distance along the ray
     bool front_face;  // Is normal pointing at ray? (Is it the outside face?)
     uint32_t material_id;
 

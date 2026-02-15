@@ -22,7 +22,7 @@ void Normals::Render(const Scene& scene, const Camera& cam, Film* film,
             Ray r = cam.GetRay(u, v);
 
             SurfaceInteraction si;
-            const Float t_min = kShadowEpsilon;
+            const float t_min = kShadowEpsilon;
             Spectrum color(0.f);
 
             if (scene.Intersect(r, t_min, kInfinity, &si)) {
