@@ -1,12 +1,14 @@
 #ifndef SKWR_CORE_CONSTANTS_H_
 #define SKWR_CORE_CONSTANTS_H_
 
+#include <cstdint>
 #include <limits>
 
 namespace skwr {
 
 constexpr float kInfinity = std::numeric_limits<float>::infinity();
 constexpr float kPi = 3.1415926535897932385f;
+constexpr uint64_t kGoldenRatio = 0x9E3779B97F4A7C15ULL;
 
 // std::numeric_limits::epsilon() is the gap between 1.0 and the next value.
 // Subtract half of it to be safe, or the whole thing.

@@ -1,6 +1,7 @@
 #ifndef SKWR_CORE_SAMPLER_H_
 #define SKWR_CORE_SAMPLER_H_
 
+#include "core/constants.h"
 #include "core/rng.h"
 #include "core/vec3.h"
 
@@ -54,7 +55,7 @@ inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t
 
     // Mix pixel ID to generate a unique stream (sequence)
     // Use a simple hash / integer mixing function to avoid correlation
-    uint64_t seq = pixel_id * 0x9E3779B97F4A7C15ULL;  // golden ratio hash
+    uint64_t seq = pixel_id * kGoldenRatio;  // golden ratio hash
 
     // Sample index as the RNG offset
     uint64_t seed = sample_index;
