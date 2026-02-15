@@ -10,9 +10,9 @@ namespace skwr {
 
 class ImageIO {
   public:
-    static void SavePPM(const FlatImageBuffer& buf, const std::string filename);
+    static void SavePPM(const FlatImageBuffer& buf, const std::string& filename);
 
-    static void SaveEXR(const DeepImageBuffer& buf, const std::string filename);
+    static void SaveEXR(const DeepImageBuffer& buf, const std::string& filename);
 
     static void SaveKebab(const DeepImageBuffer& buf, const std::string& filename);
 

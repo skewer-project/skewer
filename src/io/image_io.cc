@@ -16,14 +16,11 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 #include "film/image_buffer.h"
 
 namespace skwr {
-
-#define RED 0
-#define GREEN 1
-#define BLUE 2
 
 // =============================================================================================
 // Helper Functions (OpenEXR)
@@ -35,20 +32,6 @@ static char* makeBasePointer(T* data, int minX, int minY, int width, size_t xStr
                              size_t yStride) {
     return reinterpret_cast<char*>(data) - static_cast<ptrdiff_t>(minX) * xStride -
            static_cast<ptrdiff_t>(minY) * yStride;
-}
-
-// This is computed at compile-time when possible
-static constexpr int getPixelTypeSize(Imf_3_2::PixelType type) {
-    switch (type) {
-        case Imf_3_2::UINT:
-            return sizeof(unsigned int);
-        case Imf_3_2::HALF:
-            return sizeof(Imath_3_1::half);
-        case Imf_3_2::FLOAT:
-            return sizeof(float);
-        default:
-            throw std::runtime_error("Unknown PixelType");
-    }
 }
 
 // With custom stride overload
@@ -71,7 +54,7 @@ static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* pt
 // Deep Image I/O (OpenEXR)
 // =============================================================================================
 
-DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
+DeepImageBuffer ImageIO::LoadEXR(const std::string& filename) {
     Imf::DeepScanLineInputFile file(filename.c_str());
     const Imf::Header& header = file.header();
 
@@ -89,12 +72,12 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
 
     // Prepare all pointer arrays (even if we don't have data yet)
     auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
-    Imf::Array2D<float*> rPtrs(height, width);
-    Imf::Array2D<float*> gPtrs(height, width);
-    Imf::Array2D<float*> bPtrs(height, width);
-    Imf::Array2D<float*> aPtrs(height, width);
-    Imf::Array2D<float*> zPtrs(height, width);
-    Imf::Array2D<float*> zBackPtrs(height, width);
+    Imf::Array2D<const float*> rPtrs(height, width);
+    Imf::Array2D<const float*> gPtrs(height, width);
+    Imf::Array2D<const float*> bPtrs(height, width);
+    Imf::Array2D<const float*> aPtrs(height, width);
+    Imf::Array2D<const float*> zPtrs(height, width);
+    Imf::Array2D<const float*> zBackPtrs(height, width);
 
     // Configure FrameBuffer with everything
     Imf::DeepFrameBuffer frameBuffer;
@@ -149,9 +132,9 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
                 size_t start = deepbuf.pixelOffsets_[y * width + x];
                 DeepSample& firstSample = deepbuf.allSamples_[start];
 
-                rPtrs[y][x] = &firstSample.color.data()[RED];
-                gPtrs[y][x] = &firstSample.color.data()[GREEN];
-                bPtrs[y][x] = &firstSample.color.data()[BLUE];
+                rPtrs[y][x] = &firstSample.r;
+                gPtrs[y][x] = &firstSample.g;
+                bPtrs[y][x] = &firstSample.b;
                 aPtrs[y][x] = &firstSample.alpha;
                 zPtrs[y][x] = &firstSample.z_front;
 
@@ -192,7 +175,7 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string filename) {
     return deepbuf;
 }
 
-void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string filename) {
+void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string& filename) {
     const int width = buf.GetWidth();
     const int height = buf.GetHeight();
 
@@ -226,15 +209,15 @@ void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string filename) {
             // Grab the address information of the sample at the start of the pixel
             size_t start = buf.pixelOffsets_[y * width + x];
             size_t end = buf.pixelOffsets_[y * width + x + 1];
-            const DeepSample& firstSample = buf.allSamples_[start];
 
             unsigned int count = static_cast<unsigned int>(end - start);
             sampleCounts[y][x] = count;
 
             if (count > 0) {
-                rPtrs[y][x] = &firstSample.color.data()[RED];
-                gPtrs[y][x] = &firstSample.color.data()[GREEN];
-                bPtrs[y][x] = &firstSample.color.data()[BLUE];
+                const DeepSample& firstSample = buf.allSamples_[start];
+                rPtrs[y][x] = &firstSample.r;
+                gPtrs[y][x] = &firstSample.g;
+                bPtrs[y][x] = &firstSample.b;
                 aPtrs[y][x] = &firstSample.alpha;
                 zPtrs[y][x] = &firstSample.z_front;
                 zBackPtrs[y][x] = &firstSample.z_back;

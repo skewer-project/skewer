@@ -55,14 +55,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # FUTURE REFERENCE ONLY - For installing dependencies
-      # - name: Install Dependencies (Linux)
-      #   if: runner.os == 'Linux'
-      #   run: sudo apt-get update && sudo apt-get install -y libsomelib-dev
+      - name: Install Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libopenexr-dev libimath-dev
 
-      # - name: Install Dependencies (Mac)
-      #   if: runner.os == 'macOS'
-      #   run: brew install somelib
+      - name: Install Dependencies (Mac)
+        if: runner.os == 'macOS'
+        run: brew install openexr
 
       - name: Set reusable strings
         # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.

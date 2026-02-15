@@ -14,7 +14,8 @@ namespace skwr {
 class ImageIO;
 
 class ImageBuffer {
-  public:ImageBuffer(int width, int height);
+  public:
+    ImageBuffer(int width, int height);
 
     // Set a pixel's color (0,0 is top-left usually)
     void SetPixel(int x, int y, const Spectrum& s);
@@ -30,16 +31,12 @@ class ImageBuffer {
 
 struct DeepSample {
     // Depth information
-    Float z_front;
-    Float z_back;  // for volumes. Can just be z_front for hard surfaces
-    Spectrum color;
-    Float alpha;  // opacity
-
-    // For sorting later on
-    bool operator<(const DeepSample& other) const {
-        if (z_front != other.z_front) return z_front < other.z_front;
-        return z_back < other.z_back;
-    }
+    float z_front;
+    float z_back;  // for volumes. Can just be z_front for hard surfaces
+    float r;
+    float g;
+    float b;
+    float alpha;  // opacity
 };
 
 // Necessary for Film interface
