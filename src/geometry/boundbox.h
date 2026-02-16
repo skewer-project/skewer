@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "core/constants.h"
 #include "core/ray.h"
 #include "core/vec3.h"
 
@@ -87,7 +88,7 @@ class BoundBox {
     void PadToMinimums() {
         // Adjust based on scene scale
         // good for scenes sized 1.0 - 1000.0
-        constexpr float delta = 0.0001f;
+        float delta = kBoundEpsilon;
 
         Vec3 diag = max_ - min_;
 

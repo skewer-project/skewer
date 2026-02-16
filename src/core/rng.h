@@ -35,7 +35,7 @@ class RNG {
     }
 
     // Returns float in [0, 1)
-    float Uniformfloat() {
+    float UniformFloat() {
         // High-performance float conversion
         // Multiplies by 1.0 / 2^32
         // 0x1p-32f is a hex constant for 1.0 / 2^32

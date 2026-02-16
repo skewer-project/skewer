@@ -47,27 +47,71 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
 
     scene_ = std::make_unique<Scene>();
 
-    // -- Materials --
-    Material mat_ground;
-    mat_ground.type = MaterialType::Lambertian;
-    mat_ground.albedo = Spectrum(0.8f, 0.8f, 0.0f);
-    mat_ground.roughness = 1.0f;
-    uint32_t id_ground = scene_->AddMaterial(mat_ground);
+    // A. White Walls (Floor, Ceiling, Back)
+    std::cout << "[Session] Building Cornell Box Test...\n";
+    Material mat_white;
+    mat_white.type = MaterialType::Lambertian;
+    mat_white.albedo = Spectrum(0.73f, 0.73f, 0.73f);
+    uint32_t id_white = scene_->AddMaterial(mat_white);
 
-    Material metal;
-    metal.type = MaterialType::Metal;
-    metal.roughness = 0.0;
-    metal.albedo = Spectrum(0.8f);
-    uint32_t metal_id = scene_->AddMaterial(metal);
-
+    // B. Red Wall (Left)
     Material mat_red;
     mat_red.type = MaterialType::Lambertian;
-    mat_red.albedo = Spectrum(0.7f, 0.3f, 0.3f);
+    mat_red.albedo = Spectrum(0.65f, 0.05f, 0.05f);
     uint32_t id_red = scene_->AddMaterial(mat_red);
 
+    // C. Green Wall (Right)
+    Material mat_green;
+    mat_green.type = MaterialType::Lambertian;
+    mat_green.albedo = Spectrum(0.12f, 0.45f, 0.15f);
+    uint32_t id_green = scene_->AddMaterial(mat_green);
+
+    // D. LIGHT
+    Material mat_light;
+    mat_light.type =
+        MaterialType::Lambertian;       // Material type doesn't matter much for pure emitters
+    mat_light.albedo = Spectrum(0.0f);  // Black body
+    mat_light.emission = Spectrum(4.0f);
+    uint32_t id_light = scene_->AddMaterial(mat_light);
+
+    // E. Objects (Glass & Mirror)
+    Material mat_glass;
+    mat_glass.type = MaterialType::Dielectric;
+    mat_glass.ior = 1.5f;
+    uint32_t id_glass = scene_->AddMaterial(mat_glass);
+
+    Material mat_mirror;
+    mat_mirror.type = MaterialType::Metal;
+    mat_mirror.albedo = Spectrum(0.8f);
+    mat_mirror.roughness = 0.0f;
+    uint32_t id_mirror = scene_->AddMaterial(mat_mirror);
+
+    scene_->AddMesh(CreateQuad(Vec3(5, -5, -5), Vec3(5, -5, -15), Vec3(-5, -5, -15),
+                               Vec3(-5, -5, -5), id_white));
+
+    // CEILING
+    scene_->AddMesh(
+        CreateQuad(Vec3(5, 5, -15), Vec3(5, 5, -5), Vec3(-5, 5, -5), Vec3(-5, 5, -15), id_white));
+
+    // BACK WALL
+    scene_->AddMesh(CreateQuad(Vec3(5, -5, -15), Vec3(5, 5, -15), Vec3(-5, 5, -15),
+                               Vec3(-5, -5, -15), id_white));
+
+    // LEFT WALL (Red)
+    scene_->AddMesh(
+        CreateQuad(Vec3(-5, -5, -15), Vec3(-5, 5, -15), Vec3(-5, 5, -5), Vec3(-5, -5, -5), id_red));
+
+    // RIGHT WALL (Green)
+    scene_->AddMesh(
+        CreateQuad(Vec3(5, -5, -5), Vec3(5, 5, -5), Vec3(5, 5, -15), Vec3(5, -5, -15), id_green));
+
+    // LIGHT
+    scene_->AddMesh(CreateQuad(Vec3(2, 4.95, -9), Vec3(-2, 4.95, -9), Vec3(-2, 4.95, -11),
+                               Vec3(2, 4.95, -11), id_light));
+
     // -- Spheres (left and right) --
-    scene_->AddSphere(Sphere{Vec3(-2.1f, 0.0f, -3.0f), 1.0f, metal_id});
-    scene_->AddSphere(Sphere{Vec3(2.1f, 0.0f, -3.0f), 1.0f, id_red});
+    scene_->AddSphere(Sphere{Vec3(-2.5f, -3.5f, -12.0f), 1.5f, id_mirror});
+    scene_->AddSphere(Sphere{Vec3(2.5f, -3.5f, -8.0f), 1.5f, id_glass});
 
     // -- Center object: OBJ file or fallback sphere --
     if (!obj_file.empty()) {
@@ -76,23 +120,15 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
             std::cerr << "[Session] Failed to load OBJ: " << obj_file << "\n";
         }
     } else {
+        std::cout << "no obj file!!!\n";
         Material mat_glass;
         mat_glass.type = MaterialType::Dielectric;
         mat_glass.albedo = Spectrum(1.0f, 1.0f, 1.0f);
         mat_glass.roughness = 0.0f;
         mat_glass.ior = 1.5f;
         uint32_t id_glass = scene_->AddMaterial(mat_glass);
-        scene_->AddSphere(Sphere{Vec3(0.0f, 0.0f, -3.0f), 1.0f, id_glass});
+        scene_->AddSphere(Sphere{Vec3(0.0f, -3.5f, -10.0f), 1.5f, id_glass});
     }
-
-    // -- Floor quad --
-    float size = 10.0f;
-    float y_floor = -1.0f;
-    Vec3 p0(-size, y_floor, size);
-    Vec3 p1(size, y_floor, size);
-    Vec3 p2(size, y_floor, -size);
-    Vec3 p3(-size, y_floor, -size);
-    scene_->AddMesh(CreateQuad(p0, p1, p2, p3, id_ground));
 
     // Build BVH
     scene_->Build();

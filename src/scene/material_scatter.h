@@ -80,7 +80,7 @@ inline bool Scatter(const Material& mat, const Ray& r_in, const SurfaceInteracti
             // Schlick's approx for fresnel
             // Glass refracts more when seen edge-on
             Vec3 direction;
-            if (cannot_refract || Reflectance(cos_theta, refraction_ratio) > rng.Uniformfloat())
+            if (cannot_refract || Reflectance(cos_theta, refraction_ratio) > rng.UniformFloat())
                 direction = Reflect(unit_direction, normal);
             else
                 direction = Refract(unit_direction, normal, refraction_ratio);
