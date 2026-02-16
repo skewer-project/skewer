@@ -30,13 +30,13 @@ inline float Reflectance(float cosine, float refraction_ratio) {
 }
 
 bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      float & pdf, Spectrum& f);
+                      float& pdf, Spectrum& f);
 
 bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, float& pdf,
                  Spectrum& f);
 
 bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      float & pdf, Spectrum& f);
+                      float& pdf, Spectrum& f);
 
 /**
  * This function takes the Incoming Ray and returns two things:
@@ -45,7 +45,7 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
  * Dispatches to correct material type sampling function
  */
 bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                Vec3& wi, float & pdf, Spectrum& f);
+                Vec3& wi, float& pdf, Spectrum& f);
 
 }  // namespace skwr
 
