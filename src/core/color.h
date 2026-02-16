@@ -43,16 +43,20 @@ class Color {
         return *this;
     }
 
-    Color& operator*=(Float t) {
+    auto operator*=(Float t) -> Color& {
         c[0] *= t;
         c[1] *= t;
         c[2] *= t;
         return *this;
     }
 
-    Color operator/(Float t) const {
-        Float inv = 1.0f / t;
-        return Color(c[0] * inv, c[1] * inv, c[2] * inv);
+    auto operator/(Float t) const -> Color {
+        Float inv = 1.0F / t;
+        return {
+            c[0] * inv,
+            c[1] * inv,
+            c[2] * inv
+        };
     }
 
     void ApplyGammaCorrection() {
@@ -63,9 +67,12 @@ class Color {
     }
 
     // Clamp helper
-    Color Clamp(Float min = 0.0f, Float max = 1.0f) const {
-        return Color(std::clamp(c[0], min, max), std::clamp(c[1], min, max),
-                     std::clamp(c[2], min, max));
+    [[nodiscard]] auto Clamp(Float min = 0.0F, Float max = 1.0F) const -> Color {
+        return {
+            std::clamp(c[0], min, max),
+            std::clamp(c[1], min, max),
+            std::clamp(c[2], min, max)
+        };
     }
     // Manual version if not C++17
     /*
@@ -77,7 +84,7 @@ class Color {
     }
     */
 
-    bool HasNaNs() const { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
+    [[nodiscard]] auto HasNaNs() const -> bool { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
 
   private:
     Float c[3];

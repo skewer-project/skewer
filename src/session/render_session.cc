@@ -4,18 +4,10 @@
 #include <iostream>
 #include <memory>
 
+#include "core/constants.h"
 #include "core/spectrum.h"
 #include "core/vec3.h"
-#include "film/film.h"
-#include "geometry/sphere.h"
-#include "integrators/integrator.h"
-#include "integrators/normals.h"
-#include "integrators/path_trace.h"
-#include "io/obj_loader.h"
 #include "materials/material.h"
-#include "scene/camera.h"
-#include "scene/mesh_utils.h"
-#include "scene/scene.h"
 #include "session/render_options.h"
 
 namespace skwr {
@@ -34,15 +26,15 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
 
 // Initialize pointers to nullptr or default states
 // Pointers default to nullptr implicitly, but explicit is fine
-RenderSession::RenderSession() {}
-RenderSession::~RenderSession() = default;  // Unique_ptr handles cleanup automatically
+RenderSession::RenderSession() = default;
+ // Unique_ptr handles cleanup automatically
 
 /**
  * Builds the test scene. If obj_file is non-empty, loads it as an object
  * in the scene (replacing the center sphere). Eventually this will be
  * driven by a JSON scene file.
  */
-void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale) {
+static void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale) {
     std::cout << "[Session] Building scene\n";
 
     scene_ = std::make_unique<Scene>();
@@ -51,39 +43,39 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
     std::cout << "[Session] Building Cornell Box Test...\n";
     Material mat_white;
     mat_white.type = MaterialType::Lambertian;
-    mat_white.albedo = Spectrum(0.73f, 0.73f, 0.73f);
+    mat_white.albedo = Spectrum(0.73F, 0.73F, 0.73F);
     uint32_t id_white = scene_->AddMaterial(mat_white);
 
     // B. Red Wall (Left)
     Material mat_red;
     mat_red.type = MaterialType::Lambertian;
-    mat_red.albedo = Spectrum(0.65f, 0.05f, 0.05f);
+    mat_red.albedo = Spectrum(0.65F, 0.05F, 0.05F);
     uint32_t id_red = scene_->AddMaterial(mat_red);
 
     // C. Green Wall (Right)
     Material mat_green;
     mat_green.type = MaterialType::Lambertian;
-    mat_green.albedo = Spectrum(0.12f, 0.45f, 0.15f);
+    mat_green.albedo = Spectrum(0.12F, 0.45F, 0.15F);
     uint32_t id_green = scene_->AddMaterial(mat_green);
 
     // D. LIGHT
     Material mat_light;
     mat_light.type =
         MaterialType::Lambertian;       // Material type doesn't matter much for pure emitters
-    mat_light.albedo = Spectrum(0.0f);  // Black body
-    mat_light.emission = Spectrum(4.0f);
+    mat_light.albedo = Spectrum(0.0F);  // Black body
+    mat_light.emission = Spectrum(4.0F);
     uint32_t id_light = scene_->AddMaterial(mat_light);
 
     // E. Objects (Glass & Mirror)
     Material mat_glass;
     mat_glass.type = MaterialType::Dielectric;
-    mat_glass.ior = 1.5f;
+    mat_glass.ior = 1.5F;
     uint32_t id_glass = scene_->AddMaterial(mat_glass);
 
     Material mat_mirror;
     mat_mirror.type = MaterialType::Metal;
-    mat_mirror.albedo = Spectrum(0.8f);
-    mat_mirror.roughness = 0.0f;
+    mat_mirror.albedo = Spectrum(0.8F);
+    mat_mirror.roughness = 0.0F;
     uint32_t id_mirror = scene_->AddMaterial(mat_mirror);
 
     scene_->AddMesh(CreateQuad(Vec3(5, -5, -5), Vec3(5, -5, -15), Vec3(-5, -5, -15),
@@ -123,9 +115,9 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
         std::cout << "no obj file!!!\n";
         Material mat_glass;
         mat_glass.type = MaterialType::Dielectric;
-        mat_glass.albedo = Spectrum(1.0f, 1.0f, 1.0f);
-        mat_glass.roughness = 0.0f;
-        mat_glass.ior = 1.5f;
+        mat_glass.albedo = Spectrum(1.0F, 1.0F, 1.0F);
+        mat_glass.roughness = 0.0F;
+        mat_glass.ior = 1.5F;
         uint32_t id_glass = scene_->AddMaterial(mat_glass);
         scene_->AddSphere(Sphere{Vec3(0.0f, -3.5f, -10.0f), 1.5f, id_glass});
     }
@@ -134,7 +126,7 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
     scene_->Build();
 
     // Initialize camera
-    Float aspect = 16.0f / 9.0f;
+    Float const aspect = 16.0F / 9.0F;
     camera_ = std::make_unique<Camera>(Vec3(0.0f, 0.0f, 4.0f), Vec3(0.0f, 0.0f, -10.0f),
                                        Vec3(0.0f, 1.0f, 0.0f), 50.0f, aspect);
 }
@@ -173,7 +165,7 @@ void RenderSession::Render() {
 /**
  * Convert film to image or deep buffer
  */
-void RenderSession::Save() const {
+void RenderSession::Save() {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
     }

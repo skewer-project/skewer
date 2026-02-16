@@ -37,7 +37,7 @@ class Film {
     Film(int width, int height);
 
     // Standard Image: Adds color to a pixel (thread-safe!)
-    void AddSample(int x, int y, const Spectrum& L, float weight);
+    void AddSample(int x, int y, const Spectrum& L, float weight) const;
 
     // TODO: Deep sampling after standard pixels are supported
     void AddDeepSample(int x, int y, float depth, const Spectrum& L, float transmittance);
@@ -50,8 +50,8 @@ class Film {
 
   private:
     int width_, height_;
-    std::vector<Pixel> pixels_;           // The flat image
-    std::vector<DeepPixel> deep_pixels_;  // The deep image buffer
+    std::vector<Pixel> pixels_{};           // The flat image
+    std::vector<DeepPixel> deep_pixels_{};  // The deep image buffer
 };
 
 }  // namespace skwr

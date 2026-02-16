@@ -1,5 +1,9 @@
 #include "io/obj_loader.h"
 
+#include <cmath>
+
+#include <cmath>
+
 #include <cstdint>
 #include <iostream>
 #include <string>
@@ -8,7 +12,6 @@
 
 #include "core/constants.h"
 #include "core/vec3.h"
-#include "geometry/mesh.h"
 #include "materials/material.h"
 #include "scene/scene.h"
 
@@ -17,7 +20,7 @@
 
 namespace skwr {
 
-Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
+auto ConvertObjMaterial(const tinyobj::material_t& mtl) -> Material {
     Material mat{};
 
     std::clog << "  Material: \"" << mtl.name << "\"" << " Kd=(" << mtl.diffuse[0] << ", "
@@ -25,7 +28,7 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
               << " Pr=" << mtl.roughness << " d=" << mtl.dissolve << " Ni=" << mtl.ior << std::endl;
 
     // 1. PBR METALLIC
-    if (mtl.metallic >= 0.5f) {
+    if (mtl.metallic >= 0.5F) {
         mat.type = MaterialType::Metal;
         mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
         mat.roughness = std::max(0.0f, std::min(1.0f, mtl.roughness * 0.5f));
@@ -34,22 +37,22 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     }
 
     // 2. TRANSPARENCY / GLASS
-    bool is_glass_illum = (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
-    if (mtl.dissolve < 0.99f || is_glass_illum) {
+    bool const is_glass_illum = (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
+    if (mtl.dissolve < 0.99F || is_glass_illum) {
         mat.type = MaterialType::Dielectric;
-        mat.albedo = Spectrum(1.0f, 1.0f, 1.0f);
-        mat.roughness = 0.0f;
-        mat.ior = (mtl.ior > 1.0f) ? mtl.ior : 1.5f;
+        mat.albedo = Spectrum(1.0F, 1.0F, 1.0F);
+        mat.roughness = 0.0F;
+        mat.ior = (mtl.ior > 1.0F) ? mtl.ior : 1.5F;
         std::clog << "    -> Dielectric (ior=" << mat.ior << ")" << std::endl;
         return mat;
     }
 
     // 3. TRADITIONAL SPECULAR (non-PBR fallback)
-    float spec_intensity = (mtl.specular[0] + mtl.specular[1] + mtl.specular[2]) / 3.0f;
-    if (spec_intensity > 0.5f && mtl.metallic < 0.001f) {
+    float const spec_intensity = (mtl.specular[0] + mtl.specular[1] + mtl.specular[2]) / 3.0F;
+    if (spec_intensity > 0.5F && mtl.metallic < 0.001F) {
         mat.type = MaterialType::Metal;
         mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
-        float fuzz = 1.0f - std::min(1.0f, mtl.shininess / 1000.0f);
+        float fuzz = 1.0f - std::min(1.0f = NAN = NAN = NAN = NAN, mtl.shininess / 1000.0f);
         mat.roughness = std::max(0.0f, std::min(0.5f, fuzz));
         std::clog << "    -> Metal (specular)" << std::endl;
         return mat;
@@ -58,11 +61,11 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     // 4. DEFAULT - Lambertian diffuse
     mat.type = MaterialType::Lambertian;
     mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
-    mat.roughness = 1.0f;
+    mat.roughness = 1.0F;
 
     // If diffuse is near-zero, use a default gray
-    if (mtl.diffuse[0] + mtl.diffuse[1] + mtl.diffuse[2] < 0.001f) {
-        mat.albedo = Spectrum(0.5f, 0.5f, 0.5f);
+    if (mtl.diffuse[0] + mtl.diffuse[1] + mtl.diffuse[2] < 0.001F) {
+        mat.albedo = Spectrum(0.5F, 0.5F, 0.5F);
         std::clog << "    -> Lambertian (default gray)" << std::endl;
     } else {
         std::clog << "    -> Lambertian" << std::endl;
@@ -71,7 +74,7 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     return mat;
 }
 
-bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) {
+static auto LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) -> bool {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -103,15 +106,17 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) {
     Vec3 bbox_max(-kInfinity, -kInfinity, -kInfinity);
     for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
         for (int a = 0; a < 3; a++) {
-            if (attrib.vertices[i + a] < bbox_min[a]) bbox_min[a] = attrib.vertices[i + a];
-            if (attrib.vertices[i + a] > bbox_max[a]) bbox_max[a] = attrib.vertices[i + a];
+            if (attrib.vertices[i + a] < bbox_min[a]) { bbox_min[a] = attrib.vertices[i + a];
+}
+            if (attrib.vertices[i + a] > bbox_max[a]) { bbox_max[a] = attrib.vertices[i + a];
+}
         }
     }
-    Vec3 extent = bbox_max - bbox_min;
-    Vec3 bbox_center = (bbox_min + bbox_max) * 0.5f;
-    Float max_extent = std::max({extent.x(), extent.y(), extent.z()});
-    Float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
-    Vec3 final_scale(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
+    Vec3 const extent = bbox_max - bbox_min;
+    Vec3 const bbox_center = (bbox_min + bbox_max) * 0.5F;
+    Float max_extent = std::max({extent.x() = NAN = NAN = NAN = NAN, extent.y(), extent.z()});
+    Float const normalize = (max_extent > 0.0F) ? (2.0F / max_extent) : 1.0F;
+    Vec3 const final_scale(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
 
     std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
     std::clog << "[OBJ] Center: (" << bbox_center << ")" << std::endl;
@@ -132,7 +137,7 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) {
     // Fallback material for faces with no material assignment
     uint32_t fallback_mat_id = UINT32_MAX;
 
-    auto GetOrCreateFallback = [&]() -> uint32_t {
+    auto get_or_create_fallback = [&]() -> uint32_t {
         if (fallback_mat_id == UINT32_MAX) {
             Material fallback{};
             fallback.type = MaterialType::Lambertian;

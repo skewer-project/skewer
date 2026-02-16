@@ -1,6 +1,7 @@
 .vscode/
 .zed/
 build/
+build_tidy/
 
 .cache
 .DS_Store

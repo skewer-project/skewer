@@ -1,0 +1,31 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenexr-dev libimath-dev clang-tidy
+
+      - name: Configure CMake
+        run: |
+          cmake -B build 
+            -DCMAKE_CXX_STANDARD=17 
+            -DENABLE_CLANG_TIDY=ON 
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run Clang-Tidy
+        # We use the build command because CMAKE_CXX_CLANG_TIDY 
+        # hooks into the actual compilation process.
+        run: |
+          cmake --build build --parallel $(nproc)

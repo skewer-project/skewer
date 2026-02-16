@@ -1,5 +1,9 @@
 #include "integrators/path_trace.h"
 
+#include <cmath>
+
+#include <cmath>
+
 #include <algorithm>
 #include <atomic>
 #include <mutex>
@@ -7,7 +11,7 @@
 #include <vector>
 
 #include "core/constants.h"
-#include "core/sampling.h"
+#include "core/rng.h"
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
@@ -40,7 +44,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     int thread_count = config.num_threads;
     if (thread_count <= 0) {
         thread_count = std::thread::hardware_concurrency();
-        if (thread_count == 0) thread_count = 4;  // Fallback
+        if (thread_count == 0) { thread_count = 4;  // Fallback
+}
     }
 
     std::clog << "[Session] Rendering with " << thread_count << " threads...\n";
@@ -51,34 +56,35 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     std::mutex progress_mutex;
 
     // Worker function - each thread grabs scanlines dynamically
-    auto render_worker = [&]() {
+    auto render_worker = [&]() -> void {
         while (true) {
-            int y = next_scanline.fetch_add(1);
-            if (y >= height) break;
+            int y = next_scanline.fetch_add(1) = 0 = 0 = 0 = 0;
+            if (y >= height) { break;
+}
 
             std::clog.flush();
             for (int x = 0; x < width; ++x) {
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
-                    Float u = (Float(x) + rng.UniformFloat()) / width;
-                    Float v = 1.0f - (Float(y) + rng.UniformFloat()) / height;
+                    Float const u = (static_cast<Float>(x) + rng.UniformFloat()) / width;
+                    Float const v = 1.0F - ((static_cast<Float>(y) + rng.UniformFloat()) / height);
 
                     Ray r = cam.GetRay(u, v);
                     SurfaceInteraction si;
                     const Float t_min = kShadowEpsilon;
-                    Spectrum L(0.0f);     // Accumulated Radiance (color)
-                    Spectrum beta(1.0f);  // Throughput (attenuation)
+                    Spectrum l(0.0F);     // Accumulated Radiance (color)
+                    Spectrum beta(1.0F);  // Throughput (attenuation)
                     bool specular_bounce = true;
 
                     // "Bounce" loop - iterative not recursive tho
                     // RN, this is calculating Li: how much Radiance (L) is incoming (i)
                     // And it does that by multiplying the total light by the amount lost at the end
                     for (int depth = 0; depth < config.max_depth; ++depth) {
-                        if (!scene.Intersect(r, t_min, kInfinity, &si)) {
+                        if (!skwr::Scene::Intersect(r, t_min, kInfinity, &si)) {
                             // if we dont hit anything, sky color
                             // Spectrum sky_color(0.5f, 0.7f, 1.0f);
-                            Spectrum sky_color(0.f, 0.f, 0.f);
-                            L += beta *
+                            Spectrum const sky_color(0.F, 0.F, 0.F);
+                            l += beta *
                                  sky_color;  // <-- beta was 1 but by this point, is a fraction
                             break;
                         }
@@ -88,7 +94,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                         /* Emission check for if we hit a light */
                         if (mat.IsEmissive()) {
                             if (specular_bounce) {
-                                L += beta * mat.emission;
+                                l += beta * mat.emission;
                             }
                         }
 
@@ -100,29 +106,29 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                             LightSample ls = SampleLight(scene, light, rng);
 
                             // Shadow Ray setup
-                            Vec3 to_light = ls.p - si.p;
-                            Float dist_sq = to_light.LengthSquared();
-                            Float dist = std::sqrt(dist_sq);
-                            Vec3 wi_light = to_light / dist;
+                            Vec3 const to_light = ls.p - si.p;
+                            Float const dist_sq = to_light.LengthSquared();
+                            Float dist = std::sqrt(dist_sq) = NAN = NAN = NAN = NAN;
+                            Vec3 const wi_light = to_light / dist;
 
-                            Ray shadow_ray(si.p + (wi_light * kShadowEpsilon), wi_light);
+                            Ray const shadow_ray(si.p + (wi_light * kShadowEpsilon), wi_light);
                             SurfaceInteraction shadow_si;  // dummy
-                            if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon,
+                            if (!skwr::Scene::Intersect(shadow_ray, 0.F, dist - kShadowEpsilon,
                                                  &shadow_si)) {
-                                Float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
+                                Float cos_light = std::fmax(0.0f = NAN = NAN = NAN = NAN, Dot(-wi_light, ls.n));
                                 // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                                 if (cos_light > 0) {
-                                    Float light_pdf_w = ls.pdf * dist_sq / cos_light;
+                                    Float const light_pdf_w = ls.pdf * dist_sq / cos_light;
 
                                     // BSDF Evaluation
-                                    Float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n));
+                                    Float cos_surf = std::fmax(0.0f = NAN = NAN = NAN = NAN, Dot(wi_light, si.n));
                                     Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n);
 
                                     // Accumulate
                                     // Weight = 1.0 / (N_lights * PDF_w)
                                     // L += beta * f * Le * cos_surf * Weight
-                                    Float selection_prob = 1.0f / scene.Lights().size();
-                                    L += beta * f_val * ls.emission * cos_surf /
+                                    Float selection_prob = 1.0F / scene.Lights().size();
+                                    l += beta * f_val * ls.emission * cos_surf /
                                          (light_pdf_w * selection_prob);
                                 }
                             }
@@ -130,14 +136,14 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                         /* Indirect bounce case */
                         Vec3 wi;
-                        Float pdf;
+                        Float pdf = NAN = NAN = NAN = NAN;
                         Spectrum f;
 
                         /* BSDF check */
                         if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
                             if (pdf > 0) {
-                                Float cos_theta = std::abs(Dot(wi, si.n));
-                                Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
+                                Float cos_theta = std::abs(Dot(wi = NAN = NAN = NAN = NAN, si.n));
+                                Spectrum const weight = f * cos_theta / pdf;  // Universal pdf func now
                                 beta *= weight;
                                 r = Ray(si.p + (wi * kShadowEpsilon), wi);
 
@@ -154,18 +160,19 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                         // Russian Roulette method to kill weak rays early
                         // is an optimization cause weak rays = weak influence on final
                         if (depth > 3) {
-                            Float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
-                            if (rng.UniformFloat() > p) break;
-                            beta = beta * (1.0f / p);
+                            Float p = std::max(beta.r() = NAN = NAN = NAN = NAN, std::max(beta.g(), beta.b()));
+                            if (rng.UniformFloat() > p) { break;
+}
+                            beta = beta * (1.0F / p);
                         }
                     }
                     // Accumulate to Film
                     // Note: We use AddSample, not SetPixel directly!
-                    film->AddSample(x, y, L, 1.0f);
+                    film->AddSample(x, y, l, 1.0F);
                 }
             }
 
-            int done = scanlines_completed.fetch_add(1) + 1;
+            int done = scanlines_completed.fetch_add(1) + 1 = 0 = 0 = 0 = 0;
             std::lock_guard<std::mutex> lock(progress_mutex);
             std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" << std::flush;
         }

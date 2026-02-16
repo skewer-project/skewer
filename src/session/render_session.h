@@ -27,7 +27,7 @@ class Film;
 class RenderSession {
   public:
     RenderSession();
-    ~RenderSession();
+    ~RenderSession() = default;
 
     // SETUP: Build the scene. If obj_file is non-empty, loads it as an object in the scene.
     // obj_scale: per-axis scale applied to the OBJ vertices.
@@ -37,20 +37,20 @@ class RenderSession {
     void SetOptions(const RenderOptions& options);
 
     // EXECUTE: Create the Integrator and tell it to run on the Scene
-    void Render();
+    static void Render();
 
-    void Save() const;
+    static void Save() ;
 
   private:
     // The 'World' (Geometry, Lights, Accelerators)
-    std::unique_ptr<Scene> scene_;
-    std::unique_ptr<Camera> camera_;
+    std::unique_ptr<Scene> scene_{};
+    std::unique_ptr<Camera> camera_{};
 
     // The 'Canvas' (Where pixels end up)
-    std::unique_ptr<Film> film_;
+    std::unique_ptr<Film> film_{};
 
     // The 'Worker' (Path Tracer, Volumetric, etc.)
-    std::unique_ptr<Integrator> integrator_;
+    std::unique_ptr<Integrator> integrator_{};
 
     RenderOptions options_;
 };

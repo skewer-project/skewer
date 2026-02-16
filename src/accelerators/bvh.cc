@@ -5,22 +5,26 @@
 #include <cstdint>
 #include <vector>
 
+#include "core/constants.h"
+#include "core/vec3.h"
 #include "geometry/boundbox.h"
+#include "geometry/mesh.h"
+#include "geometry/triangle.h"
 
 namespace skwr {
 
-// TODO: Optimze by precomputing centroid/bounds later...
+// TODO(crisemble): Optimze by precomputing centroid/bounds later...
 // Helper to get centroid of a triangle
-Vec3 GetCentroid(const Triangle& t, const std::vector<Mesh>& meshes) {
+static auto GetCentroid(const Triangle& t, const std::vector<Mesh>& meshes) -> Vec3 {
     const Mesh& m = meshes[t.mesh_id];
     Vec3 p0 = m.p[m.indices[t.v_idx]];
     Vec3 p1 = m.p[m.indices[t.v_idx + 1]];
     Vec3 p2 = m.p[m.indices[t.v_idx + 2]];
-    return (p0 + p1 + p2) * (1.0f / 3.0f);
+    return (p0 + p1 + p2) * (1.0F / 3.0F);
 }
 
 // Helper to get bounds of a triangle
-BoundBox GetBounds(const Triangle& t, const std::vector<Mesh>& meshes) {
+static auto GetBounds(const Triangle& t, const std::vector<Mesh>& meshes) -> BoundBox {
     const Mesh& m = meshes[t.mesh_id];
     BoundBox bbox(m.p[m.indices[t.v_idx]]);
     bbox.Expand(m.p[m.indices[t.v_idx + 1]]);
@@ -28,7 +32,7 @@ BoundBox GetBounds(const Triangle& t, const std::vector<Mesh>& meshes) {
     return bbox;
 }
 
-void BVH::Build(std::vector<Triangle>& triangles, const std::vector<Mesh>& meshes) {
+static void BVH::build(std::vector<Triangle>& triangles, const std::vector<Mesh>& meshes) {
     if (triangles.empty()) return;
 
     // Reset
@@ -64,7 +68,7 @@ void BVH::Build(std::vector<Triangle>& triangles, const std::vector<Mesh>& meshe
     triangles = std::move(ordered_triangles);
 }
 
-void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
+static void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
                     std::vector<BVHPrimitiveInfo>& primitive_info) {
     BVHNode& node = nodes_[node_idx];
 
@@ -84,10 +88,10 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
         return;
     }
 
-    // TODO: SAH with bin/bucketing (16)
+    // TODO(crisemble): SAH with bin/bucketing (16)
     // Split at longest box axis
-    int axis = node.bounds.LongestAxis();
-    Float split_pos = node.bounds.Centroid()[axis];
+    int const axis = node.bounds.LongestAxis();
+    Float const split_pos = node.bounds.Centroid()[axis];
 
     // alternative: split_pos = (node.bounds.min()[axis] + node.bounds.max()[axis]) * 0.5f;
 

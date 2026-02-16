@@ -5,11 +5,12 @@
 #include "accelerators/bvh.h"
 #include "core/constants.h"
 #include "core/vec3.h"
-#include "geometry/intersect_sphere.h"
 #include "geometry/intersect_triangle.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
+#include "materials/material.h"
+#include "scene/light.h"
 #include "scene/surface_interaction.h"
 
 namespace skwr {
@@ -22,9 +23,9 @@ void Scene::Build() {
     }
 }
 
-bool Scene::Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const {
+auto Scene::Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) -> bool {
     bool hit_anything = false;
-    Float closest_t = t_max;
+    Float const closest_t = t_max;
     // 1. Check Spheres (Linear Scan)
     for (const auto& sphere : spheres_) {
         // We pass 'closest_t' as the new max distance to prune objects behind the hit
@@ -42,15 +43,16 @@ bool Scene::Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction
     return hit_anything;
 }
 
-bool Scene::IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const {
-    if (bvh_.IsEmpty()) return false;
+auto Scene::IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) -> bool {
+    if (bvh_.IsEmpty()) { return false;
+}
 
     bool hit_anything = false;
     Float closest_t = t_max;
 
     // using precomputed inverse for aabb check
     const Vec3& inv_dir = r.inv_direction();
-    const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
+    const int dir_is_neg[3] = {static_cast<const int>(inv_dir.x() < 0), static_cast<const int>(inv_dir.y() < 0), static_cast<const int>(inv_dir.z() < 0)};
 
     // stack of 64 is standard 2^64 triangles = a lot of tris
     int nodes_to_visit[64];
@@ -59,7 +61,7 @@ bool Scene::IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteract
     nodes_to_visit[0] = 0;
     while (to_visit_offset >= 0) {
         // pop from stack
-        int current_node_idx = nodes_to_visit[to_visit_offset--];
+        int const current_node_idx = nodes_to_visit[to_visit_offset--];
         const BVHNode& node = bvh_.GetNodes()[current_node_idx];
 
         // Calculate bbox intersection
@@ -80,10 +82,10 @@ bool Scene::IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteract
             else {
                 // Check closest child first to find hit faster. If found, closest_t shrinks and
                 // might be able to skip far child entirely
-                int axis = node.bounds.LongestAxis();
+                int const axis = node.bounds.LongestAxis();
 
                 // if ray dir is negative along the split axis, right child is closer
-                if (dir_is_neg[axis]) {
+                if (dir_is_neg[axis] != 0) {
                     nodes_to_visit[++to_visit_offset] = node.left_first;      // Far (push first)
                     nodes_to_visit[++to_visit_offset] = node.left_first + 1;  // Near (pop next)
                 } else {
@@ -96,7 +98,7 @@ bool Scene::IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteract
     return hit_anything;
 }
 
-uint32_t Scene::AddSphere(const Sphere& s) {
+static uint32_t Scene::AddSphere(const Sphere& s) {
     spheres_.push_back(s);
     uint32_t sphere_index = (uint32_t)spheres_.size() - 1;
     const Material& mat = materials_[s.material_id];
@@ -116,7 +118,7 @@ uint32_t Scene::AddMaterial(const Material& m) {
     return static_cast<uint32_t>(materials_.size() - 1);
 }
 
-uint32_t Scene::AddMesh(Mesh&& m) {
+static uint32_t Scene::AddMesh(Mesh&& m) {
     meshes_.push_back(std::move(m));
     uint32_t mesh_id = (uint32_t)meshes_.size() - 1;
     const Material& mat = materials_[m.material_id];
@@ -126,7 +128,7 @@ uint32_t Scene::AddMesh(Mesh&& m) {
     // so the renderer can see them.
     const Mesh& mesh_ref = meshes_.back();
     for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
-        Triangle t;
+        Triangle const t;
         t.mesh_id = mesh_id;
         t.v_idx = (uint32_t)i;  // Points to the first index of the triplet
         triangles_.push_back(t);

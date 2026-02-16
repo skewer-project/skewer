@@ -12,7 +12,7 @@
  * should be refactored when implementing a more robust
  * parser.
  */
-void print_usage(const char* program_name) {
+static void PrintUsage(const char* program_name) {
     std::cerr << "Usage:\n";
     std::cerr << "  " << program_name << " [--obj model.obj] [--name outfile.ppm] [--threads N]\n";
     std::cerr << "Help:\n";
@@ -20,11 +20,11 @@ void print_usage(const char* program_name) {
 }
 
 struct CLIArgs {
-    std::string obj_file;  // Optional OBJ to load as an object in the scene
-    skwr::RenderOptions options;
+    std::string obj_file_;  // Optional OBJ to load as an object in the scene
+    skwr::RenderOptions options_;
 };
 
-CLIArgs ParseArgs(int argc, char* argv[]) {
+static auto ParseArgs(int argc, char* argv[]) -> CLIArgs {
     CLIArgs args;
     args.options.image_config.width = 800;
     args.options.image_config.height = 450;
@@ -35,7 +35,7 @@ CLIArgs ParseArgs(int argc, char* argv[]) {
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0) {
-            print_usage(argv[0]);
+            PrintUsage(argv[0]);
             exit(0);
         } else if (strcmp(argv[i], "--name") == 0 && i + 1 < argc) {
             args.options.image_config.outfile = argv[++i];
@@ -45,7 +45,7 @@ CLIArgs ParseArgs(int argc, char* argv[]) {
             args.options.integrator_config.num_threads = std::atoi(argv[++i]);
         } else {
             std::cerr << "Unknown option: " << argv[i] << "\n";
-            print_usage(argv[0]);
+            PrintUsage(argv[0]);
             exit(1);
         }
     }
@@ -53,8 +53,8 @@ CLIArgs ParseArgs(int argc, char* argv[]) {
     return args;
 }
 
-int main(int argc, char* argv[]) {
-    CLIArgs args = ParseArgs(argc, argv);
+auto main(int argc, char* argv[]) -> int {
+    CLIArgs const args = ParseArgs(argc, argv);
 
     skwr::RenderSession session;
 
@@ -62,9 +62,9 @@ int main(int argc, char* argv[]) {
 
     session.SetOptions(args.options);
 
-    session.Render();
+    skwr::RenderSession::Render();
 
-    session.Save();
+    skwr::RenderSession::Save();
 
     return 0;
 }

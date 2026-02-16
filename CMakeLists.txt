@@ -1,4 +1,3 @@
-# THIS IS A TEMPORARY ROOT CMAKELISTS.TXT WHILE FILES ARE BEING REFACTORED
 cmake_minimum_required(VERSION 3.16)
 
 project(Skewer LANGUAGES CXX)
@@ -7,6 +6,20 @@ project(Skewer LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Option to enable clang-tidy
+option(ENABLE_CLANG_TIDY "Enable clang-tidy analysis during build" OFF)
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+    if(CLANG_TIDY_EXE)
+        message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
+        set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+    else()
+        message(WARNING "clang-tidy not found, disabling ENABLE_CLANG_TIDY")
+        set(ENABLE_CLANG_TIDY OFF)
+    endif()
+endif()
+
 # Fixes CMake FetchContent warning
 # (https://cmake.org/cmake/help/latest/policy/CMP0135.html)
 cmake_policy(SET CMP0135 NEW)
