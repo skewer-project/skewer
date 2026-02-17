@@ -16,7 +16,7 @@ struct SurfaceInteraction {
     Point3 point;     // Exact point of intersection
     Vec3 n_geom;      // Surface normal (geometric)
     Vec3 wo;          // Outgoing direction (points to Camera/viewer)
-    Float t;          // Distance along the ray
+    float t;          // Distance along ray
     bool front_face;  // Is normal pointing at ray? (Is it the outside face?)
     uint32_t material_id;
 

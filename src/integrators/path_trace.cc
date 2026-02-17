@@ -5,7 +5,6 @@
 #include <thread>
 #include <vector>
 
-#include "core/constants.h"
 #include "core/sampling.h"
 #include "film/film.h"
 #include "integrators/path_sample.h"
@@ -46,8 +45,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             for (int x = 0; x < width; ++x) {
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
-                    Float u = (Float(x) + rng.UniformFloat()) / width;
-                    Float v = 1.0f - (Float(y) + rng.UniformFloat()) / height;
+                    float u = (float(x) + rng.UniformFloat()) / width;
+                    float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
 
                     Ray r = cam.GetRay(u, v);
 

@@ -13,8 +13,8 @@ namespace skwr {
 // Basically RTIOW's camera, we just shifted the starting pixel to lower-left corner
 class Camera {
   public:
-    Camera(const Vec3& look_from, const Vec3& look_at, const Vec3& vup, Float vfov,
-           Float aspect_ratio) {
+    Camera(const Vec3& look_from, const Vec3& look_at, const Vec3& vup, float vfov,
+           float aspect_ratio) {
         auto theta = vfov * kPi / 180.0f;
         auto h = std::tan(theta / 2.0f);
         auto viewport_height = 2.0f * h;
@@ -35,7 +35,7 @@ class Camera {
 
     // Ray generation!!!
     // takes normalized coords from 0.0 to 1.0 and returns a World Ray
-    Ray GetRay(Float s, Float t) const {
+    Ray GetRay(float s, float t) const {
         return Ray(origin_,
                    Normalize(lower_left_corner_ + (horizontal_ * s) + (vertical_ * t) - origin_));
     }
