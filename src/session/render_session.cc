@@ -58,8 +58,8 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     // 5. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(config.look_from, config.look_at, config.vup, config.vfov,
-                                       aspect);
+    camera_ =
+        std::make_unique<Camera>(config.look_from, config.look_at, config.vup, config.vfov, aspect);
 
     // 6. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);

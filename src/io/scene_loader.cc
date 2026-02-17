@@ -4,11 +4,10 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "core/spectrum.h"
 #include "core/transform.h"
@@ -223,11 +222,10 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
     }
 
     // Apply transform (Scale -> Rotate -> Translate) to all newly added meshes
-    bool has_transform = (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f ||
-                          obj_scale.z() != 1.0f || rotate_deg.x() != 0.0f ||
-                          rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
-                          translate.x() != 0.0f || translate.y() != 0.0f ||
-                          translate.z() != 0.0f);
+    bool has_transform =
+        (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
+         rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
+         translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
 
     if (has_transform) {
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
@@ -346,7 +344,8 @@ SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
     try {
         file >> j;
     } catch (const json::parse_error& e) {
-        throw std::runtime_error("JSON parse error in '" + filepath + "': " + std::string(e.what()));
+        throw std::runtime_error("JSON parse error in '" + filepath +
+                                 "': " + std::string(e.what()));
     }
 
     // Extract scene file directory for resolving relative paths
