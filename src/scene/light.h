@@ -21,7 +21,7 @@ struct LightSample {
     Vec3 p;             // Point on the light
     Vec3 n;             // Normal at that point
     Spectrum emission;  // Radiance (Le) or color
-    Float pdf;          // Probability density = (1 / Area)
+    float pdf;          // Probability density = (1 / Area)
 };
 
 // Returns a random point on the surface of the light

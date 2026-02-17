@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "accelerators/bvh.h"
-#include "core/constants.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
@@ -36,8 +35,12 @@ class Scene {
     const std::vector<AreaLight>& Lights() const { return lights_; }
 
     void Build();  // Construct the BVH from the shapes list
-    bool Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const;
-    bool IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const;
+
+    // THE CRITICAL HOT-PATH FUNCTION
+    // The Integrator calls this millions of times.
+    // rn loops through linearly, but when BVH is implemented, should be faster
+    bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
+    bool IntersectBVH(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
 
   private:
     std::vector<Sphere> spheres_;

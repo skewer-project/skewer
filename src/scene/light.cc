@@ -18,7 +18,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
         result.p = s.center + random_point * s.radius;
         result.n = random_point;  // Normal of sphere is just the direction from center
 
-        Float area = 4.0f * kPi * s.radius * s.radius;
+        float area = 4.0f * kPi * s.radius * s.radius;
         result.pdf = 1.0f / area;
     } else if (light.type == AreaLight::Triangle) {
         const Triangle& t = scene.Triangles()[light.primitive_index];
@@ -29,9 +29,9 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
         Vec3 p2 = m.p[m.indices[t.v_idx + 2]];
 
         // Uniform Sample on Triangle (Sqrt trick for uniform distribution)
-        Float r1 = rng.UniformFloat();
-        Float r2 = rng.UniformFloat();
-        Float sqrt_r1 = std::sqrt(r1);
+        float r1 = rng.UniformFloat();
+        float r2 = rng.UniformFloat();
+        float sqrt_r1 = std::sqrt(r1);
 
         // Barycentric interpolation
         Vec3 p = (1.0f - sqrt_r1) * p0 + (sqrt_r1 * (1.0f - r2)) * p1 + (sqrt_r1 * r2) * p2;
@@ -44,7 +44,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
         Vec3 normal = Normalize(Cross(edge1, edge2));
         result.n = normal;
 
-        Float area = 0.5f * Cross(edge1, edge2).Length();
+        float area = 0.5f * Cross(edge1, edge2).Length();
         if (area > 0)
             result.pdf = 1.0f / area;
         else

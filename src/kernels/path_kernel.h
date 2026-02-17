@@ -107,26 +107,26 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
             // Shadow Ray setup
             Vec3 to_light = ls.p - si.point;
-            Float dist_sq = to_light.LengthSquared();
-            Float dist = std::sqrt(dist_sq);
+            float dist_sq = to_light.LengthSquared();
+            float dist = std::sqrt(dist_sq);
             Vec3 wi_light = to_light / dist;
 
             Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
             SurfaceInteraction shadow_si;  // dummy
             if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon, &shadow_si)) {
-                Float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
+                float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                 // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                 if (cos_light > 0) {
-                    Float light_pdf_w = ls.pdf * dist_sq / cos_light;
+                    float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
                     // BSDF Evaluation
-                    Float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n_geom));
+                    float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n_geom));
                     Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n_geom);
 
                     // Accumulate
                     // Weight = 1.0 / (N_lights * PDF_w)
                     // L += beta * f * Le * cos_surf * Weight
-                    Float selection_prob = 1.0f / scene.Lights().size();
+                    float selection_prob = 1.0f / scene.Lights().size();
                     Spectrum direct_L =
                         beta * f_val * ls.emission * cos_surf / (light_pdf_w * selection_prob);
                     direct_L *= opacity;
@@ -137,7 +137,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
         /* Indirect bounce case */
         Vec3 wi;
-        Float pdf;
+        float pdf;
         Spectrum f;
 
         /* BSDF check */
@@ -151,7 +151,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
                 }
 
-                Float cos_theta = std::abs(refract);
+                float cos_theta = std::abs(refract);
                 Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
 
                 // Modulate throughput by opacity for non-specular bounces
@@ -176,7 +176,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         // Russian Roulette method to kill weak rays early
         // is an optimization cause weak rays = weak influence on final
         if (depth > 3) {
-            Float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
+            float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
             if (rng.UniformFloat() > p) break;
             beta = beta * (1.0f / p);
         }

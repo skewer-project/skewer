@@ -109,8 +109,8 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) {
     }
     Vec3 extent = bbox_max - bbox_min;
     Vec3 bbox_center = (bbox_min + bbox_max) * 0.5f;
-    Float max_extent = std::max({extent.x(), extent.y(), extent.z()});
-    Float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
+    float max_extent = std::max({extent.x(), extent.y(), extent.z()});
+    float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
     Vec3 final_scale(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
 
     std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
