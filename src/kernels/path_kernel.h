@@ -43,7 +43,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
     // Deep Info
     bool valid_deep_hit = false;
-    Point3 deep_hit_point = r.at(kInfinity);
+    Point3 deep_hit_point = r.at(1e10f);
     Vec3 deep_origin = r.origin();
     float deep_hit_alpha = 1.0f;  // default solid
 
@@ -55,10 +55,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             // Environment Segment
             Spectrum env_L = beta * Spectrum(0.0f);
             L += env_L;
-
-            if (!valid_deep_hit) {
-                valid_deep_hit = true;
-            }
             break;
         }
 
@@ -73,7 +69,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             // For simplicity, just have all hits update the depth
             // and we rely on the loop finishing to define the color.
             deep_hit_point = si.point;
-            valid_deep_hit = true;
             // For volumetrics, we RAY MARCH here from r.origin to si.point
             // and AddSegment() continuously.
         }
@@ -150,9 +145,10 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             if (pdf > 0) {
                 float refract = Dot(wi, si.n_geom);
 
-                // check if we refract through surf, undo deep hit if so
-                if (refract < 0.0f) {
-                    valid_deep_hit = false;
+                if (!valid_deep_hit) {
+                    if (!(refract < 0.0f)) {
+                        valid_deep_hit = true;  // it's a reflection
+                    }
                 }
 
                 Float cos_theta = std::abs(refract);
@@ -192,6 +188,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         // Ensure we don't get negative depth behind camera
         if (z_depth < 0.0f) z_depth = 0.0f;
         AddSegment(result, z_depth, z_depth + kShadowEpsilon, L, deep_hit_alpha);
+    } else {
+        AddSegment(result, kFarClip, kFarClip + kShadowEpsilon, L, deep_hit_alpha);
     }
     result.L = L;
     return result;

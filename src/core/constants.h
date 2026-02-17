@@ -19,6 +19,7 @@ static constexpr Float kOneMinusEpsilon = 0x1.fffffep-1;
 
 constexpr Float kShadowEpsilon = 0.001f;
 constexpr float kBoundEpsilon = 0.0001f;
+constexpr float kFarClip = 1e10f;
 
 inline Float DegreesToRadians(Float degrees) { return degrees * kPi / 180.0f; }
 

@@ -2,6 +2,7 @@
 
 #include <atomic>
 
+#include "core/constants.h"
 #include "film/image_buffer.h"
 #include "integrators/path_sample.h"
 
@@ -32,19 +33,6 @@ void Film::AddSample(int x, int y, const Spectrum& L, float weight) {
     p.color_sum += L * weight;
     p.weight_sum += weight;
 }
-// // Helper to get the final averaged value
-// Spectrum GetAverageColor() const
-// {
-//     if (weight_sum == 0)
-//         return Spectrum();
-//     return color_sum / weight_sum;
-
-//     // we need weight_sum instead of something like int sample_count
-//     // Anti-Aliasing: In high-quality rendering, a ray that hits the center of a pixel
-//     // is worth more (1.0) than a ray that hits the edge (0.1).
-//     // This is called "Pixel Filtering" (Gaussian or Mitchell-Netravali filters).
-//     // FinalColor= ∑(SampleColor×FilterWeight)/∑FilterWeight
-// }
 
 void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
@@ -58,7 +46,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weig
         const DeepSegment& seg = path_sample.segments[i];
 
         // Skip empty/invalid segments
-        if (seg.z_front >= seg.z_back && seg.z_back != kInfinity) continue;
+        if (seg.z_front >= seg.z_back && seg.z_back != kFarClip) continue;
         if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
 
         // Allocate node from pool
