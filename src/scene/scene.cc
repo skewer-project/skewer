@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include "accelerators/bvh.h"
-#include "core/constants.h"
 #include "core/vec3.h"
 #include "geometry/intersect_sphere.h"
 #include "geometry/intersect_triangle.h"
@@ -22,9 +21,9 @@ void Scene::Build() {
     }
 }
 
-bool Scene::Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const {
+bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {
     bool hit_anything = false;
-    Float closest_t = t_max;
+    float closest_t = t_max;
     // 1. Check Spheres (Linear Scan)
     for (const auto& sphere : spheres_) {
         // We pass 'closest_t' as the new max distance to prune objects behind the hit
@@ -42,11 +41,11 @@ bool Scene::Intersect(const Ray& r, Float t_min, Float t_max, SurfaceInteraction
     return hit_anything;
 }
 
-bool Scene::IntersectBVH(const Ray& r, Float t_min, Float t_max, SurfaceInteraction* si) const {
+bool Scene::IntersectBVH(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {
     if (bvh_.IsEmpty()) return false;
 
     bool hit_anything = false;
-    Float closest_t = t_max;
+    float closest_t = t_max;
 
     // using precomputed inverse for aabb check
     const Vec3& inv_dir = r.inv_direction();

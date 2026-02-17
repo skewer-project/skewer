@@ -15,8 +15,8 @@ namespace skwr {
 struct SurfaceInteraction {
     Point3 p;         // Exact point of intersection
     Vec3 n;           // Surface normal (geometric)
+    float t;          // Distance along the ray
     Vec3 wo;          // Outgoing direction (points to Camera/viewer)
-    Float t;          // Distance along the ray
     bool front_face;  // Is normal pointing at ray? (Is it the outside face?)
     uint32_t material_id;
 

@@ -13,7 +13,6 @@
 
 #include <cassert>
 #include <iostream>
-#include <stdexcept>
 
 #include "film/image_buffer.h"
 
@@ -33,7 +32,7 @@ static char* makeBasePointer(T* data, int minX, int minY, int width, size_t xStr
 
 // With custom stride overload
 static void insertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* ptrs,
-                            Imf_3_2::PixelType pixelType, int minX, int minY, int width,
+                            Imf_3_4::PixelType pixelType, int minX, int minY, int width,
                             size_t sampleStride) {
     size_t xStride = sizeof(float*);
     size_t yStride = xStride * width;
@@ -83,25 +82,25 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string& filename) {
     size_t countYStride = countXStride * width;
 
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT,
+        Imf_3_4::UINT,
         makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
         countXStride, countYStride));
 
     size_t sampleStride = sizeof(DeepSample);
 
-    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
 
     if (hasZBack) {
-        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+        insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                         sampleStride);
     }
 
@@ -181,16 +180,16 @@ void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string& filename) {
     int minX = dataWindow.min.x;
     int minY = dataWindow.min.y;
 
-    header.channels().insert("R", Imf_3_2::Channel(Imf_3_2::FLOAT));
-    header.channels().insert("G", Imf_3_2::Channel(Imf_3_2::FLOAT));
-    header.channels().insert("B", Imf_3_2::Channel(Imf_3_2::FLOAT));
-    header.channels().insert("A", Imf_3_2::Channel(Imf_3_2::FLOAT));
-    header.channels().insert("Z", Imf_3_2::Channel(Imf_3_2::FLOAT));
-    header.channels().insert("ZBack", Imf_3_2::Channel(Imf_3_2::FLOAT));
-    header.setType(Imf_3_2::DEEPSCANLINE);
-    header.compression() = Imf_3_2::ZIPS_COMPRESSION;
+    header.channels().insert("R", Imf_3_4::Channel(Imf_3_4::FLOAT));
+    header.channels().insert("G", Imf_3_4::Channel(Imf_3_4::FLOAT));
+    header.channels().insert("B", Imf_3_4::Channel(Imf_3_4::FLOAT));
+    header.channels().insert("A", Imf_3_4::Channel(Imf_3_4::FLOAT));
+    header.channels().insert("Z", Imf_3_4::Channel(Imf_3_4::FLOAT));
+    header.channels().insert("ZBack", Imf_3_4::Channel(Imf_3_4::FLOAT));
+    header.setType(Imf_3_4::DEEPSCANLINE);
+    header.compression() = Imf_3_4::ZIPS_COMPRESSION;
 
-    Imf_3_2::DeepScanLineOutputFile file(filename.c_str(), header);
+    Imf_3_4::DeepScanLineOutputFile file(filename.c_str(), header);
 
     auto sampleCounts = Imf::Array2D<unsigned int>(height, width);
 
@@ -229,29 +228,29 @@ void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string& filename) {
         }
     }
 
-    Imf_3_2::DeepFrameBuffer frameBuffer;
+    Imf_3_4::DeepFrameBuffer frameBuffer;
 
     size_t countXStride = sizeof(unsigned int);
     size_t countYStride = countXStride * width;
 
     frameBuffer.insertSampleCountSlice(Imf::Slice(
-        Imf_3_2::UINT,
+        Imf_3_4::UINT,
         makeBasePointer(&sampleCounts[0][0], minX, minY, width, countXStride, countYStride),
         countXStride, countYStride));
 
     size_t sampleStride = sizeof(DeepSample);
 
-    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "R", &rPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "G", &gPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "B", &bPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "A", &aPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "Z", &zPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
-    insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_2::FLOAT, minX, minY, width,
+    insertDeepSlice(frameBuffer, "ZBack", &zBackPtrs[0][0], Imf_3_4::FLOAT, minX, minY, width,
                     sampleStride);
 
     file.setFrameBuffer(frameBuffer);

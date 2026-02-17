@@ -1,10 +1,7 @@
 #ifndef SKWR_MATERIALS_BSDF_H_
 #define SKWR_MATERIALS_BSDF_H_
 
-#include "core/constants.h"
-#include "core/onb.h"
 #include "core/rng.h"
-#include "core/sampling.h"
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "materials/material.h"
@@ -23,9 +20,9 @@ Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec
  * PROBABILITY DENSITY (PDF)
  * Returns the probability of sampling direction 'wi'
  */
-Float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n);
+float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n);
 
-inline Float Reflectance(Float cosine, Float refraction_ratio) {
+inline float Reflectance(float cosine, float refraction_ratio) {
     // Use Schlick's approximation for reflectance.
     auto r0 = (1 - refraction_ratio) / (1 + refraction_ratio);
     r0 = r0 * r0;
@@ -33,13 +30,13 @@ inline Float Reflectance(Float cosine, Float refraction_ratio) {
 }
 
 bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      Float& pdf, Spectrum& f);
+                      float& pdf, Spectrum& f);
 
-bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, Float& pdf,
+bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, float& pdf,
                  Spectrum& f);
 
 bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      Float& pdf, Spectrum& f);
+                      float& pdf, Spectrum& f);
 
 /**
  * This function takes the Incoming Ray and returns two things:
@@ -48,7 +45,7 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
  * Dispatches to correct material type sampling function
  */
 bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                Vec3& wi, Float& pdf, Spectrum& f);
+                Vec3& wi, float& pdf, Spectrum& f);
 
 }  // namespace skwr
 

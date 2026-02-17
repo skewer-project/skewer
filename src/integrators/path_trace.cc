@@ -60,12 +60,12 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             for (int x = 0; x < width; ++x) {
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
-                    Float u = (Float(x) + rng.UniformFloat()) / width;
-                    Float v = 1.0f - (Float(y) + rng.UniformFloat()) / height;
+                    float u = (float(x) + rng.UniformFloat()) / width;
+                    float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
 
                     Ray r = cam.GetRay(u, v);
                     SurfaceInteraction si;
-                    const Float t_min = kShadowEpsilon;
+                    const float t_min = kShadowEpsilon;
                     Spectrum L(0.0f);     // Accumulated Radiance (color)
                     Spectrum beta(1.0f);  // Throughput (attenuation)
                     bool specular_bounce = true;
@@ -101,27 +101,27 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                             // Shadow Ray setup
                             Vec3 to_light = ls.p - si.p;
-                            Float dist_sq = to_light.LengthSquared();
-                            Float dist = std::sqrt(dist_sq);
+                            float dist_sq = to_light.LengthSquared();
+                            float dist = std::sqrt(dist_sq);
                             Vec3 wi_light = to_light / dist;
 
                             Ray shadow_ray(si.p + (wi_light * kShadowEpsilon), wi_light);
                             SurfaceInteraction shadow_si;  // dummy
                             if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon,
                                                  &shadow_si)) {
-                                Float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
+                                float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                                 // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                                 if (cos_light > 0) {
-                                    Float light_pdf_w = ls.pdf * dist_sq / cos_light;
+                                    float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
                                     // BSDF Evaluation
-                                    Float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n));
+                                    float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n));
                                     Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n);
 
                                     // Accumulate
                                     // Weight = 1.0 / (N_lights * PDF_w)
                                     // L += beta * f * Le * cos_surf * Weight
-                                    Float selection_prob = 1.0f / scene.Lights().size();
+                                    float selection_prob = 1.0f / scene.Lights().size();
                                     L += beta * f_val * ls.emission * cos_surf /
                                          (light_pdf_w * selection_prob);
                                 }
@@ -130,13 +130,13 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                         /* Indirect bounce case */
                         Vec3 wi;
-                        Float pdf;
+                        float pdf;
                         Spectrum f;
 
                         /* BSDF check */
                         if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
                             if (pdf > 0) {
-                                Float cos_theta = std::abs(Dot(wi, si.n));
+                                float cos_theta = std::abs(Dot(wi, si.n));
                                 Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
                                 beta *= weight;
                                 r = Ray(si.p + (wi * kShadowEpsilon), wi);
@@ -154,7 +154,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                         // Russian Roulette method to kill weak rays early
                         // is an optimization cause weak rays = weak influence on final
                         if (depth > 3) {
-                            Float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
+                            float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
                             if (rng.UniformFloat() > p) break;
                             beta = beta * (1.0f / p);
                         }

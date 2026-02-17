@@ -87,7 +87,7 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
     // TODO: SAH with bin/bucketing (16)
     // Split at longest box axis
     int axis = node.bounds.LongestAxis();
-    Float split_pos = node.bounds.Centroid()[axis];
+    float split_pos = node.bounds.Centroid()[axis];
 
     // alternative: split_pos = (node.bounds.min()[axis] + node.bounds.max()[axis]) * 0.5f;
 

@@ -4,7 +4,6 @@
 #include <iostream>
 
 #include "core/color.h"
-#include "core/constants.h"
 
 namespace skwr {
 
@@ -12,12 +11,12 @@ class Spectrum {
   public:
     // Constructors
     Spectrum() : c{0, 0, 0} {}
-    explicit Spectrum(Float r, Float g, Float b) : c{r, g, b} {}
-    explicit Spectrum(Float v) : c{v, v, v} {}
+    explicit Spectrum(float r, float g, float b) : c{r, g, b} {}
+    explicit Spectrum(float v) : c{v, v, v} {}
 
-    Float r() const { return c[0]; }
-    Float g() const { return c[1]; }
-    Float b() const { return c[2]; }
+    float r() const { return c[0]; }
+    float g() const { return c[1]; }
+    float b() const { return c[2]; }
 
     Spectrum& operator+=(const Spectrum& v) {
         c[0] += v.c[0];
@@ -40,15 +39,15 @@ class Spectrum {
         return *this;
     }
 
-    Spectrum& operator*=(Float t) {
+    Spectrum& operator*=(float t) {
         c[0] *= t;
         c[1] *= t;
         c[2] *= t;
         return *this;
     }
 
-    Spectrum& operator/=(Float t) {
-        Float k = 1.0 / t;
+    Spectrum& operator/=(float t) {
+        float k = 1.0 / t;
         c[0] *= k;
         c[1] *= k;
         c[2] *= k;
@@ -56,8 +55,8 @@ class Spectrum {
     }
 
     // Raw Data Access (Needed for IO / OpenEXR)
-    Float* data() { return c; }
-    const Float* data() const { return c; }
+    float* data() { return c; }
+    const float* data() const { return c; }
 
     bool IsBlack() const { return c[0] == 0 && c[1] == 0 && c[2] == 0; }
     bool HasNaNs() const { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
@@ -71,7 +70,7 @@ class Spectrum {
     }
 
   private:
-    Float c[3];
+    float c[3];
 };
 
 inline std::ostream& operator<<(std::ostream& out, const Spectrum& c) {
@@ -90,13 +89,13 @@ inline Spectrum operator*(const Spectrum& c, const Spectrum& d) {
     return Spectrum(c.r() * d.r(), c.g() * d.g(), c.b() * d.b());
 }
 
-inline Spectrum operator*(Float t, const Spectrum& c) {
+inline Spectrum operator*(float t, const Spectrum& c) {
     return Spectrum(t * c.r(), t * c.g(), t * c.b());
 }
 
-inline Spectrum operator*(const Spectrum& c, Float t) { return t * c; }
+inline Spectrum operator*(const Spectrum& c, float t) { return t * c; }
 
-inline Spectrum operator/(const Spectrum& c, Float t) { return c * (1.0 / t); }
+inline Spectrum operator/(const Spectrum& c, float t) { return c * (1.0 / t); }
 
 // void write_color(std::ostream &out, const Spectrum &pixel_color)
 // {

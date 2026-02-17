@@ -1,5 +1,8 @@
 #include "bsdf.h"
 
+#include "core/onb.h"
+#include "core/sampling.h"
+
 namespace skwr {
 
 Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
@@ -7,21 +10,21 @@ Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec
     // so just return Black here because Sample() should handle them
     if (mat.type != MaterialType::Lambertian) return Spectrum(0.f);
 
-    Float cosine = Dot(wi, n);
+    float cosine = Dot(wi, n);
     if (cosine <= 0) return Spectrum(0.f);  // if light coming from below surface, block it
     return mat.albedo * (1.0f / kPi);       // Lambertian is constant
 }
 
-Float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
+float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
     if (mat.type != MaterialType::Lambertian) return 0.f;
 
-    Float cosine = Dot(wi, n);
+    float cosine = Dot(wi, n);
     if (cosine <= 0) return 0.f;
     return cosine * (1.0f / kPi);  // Cos-weighted sampling
 }
 
 bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      Float& pdf, Spectrum& f) {
+                      float& pdf, Spectrum& f) {
     ONB uvw;
     uvw.BuildFromW(si.n);
 
@@ -29,13 +32,13 @@ bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rn
     wi = uvw.Local(local_dir);
 
     // Explicit PDF and Eval
-    Float cosine = std::fmax(0.0f, Dot(wi, si.n));
+    float cosine = std::fmax(0.0f, Dot(wi, si.n));
     pdf = cosine / kPi;
     f = mat.albedo * (1.0f / kPi);
     return true;
 }
 
-bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, Float& pdf,
+bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, float& pdf,
                  Spectrum& f) {
     wi = Reflect(-si.wo, si.n);  // We reflect "incoming view" = -wo
     if (mat.roughness > 0) {
@@ -43,7 +46,7 @@ bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Ve
     }
 
     // Check if valid (above surface)
-    Float cosine = Dot(wi, si.n);
+    float cosine = Dot(wi, si.n);
     if (cosine <= 0) return false;
 
     // Delta Distribution Logic
@@ -53,13 +56,13 @@ bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Ve
 }
 
 bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      Float& pdf, Spectrum& f) {
+                      float& pdf, Spectrum& f) {
     // if front_face, we are entering the glass. If false, trying to leave
-    Float refraction_ratio = si.front_face ? 1.0f / mat.ior : mat.ior;
+    float refraction_ratio = si.front_face ? 1.0f / mat.ior : mat.ior;
     Vec3 unit_direction = -si.wo;  // wo points out to camera. -wo is the IN direction
 
-    Float cos_theta = std::fmin(Dot(si.wo, si.n), 1.0f);
-    Float sin_theta = std::sqrt(1.0f - cos_theta * cos_theta);
+    float cos_theta = std::fmin(Dot(si.wo, si.n), 1.0f);
+    float sin_theta = std::sqrt(1.0f - cos_theta * cos_theta);
 
     // Total Internal Reflection
     bool cannot_refract = refraction_ratio * sin_theta > 1.0f;
@@ -78,7 +81,7 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
 }
 
 bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                Vec3& wi, Float& pdf, Spectrum& f) {
+                Vec3& wi, float& pdf, Spectrum& f) {
     switch (mat.type) {
         case MaterialType::Lambertian:
             return SampleLambertian(mat, si, rng, wi, pdf, f);

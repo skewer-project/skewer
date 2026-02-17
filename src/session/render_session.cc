@@ -134,9 +134,10 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
     scene_->Build();
 
     // Initialize camera
-    Float aspect = 16.0f / 9.0f;
-    camera_ = std::make_unique<Camera>(Vec3(0.0f, 0.0f, 4.0f), Vec3(0.0f, 0.0f, -10.0f),
-                                       Vec3(0.0f, 1.0f, 0.0f), 50.0f, aspect);
+    float aspect = 16.0f / 9.0f;
+    camera_ = std::make_unique<Camera>(Vec3(0.0f, 1.0f, 1.5f),   // LookFrom
+                                       Vec3(0.0f, 0.0f, -3.0f),  // LookAt
+                                       Vec3(0.0f, 1.0f, 0.0f), 90.0f, aspect);
 }
 
 /**
