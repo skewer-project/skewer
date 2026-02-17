@@ -2,6 +2,7 @@
 #define SKWR_CORE_COLOR_H_
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <iostream>
 
@@ -11,68 +12,52 @@ namespace skwr {
 
 class Color {
   public:
-    Color() : c{0, 0, 0} {}
-    Color(Float r, Float g, Float b) : c{r, g, b} {}
-    explicit Color(Float v) : c{v, v, v} {}
+    Color() : c_{0, 0, 0} {}
+    Color(float r, float g, float b) : c_{r, g, b} {}
+    explicit Color(float v) : c_{v, v, v} {}
 
-    Float r() const { return c[0]; }
-    Float g() const { return c[1]; }
-    Float b() const { return c[2]; }
+    // Use get<i>(c) because we are treating c like a tuple
+    [[nodiscard]] auto R() const -> float { return std::get<0>(c_); }
+    [[nodiscard]] auto G() const -> float { return std::get<1>(c_); }
+    [[nodiscard]] auto B() const -> float { return std::get<2>(c_); }
 
     // Array Access (for loops)
-    Float operator[](int i) const { return c[i]; }
-    Float& operator[](int i) { return c[i]; }
+    auto operator[](int i) const -> float { return c_.at(i); }
+    auto operator[](int i) -> float& {
+        assert(i >= 0 && i < 3);
+        return c_.at(i);
+    }
 
-    // Float operator[](int i) const {
-    //     if (i == 0) return r;
-    //     if (i == 1) return g;
-    //     return b;
-    // }
-
-    // // reference version for assignment
-    // Float &operator[](int i) {
-    //     if (i == 0) return r;
-    //     if (i == 1) return g;
-    //     return b;
-    // }
-
-    Color& operator+=(const Color& v) {
-        c[0] += v.c[0];
-        c[1] += v.c[1];
-        c[2] += v.c[2];
+    auto operator+=(const Color& v) -> Color& {
+        c_[0] += v.c_[0];
+        c_[1] += v.c_[1];
+        c_[2] += v.c_[2];
         return *this;
     }
 
     auto operator*=(Float t) -> Color& {
-        c[0] *= t;
-        c[1] *= t;
-        c[2] *= t;
+        c_[0] *= t;
+        c_[1] *= t;
+        c_[2] *= t;
         return *this;
     }
 
     auto operator/(Float t) const -> Color {
         Float inv = 1.0F / t;
-        return {
-            c[0] * inv,
-            c[1] * inv,
-            c[2] * inv
-        };
+        return {c_[0] * inv, c_[1] * inv, c_[2] * inv};
     }
 
     void ApplyGammaCorrection() {
         auto lineartogamma = [](Float x) { return (x > 0) ? std::sqrt(x) : 0; };
-        c[0] = lineartogamma(c[0]);
-        c[1] = lineartogamma(c[1]);
-        c[2] = lineartogamma(c[2]);
+        c_[0] = lineartogamma(c_[0]);
+        c_[1] = lineartogamma(c_[1]);
+        c_[2] = lineartogamma(c_[2]);
     }
 
     // Clamp helper
     [[nodiscard]] auto Clamp(Float min = 0.0F, Float max = 1.0F) const -> Color {
-        return {
-            std::clamp(c[0], min, max),
-            std::clamp(c[1], min, max),
-            std::clamp(c[2], min, max)
-        };
+        return {std::clamp(c_[0], min, max), std::clamp(c_[1], min, max),
+                std::clamp(c_[2], min, max)};
     }
     // Manual version if not C++17
     /*
@@ -84,33 +69,37 @@ class Color {
     }
     */
 
-    [[nodiscard]] auto HasNaNs() const -> bool { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
+    [[nodiscard]] auto HasNaNs() const -> bool {
+        return std::isnan(c_[0]) || std::isnan(c_[1]) || std::isnan(c_[2]);
+    }
 
   private:
-    Float c[3];
+    std::array<float, 3> c_;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const Color& c) {
-    return out << c.r() << ' ' << c.g() << ' ' << c.b();
+inline auto operator<<(std::ostream& out, const Color& c) -> std::ostream& {
+    return out << c.R() << ' ' << c.G() << ' ' << c.B();
 }
 
-inline Color operator+(const Color& c, const Color& d) {
-    return Color(c.r() + d.r(), c.g() + d.g(), c.b() + d.b());
+inline auto operator+(const Color& c, const Color& d) -> Color {
+    return {c.R() + d.R(), c.G() + d.G(), c.B() + d.B()};
 }
 
-inline Color operator-(const Color& c, const Color& d) {
-    return Color(c.r() - d.r(), c.g() - d.g(), c.b() - d.b());
+inline auto operator-(const Color& c, const Color& d) -> Color {
+    return {c.R() - d.R(), c.G() - d.G(), c.B() - d.B()};
 }
 
-inline Color operator*(const Color& c, const Color& d) {
-    return Color(c.r() * d.r(), c.g() * d.g(), c.b() * d.b());
+inline auto operator*(const Color& c, const Color& d) -> Color {
+    return {c.R() * d.R(), c.G() * d.G(), c.B() * d.B()};
 }
 
-inline Color operator*(Float t, const Color& c) { return Color(t * c.r(), t * c.g(), t * c.b()); }
+inline auto operator*(Float t, const Color& c) -> Color {
+    return {t * c.R(), t * c.G(), t * c.B()};
+}
 
-inline Color operator*(const Color& c, Float t) { return t * c; }
+inline auto operator*(const Color& c, Float t) -> Color { return t * c; }
 
-inline Color operator/(const Color& c, Float t) { return c * (1.0 / t); }
+inline auto operator/(const Color& c, Float t) -> Color { return c * (1.0F / t); }
 
 }  // namespace skwr
 

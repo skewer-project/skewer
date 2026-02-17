@@ -8,101 +8,120 @@
 
 namespace skwr {
 
-struct Vec3 {
+class Vec3 {
   public:
-    Float e[3];
+    Vec3() : e_{0, 0, 0} {}
+    Vec3(float e0, float e1, float e2) : e_{e0, e1, e2} {}
 
-    Vec3() : e{0, 0, 0} {}
-    Vec3(Float e0, Float e1, Float e2) : e{e0, e1, e2} {}
+    [[nodiscard]] auto X() const -> float { return std::get<0>(e_); }
+    [[nodiscard]] auto Y() const -> float { return std::get<1>(e_); }
+    [[nodiscard]] auto Z() const -> float { return std::get<2>(e_); }
 
-    Float x() const { return e[0]; }
-    Float y() const { return e[1]; }
-    Float z() const { return e[2]; }
+    auto operator-() const -> Vec3 {
+        return {-std::get<0>(e_), -std::get<1>(e_), -std::get<2>(e_)};
+    }
+    auto operator[](int i) const -> float { return e_.at(i); }
+    auto operator[](int i) -> float& { return e_.at(i); }
 
-    Vec3 operator-() const { return Vec3(-e[0], -e[1], -e[2]); }
-    Float operator[](int i) const { return e[i]; }
-    Float& operator[](int i) { return e[i]; }
-
-    Vec3& operator+=(const Vec3& v) {
-        e[0] += v.e[0];
-        e[1] += v.e[1];
-        e[2] += v.e[2];
+    auto operator+=(const Vec3& v) -> Vec3& {
+        e_[0] += v.e_[0];
+        e_[1] += v.e_[1];
+        e_[2] += v.e_[2];
         return *this;
     }
 
-    Vec3& operator*=(Float t) {
-        e[0] *= t;
-        e[1] *= t;
-        e[2] *= t;
+    auto operator*=(float t) -> Vec3& {
+        e_[0] *= t;
+        e_[1] *= t;
+        e_[2] *= t;
         return *this;
     }
 
-    Vec3& operator/=(Float t) { return *this *= 1 / t; }
+    auto operator/=(float t) -> Vec3& { return *this *= 1 / t; }
 
     // Utility Member Functions
-    Float Length() const { return std::sqrt(LengthSquared()); }
-    Float LengthSquared() const { return e[0] * e[0] + e[1] * e[1] + e[2] * e[2]; }
+    [[nodiscard]] auto Length() const -> float { return std::sqrt(LengthSquared()); }
+    [[nodiscard]] auto LengthSquared() const -> float {
+        return (std::get<0>(e_) * std::get<0>(e_)) + (std::get<1>(e_) * std::get<1>(e_)) +
+               (std::get<2>(e_) * std::get<2>(e_));
+    }
 
     // Return true if the vector is close to zero in all dimensions
-    bool Near_zero() const {
-        auto s = 1e-8;
-        return (std::fabs(e[0]) < s) && (std::fabs(e[1]) < s) && (std::fabs(e[2]) < s);
+    [[nodiscard]] auto NearZero() const -> bool {
+        auto s = kMinVal;
+        return (std::fabs(e_[0]) < s) && (std::fabs(e_[1]) < s) && (std::fabs(e_[2]) < s);
     }
+
+    // Friend declarations for external operators (optional, for performance or convenience)
+    friend auto operator<<(std::ostream& out, const Vec3& v) -> std::ostream&;
+    friend auto operator+(const Vec3& u, const Vec3& v) -> Vec3;
+    friend auto operator-(const Vec3& u, const Vec3& v) -> Vec3;
+    friend auto operator*(const Vec3& u, const Vec3& v) -> Vec3;
+    friend auto operator*(Float t, const Vec3& v) -> Vec3;
+    friend auto operator*(const Vec3& v, Float t) -> Vec3;
+    friend auto operator/(const Vec3& v, Float t) -> Vec3;
+    friend auto Dot(const Vec3& u, const Vec3& v) -> float;
+    friend auto Cross(const Vec3& u, const Vec3& v) -> Vec3;
+
+  private:
+    std::array<float, 3> e_;
 };
 
 // point alias for Vec3
 using Point3 = Vec3;
 
 // Vector Utility Functions
-inline std::ostream& operator<<(std::ostream& out, const Vec3& v) {
-    return out << v.e[0] << ' ' << v.e[1] << ' ' << v.e[2];
+inline auto operator<<(std::ostream& out, const Vec3& v) -> std::ostream& {
+    return out << v.e_[0] << ' ' << v.e_[1] << ' ' << v.e_[2];
 }
 
-inline Vec3 operator+(const Vec3& u, const Vec3& v) {
-    return Vec3(u.e[0] + v.e[0], u.e[1] + v.e[1], u.e[2] + v.e[2]);
+inline auto operator+(const Vec3& u, const Vec3& v) -> Vec3 {
+    return {u.e_[0] + v.e_[0], u.e_[1] + v.e_[1], u.e_[2] + v.e_[2]};
 }
 
-inline Vec3 operator-(const Vec3& u, const Vec3& v) {
-    return Vec3(u.e[0] - v.e[0], u.e[1] - v.e[1], u.e[2] - v.e[2]);
+inline auto operator-(const Vec3& u, const Vec3& v) -> Vec3 {
+    return {u.e_[0] - v.e_[0], u.e_[1] - v.e_[1], u.e_[2] - v.e_[2]};
 }
 
-inline Vec3 operator*(const Vec3& u, const Vec3& v) {
-    return Vec3(u.e[0] * v.e[0], u.e[1] * v.e[1], u.e[2] * v.e[2]);
+inline auto operator*(const Vec3& u, const Vec3& v) -> Vec3 {
+    return {u.e_[0] * v.e_[0], u.e_[1] * v.e_[1], u.e_[2] * v.e_[2]};
 }
 
-inline Vec3 operator*(Float t, const Vec3& v) { return Vec3(t * v.e[0], t * v.e[1], t * v.e[2]); }
-
-inline Vec3 operator*(const Vec3& v, Float t) { return t * v; }
-
-inline Vec3 operator/(const Vec3& v, Float t) { return (1 / t) * v; }
-
-inline Float Dot(const Vec3& u, const Vec3& v) {
-    return u.e[0] * v.e[0] + u.e[1] * v.e[1] + u.e[2] * v.e[2];
+inline auto operator*(Float t, const Vec3& v) -> Vec3 {
+    return {t * v.e_[0], t * v.e_[1], t * v.e_[2]};
 }
 
-inline Vec3 Cross(const Vec3& u, const Vec3& v) {
-    return Vec3(u.e[1] * v.e[2] - u.e[2] * v.e[1], u.e[2] * v.e[0] - u.e[0] * v.e[2],
-                u.e[0] * v.e[1] - u.e[1] * v.e[0]);
+inline auto operator*(const Vec3& v, Float t) -> Vec3 { return t * v; }
+
+inline auto operator/(const Vec3& v, Float t) -> Vec3 { return (1.0F / t) * v; }
+
+inline auto Dot(const Vec3& u, const Vec3& v) -> float {
+    return (u.e_[0] * v.e_[0]) + (u.e_[1] * v.e_[1]) + (u.e_[2] * v.e_[2]);
 }
 
-inline Vec3 Normalize(const Vec3& v) { return v / v.Length(); }
+inline auto Cross(const Vec3& u, const Vec3& v) -> Vec3 {
+    return {(u.e_[1] * v.e_[2]) - (u.e_[2] * v.e_[1]), (u.e_[2] * v.e_[0]) - (u.e_[0] * v.e_[2]),
+            (u.e_[0] * v.e_[1]) - (u.e_[1] * v.e_[0])};
+}
+
+inline auto Normalize(const Vec3& v) -> Vec3 { return v / v.Length(); }
 
 // A ray v coming in down-right with a normal n pointing straight up hits the surface,
 // the downward force must reflect while the sideways motion remains constant.
 // We isolate downward force by projecting v onto n (b)
 // b = (v dot n) * n     <-   dot results in scalar so multiply by n for downward dir
 // -b just negates downward motion, so -2b reflects it opposite way
-inline Vec3 Reflect(const Vec3& v, const Vec3& n) { return v - 2 * Dot(v, n) * n; }
+inline auto Reflect(const Vec3& v, const Vec3& n) -> Vec3 { return v - 2 * Dot(v, n) * n; }
 
 // Based on snells law: eta * sin(theta) = eta' * sin(theta')
 // refrated ray = sin(theta') = eta/eta' * sin(theta)
 // On refracted side of surface, there's refracted ray R' and normal n', with angle theta'
 // R' can be split into perpendicular R' and parallel R' (to the normal n')
 // messy final equation but treated as fact for now
-inline Vec3 Refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) {
-    auto cos_theta = std::fmin(Dot(-uv, n), 1.0);
+inline auto Refract(const Vec3& uv, const Vec3& n, Float etai_over_etat) -> Vec3 {
+    float cos_theta = std::fmin(Dot(-uv, n), 1.0F);
     Vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
-    Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0 - r_out_perp.LengthSquared())) * n;
+    Vec3 r_out_parallel = -std::sqrt(std::fabs(1.0F - r_out_perp.LengthSquared())) * n;
     return r_out_perp + r_out_parallel;
 }
 

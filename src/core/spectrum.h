@@ -11,92 +11,97 @@ namespace skwr {
 class Spectrum {
   public:
     // Constructors
-    Spectrum() : c{0, 0, 0} {}
-    explicit Spectrum(Float r, Float g, Float b) : c{r, g, b} {}
-    explicit Spectrum(Float v) : c{v, v, v} {}
+    Spectrum() : c_{0, 0, 0} {}
+    explicit Spectrum(float r, float g, float b) : c_{r, g, b} {}
+    explicit Spectrum(float v) : c_{v, v, v} {}
 
-    Float r() const { return c[0]; }
-    Float g() const { return c[1]; }
-    Float b() const { return c[2]; }
+    // Use get<i>(c) because we are treating c like a tuple
+    [[nodiscard]] auto R() const -> float { return std::get<0>(c_); }
+    [[nodiscard]] auto G() const -> float { return std::get<1>(c_); }
+    [[nodiscard]] auto B() const -> float { return std::get<2>(c_); }
 
-    Spectrum& operator+=(const Spectrum& v) {
-        c[0] += v.c[0];
-        c[1] += v.c[1];
-        c[2] += v.c[2];
+    auto operator+=(const Spectrum& v) -> Spectrum& {
+        c_[0] += v.c_[0];
+        c_[1] += v.c_[1];
+        c_[2] += v.c_[2];
         return *this;
     }
 
-    Spectrum& operator-=(const Spectrum& v) {
-        c[0] -= v.c[0];
-        c[1] -= v.c[1];
-        c[2] -= v.c[2];
+    auto operator-=(const Spectrum& v) -> Spectrum& {
+        c_[0] -= v.c_[0];
+        c_[1] -= v.c_[1];
+        c_[2] -= v.c_[2];
         return *this;
     }
 
-    Spectrum& operator*=(const Spectrum& v) {
-        c[0] *= v.c[0];
-        c[1] *= v.c[1];
-        c[2] *= v.c[2];
+    auto operator*=(const Spectrum& v) -> Spectrum& {
+        c_[0] *= v.c_[0];
+        c_[1] *= v.c_[1];
+        c_[2] *= v.c_[2];
         return *this;
     }
 
-    Spectrum& operator*=(Float t) {
-        c[0] *= t;
-        c[1] *= t;
-        c[2] *= t;
+    auto operator*=(float t) -> Spectrum& {
+        c_[0] *= t;
+        c_[1] *= t;
+        c_[2] *= t;
         return *this;
     }
 
-    Spectrum& operator/=(Float t) {
-        Float k = 1.0 / t;
-        c[0] *= k;
-        c[1] *= k;
-        c[2] *= k;
+    auto operator/=(float t) -> Spectrum& {
+        float k = 1.0F / t;
+        c_[0] *= k;
+        c_[1] *= k;
+        c_[2] *= k;
         return *this;
     }
 
     // Raw Data Access (Needed for IO / OpenEXR)
-    Float* data() { return c; }
-    const Float* data() const { return c; }
+    [[nodiscard]] auto Data() -> float* { return c_.begin(); }
+    [[nodiscard]] auto Data() const -> const Float* { return c_.begin(); }
 
-    bool IsBlack() const { return c[0] == 0 && c[1] == 0 && c[2] == 0; }
-    bool HasNaNs() const { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
+    [[nodiscard]] auto IsBlack() const -> bool { return c_[0] == 0 && c_[1] == 0 && c_[2] == 0; }
+    [[nodiscard]] auto HasNaNs() const -> bool {
+        return std::isnan(c_[0]) || std::isnan(c_[1]) || std::isnan(c_[2]);
+    }
 
     // Convert Physics -> Data (For the Film)
-    Color ToColor() const { return Color(c[0], c[1], c[2]); }
+    [[nodiscard]] auto ToColor() const -> Color {
+        return {std::get<0>(c_), std::get<1>(c_), std::get<2>(c_)};
+    }
 
     // Convert Data -> Physics (For Textures)
-    static Spectrum FromColor(const Color& color) {
-        return Spectrum(color.r(), color.g(), color.b());
+    static auto FromColor(const Color& color) -> Spectrum {
+        return Spectrum(color.R(), color.G(), color.B());
     }
 
   private:
-    Float c[3];
+    std::array<float, 3> c_;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const Spectrum& c) {
-    return out << c.r() << ' ' << c.g() << ' ' << c.b();
+inline auto operator<<(std::ostream& out, const Spectrum& c) -> std::ostream& {
+    return out << c.R() << ' ' << c.G() << ' ' << c.B();
 }
 
-inline Spectrum operator+(const Spectrum& c, const Spectrum& d) {
-    return Spectrum(c.r() + d.r(), c.g() + d.g(), c.b() + d.b());
+inline auto operator+(const Spectrum& c, const Spectrum& d) -> Spectrum {
+    return Spectrum(c.R() + d.R(), c.G() + d.G(), c.B() + d.B());
 }
 
-inline Spectrum operator-(const Spectrum& c, const Spectrum& d) {
-    return Spectrum(c.r() - d.r(), c.g() - d.g(), c.b() - d.b());
+inline auto operator-(const Spectrum& c, const Spectrum& d) -> Spectrum {
+    return Spectrum(c.R() - d.R(), c.G() - d.G(), c.B() - d.B());
 }
 
-inline Spectrum operator*(const Spectrum& c, const Spectrum& d) {
-    return Spectrum(c.r() * d.r(), c.g() * d.g(), c.b() * d.b());
+inline auto operator*(const Spectrum& c, const Spectrum& d) -> Spectrum {
+    return Spectrum(c.R() * d.R(), c.G() * d.G(), c.B() * d.B());
 }
 
-inline Spectrum operator*(Float t, const Spectrum& c) {
-    return Spectrum(t * c.r(), t * c.g(), t * c.b());
+inline auto operator*(Float t, const Spectrum& c) -> Spectrum {
+    return Spectrum(t * c.R(), t * c.G(), t * c.B());
 }
 
-inline Spectrum operator*(const Spectrum& c, Float t) { return t * c; }
+inline auto operator*(const Spectrum& c, Float t) -> Spectrum { return t * c; }
 
-inline Spectrum operator/(const Spectrum& c, Float t) { return c * (1.0 / t); }
+inline auto operator/(const Spectrum& c, Float t) -> Spectrum { return c * (1.0F / t); }
 
 // void write_color(std::ostream &out, const Spectrum &pixel_color)
 // {

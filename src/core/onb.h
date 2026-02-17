@@ -1,6 +1,7 @@
 #ifndef SKWR_CORE_ONB_H_
 #define SKWR_CORE_ONB_H_
 
+#include "core/constants.h"
 #include "core/vec3.h"
 
 /**
@@ -12,29 +13,34 @@
 
 namespace skwr {
 
-struct ONB {
-    ONB() {}
+class ONB {
+  public:
+    ONB() = default;
 
     // Build basis from normal vector
     // Creates u, v st (u, v, w) are all perpendicular to each other
     void BuildFromW(const Vec3& n) {
-        axis[2] = Normalize(n);  // w is the normal
+        axis_[2] = Normalize(n);  // w is the normal
 
         // Arbitrary helper vector that isn't parallel to w
-        Vec3 a = (std::abs(axis[2].x()) > 0.9f) ? Vec3(0, 1, 0) : Vec3(1, 0, 0);
+        Vec3 helper_vec =
+            (std::abs(axis_[2].X()) > kParallelThreshold) ? Vec3(0, 1, 0) : Vec3(1, 0, 0);
 
-        axis[1] = Normalize(Cross(axis[2], a));  // v
-        axis[0] = Cross(axis[1], axis[2]);       // u
+        axis_[1] = Normalize(Cross(axis_[2], helper_vec));  // v
+        axis_[0] = Cross(axis_[1], axis_[2]);               // u
     }
 
-    const Vec3& u() const { return axis[0]; }
-    const Vec3& v() const { return axis[1]; }
-    const Vec3& w() const { return axis[2]; }
+    [[nodiscard]] auto U() const -> const Vec3& { return axis_[0]; }
+    [[nodiscard]] auto V() const -> const Vec3& { return axis_[1]; }
+    [[nodiscard]] auto W() const -> const Vec3& { return axis_[2]; }
 
     // Transform vector to match local space
-    Vec3 Local(Vec3& a) const { return (u() * a.x()) + (v() * a.y()) + (w() * a.z()); }
+    [[nodiscard]] auto Local(const Vec3& a) const -> Vec3 {
+        return (U() * a.X()) + (V() * a.Y()) + (W() * a.Z());
+    }
 
-    Vec3 axis[3];  // u, v, w
+  private:
+    std::array<Vec3, 3> axis_{};  // u, v, w
 };
 
 }  // namespace skwr
