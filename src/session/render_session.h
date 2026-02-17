@@ -12,13 +12,12 @@
  * The entry point to the engine
  * Orchestrates Scene + Integrator + Film
  *
- * Several things are commented out for compilation
- * These should be implemented as development progresses
+ * Scenes are loaded from JSON config files via LoadSceneFromFile().
  */
 
 namespace skwr {
 
-// Forward declarations to avoid circular includes and having to include scene, integrator, etc
+// Forward declarations
 class Scene;
 class Camera;
 class Integrator;
@@ -29,16 +28,15 @@ class RenderSession {
     RenderSession();
     ~RenderSession();
 
-    // SETUP: Build the scene. If obj_file is non-empty, loads it as an object in the scene.
-    // obj_scale: per-axis scale applied to the OBJ vertices.
-    void LoadScene(const std::string& obj_file = "", const Vec3& obj_scale = Vec3(1, 1, 1));
+    // SETUP: Load scene from a JSON config file.
+    // Populates scene, camera, film, and integrator from the config.
+    // Optional thread_override: if > 0, overrides the thread count from JSON.
+    void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
 
-    // CONFIGURE: Set up the camera, resolution, and sampler
-    void SetOptions(RenderOptions& options);
-
-    // EXECUTE: Create the Integrator and tell it to run on the Scene
+    // EXECUTE: Run the integrator on the scene
     void Render();
 
+    // OUTPUT: Write the rendered image to disk
     void Save() const;
 
   private:
