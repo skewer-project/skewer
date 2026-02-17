@@ -54,12 +54,13 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     std::mutex progress_mutex;
 
     show_console_cursor(false);
-    BlockProgressBar bar{
-        option::BarWidth{80},
-        option::Start{"["},
-        option::End{"]"},
-        option::ShowPercentage{true},
-    };
+    BlockProgressBar bar{option::BarWidth{80},
+                         option::Start{"["},
+                         option::End{"]"},
+                         option::ShowPercentage{true},
+                         option::ShowElapsedTime{true},
+                         option::ShowRemainingTime{true},
+                         option::MaxProgress{height}};
 
     // Worker function - each thread grabs scanlines dynamically
     auto render_worker = [&]() {
@@ -178,7 +179,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
             int done = scanlines_completed.fetch_add(1) + 1;
             std::lock_guard<std::mutex> lock(progress_mutex);
-            bar.set_progress(((done + 0.0) / height) * 100);
+            bar.tick();
             // std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" <<
             // std::flush;
         }
