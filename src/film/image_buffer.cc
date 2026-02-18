@@ -6,7 +6,6 @@
 #include <ostream>
 
 #include "core/color.h"
-#include "core/spectrum.h"
 
 namespace skwr {
 
@@ -14,9 +13,9 @@ ImageBuffer::ImageBuffer(int width, int height) : width_(width), height_(height)
     pixels_.resize(width * height);
 }
 
-void ImageBuffer::SetPixel(int x, int y, const Spectrum& s) {
+void ImageBuffer::SetPixel(int x, int y, const RGB& color) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
-    pixels_[y * width_ + x] = s;
+    pixels_[y * width_ + x] = color;
 }
 
 // For debug and testing purposes, we can keep this PPM writer but
@@ -32,7 +31,7 @@ void ImageBuffer::WritePPM(const std::string& filename) const {
     out << "P3\n" << width_ << " " << height_ << "\n255\n";
 
     for (const auto& pixel : pixels_) {
-        RGB color = pixel.ToRGB();
+        RGB color = pixel;
         auto lineartogamma = [](float x) { return (x > 0) ? std::sqrt(x) : 0; };
         color[0] = lineartogamma(color[0]);
         color[1] = lineartogamma(color[1]);
