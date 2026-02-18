@@ -220,4 +220,5 @@ void Film::WriteImage(const std::string& filename) const {
     // Save to disk
     temp_buffer.WritePPM(filename);
 }
+
 }  // namespace skwr
