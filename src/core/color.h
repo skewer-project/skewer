@@ -34,11 +34,6 @@ struct RGB {
         return *this;
     }
 
-    RGB operator/(float t) const {
-        float inv = 1.0f / t;
-        return RGB(c[0] * inv, c[1] * inv, c[2] * inv);
-    }
-
     RGB LinearToSRGB(const RGB&);
     RGB ToneMap(const RGB&);
     float Luminance() const {
