@@ -27,8 +27,10 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl);
 
 // Load an OBJ file and populate the Scene with meshes and materials.
 // scale: per-axis scale applied to vertex positions (e.g. Vec3(1,1,1) = no scaling).
-// Returns true on success.
-bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale = Vec3(1.0f, 1.0f, 1.0f));
+// auto_fit: when true, normalizes the model to a 2-unit cube centered at origin before applying
+// scale. Returns true on success.
+bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale = Vec3(1.0f, 1.0f, 1.0f),
+             bool auto_fit = true);
 
 }  // namespace skwr
 
