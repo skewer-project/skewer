@@ -6,6 +6,7 @@
 #include <thread>
 #include <vector>
 
+#include "barkeep.h"
 #include "core/constants.h"
 #include "core/sampling.h"
 #include "core/spectrum.h"
@@ -17,6 +18,8 @@
 #include "scene/light.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
+
+namespace bk = barkeep;
 
 namespace skwr {
 
@@ -48,7 +51,14 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     // Atomic counter for scanline work-stealing
     std::atomic<int> next_scanline(0);
     std::atomic<int> scanlines_completed(0);
-    std::mutex progress_mutex;
+
+    auto bar = bk::ProgressBar(&scanlines_completed, {
+                                                         .total = height,
+                                                         .message = "Rendering",
+                                                         .speed = 0.0,
+                                                         .speed_unit = "scanlines/s",
+                                                         .style = bk::ProgressBarStyle::Line,
+                                                     });
 
     // Worker function - each thread grabs scanlines dynamically
     auto render_worker = [&]() {
@@ -166,10 +176,10 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             }
 
             int done = scanlines_completed.fetch_add(1) + 1;
-            std::lock_guard<std::mutex> lock(progress_mutex);
-            std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" << std::flush;
         }
     };
+
+    bar->show();
 
     // Launch worker threads
     std::vector<std::thread> threads;
@@ -181,6 +191,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     for (auto& thread : threads) {
         thread.join();
     }
+
+    bar->done();
 
     std::clog << "\n";
 }
