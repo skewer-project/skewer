@@ -51,7 +51,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     // Atomic counter for scanline work-stealing
     std::atomic<int> next_scanline(0);
     std::atomic<int> scanlines_completed(0);
-    std::mutex progress_mutex;
 
     auto bar = bk::ProgressBar(&scanlines_completed, {
                                                          .total = height,
@@ -177,9 +176,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             }
 
             int done = scanlines_completed.fetch_add(1) + 1;
-            std::lock_guard<std::mutex> lock(progress_mutex);
-            // std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" <<
-            // std::flush;
         }
     };
 
