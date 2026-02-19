@@ -6,12 +6,12 @@
 #include <thread>
 #include <vector>
 
+#include "barkeep.h"
 #include "core/constants.h"
 #include "core/sampling.h"
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
-#include "indicators.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/camera.h"
@@ -19,7 +19,7 @@
 #include "scene/scene.h"
 #include "session/render_options.h"
 
-using namespace indicators;
+namespace bk = barkeep;
 
 namespace skwr {
 
@@ -53,14 +53,13 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     std::atomic<int> scanlines_completed(0);
     std::mutex progress_mutex;
 
-    show_console_cursor(false);
-    BlockProgressBar bar{option::BarWidth{80},
-                         option::Start{"["},
-                         option::End{"]"},
-                         option::ShowPercentage{true},
-                         option::ShowElapsedTime{true},
-                         option::ShowRemainingTime{true},
-                         option::MaxProgress{height}};
+    auto bar = bk::ProgressBar(&scanlines_completed, {
+                                                         .total = height,
+                                                         .message = "Rendering",
+                                                         .speed = 0.0,
+                                                         .speed_unit = "scanlines/s",
+                                                         .style = bk::ProgressBarStyle::Line,
+                                                     });
 
     // Worker function - each thread grabs scanlines dynamically
     auto render_worker = [&]() {
@@ -179,13 +178,12 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
             int done = scanlines_completed.fetch_add(1) + 1;
             std::lock_guard<std::mutex> lock(progress_mutex);
-            bar.tick();
             // std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" <<
             // std::flush;
         }
     };
 
-    show_console_cursor(true);
+    bar->show();
 
     // Launch worker threads
     std::vector<std::thread> threads;
@@ -197,6 +195,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     for (auto& thread : threads) {
         thread.join();
     }
+
+    bar->done();
 
     std::clog << "\n";
 }
