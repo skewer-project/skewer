@@ -11,15 +11,12 @@
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
-#include "indicators.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/camera.h"
 #include "scene/light.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
-
-using namespace indicators;
 
 namespace skwr {
 
@@ -53,22 +50,13 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     std::atomic<int> scanlines_completed(0);
     std::mutex progress_mutex;
 
-    show_console_cursor(false);
-    BlockProgressBar bar{option::BarWidth{80},
-                         option::Start{"["},
-                         option::End{"]"},
-                         option::ShowPercentage{true},
-                         option::ShowElapsedTime{true},
-                         option::ShowRemainingTime{true},
-                         option::MaxProgress{height}};
-
     // Worker function - each thread grabs scanlines dynamically
     auto render_worker = [&]() {
         while (true) {
             int y = next_scanline.fetch_add(1);
             if (y >= height) break;
 
-            // std::clog.flush();
+            std::clog.flush();
             for (int x = 0; x < width; ++x) {
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
@@ -179,13 +167,9 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
             int done = scanlines_completed.fetch_add(1) + 1;
             std::lock_guard<std::mutex> lock(progress_mutex);
-            bar.tick();
-            // std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" <<
-            // std::flush;
+            std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" << std::flush;
         }
     };
-
-    show_console_cursor(true);
 
     // Launch worker threads
     std::vector<std::thread> threads;
