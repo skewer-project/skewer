@@ -13,20 +13,22 @@ namespace skwr {
 // "Surface Interaction" is basically a beefed up HitRecord
 // It's a "fat" data struct that's calculated immediately
 struct SurfaceInteraction {
-    Point3 p;         // Exact point of intersection
-    Vec3 n;           // Surface normal (geometric)
-    float t;          // Distance along the ray
+    Point3 point;     // Exact point of intersection
+    Vec3 n_geom;      // Surface normal (geometric)
     Vec3 wo;          // Outgoing direction (points to Camera/viewer)
+    float t;          // Distance along ray
     bool front_face;  // Is normal pointing at ray? (Is it the outside face?)
     uint32_t material_id;
 
-    // Future: UVs, dpdu, dpdv, Material*
+    // Shading data
+    Vec3 n_shading;   // smooth normal (interpolated)
+    Vec3 dpdu, dpdv;  // Tangents (for bump mapping/anisotropy)
 
     // Helper to align normal against the incoming ray
     inline void SetFaceNormal(const Ray& r, const Vec3& outward_normal) {
         wo = -Normalize(r.direction());
         front_face = Dot(r.direction(), outward_normal) < 0;
-        n = front_face ? outward_normal : -outward_normal;
+        n_geom = front_face ? outward_normal : -outward_normal;
     }
 };
 

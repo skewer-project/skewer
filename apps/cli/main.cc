@@ -28,9 +28,11 @@ CLIArgs ParseArgs(int argc, char* argv[]) {
     CLIArgs args;
     args.options.image_config.width = 800;
     args.options.image_config.height = 450;
-    args.options.integrator_config.samples_per_pixel = 100;
-    args.options.integrator_config.max_depth = 10;
+    args.options.integrator_config.samples_per_pixel = 200;
+    args.options.integrator_config.max_depth = 50;
     args.options.image_config.outfile = "test_render.ppm";
+    args.options.image_config.exrfile = "test_exr_glass.exr";
+    args.options.integrator_config.enable_deep = false;
     args.options.integrator_type = skwr::IntegratorType::PathTrace;
 
     for (int i = 1; i < argc; i++) {

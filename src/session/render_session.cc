@@ -7,10 +7,12 @@
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
+#include "film/image_buffer.h"
 #include "geometry/sphere.h"
 #include "integrators/integrator.h"
 #include "integrators/normals.h"
 #include "integrators/path_trace.h"
+#include "io/image_io.h"
 #include "io/obj_loader.h"
 #include "materials/material.h"
 #include "scene/camera.h"
@@ -143,10 +145,11 @@ void RenderSession::LoadScene(const std::string& obj_file, const Vec3& obj_scale
 /**
  * Set user options
  */
-void RenderSession::SetOptions(const RenderOptions& options) {
+void RenderSession::SetOptions(RenderOptions& options) {
     options_ = options;
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
     integrator_ = CreateIntegrator(options_.integrator_type);
+    options_.integrator_config.cam_w = camera_->GetW();
 
     std::cout << "[Session] Options Set: " << options_.image_config.width << "x"
               << options_.image_config.height
@@ -177,6 +180,11 @@ void RenderSession::Render() {
 void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
+        if (options_.integrator_config.enable_deep) {
+            std::unique_ptr<DeepImageBuffer> buf =
+                film_->CreateDeepBuffer(options_.integrator_config.samples_per_pixel);
+            ImageIO::SaveEXR(*buf, options_.image_config.exrfile);
+        }
     }
 }
 

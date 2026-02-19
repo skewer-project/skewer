@@ -1,11 +1,37 @@
 #ifndef SKWR_CORE_SPECTRUM_H_
 #define SKWR_CORE_SPECTRUM_H_
 
+#include <algorithm>
 #include <iostream>
 
 #include "core/color.h"
 
 namespace skwr {
+
+// ex refactor
+// template<int N>
+// class Spectrum {
+// public:
+//     static constexpr int Size() { return N; }
+
+//     Float MaxComponent() const {
+//         return *std::max_element(c.begin(), c.end());
+//     }
+
+//     Float MinComponent() const {
+//         return *std::min_element(c.begin(), c.end());
+//     }
+
+//     Float Average() const {
+//         return std::accumulate(c.begin(), c.end(), Float(0)) / N;
+//     }
+
+//     Float& operator[](int i)       { return c[i]; }
+//     Float  operator[](int i) const { return c[i]; }
+
+// private:
+//     std::array<Float, N> c;
+// };
 
 class Spectrum {
   public:
@@ -67,6 +93,35 @@ class Spectrum {
     // Convert Data -> Physics (For Textures)
     static Spectrum FromColor(const Color& color) {
         return Spectrum(color.r(), color.g(), color.b());
+    }
+
+    /**
+     * TODO: When refactoring spectrum, a lot of this will change
+     * These are just temporarily slap-on fixes
+     * template<int N>
+        class Spectrum {
+        public:
+            static constexpr int Size() { return N; }
+            Float MaxComponent() const {
+                return *std::max_element(c.begin(), c.end());
+            }
+
+            Float MinComponent() const {
+                return *std::min_element(c.begin(), c.end());
+            }
+        private:
+            Float c[N];
+        };
+     */
+    int Size() const { return sizeof(c) / sizeof(c[0]); }
+    float MaxComponent() const { return *std::max_element(c, c + Size()); }
+    float MinComponent() const { return *std::min_element(c, c + Size()); }
+    float Average() const {
+        float sum = 0.0f;
+        for (int i = 0; i < Size(); ++i) {
+            sum += c[i];
+        }
+        return sum / Size();
     }
 
   private:
