@@ -5,64 +5,50 @@
 #include <iostream>
 #include <string>
 
-#include "session/render_options.h"
-
-/**
- * These are temporary parsing and help functions which
- * should be refactored when implementing a more robust
- * parser.
- */
 void print_usage(const char* program_name) {
     std::cerr << "Usage:\n";
-    std::cerr << "  " << program_name << " [--obj model.obj] [--name outfile.ppm] [--threads N]\n";
+    std::cerr << "  " << program_name << " <scene.json> [num_threads]\n";
+    std::cerr << "\n";
+    std::cerr << "Arguments:\n";
+    std::cerr << "  scene.json    Path to a JSON scene configuration file (required)\n";
+    std::cerr << "  num_threads   Override thread count from scene file (optional)\n";
+    std::cerr << "\n";
     std::cerr << "Help:\n";
     std::cerr << "  " << program_name << " --help\n";
 }
 
-struct CLIArgs {
-    std::string obj_file;  // Optional OBJ to load as an object in the scene
-    skwr::RenderOptions options;
-};
+int main(int argc, char* argv[]) {
+    // Parse positional args: <scene.json> [num_threads]
+    if (argc < 2) {
+        std::cerr << "Error: missing scene file argument\n\n";
+        print_usage(argv[0]);
+        return 1;
+    }
 
-CLIArgs ParseArgs(int argc, char* argv[]) {
-    CLIArgs args;
-    args.options.image_config.width = 800;
-    args.options.image_config.height = 450;
-    args.options.integrator_config.samples_per_pixel = 200;
-    args.options.integrator_config.max_depth = 50;
-    args.options.image_config.outfile = "test_render.ppm";
-    args.options.image_config.exrfile = "test_exr_glass.exr";
-    args.options.integrator_config.enable_deep = false;
-    args.options.integrator_type = skwr::IntegratorType::PathTrace;
+    if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+        print_usage(argv[0]);
+        return 0;
+    }
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0) {
-            print_usage(argv[0]);
-            exit(0);
-        } else if (strcmp(argv[i], "--name") == 0 && i + 1 < argc) {
-            args.options.image_config.outfile = argv[++i];
-        } else if (strcmp(argv[i], "--obj") == 0 && i + 1 < argc) {
-            args.obj_file = argv[++i];
-        } else if (strcmp(argv[i], "--threads") == 0 && i + 1 < argc) {
-            args.options.integrator_config.num_threads = std::atoi(argv[++i]);
-        } else {
-            std::cerr << "Unknown option: " << argv[i] << "\n";
-            print_usage(argv[0]);
-            exit(1);
+    std::string scene_file = argv[1];
+    int thread_override = 0;
+
+    if (argc >= 3) {
+        thread_override = std::atoi(argv[2]);
+        if (thread_override < 0) {
+            std::cerr << "Error: thread count must be non-negative\n";
+            return 1;
         }
     }
 
-    return args;
-}
-
-int main(int argc, char* argv[]) {
-    CLIArgs args = ParseArgs(argc, argv);
-
     skwr::RenderSession session;
 
-    session.LoadScene(args.obj_file);
-
-    session.SetOptions(args.options);
+    try {
+        session.LoadSceneFromFile(scene_file, thread_override);
+    } catch (const std::exception& e) {
+        std::cerr << "[Error] Failed to load scene: " << e.what() << "\n";
+        return 1;
+    }
 
     session.Render();
 
