@@ -6,22 +6,22 @@
 #include <memory>
 #include <vector>
 
-#include "core/spectrum.h"
+#include "core/color.h"
 #include "film/image_buffer.h"
 #include "integrators/path_sample.h"
 
 namespace skwr {
 
 struct Pixel {
-    Spectrum color_sum = Spectrum(0.0f);  // Accumulated Radiance
-    float weight_sum = 0.0f;              // Total weight (filter weight * count)
-    std::atomic<int> deep_head{-1};       // Head of linked list
+    RGB color_sum = RGB(0.0f);       // Accumulated Radiance
+    float weight_sum = 0.0f;         // Total weight (filter weight * count)
+    std::atomic<int> deep_head{-1};  // Head of linked list
 };
 
 struct DeepSegmentNode {
     float z_front;
     float z_back;
-    Spectrum L;
+    RGB L;
     float alpha;
     int next;
 };
@@ -30,7 +30,7 @@ class Film {
   public:
     Film(int width, int height);
 
-    void AddSample(int x, int y, const Spectrum& L, float weight = 1.0f);
+    void AddSample(int x, int y, const RGB& L, float weight = 1.0f);
     void AddDeepSample(int x, int y, const PathSample& path_sample, float weight = 1.0f);
 
     // Saves to disk (PPM, EXR)

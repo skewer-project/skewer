@@ -39,7 +39,7 @@ void Normals::Render(const Scene& scene, const Camera& cam, Film* film,
                 auto a = 0.5 * (unit_direction.y() + 1.0);
                 color = (1.0 - a) * Spectrum(1.0, 1.0, 1.0) + a * Spectrum(0.5, 0.7, 1.0);
             }
-            film->AddSample(x, y, color, 1.0f);
+            film->AddSample(x, y, color.ToRGB(), 1.0f);
         }
     }
 }
