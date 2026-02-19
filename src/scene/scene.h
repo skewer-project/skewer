@@ -29,6 +29,8 @@ class Scene {
 
     const Material& GetMaterial(uint32_t id) const { return materials_[id]; }
     const Mesh& GetMesh(uint32_t id) const { return meshes_[id]; }
+    Mesh& GetMutableMesh(uint32_t id) { return meshes_[id]; }
+    size_t MeshCount() const { return meshes_.size(); }
     const std::vector<Sphere>& Spheres() const { return spheres_; }
     const std::vector<Triangle>& Triangles() const { return triangles_; }
     const std::vector<Material>& Materials() const { return materials_; }
