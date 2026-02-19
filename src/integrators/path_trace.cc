@@ -67,7 +67,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             int y = next_scanline.fetch_add(1);
             if (y >= height) break;
 
-            // std::clog.flush();
+            std::clog.flush();
             for (int x = 0; x < width; ++x) {
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, s);

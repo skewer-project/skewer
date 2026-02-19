@@ -71,7 +71,7 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     return mat;
 }
 
-bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) {
+bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool auto_fit) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -97,8 +97,7 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) {
         return false;
     }
 
-    // Auto-fit: compute bounding box and normalize so the object fits in a 2-unit cube
-    // (matching the diameter of the sphere it replaces). User scale is applied on top.
+    // Compute bounding box for centering (used in auto-fit mode)
     Vec3 bbox_min(kInfinity, kInfinity, kInfinity);
     Vec3 bbox_max(-kInfinity, -kInfinity, -kInfinity);
     for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
@@ -107,16 +106,28 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale) {
             if (attrib.vertices[i + a] > bbox_max[a]) bbox_max[a] = attrib.vertices[i + a];
         }
     }
-    Vec3 extent = bbox_max - bbox_min;
-    Vec3 bbox_center = (bbox_min + bbox_max) * 0.5f;
-    float max_extent = std::max({extent.x(), extent.y(), extent.z()});
-    float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
-    Vec3 final_scale(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
 
-    std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
-    std::clog << "[OBJ] Center: (" << bbox_center << ")" << std::endl;
-    std::clog << "[OBJ] Auto-fit scale: " << normalize << ", final scale: (" << final_scale << ")"
-              << std::endl;
+    Vec3 bbox_center(0.0f, 0.0f, 0.0f);
+    Vec3 final_scale = scale;
+
+    if (auto_fit) {
+        // Auto-fit: normalize so the object fits in a 2-unit cube centered at origin.
+        // User scale is applied on top of the normalization.
+        Vec3 extent = bbox_max - bbox_min;
+        bbox_center = (bbox_min + bbox_max) * 0.5f;
+        float max_extent = std::max({extent.x(), extent.y(), extent.z()});
+        float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
+        final_scale = Vec3(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
+
+        std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
+        std::clog << "[OBJ] Center: (" << bbox_center << ")" << std::endl;
+        std::clog << "[OBJ] Auto-fit scale: " << normalize << ", final scale: (" << final_scale
+                  << ")" << std::endl;
+    } else {
+        std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
+        std::clog << "[OBJ] Auto-fit disabled, using raw scale: (" << final_scale << ")"
+                  << std::endl;
+    }
 
     // Convert OBJ materials -> v2 Material IDs
     // material_id_map[obj_mat_index] = scene material ID
