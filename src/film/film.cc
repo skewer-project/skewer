@@ -22,12 +22,12 @@ Film::Film(int width, int height)
     // deep_pool_.resize(width_ * height_ * 16 * 4);
 }
 
-void Film::AddSample(int x, int y, const Spectrum& L, float weight) {
+void Film::AddSample(int x, int y, const RGB& L, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
 
     Pixel& p = GetPixel(x, y);
 
-    // Thread-safe accumulation (works because Spectrum is just floats)
+    // Thread-safe accumulation (works because RGB is just floats)
     // For true safety, you might want to use atomics or accept some race conditions
     // In practice, the races are benign (slightly wrong accumulated values)
     p.color_sum += L * weight;
@@ -61,7 +61,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weig
         DeepSegmentNode& node = deep_pool_[node_index];
         node.z_front = seg.z_front;
         node.z_back = seg.z_back;
-        node.L = seg.L;
+        node.L = seg.L.ToRGB();
         node.alpha = seg.alpha;
         node.next = prev_head;
         prev_head = node_index;
@@ -208,7 +208,7 @@ void Film::WriteImage(const std::string& filename) const {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
 
-            Spectrum final_color(0, 0, 0);
+            RGB final_color(0, 0, 0);
             if (p.weight_sum > 0) {
                 final_color = p.color_sum / p.weight_sum;
             }
@@ -220,4 +220,5 @@ void Film::WriteImage(const std::string& filename) const {
     // Save to disk
     temp_buffer.WritePPM(filename);
 }
+
 }  // namespace skwr

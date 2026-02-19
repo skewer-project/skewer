@@ -62,7 +62,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                     PathSample result = Li(r, scene, rng, config);
 
                     float weight = 1.0f;
-                    film->AddSample(x, y, result.L, weight);
+                    film->AddSample(x, y, result.L.ToRGB(), weight);
 
                     if (config.enable_deep) film->AddDeepSample(x, y, result, weight);
                 }
