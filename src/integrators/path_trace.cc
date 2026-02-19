@@ -9,12 +9,17 @@
 #include "core/constants.h"
 #include "core/sampling.h"
 #include "core/spectrum.h"
+#include "core/vec3.h"
 #include "film/film.h"
+#include "indicators.h"
+#include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/camera.h"
-#include "scene/material_scatter.h"
+#include "scene/light.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
+
+using namespace indicators;
 
 namespace skwr {
 
@@ -48,60 +53,139 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     std::atomic<int> scanlines_completed(0);
     std::mutex progress_mutex;
 
+    show_console_cursor(false);
+    BlockProgressBar bar{option::BarWidth{80},
+                         option::Start{"["},
+                         option::End{"]"},
+                         option::ShowPercentage{true},
+                         option::ShowElapsedTime{true},
+                         option::ShowRemainingTime{true},
+                         option::MaxProgress{height}};
+
     // Worker function - each thread grabs scanlines dynamically
     auto render_worker = [&]() {
         while (true) {
             int y = next_scanline.fetch_add(1);
             if (y >= height) break;
 
+            // std::clog.flush();
             for (int x = 0; x < width; ++x) {
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
-                    Float u = (Float(x) + rng.UniformFloat()) / width;
-                    Float v = 1.0f - (Float(y) + rng.UniformFloat()) / height;
+                    float u = (float(x) + rng.UniformFloat()) / width;
+                    float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
 
                     Ray r = cam.GetRay(u, v);
                     SurfaceInteraction si;
-                    const Float t_min = kShadowEpsilon;
+                    const float t_min = kShadowEpsilon;
                     Spectrum L(0.0f);     // Accumulated Radiance (color)
                     Spectrum beta(1.0f);  // Throughput (attenuation)
+                    bool specular_bounce = true;
 
                     // "Bounce" loop - iterative not recursive tho
+                    // RN, this is calculating Li: how much Radiance (L) is incoming (i)
+                    // And it does that by multiplying the total light by the amount lost at the end
                     for (int depth = 0; depth < config.max_depth; ++depth) {
                         if (!scene.Intersect(r, t_min, kInfinity, &si)) {
-                            Spectrum sky_color(0.5f, 0.7f, 1.0f);
-                            L += beta * sky_color;
+                            // if we dont hit anything, sky color
+                            // Spectrum sky_color(0.5f, 0.7f, 1.0f);
+                            Spectrum sky_color(0.f, 0.f, 0.f);
+                            L += beta *
+                                 sky_color;  // <-- beta was 1 but by this point, is a fraction
                             break;
                         }
 
                         const Material& mat = scene.GetMaterial(si.material_id);
 
-                        Spectrum attenuation;
-                        Ray scattered_ray;
+                        /* Emission check for if we hit a light */
+                        if (mat.IsEmissive()) {
+                            if (specular_bounce) {
+                                L += beta * mat.emission;
+                            }
+                        }
 
-                        if (Scatter(mat, r, si, rng, attenuation, scattered_ray)) {
-                            beta *= attenuation;
-                            r = scattered_ray;
+                        /* Next Event Estimation */
+                        if (mat.type != MaterialType::Metal &&
+                            mat.type != MaterialType::Dielectric && !scene.Lights().empty()) {
+                            int light_index = int(rng.UniformFloat() * scene.Lights().size());
+                            const AreaLight& light = scene.Lights()[light_index];
+                            LightSample ls = SampleLight(scene, light, rng);
+
+                            // Shadow Ray setup
+                            Vec3 to_light = ls.p - si.p;
+                            float dist_sq = to_light.LengthSquared();
+                            float dist = std::sqrt(dist_sq);
+                            Vec3 wi_light = to_light / dist;
+
+                            Ray shadow_ray(si.p + (wi_light * kShadowEpsilon), wi_light);
+                            SurfaceInteraction shadow_si;  // dummy
+                            if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon,
+                                                 &shadow_si)) {
+                                float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
+                                // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
+                                if (cos_light > 0) {
+                                    float light_pdf_w = ls.pdf * dist_sq / cos_light;
+
+                                    // BSDF Evaluation
+                                    float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n));
+                                    Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n);
+
+                                    // Accumulate
+                                    // Weight = 1.0 / (N_lights * PDF_w)
+                                    // L += beta * f * Le * cos_surf * Weight
+                                    float selection_prob = 1.0f / scene.Lights().size();
+                                    L += beta * f_val * ls.emission * cos_surf /
+                                         (light_pdf_w * selection_prob);
+                                }
+                            }
+                        }
+
+                        /* Indirect bounce case */
+                        Vec3 wi;
+                        float pdf;
+                        Spectrum f;
+
+                        /* BSDF check */
+                        if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
+                            if (pdf > 0) {
+                                float cos_theta = std::abs(Dot(wi, si.n));
+                                Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
+                                beta *= weight;
+                                r = Ray(si.p + (wi * kShadowEpsilon), wi);
+
+                                // If this bounce was sharp (Metal/Glass), next hit counts as
+                                // specular
+                                specular_bounce = (mat.type == MaterialType::Metal ||
+                                                   mat.type == MaterialType::Dielectric);
+                            }
                         } else {
+                            // Absorbed (black body)
                             break;
                         }
 
-                        // Russian Roulette
+                        // Russian Roulette method to kill weak rays early
+                        // is an optimization cause weak rays = weak influence on final
                         if (depth > 3) {
-                            Float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
+                            float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
                             if (rng.UniformFloat() > p) break;
                             beta = beta * (1.0f / p);
                         }
                     }
+                    // Accumulate to Film
+                    // Note: We use AddSample, not SetPixel directly!
                     film->AddSample(x, y, L, 1.0f);
                 }
             }
 
             int done = scanlines_completed.fetch_add(1) + 1;
             std::lock_guard<std::mutex> lock(progress_mutex);
-            std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" << std::flush;
+            bar.tick();
+            // std::clog << "[Session] Scanlines: " << done << " / " << height << "\t\r" <<
+            // std::flush;
         }
     };
+
+    show_console_cursor(true);
 
     // Launch worker threads
     std::vector<std::thread> threads;

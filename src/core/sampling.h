@@ -1,13 +1,14 @@
 #ifndef SKWR_CORE_SAMPLER_H_
 #define SKWR_CORE_SAMPLER_H_
 
+#include "core/constants.h"
 #include "core/rng.h"
 #include "core/vec3.h"
 
 namespace skwr {
 
 // Helper func. Generates random float in [min, max) using explicit RNG
-inline Float RandomFloat(RNG& rng, Float min, Float max) {
+inline float RandomFloat(RNG& rng, float min, float max) {
     return min + (max - min) * rng.UniformFloat();
 }
 
@@ -16,7 +17,7 @@ inline Vec3 RandomVec3(RNG& rng) {
     return Vec3(rng.UniformFloat(), rng.UniformFloat(), rng.UniformFloat());
 }
 
-inline Vec3 RandomVec3(RNG& rng, Float min, Float max) {
+inline Vec3 RandomVec3(RNG& rng, float min, float max) {
     return Vec3(RandomFloat(rng, min, max), RandomFloat(rng, min, max), RandomFloat(rng, min, max));
 }
 
@@ -47,6 +48,22 @@ inline Vec3 RandomInUnitDisk(RNG& rng) {
     }
 }
 
+// Returns a random direction in the Local Frame (Z is up)
+// The probability of picking a direction is proportional to Cosine(theta)
+inline Vec3 RandomCosineDirection(RNG& rng) {
+    float r1 = rng.UniformFloat();
+    float r2 = rng.UniformFloat();
+
+    // Standard mapping from unit square to hemisphere
+    float phi = 2.0f * kPi * r1;
+
+    float x = std::cos(phi) * std::sqrt(r1);  // Sqrt corrects the density
+    float y = std::sin(phi) * std::sqrt(r1);
+    float z = std::sqrt(1.0f - r1);  // This ensures z^2 + r^2 = 1
+
+    return Vec3(x, y, z);
+}
+
 // Fully deterministic per-pixel RNG, thread-order independent
 inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t sample_index) {
     // Get linear pixel ID
@@ -54,12 +71,20 @@ inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t
 
     // Mix pixel ID to generate a unique stream (sequence)
     // Use a simple hash / integer mixing function to avoid correlation
-    uint64_t seq = pixel_id * 0x9E3779B97F4A7C15ULL;  // golden ratio hash
+    uint64_t seq = pixel_id * kGoldenRatio;  // golden ratio hash
 
     // Sample index as the RNG offset
     uint64_t seed = sample_index;
 
     return RNG(seq, seed);
+}
+
+// Power Heuristic for MIS (beta = 2 is standard)
+// Calculates the weight for technique 'f' given the probability of 'f' and 'g'
+inline float PowerHeuristic(float pdf_f, float pdf_g) {
+    float f2 = pdf_f * pdf_f;
+    float g2 = pdf_g * pdf_g;
+    return f2 / (f2 + g2);
 }
 
 }  // namespace skwr

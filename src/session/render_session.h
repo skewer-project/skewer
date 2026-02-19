@@ -31,10 +31,10 @@ class RenderSession {
 
     // SETUP: Build the scene. If obj_file is non-empty, loads it as an object in the scene.
     // obj_scale: per-axis scale applied to the OBJ vertices.
-    void LoadScene(const std::string &obj_file = "", const Vec3 &obj_scale = Vec3(1, 1, 1));
+    void LoadScene(const std::string& obj_file = "", const Vec3& obj_scale = Vec3(1, 1, 1));
 
     // CONFIGURE: Set up the camera, resolution, and sampler
-    void SetOptions(const RenderOptions &options);
+    void SetOptions(const RenderOptions& options);
 
     // EXECUTE: Create the Integrator and tell it to run on the Scene
     void Render();

@@ -11,7 +11,7 @@
 
 namespace skwr {
 
-inline Float Reflectance(Float cosine, Float refraction_ratio) {
+inline float Reflectance(float cosine, float refraction_ratio) {
     // Use Schlick's approximation for reflectance.
     auto r0 = (1 - refraction_ratio) / (1 + refraction_ratio);
     r0 = r0 * r0;
@@ -61,7 +61,7 @@ inline bool Scatter(const Material& mat, const Ray& r_in, const SurfaceInteracti
         case MaterialType::Dielectric: {
             attenuation = Spectrum(1.0f);  // Glass doesnt usually absorb light
 
-            Float refraction_ratio = mat.ior;  // Assume air->glass until ior stack implemented
+            float refraction_ratio = mat.ior;  // Assume air->glass until ior stack implemented
 
             // If dot(ray, normal) < 0, we are outside hitting the front.
             // If dot > 0, we are inside trying to get out.
@@ -72,8 +72,8 @@ inline bool Scatter(const Material& mat, const Ray& r_in, const SurfaceInteracti
             Vec3 unit_direction = Normalize(r_in.direction());
 
             // Total Internal Reflection check
-            Float cos_theta = std::fmin(Dot(-unit_direction, normal), 1.0f);
-            Float sin_theta = std::sqrt(1.0f - cos_theta * cos_theta);
+            float cos_theta = std::fmin(Dot(-unit_direction, normal), 1.0f);
+            float sin_theta = std::sqrt(1.0f - cos_theta * cos_theta);
 
             bool cannot_refract = refraction_ratio * sin_theta > 1.0;
 
