@@ -73,20 +73,27 @@ bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rn
     return true;
 }
 
-bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, float& pdf,
-                 Spectrum& f) {
+bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng,
+                 const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     wi = Reflect(-si.wo, si.n_geom);  // We reflect "incoming view" = -wo
-    if (mat.roughness > 0) {
+
+    // TODO: Microfacet distribution (thanks gemini)
+    // This roughness approach (adding a random sphere vector) is a non-physical hack
+    // It works visually for basic ray tracers, but will lose energy at grazing angles.
+    // The industry standard is to use a Microfacet Distribution (e.g., GGX/Trowbridge-Reitz)
+    if (mat.roughness > 0.0f) {
         wi = Normalize(wi + (mat.roughness * RandomInUnitSphere(rng)));
     }
 
     // Check if valid (above surface)
     float cosine = Dot(wi, si.n_geom);
-    if (cosine <= 0) return false;
+    if (cosine <= 0.0f) return false;
+
+    Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
 
     // Delta Distribution Logic
     pdf = 1.0f;
-    f = mat.albedo / cosine;  // Cancels the cosine in the rendering equation
+    f = albedo / cosine;  // Cancels the cosine in the rendering equation
     return true;
 }
 
