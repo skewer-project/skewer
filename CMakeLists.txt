@@ -40,6 +40,7 @@ set(SOURCES
     src/io/scene_loader.cc
     src/io/image_io.cc
     src/materials/bsdf.cc
+    src/core/spectral/rgb2spec.c
 )
 
 # Create Executable
