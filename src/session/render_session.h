@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "core/vec3.h"
 #include "film/film.h"
 #include "session/render_options.h"
 
