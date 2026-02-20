@@ -5,6 +5,7 @@ namespace skwr {
 
 struct SpectralCurve {
     float coeff[3];
+    float scale = 0.0f;
 };
 
 }  // namespace skwr

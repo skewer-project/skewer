@@ -20,9 +20,7 @@ struct alignas(16) Material {
     // OR: texture reference later
     MaterialType type;
 
-    bool IsEmissive() const {
-        return emission.coeff[0] > 0.0f || emission.coeff[1] > 0.0f || emission.coeff[2] > 0.0f;
-    }
+    bool IsEmissive() const { return emission.scale > 0.0f; }
     bool IsTransparent() const {
         return opacity.coeff[0] < 1.0f || opacity.coeff[1] < 1.0f || opacity.coeff[2] < 1.0f;
     }
