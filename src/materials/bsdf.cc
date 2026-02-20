@@ -3,6 +3,7 @@
 #include "core/constants.h"
 #include "core/onb.h"
 #include "core/sampling.h"
+#include "core/spectral/spectral_utils.h"
 
 namespace skwr {
 
@@ -34,14 +35,16 @@ inline float FrDielectric(float cosThetaI, float etaI, float etaT) {
     return (Rparl * Rparl + Rperp * Rperp) / 2.0f;
 }
 
-Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
-    // Specular materials (Metal, Glass) are Dirac Deltas (infinity) at the right angle, 0 otherwise
-    // so just return Black here because Sample() should handle them
-    if (mat.type != MaterialType::Lambertian) return Spectrum(0.f);
+Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n,
+                  const SampledWavelengths& wl) {
+    if (mat.type != MaterialType::Lambertian) return Spectrum(0.0f);  // specular = Dirac delta
 
     float cosine = Dot(wi, n);
-    if (cosine <= 0) return Spectrum(0.f);  // if light coming from below surface, block it
-    return mat.albedo * (1.0f / kPi);       // Lambertian is constant
+    if (cosine <= 0.0f) return Spectrum(0.f);
+
+    Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
+
+    return albedo * (1.0f / kPi);
 }
 
 float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
