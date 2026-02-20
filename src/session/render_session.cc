@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 
+#include "core/spectral/spectral_utils.h"
 #include "core/vec3.h"
 #include "film/film.h"
 #include "film/image_buffer.h"
@@ -29,7 +30,7 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
     }
 }
 
-RenderSession::RenderSession() {}
+RenderSession::RenderSession() { skwr::InitSpectralModel(); }
 RenderSession::~RenderSession() = default;
 
 /**
