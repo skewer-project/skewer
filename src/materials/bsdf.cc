@@ -100,9 +100,7 @@ bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng,
 // Returns true if a valid bounce occurred, outputs the new direction (wi), pdf, and BSDF (f)
 bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng,
                       const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
-    Vec3 wo = -si.wo;  // View vector
-    float cosThetaI = Dot(wo, si.n_geom);
-    bool entering = cosThetaI > 0.0f;
+    bool entering = si.front_face;
     bool is_dispersive = mat.dispersion > 0.0f;
 
     // Evaluating Cauchy's IOR for all wavelengths
@@ -117,12 +115,17 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
         }
     }
 
+    // Because intersector flips si.n_geom to face the ray, Dot(wo, n_geom) is always positive
+    float absCosI = std::abs(Dot(si.wo, si.n_geom));
+
     // Fresnel reflectance for all wavelengths
     Spectrum F;
     Spectrum etaI(1.0f);  // Assuming air outside
     Spectrum etaT = ior;
     for (int i = 0; i < kNSamples; ++i) {
-        F[i] = FrDielectric(cosThetaI, etaI[i], etaT[i]);
+        // FrDielectric mathematically requires a negative cosine to know it is exiting
+        float cosForFresnel = entering ? absCosI : -absCosI;
+        F[i] = FrDielectric(cosForFresnel, etaI[i], etaT[i]);
     }
 
     // Probability of reflect/refract based on the Hero Wavelength's Fresnel value
@@ -133,7 +136,7 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
     if (rng.UniformFloat() < pr) {
         // Reflection
         // Geometry is same for all wavelengths (Angle In = Angle Out) so we dont kill
-        wi = Reflect(wo, si.n_geom);
+        wi = Reflect(-si.wo, si.n_geom);
         pdf = pr;
 
         // Return BSDF: F / cosTheta (Cosine will be cancelled out in the integrator)
@@ -149,15 +152,13 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
         float eta_hero = eta_hero_I / eta_hero_T;
 
         // Calculate Snell's law direction using the Hero IOR
-        Vec3 n = entering ? si.n_geom : -si.n_geom;
-        float cosI = std::abs(cosThetaI);
-        float sin2I = std::max(0.0f, 1.0f - cosI * cosI);
+        float sin2I = std::max(0.0f, 1.0f - absCosI * absCosI);
         float sin2T = eta_hero * eta_hero * sin2I;
 
         if (sin2T >= 1.0f) return false;  // Total Internal Reflection catch-all
         float cosT = std::sqrt(1.0f - sin2T);
 
-        wi = eta_hero * (-wo) + (eta_hero * cosI - cosT) * n;
+        wi = -eta_hero * si.wo + (eta_hero * absCosI - cosT) * si.n_geom;
         pdf = pt;
         float absCos = std::abs(Dot(wi, si.n_geom));
 
