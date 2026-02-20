@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 
+#include "core/color.h"
 #include "core/constants.h"
 #include "core/ray.h"
 #include "core/rng.h"
@@ -18,8 +19,8 @@
 
 namespace skwr {
 
-inline void AddSegment(PathSample& sample, const float& t_min, const float& t_max,
-                       const Spectrum& L, const float& alpha) {
+inline void AddSegment(PathSample& sample, const float& t_min, const float& t_max, const RGB& L,
+                       const float& alpha) {
     sample.segments.push_back({t_min, t_max, L, alpha});
 }
 
@@ -188,14 +189,15 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         }
     }
 
+    RGB final_rgb = SpectrumToRGB(L, wl);
     if (valid_deep_hit) {
         Vec3 to_hit = deep_hit_point - deep_origin;
         float z_depth = Dot(to_hit, config.cam_w);
         // Ensure we don't get negative depth behind camera
         if (z_depth < 0.0f) z_depth = 0.0f;
-        AddSegment(result, z_depth, z_depth + kShadowEpsilon, L, deep_hit_alpha);
+        AddSegment(result, z_depth, z_depth + kShadowEpsilon, final_rgb, deep_hit_alpha);
     } else {
-        AddSegment(result, kFarClip, kFarClip + 1000.0f, L, deep_hit_alpha);
+        AddSegment(result, kFarClip, kFarClip + 1000.0f, final_rgb, deep_hit_alpha);
     }
     result.L = L;
     return result;
