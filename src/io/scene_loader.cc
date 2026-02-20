@@ -9,7 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "core/spectrum.h"
+#include "core/spectral/spectral_curve.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/transform.h"
 #include "core/vec3.h"
 #include "geometry/sphere.h"
@@ -34,11 +35,11 @@ static Vec3 ParseVec3(const json& j) {
     return Vec3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
 }
 
-static Spectrum ParseSpectrum(const json& j) {
+static RGB ParseRGB(const json& j) {
     if (!j.is_array() || j.size() != 3) {
         throw std::runtime_error("Expected array of 3 numbers for Spectrum");
     }
-    return Spectrum(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
+    return RGB(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
 }
 
 template <typename T>
@@ -56,10 +57,9 @@ static Vec3 GetVec3Or(const json& j, const std::string& key, const Vec3& default
     return default_value;
 }
 
-static Spectrum GetSpectrumOr(const json& j, const std::string& key,
-                              const Spectrum& default_value) {
+static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_value) {
     if (j.contains(key)) {
-        return ParseSpectrum(j[key]);
+        return ParseRGB(j[key]);
     }
     return default_value;
 }
@@ -87,14 +87,14 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene) {
 
         if (type == "lambertian") {
             mat.type = MaterialType::Lambertian;
-            mat.albedo = GetSpectrumOr(m, "albedo", Spectrum(1.0f));
+            mat.albedo = RGBToCurve(GetRGBOr(m, "albedo", RGB(1.0f)));
         } else if (type == "metal") {
             mat.type = MaterialType::Metal;
-            mat.albedo = GetSpectrumOr(m, "albedo", Spectrum(1.0f));
+            mat.albedo = RGBToCurve(GetRGBOr(m, "albedo", RGB(1.0f)));
             mat.roughness = GetOr(m, "roughness", 0.0f);
         } else if (type == "dielectric") {
             mat.type = MaterialType::Dielectric;
-            mat.albedo = GetSpectrumOr(m, "albedo", Spectrum(1.0f));
+            mat.albedo = RGBToCurve(GetRGBOr(m, "albedo", RGB(1.0f)));
             mat.ior = m.at("ior").get<float>();
             mat.roughness = GetOr(m, "roughness", 0.0f);
         } else {
@@ -103,8 +103,8 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene) {
         }
 
         // Optional emission and opacity (apply to any material type)
-        mat.emission = GetSpectrumOr(m, "emission", Spectrum(0.0f));
-        mat.opacity = GetSpectrumOr(m, "opacity", Spectrum(1.0f));
+        mat.emission = RGBToCurve(GetRGBOr(m, "emission", RGB(0.0f)));
+        mat.opacity = RGBToCurve(GetRGBOr(m, "opacity", RGB(1.0f)));
 
         uint32_t id = scene.AddMaterial(mat);
         mat_map[name] = id;
