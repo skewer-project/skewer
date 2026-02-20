@@ -19,8 +19,8 @@ struct alignas(16) Material {
     // OR: texture reference later
     MaterialType type;
 
-    bool IsEmissive() const { return emission.MaxComponent() > 0.0f; }
-    bool IsTransparent() const { return opacity.MinComponent() < 1.0f; }
+    bool IsEmissive() const { return emission.MaxComponentValue() > 0.0f; }
+    bool IsTransparent() const { return opacity.MinComponentValue() < 1.0f; }
 };
 
 }  // namespace skwr

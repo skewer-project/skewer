@@ -1,7 +1,6 @@
 #ifndef SKWR_KERNELS_PATH_KERNEL_H_
 #define SKWR_KERNELS_PATH_KERNEL_H_
 
-#include <algorithm>
 #include <cstdlib>
 
 #include "core/constants.h"
@@ -176,7 +175,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         // Russian Roulette method to kill weak rays early
         // is an optimization cause weak rays = weak influence on final
         if (depth > 3) {
-            float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
+            float p = beta.MaxComponentValue();
             if (rng.UniformFloat() > p) break;
             beta = beta * (1.0f / p);
         }
