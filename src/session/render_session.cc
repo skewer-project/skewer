@@ -1,6 +1,5 @@
 #include "session/render_session.h"
 
-#include <cstdint>
 #include <iostream>
 #include <memory>
 
