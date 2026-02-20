@@ -2,6 +2,7 @@
 #define SKWR_CORE_SPECTRAL_SPECTRUM_H_
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 #include "core/cpu_config.h"
