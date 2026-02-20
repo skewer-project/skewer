@@ -33,19 +33,39 @@ inline SpectralCurve RGBToCurve(const RGB& color) {
     if (!g_rgb2spec_model) return SpectralCurve();
 
     RGB linear = ToLinear(color);
+
+    // Find the maximum component
+    float m = std::max({linear.r(), linear.g(), linear.b()});
+
+    // Fast path for pure black (no emission)
+    if (m <= 0.0f) {
+        return SpectralCurve{{0.0f, 0.0f, 0.0f}, 0.0f};
+    }
+
+    // Extract intensity if it exceeds 1.0
+    float scale = 1.0f;
+    if (m > 1.0f) {
+        scale = m;
+        linear /= scale;
+    }
+
     float rgb_array[3] = {std::max(0.0f, std::min(1.0f, linear.r())),
                           std::max(0.0f, std::min(1.0f, linear.g())),
                           std::max(0.0f, std::min(1.0f, linear.b()))};
 
     SpectralCurve curve;
+    curve.scale = scale;  // Store the multiplier!
     rgb2spec_fetch(g_rgb2spec_model, rgb_array, curve.coeff);
+
     return curve;
 }
 
 inline Spectrum CurveToSpectrum(const SpectralCurve& curve, const SampledWavelengths& wl) {
-    Spectrum result;
+    Spectrum result(0.0f);
+    if (curve.scale <= 0.0f) return result;
     for (int i = 0; i < kNSamples; ++i) {
-        result[i] = rgb2spec_eval_precise(const_cast<float*>(curve.coeff), wl.lambda[i]);
+        result[i] =
+            rgb2spec_eval_precise(const_cast<float*>(curve.coeff), wl.lambda[i]) * curve.scale;
     }
     return result;
 }
