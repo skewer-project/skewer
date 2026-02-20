@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include "core/color.h"
 #include "core/cpu_config.h"
 
 namespace skwr {
@@ -38,8 +37,6 @@ struct SpectralPacket {
             if (std::isnan(values[i])) return true;
         return false;
     }
-
-    RGB ToRGB() const;
 
     SpectralPacket& operator+=(const SpectralPacket& s) {
         for (int i = 0; i < NSamples; ++i) values[i] += s.values[i];
