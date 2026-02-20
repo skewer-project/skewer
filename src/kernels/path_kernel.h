@@ -44,7 +44,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
     // Deep Info
     bool valid_deep_hit = false;
-    Point3 deep_hit_point = r.at(1e10f);
+    Point3 deep_hit_point = r.at(kFarClip);
     Vec3 deep_origin = r.origin();
     float deep_hit_alpha = 1.0f;  // default solid
 
@@ -85,6 +85,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         if (mat.IsEmissive()) {
             if (specular_bounce) {
                 L += beta * emission;
+                valid_deep_hit = true;
             }
         }
 
@@ -125,7 +126,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
                     // BSDF Evaluation
                     float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n_geom));
-                    Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n_geom);
+                    Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n_geom, wl);
 
                     // Accumulate
                     // Weight = 1.0 / (N_lights * PDF_w)
@@ -146,7 +147,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         Spectrum f;
 
         /* BSDF check */
-        if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
+        if (SampleBSDF(mat, r, si, rng, wl, wi, pdf, f)) {
             if (pdf > 0) {
                 float refract = Dot(wi, si.n_geom);
 
@@ -194,7 +195,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         if (z_depth < 0.0f) z_depth = 0.0f;
         AddSegment(result, z_depth, z_depth + kShadowEpsilon, L, deep_hit_alpha);
     } else {
-        AddSegment(result, kFarClip, kFarClip + kShadowEpsilon, L, deep_hit_alpha);
+        AddSegment(result, kFarClip, kFarClip + 1000.0f, L, deep_hit_alpha);
     }
     result.L = L;
     return result;
