@@ -6,6 +6,7 @@
 #include "core/constants.h"
 #include "core/ray.h"
 #include "core/rng.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "integrators/path_sample.h"
@@ -33,7 +34,8 @@ inline void AddSegment(PathSample& sample, const float& t_min, const float& t_ma
  * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
  * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
  */
-inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config) {
+inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
+                     const SampledWavelengths& wl) {
     PathSample result;
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
@@ -63,6 +65,10 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
         const Material& mat = scene.GetMaterial(si.material_id);
 
+        Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
+        Spectrum opacity = CurveToSpectrum(mat.opacity, wl);
+        Spectrum emission = CurveToSpectrum(mat.emission, wl);
+
         // Record if it's the first deep hit
         if (!valid_deep_hit) {
             // For simplicity, just have all hits update the depth
@@ -73,13 +79,12 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         }
 
         // Calculate surface opacity (alpha for this segment)
-        Spectrum opacity = mat.opacity;
         float alpha = mat.IsTransparent() ? opacity.Average() : 1.0f;
 
         /* Emission check for if we hit a light */
         if (mat.IsEmissive()) {
             if (specular_bounce) {
-                L += beta * mat.emission;
+                L += beta * emission;
             }
         }
 
@@ -126,8 +131,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     // Weight = 1.0 / (N_lights * PDF_w)
                     // L += beta * f * Le * cos_surf * Weight
                     float selection_prob = 1.0f / scene.Lights().size();
+                    Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
                     Spectrum direct_L =
-                        beta * f_val * ls.emission * cos_surf / (light_pdf_w * selection_prob);
+                        beta * f_val * light_spec * cos_surf / (light_pdf_w * selection_prob);
                     direct_L *= opacity;
                     L += direct_L;
                 }
