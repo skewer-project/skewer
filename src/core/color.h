@@ -79,6 +79,13 @@ inline RGB operator*(const RGB& c, float t) { return t * c; }
 
 inline RGB operator/(const RGB& c, float t) { return c * (1.0 / t); }
 
+inline float ToLinear(float x) {
+    if (x <= 0.04045f) return x / 12.92f;
+    return std::pow((x + 0.055f) / 1.055f, 2.4f);
+}
+
+inline RGB ToLinear(const RGB& c) { return RGB(ToLinear(c.r()), ToLinear(c.g()), ToLinear(c.b())); }
+
 }  // namespace skwr
 
 #endif  // SKWR_CORE_COLOR_H_
