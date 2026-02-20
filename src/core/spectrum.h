@@ -1,9 +1,11 @@
 #ifndef SKWR_CORE_SPECTRAL_SPECTRUM_H_
 #define SKWR_CORE_SPECTRAL_SPECTRUM_H_
 
+#include <algorithm>
 #include <cmath>
 
 #include "core/color.h"
+#include "core/cpu_config.h"
 
 namespace skwr {
 
@@ -135,7 +137,6 @@ struct WavelengthPacket {
     std::array<float, N> pdf;
 };
 
-constexpr int kNSamples = 4;  // TODO: Move to cpu_config.h file?
 using Spectrum = SpectralPacket<kNSamples>;
 using SampledWavelengths = WavelengthPacket<kNSamples>;
 
