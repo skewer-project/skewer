@@ -48,11 +48,11 @@ Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec
 }
 
 float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
-    if (mat.type != MaterialType::Lambertian) return 0.f;
+    if (mat.type != MaterialType::Lambertian) return 0.0f;
 
     float cosine = Dot(wi, n);
-    if (cosine <= 0) return 0.f;
-    return cosine * (1.0f / kPi);  // Cos-weighted sampling
+    if (cosine <= 0.0) return 0.f;
+    return cosine * (1.0f / kPi);  // Cos-weighted hemisphere sampling
 }
 
 bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
