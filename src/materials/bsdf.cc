@@ -98,10 +98,9 @@ bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng,
 }
 
 // Returns true if a valid bounce occurred, outputs the new direction (wi), pdf, and BSDF (f)
-inline bool SampleDielectric(const Material& mat, const Ray& r_in, const SurfaceInteraction& si,
-                             RNG& rng, const SampledWavelengths& wl, Vec3& wi_out, float& pdf_out,
-                             Spectrum& f_out) {
-    Vec3 wo = -r_in.direction();  // View vector
+bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng,
+                      const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+    Vec3 wo = -si.wo;  // View vector
     float cosThetaI = Dot(wo, si.n_geom);
     bool entering = cosThetaI > 0.0f;
     bool is_dispersive = mat.dispersion > 0.0f;
@@ -132,21 +131,19 @@ inline bool SampleDielectric(const Material& mat, const Ray& r_in, const Surface
     float pt = 1.0f - F_hero;  // Probability to refract
 
     if (rng.UniformFloat() < pr) {
-        // ---- REFLECTION ----
-        // Reflection geometry is identical for all wavelengths (Angle In = Angle Out).
-        // Therefore, we DO NOT terminate companion wavelengths.
-        wi_out = Reflect(wo, si.n_geom);
-        pdf_out = pr;
+        // Reflection
+        // Geometry is same for all wavelengths (Angle In = Angle Out) so we dont kill
+        wi = Reflect(wo, si.n_geom);
+        pdf = pr;
 
         // Return BSDF: F / cosTheta (Cosine will be cancelled out in the integrator)
-        float absCos = std::abs(Dot(wi_out, si.n_geom));
+        float absCos = std::abs(Dot(wi, si.n_geom));
         for (int i = 0; i < kNSamples; ++i) {
-            f_out[i] = F[i] / absCos;
+            f[i] = F[i] / absCos;
         }
         return true;
-
     } else {
-        // ---- REFRACTION ----
+        // Refraction
         float eta_hero_I = entering ? 1.0f : ior[0];
         float eta_hero_T = entering ? ior[0] : 1.0f;
         float eta_hero = eta_hero_I / eta_hero_T;
@@ -160,21 +157,21 @@ inline bool SampleDielectric(const Material& mat, const Ray& r_in, const Surface
         if (sin2T >= 1.0f) return false;  // Total Internal Reflection catch-all
         float cosT = std::sqrt(1.0f - sin2T);
 
-        wi_out = eta_hero * (-wo) + (eta_hero * cosI - cosT) * n;
-        pdf_out = pt;
+        wi = eta_hero * (-wo) + (eta_hero * cosI - cosT) * n;
+        pdf = pt;
+        float absCos = std::abs(Dot(wi, si.n_geom));
 
-        float absCos = std::abs(Dot(wi_out, si.n_geom));
-        f_out = Spectrum(0.0f);  // Initialize all to black
+        f = Spectrum(0.0f);  // Initialize all to black
 
         if (is_dispersive) {
-            // HERO TERMINATION RULE:
+            // Hero Termination Rule
             // Because the material bends wavelengths differently, the companions
             // would have missed this path. Leaving them at 0.0f removes variance
-            f_out[0] = (1.0f - F[0]) / absCos;
+            f[0] = (1.0f - F[0]) / absCos;  // kill em all
         } else {
-            // Constant IOR: All wavelengths follow this exact path. Keep them all.
+            // Constant IOR: All wavelengths follow this exact path. Spare them
             for (int i = 0; i < kNSamples; ++i) {
-                f_out[i] = (1.0f - F[i]) / absCos;
+                f[i] = (1.0f - F[i]) / absCos;
             }
         }
         return true;
@@ -182,16 +179,16 @@ inline bool SampleDielectric(const Material& mat, const Ray& r_in, const Surface
 }
 
 bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                Vec3& wi, float& pdf, Spectrum& f) {
+                const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     switch (mat.type) {
         case MaterialType::Lambertian:
-            return SampleLambertian(mat, si, rng, wi, pdf, f);
+            return SampleLambertian(mat, si, rng, wl, wi, pdf, f);
 
         case MaterialType::Metal:
-            return SampleMetal(mat, si, rng, wi, pdf, f);
+            return SampleMetal(mat, si, rng, wl, wi, pdf, f);
 
         case MaterialType::Dielectric:
-            return SampleDielectric(mat, si, rng, wi, pdf, f);  // Implement similarly
+            return SampleDielectric(mat, si, rng, wl, wi, pdf, f);  // Implement similarly
     }
     return false;
 }
