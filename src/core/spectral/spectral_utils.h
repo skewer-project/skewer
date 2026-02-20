@@ -50,6 +50,55 @@ inline Spectrum CurveToSpectrum(const SpectralCurve& curve, const SampledWavelen
     return result;
 }
 
+// TODO: Refactor with tabulated data. This is only a temporary approximation
+// Wyman approximation
+inline float CIE_X(float lambda) {
+    float x1 = (lambda - 442.0f) * ((lambda < 442.0f) ? 0.0624f : 0.0374f);
+    float x2 = (lambda - 599.8f) * ((lambda < 599.8f) ? 0.0264f : 0.0323f);
+    float x3 = (lambda - 501.1f) * ((lambda < 501.1f) ? 0.0490f : 0.0382f);
+    return 0.362f * std::exp(-0.5f * x1 * x1) + 1.056f * std::exp(-0.5f * x2 * x2) -
+           0.065f * std::exp(-0.5f * x3 * x3);
+}
+
+inline float CIE_Y(float lambda) {
+    float y1 = (lambda - 568.8f) * ((lambda < 568.8f) ? 0.0213f : 0.0247f);
+    float y2 = (lambda - 530.9f) * ((lambda < 530.9f) ? 0.0613f : 0.0322f);
+    return 0.821f * std::exp(-0.5f * y1 * y1) + 0.286f * std::exp(-0.5f * y2 * y2);
+}
+
+inline float CIE_Z(float lambda) {
+    float z1 = (lambda - 437.0f) * ((lambda < 437.0f) ? 0.0845f : 0.0278f);
+    float z2 = (lambda - 459.0f) * ((lambda < 459.0f) ? 0.0385f : 0.0725f);
+    return 1.217f * std::exp(-0.5f * z1 * z1) + 0.681f * std::exp(-0.5f * z2 * z2);
+}
+
+// TODO: Refactor to RGB file, preferably alongside the spectrum architecture refactor
+inline RGB SpectrumToRGB(const Spectrum& spec, const SampledWavelengths& wl) {
+    float X = 0.0f, Y = 0.0f, Z = 0.0f;
+
+    // Monte Carlo Estimator: Integrate spectrum against the eye's XYZ response
+    for (int i = 0; i < kNSamples; ++i) {
+        float weight = 1.0f / (wl.pdf[i] * kNSamples);
+        X += spec[i] * CIE_X(wl.lambda[i]) * weight;
+        Y += spec[i] * CIE_Y(wl.lambda[i]) * weight;
+        Z += spec[i] * CIE_Z(wl.lambda[i]) * weight;
+    }
+
+    // Normalize by the integral of the CIE Y curve (~106.8568)
+    // Makes sure a pure white material (1.0 across the spectrum) stays 1.0 in RGB
+    const float kCIE_Y_Integral = 106.8568f;
+    X /= kCIE_Y_Integral;
+    Y /= kCIE_Y_Integral;
+    Z /= kCIE_Y_Integral;
+
+    // Standard CIE XYZ to Linear sRGB Matrix
+    float r = 3.2404542f * X - 1.5371385f * Y - 0.4985314f * Z;
+    float g = -0.9692660f * X + 1.8760108f * Y + 0.0415560f * Z;
+    float b = 0.0556434f * X - 0.2040259f * Y + 1.0572252f * Z;
+
+    return RGB(r, g, b);
+}
+
 }  // namespace skwr
 
 #endif  // SKWR_CORE_SPECTRAL_SPECTRAL_UTILS_H_
