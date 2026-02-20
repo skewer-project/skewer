@@ -43,7 +43,6 @@ struct RGB {
     }
 
     RGB LinearToSRGB(const RGB&);
-    RGB ToneMap(const RGB&);
     float Luminance() const {
         // Rec.709
         return 0.2126f * c[0] + 0.7152f * c[1] + 0.0722f * c[2];
@@ -93,6 +92,25 @@ inline float ToLinear(float x) {
 }
 
 inline RGB ToLinear(const RGB& c) { return RGB(ToLinear(c.r()), ToLinear(c.g()), ToLinear(c.b())); }
+
+inline RGB Tonemap(const RGB& c) {
+    // Clamp negatives (Crucial to prevent spectral shadow fireflies)
+    float r = std::max(0.0f, c.r());
+    float g = std::max(0.0f, c.g());
+    float b = std::max(0.0f, c.b());
+
+    // Reinhard Tonemap to gracefully compress HDR values (e.g. 4.0) into [0, 1]
+    r = r / (1.0f + r);
+    g = g / (1.0f + g);
+    b = b / (1.0f + b);
+
+    // sRGB Gamma Correction
+    r = std::pow(r, 1.0f / 2.2f);
+    g = std::pow(g, 1.0f / 2.2f);
+    b = std::pow(b, 1.0f / 2.2f);
+
+    return RGB(r, g, b);
+}
 
 }  // namespace skwr
 

@@ -32,15 +32,16 @@ void ImageBuffer::WritePPM(const std::string& filename) const {
 
     for (const auto& pixel : pixels_) {
         RGB color = pixel;
-        auto lineartogamma = [](float x) { return (x > 0) ? std::sqrt(x) : 0; };
-        color[0] = lineartogamma(color[0]);
-        color[1] = lineartogamma(color[1]);
-        color[2] = lineartogamma(color[2]);
-        color.Clamp(0.0f, 1.0f);
+        // auto lineartogamma = [](float x) { return (x > 0) ? std::sqrt(x) : 0; };
+        // color[0] = lineartogamma(color[0]);
+        // color[1] = lineartogamma(color[1]);
+        // color[2] = lineartogamma(color[2]);
+        // color.Clamp(0.0f, 1.0f);
+        RGB final_color = Tonemap(color);
         // Convert float (0.0-1.0) to int (0-255)
-        int ir = static_cast<int>(255.999 * color.r());
-        int ig = static_cast<int>(255.999 * color.g());
-        int ib = static_cast<int>(255.999 * color.b());
+        int ir = static_cast<int>(255.999 * final_color.r());
+        int ig = static_cast<int>(255.999 * final_color.g());
+        int ib = static_cast<int>(255.999 * final_color.b());
 
         out << ir << " " << ig << " " << ib << "\n";
     }
