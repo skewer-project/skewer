@@ -55,8 +55,8 @@ float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n)
     return cosine * (1.0f / kPi);  // Cos-weighted hemisphere sampling
 }
 
-bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      float& pdf, Spectrum& f) {
+bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng,
+                      const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     ONB uvw;
     uvw.BuildFromW(si.n_geom);
 
@@ -65,8 +65,11 @@ bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rn
 
     // Explicit PDF and Eval
     float cosine = std::fmax(0.0f, Dot(wi, si.n_geom));
+    if (cosine <= 0.0f) return false;
+
+    Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
     pdf = cosine / kPi;
-    f = mat.albedo * (1.0f / kPi);
+    f = albedo * (1.0f / kPi);
     return true;
 }
 
