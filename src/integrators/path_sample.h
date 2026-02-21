@@ -18,6 +18,9 @@ struct DeepSegment {
 struct PathSample {
     Spectrum L;  // "Flat" beauty pass
     std::vector<DeepSegment> segments;
+
+    // TODO: consider boost::small_vector or some optimization for stack vs heap alloc tradeoffs
+    explicit PathSample(size_t reserveCount = 16) { segments.reserve(reserveCount); }
 };
 
 }  // namespace skwr
