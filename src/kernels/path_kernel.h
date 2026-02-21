@@ -67,8 +67,21 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         const Material& mat = scene.GetMaterial(si.material_id);
 
         Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
-        Spectrum opacity = CurveToSpectrum(mat.opacity, wl);
-        Spectrum emission = CurveToSpectrum(mat.emission, wl);
+        // Lazy Evaluation
+        Spectrum opacity(1.0f);
+        float alpha = 1.0f;
+        if (mat.IsTransparent()) {
+            opacity = CurveToSpectrum(mat.opacity, wl);
+            alpha = opacity.Average();
+        }
+        Spectrum emission(0.0f);
+        if (mat.IsEmissive()) {
+            emission = CurveToSpectrum(mat.emission, wl);
+            if (specular_bounce) {
+                L += beta * emission;
+                valid_deep_hit = true;
+            }
+        }
 
         // Record if it's the first deep hit
         if (!valid_deep_hit) {
@@ -77,17 +90,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             deep_hit_point = si.point;
             // For volumetrics, we RAY MARCH here from r.origin to si.point
             // and AddSegment() continuously.
-        }
-
-        // Calculate surface opacity (alpha for this segment)
-        float alpha = mat.IsTransparent() ? opacity.Average() : 1.0f;
-
-        /* Emission check for if we hit a light */
-        if (mat.IsEmissive()) {
-            if (specular_bounce) {
-                L += beta * emission;
-                valid_deep_hit = true;
-            }
         }
 
         // /* Handle transparency - straight-through transmission */
