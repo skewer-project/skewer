@@ -44,7 +44,7 @@ Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec
 
     Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
 
-    return albedo * (1.0f / kPi);
+    return albedo * kInvPi;
 }
 
 float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
@@ -52,7 +52,7 @@ float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n
 
     float cosine = Dot(wi, n);
     if (cosine <= 0.0) return 0.f;
-    return cosine * (1.0f / kPi);  // Cos-weighted hemisphere sampling
+    return cosine * kInvPi;  // Cos-weighted hemisphere sampling
 }
 
 bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng,
@@ -69,7 +69,7 @@ bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rn
 
     Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
     pdf = cosine / kPi;
-    f = albedo * (1.0f / kPi);
+    f = albedo * kInvPi;
     return true;
 }
 
