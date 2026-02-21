@@ -75,6 +75,7 @@ void Scene::Build() {
             lights_.push_back(light);
         }
     }
+    inv_light_count_ = 1.0f / lights_.size();
 }
 
 bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {
