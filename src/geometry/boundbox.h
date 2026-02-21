@@ -67,21 +67,25 @@ class BoundBox {
         const Vec3& inv_d = r.inv_direction();
         const Point3& orig = r.origin();
 
-        for (int a = 0; a < 3; a++) {
-            float t0 = (min_[a] - orig[a]) * inv_d[a];
-            float t1 = (max_[a] - orig[a]) * inv_d[a];
+        // X Axis
+        float t0 = (min_.x() - orig.x()) * inv_d.x();
+        float t1 = (max_.x() - orig.x()) * inv_d.x();
+        t_min = std::max(t_min, std::min(t0, t1));
+        t_max = std::min(t_max, std::max(t0, t1));
 
-            // If the ray is coming from the negative direction, swap t0/t1
-            if (inv_d[a] < 0.0f) std::swap(t0, t1);
+        // Y Ayis
+        t0 = (min_.y() - orig.y()) * inv_d.y();
+        t1 = (max_.y() - orig.y()) * inv_d.y();
+        t_min = std::max(t_min, std::min(t0, t1));
+        t_max = std::min(t_max, std::max(t0, t1));
 
-            // Narrow the search window
-            t_min = t0 > t_min ? t0 : t_min;
-            t_max = t1 < t_max ? t1 : t_max;
+        // Z Axis
+        t0 = (min_.z() - orig.z()) * inv_d.z();
+        t1 = (max_.z() - orig.z()) * inv_d.z();
+        t_min = std::max(t_min, std::min(t0, t1));
+        t_max = std::min(t_max, std::max(t0, t1));
 
-            // If the window closes, we missed the box
-            if (t_max <= t_min) return false;
-        }
-        return true;
+        return t_max > t_min;
     }
 
     // 0 thickness error fix
