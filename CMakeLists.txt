@@ -18,7 +18,7 @@ cmake_policy(SET CMP0135 NEW)
 
 # Compiler Optimizations
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options(-O3 -march=native -ffast-math)
+    add_compile_options(-O3 -flto -ffast-math -mcpu=native)
     # Optional: -flto (Link Time Optimization) for even more speed but slower build
 endif()
 
@@ -71,4 +71,7 @@ target_link_libraries(skewer-render
     Imath::Imath
     OpenEXR::OpenEXR
     ZLIB::ZLIB
+)
+target_link_options(skewer-render PRIVATE
+    -flto
 )
