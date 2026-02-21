@@ -47,7 +47,7 @@ Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec
     return albedo * (1.0f / kPi);
 }
 
-float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3 n) {
+float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
     if (mat.type != MaterialType::Lambertian) return 0.0f;
 
     float cosine = Dot(wi, n);
