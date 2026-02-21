@@ -134,10 +134,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     // Accumulate
                     // Weight = 1.0 / (N_lights * PDF_w)
                     // L += beta * f * Le * cos_surf * Weight
-                    float selection_prob = 1.0f / scene.Lights().size();
                     Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
                     Spectrum direct_L =
-                        beta * f_val * light_spec * cos_surf / (light_pdf_w * selection_prob);
+                        beta * f_val * light_spec * cos_surf * scene.InvLightCount() / light_pdf_w;
                     direct_L *= opacity;
                     L += direct_L;
                 }
