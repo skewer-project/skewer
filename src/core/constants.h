@@ -8,6 +8,7 @@ namespace skwr {
 
 constexpr float kInfinity = std::numeric_limits<float>::infinity();
 constexpr float kPi = 3.1415926535897932385f;
+constexpr float kInvPi = 0.31830988618379067154f;
 constexpr uint64_t kGoldenRatio = 0x9E3779B97F4A7C15ULL;
 
 // std::numeric_limits::epsilon() is the gap between 1.0 and the next value.
