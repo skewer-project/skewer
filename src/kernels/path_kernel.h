@@ -182,10 +182,11 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             break;
         }
 
-        // Russian Roulette method to kill weak rays early
-        // is an optimization cause weak rays = weak influence on final
+        // Russian Roulette
         if (depth > 3) {
-            float p = beta.MaxComponentValue();
+            float max_beta = beta.MaxComponentValue();
+            if (max_beta < 0.001f) break;
+            float p = std::min(0.95f, max_beta);
             if (rng.UniformFloat() > p) break;
             beta = beta * (1.0f / p);
         }
