@@ -10,7 +10,7 @@
 namespace skwr {
 
 template <int NSamples>
-struct SpectralPacket {
+struct alignas(16) SpectralPacket {
     static_assert(NSamples > 0);
 
   public:
