@@ -56,20 +56,23 @@ void Scene::Build() {
             }
 
             triangles_.push_back(t);
-
-            if (mat.IsEmissive()) {
-                AreaLight light;
-                light.type = AreaLight::Triangle;
-                light.primitive_index = (uint32_t)triangles_.size() - 1;
-                light.emission = mat.emission;
-                lights_.push_back(light);
-            }
         }
     }
 
     if (!triangles_.empty()) {
         std::cout << "Building BVH for " << triangles_.size() << " triangles...\n";
         bvh_.Build(triangles_);
+    }
+
+    for (uint32_t i = 0; i < (uint32_t)triangles_.size(); ++i) {
+        const Material& mat = materials_[triangles_[i].material_id];
+        if (mat.IsEmissive()) {
+            AreaLight light;
+            light.type = AreaLight::Triangle;
+            light.primitive_index = i;
+            light.emission = mat.emission;
+            lights_.push_back(light);
+        }
     }
 }
 
