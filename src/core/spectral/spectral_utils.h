@@ -64,8 +64,7 @@ inline Spectrum CurveToSpectrum(const SpectralCurve& curve, const SampledWavelen
     Spectrum result(0.0f);
     if (curve.scale <= 0.0f) return result;
     for (int i = 0; i < kNSamples; ++i) {
-        result[i] =
-            rgb2spec_eval_precise(const_cast<float*>(curve.coeff), wl.lambda[i]) * curve.scale;
+        result[i] = rgb2spec_eval_fast(const_cast<float*>(curve.coeff), wl.lambda[i]) * curve.scale;
     }
     return result;
 }
