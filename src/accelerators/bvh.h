@@ -26,6 +26,13 @@ struct alignas(32) BVHNode {
     uint32_t tri_count;
 };
 
+// Precomputed build info
+struct BVHPrimitiveInfo {
+    BoundBox bounds;
+    Point3 centroid;
+    uint32_t original_index;
+};
+
 class BVH {
   public:
     // Build the tree and REORDER the triangles vector for cache locality
@@ -40,7 +47,7 @@ class BVH {
 
     // Recursive helper
     void Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
-                   std::vector<Triangle>& triangles, const std::vector<Mesh>& meshes);
+                   std::vector<BVHPrimitiveInfo>& primitive_info);
 };
 
 }  // namespace skwr

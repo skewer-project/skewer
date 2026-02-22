@@ -4,16 +4,15 @@
 #include <iostream>
 #include <memory>
 
-#include "core/spectrum.h"
 #include "core/vec3.h"
 #include "film/film.h"
-#include "geometry/sphere.h"
+#include "film/image_buffer.h"
 #include "integrators/integrator.h"
 #include "integrators/normals.h"
 #include "integrators/path_trace.h"
-#include "materials/material.h"
+#include "io/image_io.h"
+#include "io/scene_loader.h"
 #include "scene/camera.h"
-#include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
 
@@ -31,86 +30,46 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
     }
 }
 
-// Initialize pointers to nullptr or default states
-// Pointers default to nullptr implicitly, but explicit is fine
 RenderSession::RenderSession() {}
-RenderSession::~RenderSession() = default;  // Unique_ptr handles cleanup automatically
+RenderSession::~RenderSession() = default;
 
 /**
- * Loads file into scene format
+ * Load a scene from a JSON config file.
+ * Sets up everything: scene geometry, materials, camera, film, and integrator.
  */
-void RenderSession::LoadScene(const std::string &filename) {
-    std::cout << "[Session] Loading Scene: " << filename << " (STUB)\n";
+void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_override) {
+    std::cout << "[Session] Loading scene from: " << scene_file << "\n";
 
+    // 1. Create scene and load from JSON
     scene_ = std::make_unique<Scene>();
+    SceneConfig config = LoadSceneFile(scene_file, *scene_);
 
-    // Temporarily hardcoding sphere into scene...
-    // TODO: Reconnect tinyobjloader and asset loading
-    Material mat_ground;
-    mat_ground.type = MaterialType::Lambertian;
-    mat_ground.albedo = Spectrum(0.8f, 0.8f, 0.0f);
-    mat_ground.roughness = 1.0f;  // Ignored for Lambertian usually
-    uint32_t id_ground = scene_->AddMaterial(mat_ground);
-
-    Material mat_glass;
-    mat_glass.type = MaterialType::Dielectric;
-    mat_glass.albedo = Spectrum(1.0f, 1.0f, 1.0f);  // Glass doesn't absorb light
-    mat_glass.roughness = 0.0f;
-    mat_glass.ior = 1.5f;  // Standard Glass
-    uint32_t id_glass = scene_->AddMaterial(mat_glass);
-
-    Material metal;
-    metal.type = MaterialType::Metal;
-    metal.roughness = 0.0;
-    metal.albedo = Spectrum(0.8f);
-    uint32_t metal_id = scene_->AddMaterial(metal);
-    scene_->AddSphere(Sphere{Vec3(-2.1f, 0.0f, -3.0f), 1.0f, metal_id});
-
-    Material mat_red;
-    mat_red.type = MaterialType::Lambertian;
-    mat_red.albedo = Spectrum(0.7f, 0.3f, 0.3f);
-    uint32_t id_red = scene_->AddMaterial(mat_red);
-
-    // scene_->AddSphere(Sphere{Vec3(0.0f, -1001.0f, -1.0f), 1000.0f, id_ground});
-    scene_->AddSphere(Sphere{Vec3(0.0f, 0.0f, -3.0f), 1.0f, id_glass});
-    scene_->AddSphere(Sphere{Vec3(2.1f, 0.0f, -3.0f), 1.0f, id_red});
-    // NEW: Floor Quad
-    // Let's make it 20x20 units, centered at Y=-1.0
-    float size = 10.0f;
-    float y_floor = -1.0f;
-
-    // Define corners (Counter-Clockwise order looking from top)
-    Vec3 p0(-size, y_floor, size);   // Front-Left
-    Vec3 p1(size, y_floor, size);    // Front-Right
-    Vec3 p2(size, y_floor, -size);   // Back-Right
-    Vec3 p3(-size, y_floor, -size);  // Back-Left
-
-    // Create and Upload
-    scene_->AddMesh(CreateQuad(p0, p1, p2, p3, id_ground));
-
-    // Build BVH
+    // 2. Build BVH acceleration structure
     scene_->Build();
 
-    // Initilize camera
-    // Looking from (0, 0, 0) to (0, 0, -1)
-    // Should these be a part of RenderOptions? Maybe refactor camera first...
-    Float aspect = 16.0f / 9.0f;
-    camera_ = std::make_unique<Camera>(Vec3(0.0f, 1.0f, 1.5f),   // LookFrom
-                                       Vec3(0.0f, 0.0f, -3.0f),  // LookAt
-                                       Vec3(0.0f, 1.0f, 0.0f), 90.0f, aspect);
-}
+    // 3. Apply thread override if specified
+    if (thread_override > 0) {
+        config.render_options.integrator_config.num_threads = thread_override;
+    }
 
-/**
- * Set user options
- */
-void RenderSession::SetOptions(const RenderOptions &options) {
-    options_ = options;
+    // 4. Store render options
+    options_ = config.render_options;
+
+    // 5. Create camera (aspect ratio derived from image dimensions)
+    float aspect = static_cast<float>(options_.image_config.width) /
+                   static_cast<float>(options_.image_config.height);
+    camera_ =
+        std::make_unique<Camera>(config.look_from, config.look_at, config.vup, config.vfov, aspect);
+
+    // 6. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
     integrator_ = CreateIntegrator(options_.integrator_type);
+    options_.integrator_config.cam_w = camera_->GetW();
 
-    std::cout << "[Session] Options Set: " << options_.image_config.width << "x"
+    std::cout << "[Session] Ready: " << options_.image_config.width << "x"
               << options_.image_config.height
-              << " | Samples: " << options_.integrator_config.samples_per_pixel << "\n";
+              << " | Samples: " << options_.integrator_config.samples_per_pixel
+              << " | Max Depth: " << options_.integrator_config.max_depth << "\n";
 }
 
 /**
@@ -125,8 +84,6 @@ void RenderSession::Render() {
     std::cout << "[Session] Starting Render...\n";
 
     integrator_->Render(*scene_, *camera_, film_.get(), options_.integrator_config);
-    // .get() extracts the raw pointer held inside. Integrator needs to write pixels to film, so
-    // it's mutable, but we don't want to transfer ownership
 
     std::cout << "[Session] Render Complete.\n";
 }
@@ -137,6 +94,11 @@ void RenderSession::Render() {
 void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
+        if (options_.integrator_config.enable_deep) {
+            std::unique_ptr<DeepImageBuffer> buf =
+                film_->CreateDeepBuffer(options_.integrator_config.samples_per_pixel);
+            ImageIO::SaveEXR(*buf, options_.image_config.exrfile);
+        }
     }
 }
 

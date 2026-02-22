@@ -1,7 +1,9 @@
 #include "accelerators/bvh.h"
 
 #include <algorithm>  // for std::partition
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "geometry/boundbox.h"
 
@@ -33,17 +35,37 @@ void BVH::Build(std::vector<Triangle>& triangles, const std::vector<Mesh>& meshe
     nodes_.clear();
     nodes_.reserve(triangles.size() * 2);  // mem alloc
 
+    // Precomputing - make temp vector to hold cached data
+    std::vector<BVHPrimitiveInfo> primitive_info(triangles.size());
+
+    for (size_t i = 0; i < triangles.size(); ++i) {
+        primitive_info[i].original_index = (uint32_t)i;
+        primitive_info[i].bounds = GetBounds(triangles[i], meshes);
+        primitive_info[i].bounds.PadToMinimums();  // Pad immediately at source
+        primitive_info[i].centroid = GetCentroid(triangles[i], meshes);
+    }
+
     // Create Root Node
     BVHNode& root = nodes_.emplace_back();  // we not using pushback for efficiency
     root.left_first = 0;
     root.tri_count = (uint32_t)triangles.size();
 
-    // Start recursion
-    Subdivide(0, 0, (uint32_t)triangles.size(), triangles, meshes);
+    // Start recursion (with primitive info now)
+    Subdivide(0, 0, (uint32_t)triangles.size(), primitive_info);
+
+    // Reorder triangles to match primitive_info
+    std::vector<Triangle> ordered_triangles;
+    ordered_triangles.reserve(triangles.size());
+
+    for (const auto& info : primitive_info) {
+        ordered_triangles.push_back(triangles[info.original_index]);
+    }
+
+    triangles = std::move(ordered_triangles);
 }
 
 void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
-                    std::vector<Triangle>& triangles, const std::vector<Mesh>& meshes) {
+                    std::vector<BVHPrimitiveInfo>& primitive_info) {
     BVHNode& node = nodes_[node_idx];
 
     // Calculate Bounds for this node
@@ -51,11 +73,8 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
     node.bounds = BoundBox();  // Reset to invalid
 
     for (uint32_t i = 0; i < tri_count; ++i) {
-        BoundBox tri_box = GetBounds(triangles[first_tri + i], meshes);
-        node.bounds.Expand(tri_box);
+        node.bounds.Expand(primitive_info[first_tri + i].bounds);
     }
-
-    node.bounds.PadToMinimums();
 
     // Leaf Stop condition
     // Stop if we have few triangles, to avoid overhead of deep trees
@@ -68,17 +87,17 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
     // TODO: SAH with bin/bucketing (16)
     // Split at longest box axis
     int axis = node.bounds.LongestAxis();
-    Float split_pos = node.bounds.Centroid()[axis];
+    float split_pos = node.bounds.Centroid()[axis];
 
     // alternative: split_pos = (node.bounds.min()[axis] + node.bounds.max()[axis]) * 0.5f;
 
     // Partition the triangle array by moving triangles in the vector
     // Iterators point to the range [first_tri, first_tri + tri_count)
-    auto start_itr = triangles.begin() + first_tri;
+    auto start_itr = primitive_info.begin() + first_tri;
     auto end_itr = start_itr + tri_count;
 
-    auto mid_itr = std::partition(start_itr, end_itr, [&](const Triangle& t) {
-        return GetCentroid(t, meshes)[axis] < split_pos;
+    auto mid_itr = std::partition(start_itr, end_itr, [&](const BVHPrimitiveInfo& info) {
+        return info.centroid[axis] < split_pos;
     });
 
     // Calculate how many ended up on the left
@@ -104,9 +123,8 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
     nodes_[node_idx].tri_count = 0;  // Mark as INTERNAL (count = 0)
 
     // Recurse
-    Subdivide(left_child_idx, first_tri, left_count, triangles, meshes);
-    Subdivide(left_child_idx + 1, first_tri + left_count, tri_count - left_count, triangles,
-              meshes);
+    Subdivide(left_child_idx, first_tri, left_count, primitive_info);
+    Subdivide(left_child_idx + 1, first_tri + left_count, tri_count - left_count, primitive_info);
 }
 
 }  // namespace skwr

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "core/constants.h"
 #include "core/ray.h"
 #include "core/vec3.h"
 
@@ -15,8 +16,8 @@ class BoundBox {
     // In strict math, an empty box has min=+Inf, max=-Inf.
     // This allows the first Union() operation to just snap to the target.
     BoundBox() {
-        Float min_val = std::numeric_limits<Float>::max();
-        Float max_val = std::numeric_limits<Float>::lowest();
+        float min_val = std::numeric_limits<float>::max();
+        float max_val = std::numeric_limits<float>::lowest();
         min_ = Point3(min_val, min_val, min_val);
         max_ = Point3(max_val, max_val, max_val);
     }
@@ -51,9 +52,9 @@ class BoundBox {
     }
 
     // Surface Area (Used for SAH heuristic later)
-    Float SurfaceArea() const { return 2.0f * HalfArea(); }
+    float SurfaceArea() const { return 2.0f * HalfArea(); }
 
-    Float HalfArea() const {
+    float HalfArea() const {
         Vec3 d = Diagonal();
         return (d.x() * d.y() + d.x() * d.z() + d.y() * d.z());
     }
@@ -62,13 +63,13 @@ class BoundBox {
      * Ray-Box Intersection (Optimized Slab Method)
      * use pre-computed inverse to avoid dividing here
      */
-    bool Intersect(const Ray& r, Float t_min, Float t_max) const {
+    bool Intersect(const Ray& r, float t_min, float t_max) const {
         const Vec3& inv_d = r.inv_direction();
         const Point3& orig = r.origin();
 
         for (int a = 0; a < 3; a++) {
-            Float t0 = (min_[a] - orig[a]) * inv_d[a];
-            Float t1 = (max_[a] - orig[a]) * inv_d[a];
+            float t0 = (min_[a] - orig[a]) * inv_d[a];
+            float t1 = (max_[a] - orig[a]) * inv_d[a];
 
             // If the ray is coming from the negative direction, swap t0/t1
             if (inv_d[a] < 0.0f) std::swap(t0, t1);
@@ -87,7 +88,7 @@ class BoundBox {
     void PadToMinimums() {
         // Adjust based on scene scale
         // good for scenes sized 1.0 - 1000.0
-        constexpr Float delta = 0.0001f;
+        float delta = kBoundEpsilon;
 
         Vec3 diag = max_ - min_;
 

@@ -14,10 +14,11 @@ namespace skwr {
 class ImageIO;
 
 class ImageBuffer {
-  public:ImageBuffer(int width, int height);
+  public:
+    ImageBuffer(int width, int height);
 
     // Set a pixel's color (0,0 is top-left usually)
-    void SetPixel(int x, int y, const Spectrum& s);
+    void SetPixel(int x, int y, const RGB& color);
 
     // Save the buffer to a PPM file
     void WritePPM(const std::string& filename) const;
@@ -25,7 +26,7 @@ class ImageBuffer {
   private:
     int width_;
     int height_;
-    std::vector<Spectrum> pixels_;
+    std::vector<RGB> pixels_;
 };
 
 struct DeepSample {
@@ -36,11 +37,6 @@ struct DeepSample {
     float g;
     float b;
     float alpha;  // opacity
-};
-
-// Necessary for Film interface
-struct DeepPixel {
-    std::vector<DeepSample> samples;
 };
 
 struct DeepPixelView {
@@ -55,7 +51,7 @@ class DeepImageBuffer {
     // This gives ImageIO full access to private/protected members
     friend class ImageIO;
 
- public:
+  public:
     DeepImageBuffer(int width, int height, size_t totalSamples,
                     const Imf::Array2D<unsigned int>& sampleCounts);
 

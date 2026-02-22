@@ -14,8 +14,8 @@ class Integrator {
   public:
     virtual ~Integrator() = default;
 
-    virtual void Render(const Scene &scene, const Camera &cam, Film *film,
-                        const IntegratorConfig &config) = 0;
+    virtual void Render(const Scene& scene, const Camera& cam, Film* film,
+                        const IntegratorConfig& config) = 0;
 };
 
 }  // namespace skwr

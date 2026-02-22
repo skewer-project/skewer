@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "core/vec3.h"
 #include "film/film.h"
 #include "session/render_options.h"
 
@@ -11,13 +12,12 @@
  * The entry point to the engine
  * Orchestrates Scene + Integrator + Film
  *
- * Several things are commented out for compilation
- * These should be implemented as development progresses
+ * Scenes are loaded from JSON config files via LoadSceneFromFile().
  */
 
 namespace skwr {
 
-// Forward declarations to avoid circular includes and having to include scene, integrator, etc
+// Forward declarations
 class Scene;
 class Camera;
 class Integrator;
@@ -28,15 +28,15 @@ class RenderSession {
     RenderSession();
     ~RenderSession();
 
-    // SETUP: Load data from disk into the Scene object
-    void LoadScene(const std::string& filename);
+    // SETUP: Load scene from a JSON config file.
+    // Populates scene, camera, film, and integrator from the config.
+    // Optional thread_override: if > 0, overrides the thread count from JSON.
+    void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
 
-    // CONFIGURE: Set up the camera, resolution, and sampler
-    void SetOptions(const RenderOptions& options);
-
-    // EXECUTE: Create the Integrator and tell it to run on the Scene
+    // EXECUTE: Run the integrator on the scene
     void Render();
 
+    // OUTPUT: Write the rendered image to disk
     void Save() const;
 
   private:
