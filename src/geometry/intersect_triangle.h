@@ -52,7 +52,7 @@ inline bool IntersectTriangle(const Ray& r, const Triangle& tri, const Mesh& mes
     if (t < t_min || t > t_max) return false;
 
     si->t = t;
-    si->p = r.at(t);
+    si->point = r.at(t);
     si->material_id = mesh.material_id;
 
     // Interpolate Normal (barycentric interpolation)
@@ -63,14 +63,14 @@ inline bool IntersectTriangle(const Ray& r, const Triangle& tri, const Mesh& mes
         Vec3 n1 = mesh.n[i1];
         Vec3 n2 = mesh.n[i2];
         float w = 1.0f - u - v;
-        si->n = Normalize(w * n0 + u * n1 + v * n2);
+        si->n_geom = Normalize(w * n0 + u * n1 + v * n2);
     } else {
         // Fallback: Geometric Normal (Flat shading)
-        si->n = Normalize(Cross(e1, e2));
+        si->n_geom = Normalize(Cross(e1, e2));
     }
 
     // Ensure normal points against ray
-    si->SetFaceNormal(r, si->n);
+    si->SetFaceNormal(r, si->n_geom);
 
     return true;
 }
