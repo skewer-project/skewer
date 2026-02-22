@@ -27,9 +27,9 @@ inline bool IntersectSphere(const Ray& r, const Sphere& s, float t_min, float t_
     }
 
     si->t = root;
-    si->p = r.origin() + root * r.direction();
-    si->n = (si->p - s.center) / s.radius;
-    si->SetFaceNormal(r, si->n);
+    si->point = r.origin() + root * r.direction();
+    si->n_geom = (si->point - s.center) / s.radius;
+    si->SetFaceNormal(r, si->n_geom);
     si->material_id = s.material_id;
     return true;
 }

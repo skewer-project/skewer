@@ -1,11 +1,37 @@
 #ifndef SKWR_CORE_SPECTRUM_H_
 #define SKWR_CORE_SPECTRUM_H_
 
+#include <algorithm>
 #include <iostream>
 
 #include "core/color.h"
 
 namespace skwr {
+
+// ex refactor
+// template<int N>
+// class Spectrum {
+// public:
+//     static constexpr int Size() { return N; }
+
+//     Float MaxComponent() const {
+//         return *std::max_element(c.begin(), c.end());
+//     }
+
+//     Float MinComponent() const {
+//         return *std::min_element(c.begin(), c.end());
+//     }
+
+//     Float Average() const {
+//         return std::accumulate(c.begin(), c.end(), Float(0)) / N;
+//     }
+
+//     Float& operator[](int i)       { return c[i]; }
+//     Float  operator[](int i) const { return c[i]; }
+
+// private:
+//     std::array<Float, N> c;
+// };
 
 class Spectrum {
   public:
@@ -62,11 +88,40 @@ class Spectrum {
     bool HasNaNs() const { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
 
     // Convert Physics -> Data (For the Film)
-    Color ToColor() const { return Color(c[0], c[1], c[2]); }
+    RGB ToRGB() const { return RGB(c[0], c[1], c[2]); }
 
     // Convert Data -> Physics (For Textures)
-    static Spectrum FromColor(const Color& color) {
+    static Spectrum FromColor(const RGB& color) {
         return Spectrum(color.r(), color.g(), color.b());
+    }
+
+    /**
+     * TODO: When refactoring spectrum, a lot of this will change
+     * These are just temporarily slap-on fixes
+     * template<int N>
+        class Spectrum {
+        public:
+            static constexpr int Size() { return N; }
+            Float MaxComponent() const {
+                return *std::max_element(c.begin(), c.end());
+            }
+
+            Float MinComponent() const {
+                return *std::min_element(c.begin(), c.end());
+            }
+        private:
+            Float c[N];
+        };
+     */
+    int Size() const { return sizeof(c) / sizeof(c[0]); }
+    float MaxComponent() const { return *std::max_element(c, c + Size()); }
+    float MinComponent() const { return *std::min_element(c, c + Size()); }
+    float Average() const {
+        float sum = 0.0f;
+        for (int i = 0; i < Size(); ++i) {
+            sum += c[i];
+        }
+        return sum / Size();
     }
 
   private:
@@ -97,26 +152,6 @@ inline Spectrum operator*(const Spectrum& c, float t) { return t * c; }
 
 inline Spectrum operator/(const Spectrum& c, float t) { return c * (1.0 / t); }
 
-// void write_color(std::ostream &out, const Spectrum &pixel_color)
-// {
-//     if (std::isnan(pixel_color.r))
-//         return;
-
-//     // Copy so we can gamma correct
-//     Spectrum c = pixel_color;
-
-//     c.applygammacorrection();
-
-//     // Translate [0,1] component values to rgb range [0,255]
-//     c.clamp(0.0f, 0.999f);
-
-//     // since adding average of all samples, need to clamp values to prevent going
-//     // beyond [0,1] range
-
-//     // Write out pixel components
-//     out << static_cast<int>(256 * c.r) << ' ' << static_cast<int>(256 * c.g) << ' ' <<
-//     static_cast<int>(256 * c.b) << '\n';
-// }
 }  // namespace skwr
 
 #endif  // SKWR_CORE_SPECTRUM_H_

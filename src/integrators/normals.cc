@@ -30,14 +30,16 @@ void Normals::Render(const Scene& scene, const Camera& cam, Film* film,
                 // Normals range from -1.0 to 1.0.
                 // We map them to 0.0 to 1.0 for color display.
                 // Color = (Normal + 1) * 0.5
-                color = Spectrum((si.n.x() + 1.0f), (si.n.y() + 1.0f), (si.n.z() + 1.0f)) * 0.5f;
+                color = Spectrum((si.n_geom.x() + 1.0f), (si.n_geom.y() + 1.0f),
+                                 (si.n_geom.z() + 1.0f)) *
+                        0.5f;
             } else {
                 // RTIOW blue gradient sky background
                 Vec3 unit_direction = Normalize(r.direction());
                 auto a = 0.5 * (unit_direction.y() + 1.0);
                 color = (1.0 - a) * Spectrum(1.0, 1.0, 1.0) + a * Spectrum(0.5, 0.7, 1.0);
             }
-            film->AddSample(x, y, color, 1.0f);
+            film->AddSample(x, y, color.ToRGB(), 1.0f);
         }
     }
 }
