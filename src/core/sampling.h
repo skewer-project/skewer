@@ -57,9 +57,9 @@ inline Vec3 RandomCosineDirection(RNG& rng) {
     // Standard mapping from unit square to hemisphere
     float phi = 2.0f * kPi * r1;
 
-    float x = std::cos(phi) * std::sqrt(r1);  // Sqrt corrects the density
-    float y = std::sin(phi) * std::sqrt(r1);
-    float z = std::sqrt(1.0f - r1);  // This ensures z^2 + r^2 = 1
+    float x = std::cos(phi) * std::sqrt(r2);  // Sqrt corrects the density
+    float y = std::sin(phi) * std::sqrt(r2);
+    float z = std::sqrt(1.0f - r2);  // This ensures z^2 + r^2 = 1
 
     return Vec3(x, y, z);
 }
