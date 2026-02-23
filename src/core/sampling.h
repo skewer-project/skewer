@@ -64,17 +64,23 @@ inline Vec3 RandomCosineDirection(RNG& rng) {
     return Vec3(x, y, z);
 }
 
+// Stripped down PCG hash - just something better than using golden ratio
+inline uint32_t StrongHash(uint32_t input) {
+    uint32_t state = input * 747796405u + 2891336453u;
+    uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
 // Fully deterministic per-pixel RNG, thread-order independent
 inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t sample_index) {
     // Get linear pixel ID
-    uint64_t pixel_id = (uint64_t)y * width + x;
+    uint32_t pixel_id = (uint32_t)y * width + x;
 
-    // Mix pixel ID to generate a unique stream (sequence)
-    // Use a simple hash / integer mixing function to avoid correlation
-    uint64_t seq = pixel_id * kGoldenRatio;  // golden ratio hash
+    // Scramble the pixel ID to pick a mathematically distinct PCG sequence
+    uint64_t seq = StrongHash(pixel_id);
 
-    // Sample index as the RNG offset
-    uint64_t seed = sample_index;
+    // Mix the pixel ID and starting sample to create a unique initial state
+    uint64_t seed = StrongHash(pixel_id ^ StrongHash(sample_index));
 
     return RNG(seq, seed);
 }
