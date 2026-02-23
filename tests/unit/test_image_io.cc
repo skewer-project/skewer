@@ -1,13 +1,15 @@
 #include <gtest/gtest.h>
-#include "io/image_io.h"
-#include "film/image_buffer.h"
-#include <vector>
+
 #include <filesystem>
+#include <vector>
+
+#include "film/image_buffer.h"
+#include "io/image_io.h"
 
 namespace skwr {
 
 class ImageIOTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         // Create a small 4x4 deep buffer
         int w = 4;
@@ -36,10 +38,8 @@ protected:
                         DeepSample s;
                         s.z_front = 10.0f + i * 5.0f;
                         s.z_back = 12.0f + i * 5.0f;
-                        s.r = static_cast<float>(x) / w,
-                        s.g = static_cast<float>(y) / h,
-                        s.b = static_cast<float>(i) / count,
-                        s.alpha = 0.5f;
+                        s.r = static_cast<float>(x) / w, s.g = static_cast<float>(y) / h,
+                        s.b = static_cast<float>(i) / count, s.alpha = 0.5f;
                         samples.push_back(s);
                     }
                     expectedBuffer->SetPixel(x, y, samples);
@@ -88,4 +88,4 @@ TEST_F(ImageIOTest, SaveAndLoadEXR) {
     // }
 }
 
-} // namespace skwr
+}  // namespace skwr

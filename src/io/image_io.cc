@@ -15,10 +15,9 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "film/image_buffer.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
-
-#include "film/image_buffer.h"
 
 namespace skwr {
 
