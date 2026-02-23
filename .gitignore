@@ -9,3 +9,9 @@ build/
 images/
 objects/
 scenes/
+
+# generated images
+*.exr
+*.ppm
+*.png
+*.jpg
