@@ -14,26 +14,78 @@
 namespace skwr {
 
 void Scene::Build() {
-    // only if we have triangles
+    triangles_.clear();
+    lights_.clear();
+
+    // Re-register sphere lights
+    for (uint32_t i = 0; i < (uint32_t)spheres_.size(); ++i) {
+        const Material& mat = materials_[spheres_[i].material_id];
+        if (mat.IsEmissive()) {
+            AreaLight light;
+            light.type = AreaLight::Sphere;
+            light.primitive_index = i;
+            light.emission = mat.emission;
+            lights_.push_back(light);
+        }
+    }
+
+    // Bake one Triangle per mesh face, capturing final vertex positions,
+    // edges, normals, and material_id from the fully-prepared Mesh objects.
+    for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
+        const Mesh& mesh_ref = meshes_[mesh_id];
+        const Material& mat = materials_[mesh_ref.material_id];
+
+        for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
+            uint32_t i0 = mesh_ref.indices[i];
+            uint32_t i1 = mesh_ref.indices[i + 1];
+            uint32_t i2 = mesh_ref.indices[i + 2];
+
+            Triangle t;
+            t.p0 = mesh_ref.p[i0];
+            t.e1 = mesh_ref.p[i1] - t.p0;
+            t.e2 = mesh_ref.p[i2] - t.p0;
+            t.material_id = mesh_ref.material_id;
+
+            if (!mesh_ref.n.empty()) {
+                t.n0 = mesh_ref.n[i0];
+                t.n1 = mesh_ref.n[i1];
+                t.n2 = mesh_ref.n[i2];
+            } else {
+                Vec3 geom_n = Normalize(Cross(t.e1, t.e2));
+                t.n0 = t.n1 = t.n2 = geom_n;
+            }
+
+            triangles_.push_back(t);
+        }
+    }
+
     if (!triangles_.empty()) {
         std::cout << "Building BVH for " << triangles_.size() << " triangles...\n";
-        bvh_.Build(triangles_, meshes_);
+        bvh_.Build(triangles_);
+    }
+
+    for (uint32_t i = 0; i < (uint32_t)triangles_.size(); ++i) {
+        const Material& mat = materials_[triangles_[i].material_id];
+        if (mat.IsEmissive()) {
+            AreaLight light;
+            light.type = AreaLight::Triangle;
+            light.primitive_index = i;
+            light.emission = mat.emission;
+            lights_.push_back(light);
+        }
     }
 }
 
 bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {
     bool hit_anything = false;
     float closest_t = t_max;
-    // 1. Check Spheres (Linear Scan)
     for (const auto& sphere : spheres_) {
-        // We pass 'closest_t' as the new max distance to prune objects behind the hit
         if (IntersectSphere(r, sphere, t_min, closest_t, si)) {
             hit_anything = true;
-            closest_t = si->t;  // Update closest hit distance
+            closest_t = si->t;
         }
     }
 
-    // BVH
     if (IntersectBVH(r, t_min, closest_t, si)) {
         hit_anything = true;
     }
@@ -47,47 +99,34 @@ bool Scene::IntersectBVH(const Ray& r, float t_min, float t_max, SurfaceInteract
     bool hit_anything = false;
     float closest_t = t_max;
 
-    // using precomputed inverse for aabb check
     const Vec3& inv_dir = r.inv_direction();
     const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
 
-    // stack of 64 is standard 2^64 triangles = a lot of tris
     int nodes_to_visit[64];
     int to_visit_offset = 0;
 
     nodes_to_visit[0] = 0;
     while (to_visit_offset >= 0) {
-        // pop from stack
         int current_node_idx = nodes_to_visit[to_visit_offset--];
         const BVHNode& node = bvh_.GetNodes()[current_node_idx];
 
-        // Calculate bbox intersection
         if (node.bounds.Intersect(r, t_min, closest_t)) {
-            // if leaf, intersect the triangles
             if (node.tri_count > 0) {
                 for (uint32_t i = 0; i < node.tri_count; ++i) {
                     const Triangle& tri = triangles_[node.left_first + i];
-                    const Mesh& mesh = meshes_[tri.mesh_id];
-
-                    if (IntersectTriangle(r, tri, mesh, t_min, closest_t, si)) {
+                    if (IntersectTriangle(r, tri, t_min, closest_t, si)) {
                         hit_anything = true;
                         closest_t = si->t;
                     }
                 }
-            }
-            // else it's internal node -> push children onto stack
-            else {
-                // Check closest child first to find hit faster. If found, closest_t shrinks and
-                // might be able to skip far child entirely
+            } else {
                 int axis = node.bounds.LongestAxis();
-
-                // if ray dir is negative along the split axis, right child is closer
                 if (dir_is_neg[axis]) {
-                    nodes_to_visit[++to_visit_offset] = node.left_first;      // Far (push first)
-                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;  // Near (pop next)
+                    nodes_to_visit[++to_visit_offset] = node.left_first;
+                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
                 } else {
-                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;  // Far
-                    nodes_to_visit[++to_visit_offset] = node.left_first;      // Near
+                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
+                    nodes_to_visit[++to_visit_offset] = node.left_first;
                 }
             }
         }
@@ -97,17 +136,7 @@ bool Scene::IntersectBVH(const Ray& r, float t_min, float t_max, SurfaceInteract
 
 uint32_t Scene::AddSphere(const Sphere& s) {
     spheres_.push_back(s);
-    uint32_t sphere_index = (uint32_t)spheres_.size() - 1;
-    const Material& mat = materials_[s.material_id];
-    if (mat.IsEmissive()) {
-        // Create the Light Wrapper
-        AreaLight light;
-        light.type = AreaLight::Sphere;
-        light.primitive_index = sphere_index;
-        light.emission = mat.emission;
-        lights_.push_back(light);
-    }
-    return sphere_index;
+    return (uint32_t)spheres_.size() - 1;
 }
 
 uint32_t Scene::AddMaterial(const Material& m) {
@@ -117,29 +146,7 @@ uint32_t Scene::AddMaterial(const Material& m) {
 
 uint32_t Scene::AddMesh(Mesh&& m) {
     meshes_.push_back(std::move(m));
-    uint32_t mesh_id = (uint32_t)meshes_.size() - 1;
-    const Material& mat = materials_[m.material_id];
-
-    // AUTO-GENERATE TRIANGLES
-    // When we add a mesh, we immediately break it into Triangle primitives
-    // so the renderer can see them.
-    const Mesh& mesh_ref = meshes_.back();
-    for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
-        Triangle t;
-        t.mesh_id = mesh_id;
-        t.v_idx = (uint32_t)i;  // Points to the first index of the triplet
-        triangles_.push_back(t);
-
-        if (mat.IsEmissive()) {
-            AreaLight light;
-            light.type = AreaLight::Triangle;
-            light.primitive_index = (uint32_t)triangles_.size() - 1;
-            light.emission = mat.emission;
-            lights_.push_back(light);
-        }
-    }
-
-    return mesh_id;
+    return (uint32_t)meshes_.size() - 1;
 }
 
 }  // namespace skwr
