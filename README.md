@@ -44,6 +44,16 @@ cmake --build ./build/ --parallel
 ./build/skewer-render.exe <scene json file>
 ```
 
+### Scenes
+The renderer accepts a scene config defined a json file.
+Examples of these files can be found in the following [folder on Google Drive](https://drive.google.com/drive/folders/1qi5UjEE2lD4gkOMuiLxX3ULs95huyOQD?usp=drive_link).
+
+Copy both the `objects` and `scenes` folder into the project root and invoke `skewer-renderer` with a scene json file in the scenes folder.
+For example:
+```bash
+./build/skewer-render scenes/cornell_box.json  
+```
+
 ### Help
 `./build/skewer-render --help`
 
