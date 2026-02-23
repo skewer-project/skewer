@@ -70,7 +70,7 @@ void Scene::Build() {
         if (mat.IsEmissive()) {
             AreaLight light;
             light.type = AreaLight::Triangle;
-            light.primitive_index = (uint32_t)triangles_.size() - 1;
+            light.primitive_index = i;
             light.emission = mat.emission;
             lights_.push_back(light);
         }
