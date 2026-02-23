@@ -16,6 +16,7 @@ func NewServer() *Server {
 	return &Server{}
 }
 
+/* User Commands */
 // Submit a job (stub)
 func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.SubmitJobResponse, error) {
 	jobId := "job-123-stub"
@@ -26,6 +27,7 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 	}, nil
 }
 
+/* Worker Commands */
 // Register a worker (stub)
 func (s *Server) RegisterWorker(ctx context.Context, req *pb.RegisterWorkerRequest) (*pb.RegisterWorkerResponse, error) {
 	workerId := "worker-123-stub"
