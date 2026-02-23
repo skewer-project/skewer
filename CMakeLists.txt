@@ -62,6 +62,8 @@ target_include_directories(skewer-render
         ${CMAKE_SOURCE_DIR}/external
 )
 
+target_compile_options(skewer-render PRIVATE -Wall -Wextra -Werror -Wpedantic)
+
 # Link libraries
 target_link_libraries(skewer-render
     PRIVATE
