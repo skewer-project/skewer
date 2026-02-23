@@ -5,7 +5,7 @@ project(Skewer LANGUAGES CXX)
 
 # Set default build type to Release if not specified
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE RelWithDebugInfo)
 endif()
 
 # Set C++ Standard (C++17 is good for modern features)

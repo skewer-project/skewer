@@ -178,56 +178,56 @@ float rgb2spec_eval_fast(float coeff[RGB2SPEC_N_COEFFS], float lambda) {
     return rgb2spec_fma(.5f * x, y, .5f);
 }
 
-#if defined(__SSE4_2__)
-static inline __m128 rgb2spec_fma128(__m128 a, __m128 b, __m128 c) {
-#if defined(__FMA__)
-    return _mm_fmadd_ps(a, b, c);
-#else
-    /// Fallback for pre-Haswell architectures
-    return _mm_add_ps(_mm_mul_ps(a, b), c);
-#endif
-}
+// #if defined(__SSE4_2__)
+// static inline __m128 rgb2spec_fma128(__m128 a, __m128 b, __m128 c) {
+// #if defined(__FMA__)
+//     return _mm_fmadd_ps(a, b, c);
+// #else
+//     /// Fallback for pre-Haswell architectures
+//     return _mm_add_ps(_mm_mul_ps(a, b), c);
+// #endif
+// }
 
-__m128 rgb2spec_eval_sse(float coeff[RGB2SPEC_N_COEFFS], __m128 lambda) {
-    __m128 c0 = _mm_set1_ps(coeff[0]), c1 = _mm_set1_ps(coeff[1]), c2 = _mm_set1_ps(coeff[2]),
-           h = _mm_set1_ps(.5f), o = _mm_set1_ps(1.f);
+// __m128 rgb2spec_eval_sse(float coeff[RGB2SPEC_N_COEFFS], __m128 lambda) {
+//     __m128 c0 = _mm_set1_ps(coeff[0]), c1 = _mm_set1_ps(coeff[1]), c2 = _mm_set1_ps(coeff[2]),
+//            h = _mm_set1_ps(.5f), o = _mm_set1_ps(1.f);
 
-    __m128 x = rgb2spec_fma128(rgb2spec_fma128(c0, lambda, c1), lambda, c2),
-           y = _mm_rsqrt_ps(rgb2spec_fma128(x, x, o));
+//     __m128 x = rgb2spec_fma128(rgb2spec_fma128(c0, lambda, c1), lambda, c2),
+//            y = _mm_rsqrt_ps(rgb2spec_fma128(x, x, o));
 
-    return rgb2spec_fma128(_mm_mul_ps(h, x), y, h);
-}
-#endif
+//     return rgb2spec_fma128(_mm_mul_ps(h, x), y, h);
+// }
+// #endif
 
-#if defined(__AVX__)
-__m256 rgb2spec_fma256(__m256 a, __m256 b, __m256 c) {
-#if defined(__FMA__)
-    return _mm256_fmadd_ps(a, b, c);
-#else
-    /// Fallback for pre-Haswell architectures
-    return _mm256_add_ps(_mm256_mul_ps(a, b), c);
-#endif
-}
+// #if defined(__AVX__)
+// __m256 rgb2spec_fma256(__m256 a, __m256 b, __m256 c) {
+// #if defined(__FMA__)
+//     return _mm256_fmadd_ps(a, b, c);
+// #else
+//     /// Fallback for pre-Haswell architectures
+//     return _mm256_add_ps(_mm256_mul_ps(a, b), c);
+// #endif
+// }
 
-__m256 rgb2spec_eval_avx(float coeff[RGB2SPEC_N_COEFFS], __m256 lambda) {
-    __m256 c0 = _mm256_set1_ps(coeff[0]), c1 = _mm256_set1_ps(coeff[1]),
-           c2 = _mm256_set1_ps(coeff[2]), h = _mm256_set1_ps(.5f), o = _mm256_set1_ps(1.f);
+// __m256 rgb2spec_eval_avx(float coeff[RGB2SPEC_N_COEFFS], __m256 lambda) {
+//     __m256 c0 = _mm256_set1_ps(coeff[0]), c1 = _mm256_set1_ps(coeff[1]),
+//            c2 = _mm256_set1_ps(coeff[2]), h = _mm256_set1_ps(.5f), o = _mm256_set1_ps(1.f);
 
-    __m256 x = rgb2spec_fma256(rgb2spec_fma256(c0, lambda, c1), lambda, c2),
-           y = _mm256_rsqrt_ps(rgb2spec_fma256(x, x, o));
+//     __m256 x = rgb2spec_fma256(rgb2spec_fma256(c0, lambda, c1), lambda, c2),
+//            y = _mm256_rsqrt_ps(rgb2spec_fma256(x, x, o));
 
-    return rgb2spec_fma256(_mm256_mul_ps(h, x), y, h);
-}
-#endif
+//     return rgb2spec_fma256(_mm256_mul_ps(h, x), y, h);
+// }
+// #endif
 
-#if defined(__AVX512F__)
-__m512 rgb2spec_eval_avx512(float coeff[RGB2SPEC_N_COEFFS], __m512 lambda) {
-    __m512 c0 = _mm512_set1_ps(coeff[0]), c1 = _mm512_set1_ps(coeff[1]),
-           c2 = _mm512_set1_ps(coeff[2]), h = _mm512_set1_ps(.5f), o = _mm512_set1_ps(1.f);
+// #if defined(__AVX512F__)
+// __m512 rgb2spec_eval_avx512(float coeff[RGB2SPEC_N_COEFFS], __m512 lambda) {
+//     __m512 c0 = _mm512_set1_ps(coeff[0]), c1 = _mm512_set1_ps(coeff[1]),
+//            c2 = _mm512_set1_ps(coeff[2]), h = _mm512_set1_ps(.5f), o = _mm512_set1_ps(1.f);
 
-    __m512 x = _mm512_fmadd_ps(_mm512_fmadd_ps(c0, lambda, c1), lambda, c2),
-           y = _mm512_rsqrt14_ps(_mm512_fmadd_ps(x, x, o));
+//     __m512 x = _mm512_fmadd_ps(_mm512_fmadd_ps(c0, lambda, c1), lambda, c2),
+//            y = _mm512_rsqrt14_ps(_mm512_fmadd_ps(x, x, o));
 
-    return _mm512_fmadd_ps(_mm512_mul_ps(h, x), y, h);
-}
-#endif
+//     return _mm512_fmadd_ps(_mm512_mul_ps(h, x), y, h);
+// }
+// #endif
