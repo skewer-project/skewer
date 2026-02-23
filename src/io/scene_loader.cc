@@ -288,6 +288,7 @@ static SceneConfig ParseConfig(const json& j) {
     // Defaults
     opts.integrator_type = IntegratorType::PathTrace;
     opts.integrator_config.samples_per_pixel = 200;
+    opts.integrator_config.start_sample = 0;
     opts.integrator_config.max_depth = 50;
     opts.integrator_config.num_threads = 0;
     opts.integrator_config.enable_deep = false;
