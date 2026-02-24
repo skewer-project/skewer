@@ -8,7 +8,7 @@
 #include "core/ray.h"
 #include "core/rng.h"
 #include "core/spectral/spectral_utils.h"
-#include "core/spectrum.h"
+#include "core/spectral/spectrum.h"
 #include "core/vec3.h"
 #include "integrators/path_sample.h"
 #include "materials/bsdf.h"

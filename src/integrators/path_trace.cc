@@ -7,7 +7,7 @@
 #include "barkeep.h"
 #include "core/sampling.h"
 #include "core/sampling/wavelength_sampler.h"
-#include "core/spectrum.h"
+#include "core/spectral/spectrum.h"
 #include "film/film.h"
 #include "integrators/path_sample.h"
 #include "kernels/path_kernel.h"

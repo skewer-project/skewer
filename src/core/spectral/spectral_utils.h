@@ -9,7 +9,7 @@
 #include "core/color.h"
 #include "core/spectral/rgb2spec.h"
 #include "core/spectral/spectral_curve.h"
-#include "core/spectrum.h"
+#include "core/spectral/spectrum.h"
 
 namespace skwr {
 
