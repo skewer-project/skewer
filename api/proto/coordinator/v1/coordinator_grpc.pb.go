@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v6.33.4
-// source: coordinator/v1/coordinator.proto
+// source: api/proto/coordinator/v1/coordinator.proto
 
 package v1
 
@@ -19,24 +19,24 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CoordinatorService_SubmitJob_FullMethodName      = "/coordinator.v1.CoordinatorService/SubmitJob"
-	CoordinatorService_GetJobStatus_FullMethodName   = "/coordinator.v1.CoordinatorService/GetJobStatus"
-	CoordinatorService_RegisterWorker_FullMethodName = "/coordinator.v1.CoordinatorService/RegisterWorker"
-	CoordinatorService_Heartbeat_FullMethodName      = "/coordinator.v1.CoordinatorService/Heartbeat"
+	CoordinatorService_SubmitJob_FullMethodName        = "/api.proto.coordinator.v1.CoordinatorService/SubmitJob"
+	CoordinatorService_GetJobStatus_FullMethodName     = "/api.proto.coordinator.v1.CoordinatorService/GetJobStatus"
+	CoordinatorService_CancelJob_FullMethodName        = "/api.proto.coordinator.v1.CoordinatorService/CancelJob"
+	CoordinatorService_GetWorkStream_FullMethodName    = "/api.proto.coordinator.v1.CoordinatorService/GetWorkStream"
+	CoordinatorService_ReportTaskResult_FullMethodName = "/api.proto.coordinator.v1.CoordinatorService/ReportTaskResult"
 )
 
 // CoordinatorServiceClient is the client API for CoordinatorService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CoordinatorServiceClient interface {
-	// User submits a job to the cluster
+	// External API for CLI
 	SubmitJob(ctx context.Context, in *SubmitJobRequest, opts ...grpc.CallOption) (*SubmitJobResponse, error)
-	// User checks the current status of a job
 	GetJobStatus(ctx context.Context, in *GetJobStatusRequest, opts ...grpc.CallOption) (*GetJobStatusResponse, error)
-	// Workers call this to register themselves with the coordinator
-	RegisterWorker(ctx context.Context, in *RegisterWorkerRequest, opts ...grpc.CallOption) (*RegisterWorkerResponse, error)
-	// Workers call this periodically to report status
-	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
+	CancelJob(ctx context.Context, in *CancelJobRequest, opts ...grpc.CallOption) (*CancelJobResponse, error)
+	// Internal API for Skewer and Loom GKE Workers
+	GetWorkStream(ctx context.Context, in *GetWorkStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkPackage], error)
+	ReportTaskResult(ctx context.Context, in *ReportTaskResultRequest, opts ...grpc.CallOption) (*ReportTaskResultResponse, error)
 }
 
 type coordinatorServiceClient struct {
@@ -67,20 +67,39 @@ func (c *coordinatorServiceClient) GetJobStatus(ctx context.Context, in *GetJobS
 	return out, nil
 }
 
-func (c *coordinatorServiceClient) RegisterWorker(ctx context.Context, in *RegisterWorkerRequest, opts ...grpc.CallOption) (*RegisterWorkerResponse, error) {
+func (c *coordinatorServiceClient) CancelJob(ctx context.Context, in *CancelJobRequest, opts ...grpc.CallOption) (*CancelJobResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegisterWorkerResponse)
-	err := c.cc.Invoke(ctx, CoordinatorService_RegisterWorker_FullMethodName, in, out, cOpts...)
+	out := new(CancelJobResponse)
+	err := c.cc.Invoke(ctx, CoordinatorService_CancelJob_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *coordinatorServiceClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error) {
+func (c *coordinatorServiceClient) GetWorkStream(ctx context.Context, in *GetWorkStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkPackage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HeartbeatResponse)
-	err := c.cc.Invoke(ctx, CoordinatorService_Heartbeat_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &CoordinatorService_ServiceDesc.Streams[0], CoordinatorService_GetWorkStream_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[GetWorkStreamRequest, WorkPackage]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CoordinatorService_GetWorkStreamClient = grpc.ServerStreamingClient[WorkPackage]
+
+func (c *coordinatorServiceClient) ReportTaskResult(ctx context.Context, in *ReportTaskResultRequest, opts ...grpc.CallOption) (*ReportTaskResultResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReportTaskResultResponse)
+	err := c.cc.Invoke(ctx, CoordinatorService_ReportTaskResult_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,14 +110,13 @@ func (c *coordinatorServiceClient) Heartbeat(ctx context.Context, in *HeartbeatR
 // All implementations must embed UnimplementedCoordinatorServiceServer
 // for forward compatibility.
 type CoordinatorServiceServer interface {
-	// User submits a job to the cluster
+	// External API for CLI
 	SubmitJob(context.Context, *SubmitJobRequest) (*SubmitJobResponse, error)
-	// User checks the current status of a job
 	GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusResponse, error)
-	// Workers call this to register themselves with the coordinator
-	RegisterWorker(context.Context, *RegisterWorkerRequest) (*RegisterWorkerResponse, error)
-	// Workers call this periodically to report status
-	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
+	CancelJob(context.Context, *CancelJobRequest) (*CancelJobResponse, error)
+	// Internal API for Skewer and Loom GKE Workers
+	GetWorkStream(*GetWorkStreamRequest, grpc.ServerStreamingServer[WorkPackage]) error
+	ReportTaskResult(context.Context, *ReportTaskResultRequest) (*ReportTaskResultResponse, error)
 	mustEmbedUnimplementedCoordinatorServiceServer()
 }
 
@@ -115,11 +133,14 @@ func (UnimplementedCoordinatorServiceServer) SubmitJob(context.Context, *SubmitJ
 func (UnimplementedCoordinatorServiceServer) GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetJobStatus not implemented")
 }
-func (UnimplementedCoordinatorServiceServer) RegisterWorker(context.Context, *RegisterWorkerRequest) (*RegisterWorkerResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RegisterWorker not implemented")
+func (UnimplementedCoordinatorServiceServer) CancelJob(context.Context, *CancelJobRequest) (*CancelJobResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelJob not implemented")
 }
-func (UnimplementedCoordinatorServiceServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
+func (UnimplementedCoordinatorServiceServer) GetWorkStream(*GetWorkStreamRequest, grpc.ServerStreamingServer[WorkPackage]) error {
+	return status.Error(codes.Unimplemented, "method GetWorkStream not implemented")
+}
+func (UnimplementedCoordinatorServiceServer) ReportTaskResult(context.Context, *ReportTaskResultRequest) (*ReportTaskResultResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReportTaskResult not implemented")
 }
 func (UnimplementedCoordinatorServiceServer) mustEmbedUnimplementedCoordinatorServiceServer() {}
 func (UnimplementedCoordinatorServiceServer) testEmbeddedByValue()                            {}
@@ -178,38 +199,49 @@ func _CoordinatorService_GetJobStatus_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoordinatorService_RegisterWorker_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterWorkerRequest)
+func _CoordinatorService_CancelJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelJobRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoordinatorServiceServer).RegisterWorker(ctx, in)
+		return srv.(CoordinatorServiceServer).CancelJob(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: CoordinatorService_RegisterWorker_FullMethodName,
+		FullMethod: CoordinatorService_CancelJob_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoordinatorServiceServer).RegisterWorker(ctx, req.(*RegisterWorkerRequest))
+		return srv.(CoordinatorServiceServer).CancelJob(ctx, req.(*CancelJobRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoordinatorService_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HeartbeatRequest)
+func _CoordinatorService_GetWorkStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetWorkStreamRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(CoordinatorServiceServer).GetWorkStream(m, &grpc.GenericServerStream[GetWorkStreamRequest, WorkPackage]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CoordinatorService_GetWorkStreamServer = grpc.ServerStreamingServer[WorkPackage]
+
+func _CoordinatorService_ReportTaskResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportTaskResultRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoordinatorServiceServer).Heartbeat(ctx, in)
+		return srv.(CoordinatorServiceServer).ReportTaskResult(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: CoordinatorService_Heartbeat_FullMethodName,
+		FullMethod: CoordinatorService_ReportTaskResult_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoordinatorServiceServer).Heartbeat(ctx, req.(*HeartbeatRequest))
+		return srv.(CoordinatorServiceServer).ReportTaskResult(ctx, req.(*ReportTaskResultRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -218,7 +250,7 @@ func _CoordinatorService_Heartbeat_Handler(srv interface{}, ctx context.Context,
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var CoordinatorService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "coordinator.v1.CoordinatorService",
+	ServiceName: "api.proto.coordinator.v1.CoordinatorService",
 	HandlerType: (*CoordinatorServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -230,14 +262,20 @@ var CoordinatorService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CoordinatorService_GetJobStatus_Handler,
 		},
 		{
-			MethodName: "RegisterWorker",
-			Handler:    _CoordinatorService_RegisterWorker_Handler,
+			MethodName: "CancelJob",
+			Handler:    _CoordinatorService_CancelJob_Handler,
 		},
 		{
-			MethodName: "Heartbeat",
-			Handler:    _CoordinatorService_Heartbeat_Handler,
+			MethodName: "ReportTaskResult",
+			Handler:    _CoordinatorService_ReportTaskResult_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "coordinator/v1/coordinator.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetWorkStream",
+			Handler:       _CoordinatorService_GetWorkStream_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "api/proto/coordinator/v1/coordinator.proto",
 }
