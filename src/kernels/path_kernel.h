@@ -66,7 +66,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
         const Material& mat = scene.GetMaterial(si.material_id);
 
-        Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
         // Lazy Evaluation
         Spectrum opacity(1.0f);
         float alpha = 1.0f;
@@ -166,7 +165,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 // For Dielectrics/Metals, opacity is typically 1.0
                 // For transparent diffuse, we need to account for absorption
                 if (mat.type == MaterialType::Lambertian) {
-                    weight *= opacity;  // Absorb based on opacity
+                    weight *= alpha;  // Absorb based on opacity
                 }
 
                 beta *= weight;
