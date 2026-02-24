@@ -18,7 +18,7 @@ cmake_policy(SET CMP0135 NEW)
 
 # Compiler Optimizations
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options(-O3 -flto -ffast-math -mcpu=native)
+    add_compile_options(-O3 -flto -ffast-math -march=native -Wall -Wextra -Werror -Wpedantic -std=c++20)
     # Optional: -flto (Link Time Optimization) for even more speed but slower build
 endif()
 
@@ -74,7 +74,7 @@ target_include_directories(skewer-render
         ${CMAKE_SOURCE_DIR}/external
 )
 
-target_compile_options(skewer-render PRIVATE -Wall -Wextra -Werror -Wpedantic)
+target_compile_options(skewer-render PRIVATE -Wall -Wextra -Werror -Wpedantic -std=c++20)
 
 # scene_loader.cc includes nlohmann/json which uses infinity() internally.
 # -ffast-math (applied globally) implies -ffinite-math-only which forbids this,
