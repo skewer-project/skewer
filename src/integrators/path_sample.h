@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "core/color.h"
 #include "core/spectrum.h"
 
 namespace skwr {
@@ -10,13 +11,16 @@ namespace skwr {
 struct DeepSegment {
     float z_front;
     float z_back;
-    Spectrum L;  // radiance; integrated over segment
+    RGB L;  // radiance; integrated over segment
     float alpha;
 };
 
 struct PathSample {
     Spectrum L;  // "Flat" beauty pass
     std::vector<DeepSegment> segments;
+
+    // TODO: consider boost::small_vector or some optimization for stack vs heap alloc tradeoffs
+    explicit PathSample(size_t reserveCount = 16) { segments.reserve(reserveCount); }
 };
 
 }  // namespace skwr
