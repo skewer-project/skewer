@@ -14,7 +14,8 @@ namespace skwr {
  * Returns the BSDF value: f(wo, wi) = Albedo / Pi (reflectance)
  * wo = out vector to camera, wi = in vector to Light/Next bounce
  */
-Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n);
+Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n,
+                  const SampledWavelengths& wl);
 
 /**
  * PROBABILITY DENSITY (PDF)
@@ -29,14 +30,14 @@ inline float Reflectance(float cosine, float refraction_ratio) {
     return r0 + (1 - r0) * std::pow((1 - cosine), 5);
 }
 
-bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      float& pdf, Spectrum& f);
+bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng,
+                      const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);
 
-bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi, float& pdf,
-                 Spectrum& f);
+bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng,
+                 const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);
 
-bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng, Vec3& wi,
-                      float& pdf, Spectrum& f);
+bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng,
+                      const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);
 
 /**
  * This function takes the Incoming Ray and returns two things:
@@ -45,7 +46,7 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
  * Dispatches to correct material type sampling function
  */
 bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                Vec3& wi, float& pdf, Spectrum& f);
+                const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);
 
 }  // namespace skwr
 

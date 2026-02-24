@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.16)
 
 project(Skewer LANGUAGES CXX)
 
+# Set default build type to Release if not specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE RelWithDebugInfo)
+endif()
+
 # Set C++ Standard (C++17 is good for modern features)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,6 +15,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Fixes CMake FetchContent warning
 # (https://cmake.org/cmake/help/latest/policy/CMP0135.html)
 cmake_policy(SET CMP0135 NEW)
+
+# Compiler Optimizations
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_compile_options(-O3 -flto -ffast-math -mcpu=native)
+    # Optional: -flto (Link Time Optimization) for even more speed but slower build
+endif()
 
 # Use system-installed OpenEXR and Imath (install via apt-get or brew)
 find_package(Imath REQUIRED)
@@ -50,6 +61,7 @@ set(SOURCES
     src/io/scene_loader.cc
     src/io/image_io.cc
     src/materials/bsdf.cc
+    src/core/spectral/rgb2spec.cc
 )
 
 # Create Executable
@@ -69,6 +81,9 @@ target_link_libraries(skewer-render
     Imath::Imath
     OpenEXR::OpenEXR
     ZLIB::ZLIB
+)
+target_link_options(skewer-render PRIVATE
+    -flto
 )
 
 include(GoogleTest)

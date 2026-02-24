@@ -9,6 +9,7 @@
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
+#include "materials/material.h"
 #include "scene/surface_interaction.h"
 
 namespace skwr {
@@ -74,6 +75,7 @@ void Scene::Build() {
             lights_.push_back(light);
         }
     }
+    inv_light_count_ = 1.0f / lights_.size();
 }
 
 bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {

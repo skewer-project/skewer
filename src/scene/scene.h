@@ -35,6 +35,7 @@ class Scene {
     const std::vector<Triangle>& Triangles() const { return triangles_; }
     const std::vector<Material>& Materials() const { return materials_; }
     const std::vector<AreaLight>& Lights() const { return lights_; }
+    const float& InvLightCount() const { return inv_light_count_; }
 
     void Build();  // Construct the BVH from the shapes list
 
@@ -51,6 +52,7 @@ class Scene {
     std::vector<Triangle> triangles_;
     std::vector<AreaLight> lights_;
     BVH bvh_;
+    float inv_light_count_;
 };
 
 }  // namespace skwr

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "core/spectrum.h"
+#include "core/color.h"
 
 namespace skwr {
 
@@ -75,16 +75,16 @@ class FlatImageBuffer {
   public:
     FlatImageBuffer(int width, int height) : width_(width), height_(height), pixels_({}) {};
 
-    FlatImageBuffer(int width, int height, std::vector<Spectrum> pixels)
+    FlatImageBuffer(int width, int height, std::vector<RGB> pixels)
         : width_(width), height_(height), pixels_(pixels) {};
 
     // Set a pixel's color (0,0 is top-left usually)
-    void SetPixel(int x, int y, const Spectrum& s);
+    void SetPixel(int x, int y, const RGB& s);
 
   private:
     int width_;
     int height_;
-    std::vector<Spectrum> pixels_;
+    std::vector<RGB> pixels_;
 };
 
 }  // namespace skwr
