@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/constants.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/vec3.h"
 #include "geometry/mesh.h"
 #include "materials/material.h"
@@ -27,7 +28,7 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     // 1. PBR METALLIC
     if (mtl.metallic >= 0.5f) {
         mat.type = MaterialType::Metal;
-        mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
+        mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
         mat.roughness = std::max(0.0f, std::min(1.0f, mtl.roughness * 0.5f));
         std::clog << "    -> Metal (PBR)" << std::endl;
         return mat;
@@ -37,7 +38,7 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     bool is_glass_illum = (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
     if (mtl.dissolve < 0.99f || is_glass_illum) {
         mat.type = MaterialType::Dielectric;
-        mat.albedo = Spectrum(1.0f, 1.0f, 1.0f);
+        mat.albedo = RGBToCurve(RGB(1.0f, 1.0f, 1.0f));
         mat.roughness = 0.0f;
         mat.ior = (mtl.ior > 1.0f) ? mtl.ior : 1.5f;
         std::clog << "    -> Dielectric (ior=" << mat.ior << ")" << std::endl;
@@ -48,7 +49,7 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     float spec_intensity = (mtl.specular[0] + mtl.specular[1] + mtl.specular[2]) / 3.0f;
     if (spec_intensity > 0.5f && mtl.metallic < 0.001f) {
         mat.type = MaterialType::Metal;
-        mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
+        mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
         float fuzz = 1.0f - std::min(1.0f, mtl.shininess / 1000.0f);
         mat.roughness = std::max(0.0f, std::min(0.5f, fuzz));
         std::clog << "    -> Metal (specular)" << std::endl;
@@ -57,12 +58,12 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
 
     // 4. DEFAULT - Lambertian diffuse
     mat.type = MaterialType::Lambertian;
-    mat.albedo = Spectrum(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]);
+    mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
     mat.roughness = 1.0f;
 
     // If diffuse is near-zero, use a default gray
     if (mtl.diffuse[0] + mtl.diffuse[1] + mtl.diffuse[2] < 0.001f) {
-        mat.albedo = Spectrum(0.5f, 0.5f, 0.5f);
+        mat.albedo = RGBToCurve(RGB(0.5f, 0.5f, 0.5f));
         std::clog << "    -> Lambertian (default gray)" << std::endl;
     } else {
         std::clog << "    -> Lambertian" << std::endl;
@@ -147,7 +148,7 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
         if (fallback_mat_id == UINT32_MAX) {
             Material fallback{};
             fallback.type = MaterialType::Lambertian;
-            fallback.albedo = Spectrum(0.5f, 0.5f, 0.5f);
+            fallback.albedo = RGBToCurve(RGB(0.5f, 0.5f, 0.5f));
             fallback.roughness = 1.0f;
             fallback_mat_id = scene.AddMaterial(fallback);
         }

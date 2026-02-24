@@ -34,8 +34,15 @@ struct RGB {
         return *this;
     }
 
+    RGB& operator/=(float t) {
+        float a = 1.0 / t;
+        c[0] *= a;
+        c[1] *= a;
+        c[2] *= a;
+        return *this;
+    }
+
     RGB LinearToSRGB(const RGB&);
-    RGB ToneMap(const RGB&);
     float Luminance() const {
         // Rec.709
         return 0.2126f * c[0] + 0.7152f * c[1] + 0.0722f * c[2];
@@ -78,6 +85,32 @@ inline RGB operator*(float t, const RGB& c) { return RGB(t * c.r(), t * c.g(), t
 inline RGB operator*(const RGB& c, float t) { return t * c; }
 
 inline RGB operator/(const RGB& c, float t) { return c * (1.0 / t); }
+
+inline float ToLinear(float x) {
+    if (x <= 0.04045f) return x / 12.92f;
+    return std::pow((x + 0.055f) / 1.055f, 2.4f);
+}
+
+inline RGB ToLinear(const RGB& c) { return RGB(ToLinear(c.r()), ToLinear(c.g()), ToLinear(c.b())); }
+
+inline RGB Tonemap(const RGB& c) {
+    // Clamp negatives (Crucial to prevent spectral shadow fireflies)
+    float r = std::max(0.0f, c.r());
+    float g = std::max(0.0f, c.g());
+    float b = std::max(0.0f, c.b());
+
+    // Reinhard Tonemap to gracefully compress HDR values (e.g. 4.0) into [0, 1]
+    r = r / (1.0f + r);
+    g = g / (1.0f + g);
+    b = b / (1.0f + b);
+
+    // sRGB Gamma Correction
+    r = std::pow(r, 1.0f / 2.2f);
+    g = std::pow(g, 1.0f / 2.2f);
+    b = std::pow(b, 1.0f / 2.2f);
+
+    return RGB(r, g, b);
+}
 
 }  // namespace skwr
 
