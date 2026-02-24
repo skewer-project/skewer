@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.4
-// source: coordinator/v1/coordinator.proto
+// source: api/proto/coordinator/v1/coordinator.proto
 
 package v1
 
@@ -21,124 +21,86 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetJobStatusResponse_JobState int32
+type GetJobStatusResponse_JobStatus int32
 
 const (
-	GetJobStatusResponse_JOB_STATE_PENDING_UNSPECIFIED GetJobStatusResponse_JobState = 0
-	GetJobStatusResponse_JOB_STATE_RUNNING             GetJobStatusResponse_JobState = 1
-	GetJobStatusResponse_JOB_STATE_COMPLETED           GetJobStatusResponse_JobState = 2
-	GetJobStatusResponse_JOB_STATE_FAILED              GetJobStatusResponse_JobState = 3
+	GetJobStatusResponse_JOB_STATUS_UNSPECIFIED          GetJobStatusResponse_JobStatus = 0
+	GetJobStatusResponse_JOB_STATUS_PENDING_DEPENDENCIES GetJobStatusResponse_JobStatus = 1 // waiting for dependency jobs
+	GetJobStatusResponse_JOB_STATUS_QUEUED               GetJobStatusResponse_JobStatus = 2
+	GetJobStatusResponse_JOB_STATUS_RUNNING              GetJobStatusResponse_JobStatus = 3
+	GetJobStatusResponse_JOB_STATUS_COMPLETED            GetJobStatusResponse_JobStatus = 4
+	GetJobStatusResponse_JOB_STATUS_FAILED               GetJobStatusResponse_JobStatus = 5
 )
 
-// Enum value maps for GetJobStatusResponse_JobState.
+// Enum value maps for GetJobStatusResponse_JobStatus.
 var (
-	GetJobStatusResponse_JobState_name = map[int32]string{
-		0: "JOB_STATE_PENDING_UNSPECIFIED",
-		1: "JOB_STATE_RUNNING",
-		2: "JOB_STATE_COMPLETED",
-		3: "JOB_STATE_FAILED",
+	GetJobStatusResponse_JobStatus_name = map[int32]string{
+		0: "JOB_STATUS_UNSPECIFIED",
+		1: "JOB_STATUS_PENDING_DEPENDENCIES",
+		2: "JOB_STATUS_QUEUED",
+		3: "JOB_STATUS_RUNNING",
+		4: "JOB_STATUS_COMPLETED",
+		5: "JOB_STATUS_FAILED",
 	}
-	GetJobStatusResponse_JobState_value = map[string]int32{
-		"JOB_STATE_PENDING_UNSPECIFIED": 0,
-		"JOB_STATE_RUNNING":             1,
-		"JOB_STATE_COMPLETED":           2,
-		"JOB_STATE_FAILED":              3,
+	GetJobStatusResponse_JobStatus_value = map[string]int32{
+		"JOB_STATUS_UNSPECIFIED":          0,
+		"JOB_STATUS_PENDING_DEPENDENCIES": 1,
+		"JOB_STATUS_QUEUED":               2,
+		"JOB_STATUS_RUNNING":              3,
+		"JOB_STATUS_COMPLETED":            4,
+		"JOB_STATUS_FAILED":               5,
 	}
 )
 
-func (x GetJobStatusResponse_JobState) Enum() *GetJobStatusResponse_JobState {
-	p := new(GetJobStatusResponse_JobState)
+func (x GetJobStatusResponse_JobStatus) Enum() *GetJobStatusResponse_JobStatus {
+	p := new(GetJobStatusResponse_JobStatus)
 	*p = x
 	return p
 }
 
-func (x GetJobStatusResponse_JobState) String() string {
+func (x GetJobStatusResponse_JobStatus) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (GetJobStatusResponse_JobState) Descriptor() protoreflect.EnumDescriptor {
-	return file_coordinator_v1_coordinator_proto_enumTypes[0].Descriptor()
+func (GetJobStatusResponse_JobStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_proto_coordinator_v1_coordinator_proto_enumTypes[0].Descriptor()
 }
 
-func (GetJobStatusResponse_JobState) Type() protoreflect.EnumType {
-	return &file_coordinator_v1_coordinator_proto_enumTypes[0]
+func (GetJobStatusResponse_JobStatus) Type() protoreflect.EnumType {
+	return &file_api_proto_coordinator_v1_coordinator_proto_enumTypes[0]
 }
 
-func (x GetJobStatusResponse_JobState) Number() protoreflect.EnumNumber {
+func (x GetJobStatusResponse_JobStatus) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use GetJobStatusResponse_JobState.Descriptor instead.
-func (GetJobStatusResponse_JobState) EnumDescriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3, 0}
+// Deprecated: Use GetJobStatusResponse_JobStatus.Descriptor instead.
+func (GetJobStatusResponse_JobStatus) EnumDescriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5, 0}
 }
 
-type HeartbeatResponse_Command int32
-
-const (
-	HeartbeatResponse_COMMAND_CONTINUE_UNSPECIFIED HeartbeatResponse_Command = 0
-	HeartbeatResponse_COMMAND_SHUTDOWN             HeartbeatResponse_Command = 1
-)
-
-// Enum value maps for HeartbeatResponse_Command.
-var (
-	HeartbeatResponse_Command_name = map[int32]string{
-		0: "COMMAND_CONTINUE_UNSPECIFIED",
-		1: "COMMAND_SHUTDOWN",
-	}
-	HeartbeatResponse_Command_value = map[string]int32{
-		"COMMAND_CONTINUE_UNSPECIFIED": 0,
-		"COMMAND_SHUTDOWN":             1,
-	}
-)
-
-func (x HeartbeatResponse_Command) Enum() *HeartbeatResponse_Command {
-	p := new(HeartbeatResponse_Command)
-	*p = x
-	return p
-}
-
-func (x HeartbeatResponse_Command) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (HeartbeatResponse_Command) Descriptor() protoreflect.EnumDescriptor {
-	return file_coordinator_v1_coordinator_proto_enumTypes[1].Descriptor()
-}
-
-func (HeartbeatResponse_Command) Type() protoreflect.EnumType {
-	return &file_coordinator_v1_coordinator_proto_enumTypes[1]
-}
-
-func (x HeartbeatResponse_Command) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use HeartbeatResponse_Command.Descriptor instead.
-func (HeartbeatResponse_Command) EnumDescriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{7, 0}
-}
-
+// /* "Job" Submission Level *///
 type SubmitJobRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Job data for the requested scene
-	SceneFileUri    string `protobuf:"bytes,1,opt,name=scene_file_uri,json=sceneFileUri,proto3" json:"scene_file_uri,omitempty"` // URI to the scene (e.g. .obj or custom manifest)
-	Width           int32  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
-	Height          int32  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	SamplesPerPixel int32  `protobuf:"varint,4,opt,name=samples_per_pixel,json=samplesPerPixel,proto3" json:"samples_per_pixel,omitempty"`
-	MaxDepth        int32  `protobuf:"varint,5,opt,name=max_depth,json=maxDepth,proto3" json:"max_depth,omitempty"`
-	// Logical layers requested for this job
-	LayerNames []string `protobuf:"bytes,6,rep,name=layer_names,json=layerNames,proto3" json:"layer_names,omitempty"`
-	// The base bucket/prefix where all layer files and final output should be stored
-	// e.g., "gs://my-bucket/jobs/job_uuid/"
-	OutputBaseUri string `protobuf:"bytes,7,opt,name=output_base_uri,json=outputBaseUri,proto3" json:"output_base_uri,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	JobId     string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`       // UUID of job for tracking
+	JobName   string                 `protobuf:"bytes,2,opt,name=job_name,json=jobName,proto3" json:"job_name,omitempty"` // eg. "smoke_layer", "ball_layer", "final_composite"
+	DependsOn []string               `protobuf:"bytes,3,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// General job information
+	NumFrames int32 `protobuf:"varint,4,opt,name=num_frames,json=numFrames,proto3" json:"num_frames,omitempty"`
+	Width     int32 `protobuf:"varint,5,opt,name=width,proto3" json:"width,omitempty"`
+	Height    int32 `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
+	// Types that are valid to be assigned to JobType:
+	//
+	//	*SubmitJobRequest_RenderJob
+	//	*SubmitJobRequest_CompositeJob
+	JobType       isSubmitJobRequest_JobType `protobuf_oneof:"job_type"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubmitJobRequest) Reset() {
 	*x = SubmitJobRequest{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[0]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -150,7 +112,7 @@ func (x *SubmitJobRequest) String() string {
 func (*SubmitJobRequest) ProtoMessage() {}
 
 func (x *SubmitJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[0]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,14 +125,35 @@ func (x *SubmitJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitJobRequest.ProtoReflect.Descriptor instead.
 func (*SubmitJobRequest) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{0}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SubmitJobRequest) GetSceneFileUri() string {
+func (x *SubmitJobRequest) GetJobId() string {
 	if x != nil {
-		return x.SceneFileUri
+		return x.JobId
 	}
 	return ""
+}
+
+func (x *SubmitJobRequest) GetJobName() string {
+	if x != nil {
+		return x.JobName
+	}
+	return ""
+}
+
+func (x *SubmitJobRequest) GetDependsOn() []string {
+	if x != nil {
+		return x.DependsOn
+	}
+	return nil
+}
+
+func (x *SubmitJobRequest) GetNumFrames() int32 {
+	if x != nil {
+		return x.NumFrames
+	}
+	return 0
 }
 
 func (x *SubmitJobRequest) GetWidth() int32 {
@@ -187,30 +170,165 @@ func (x *SubmitJobRequest) GetHeight() int32 {
 	return 0
 }
 
-func (x *SubmitJobRequest) GetSamplesPerPixel() int32 {
+func (x *SubmitJobRequest) GetJobType() isSubmitJobRequest_JobType {
 	if x != nil {
-		return x.SamplesPerPixel
-	}
-	return 0
-}
-
-func (x *SubmitJobRequest) GetMaxDepth() int32 {
-	if x != nil {
-		return x.MaxDepth
-	}
-	return 0
-}
-
-func (x *SubmitJobRequest) GetLayerNames() []string {
-	if x != nil {
-		return x.LayerNames
+		return x.JobType
 	}
 	return nil
 }
 
-func (x *SubmitJobRequest) GetOutputBaseUri() string {
+func (x *SubmitJobRequest) GetRenderJob() *RenderJob {
 	if x != nil {
-		return x.OutputBaseUri
+		if x, ok := x.JobType.(*SubmitJobRequest_RenderJob); ok {
+			return x.RenderJob
+		}
+	}
+	return nil
+}
+
+func (x *SubmitJobRequest) GetCompositeJob() *CompositeJob {
+	if x != nil {
+		if x, ok := x.JobType.(*SubmitJobRequest_CompositeJob); ok {
+			return x.CompositeJob
+		}
+	}
+	return nil
+}
+
+type isSubmitJobRequest_JobType interface {
+	isSubmitJobRequest_JobType()
+}
+
+type SubmitJobRequest_RenderJob struct {
+	RenderJob *RenderJob `protobuf:"bytes,7,opt,name=render_job,json=renderJob,proto3,oneof"`
+}
+
+type SubmitJobRequest_CompositeJob struct {
+	CompositeJob *CompositeJob `protobuf:"bytes,8,opt,name=composite_job,json=compositeJob,proto3,oneof"`
+}
+
+func (*SubmitJobRequest_RenderJob) isSubmitJobRequest_JobType() {}
+
+func (*SubmitJobRequest_CompositeJob) isSubmitJobRequest_JobType() {}
+
+type RenderJob struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	SceneUri        string                 `protobuf:"bytes,1,opt,name=scene_uri,json=sceneUri,proto3" json:"scene_uri,omitempty"`
+	TotalSamples    int32                  `protobuf:"varint,2,opt,name=total_samples,json=totalSamples,proto3" json:"total_samples,omitempty"`           // number of rays shot per pixel e.g., 1024
+	SampleDivision  int32                  `protobuf:"varint,3,opt,name=sample_division,json=sampleDivision,proto3" json:"sample_division,omitempty"`     // e.g., 4 (spawns 4 tasks of 256 samples per frame)
+	OutputUriPrefix string                 `protobuf:"bytes,4,opt,name=output_uri_prefix,json=outputUriPrefix,proto3" json:"output_uri_prefix,omitempty"` // gs://bucket/renders/smoke/
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RenderJob) Reset() {
+	*x = RenderJob{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenderJob) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenderJob) ProtoMessage() {}
+
+func (x *RenderJob) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenderJob.ProtoReflect.Descriptor instead.
+func (*RenderJob) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RenderJob) GetSceneUri() string {
+	if x != nil {
+		return x.SceneUri
+	}
+	return ""
+}
+
+func (x *RenderJob) GetTotalSamples() int32 {
+	if x != nil {
+		return x.TotalSamples
+	}
+	return 0
+}
+
+func (x *RenderJob) GetSampleDivision() int32 {
+	if x != nil {
+		return x.SampleDivision
+	}
+	return 0
+}
+
+func (x *RenderJob) GetOutputUriPrefix() string {
+	if x != nil {
+		return x.OutputUriPrefix
+	}
+	return ""
+}
+
+type CompositeJob struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The layers to combine. For frame x, Loom will look for:
+	// gs://bucket/renders/smoke/frame-0005.exr and gs://bucket/renders/person/frame-0005.exr
+	LayerUriPrefixes []string `protobuf:"bytes,1,rep,name=layer_uri_prefixes,json=layerUriPrefixes,proto3" json:"layer_uri_prefixes,omitempty"`
+	OutputUriPrefix  string   `protobuf:"bytes,2,opt,name=output_uri_prefix,json=outputUriPrefix,proto3" json:"output_uri_prefix,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CompositeJob) Reset() {
+	*x = CompositeJob{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompositeJob) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompositeJob) ProtoMessage() {}
+
+func (x *CompositeJob) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompositeJob.ProtoReflect.Descriptor instead.
+func (*CompositeJob) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CompositeJob) GetLayerUriPrefixes() []string {
+	if x != nil {
+		return x.LayerUriPrefixes
+	}
+	return nil
+}
+
+func (x *CompositeJob) GetOutputUriPrefix() string {
+	if x != nil {
+		return x.OutputUriPrefix
 	}
 	return ""
 }
@@ -224,7 +342,7 @@ type SubmitJobResponse struct {
 
 func (x *SubmitJobResponse) Reset() {
 	*x = SubmitJobResponse{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[1]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -236,7 +354,7 @@ func (x *SubmitJobResponse) String() string {
 func (*SubmitJobResponse) ProtoMessage() {}
 
 func (x *SubmitJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[1]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -249,7 +367,7 @@ func (x *SubmitJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitJobResponse.ProtoReflect.Descriptor instead.
 func (*SubmitJobResponse) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{1}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SubmitJobResponse) GetJobId() string {
@@ -259,6 +377,7 @@ func (x *SubmitJobResponse) GetJobId() string {
 	return ""
 }
 
+// /* Job Tracking API for User *///
 type GetJobStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
@@ -268,7 +387,7 @@ type GetJobStatusRequest struct {
 
 func (x *GetJobStatusRequest) Reset() {
 	*x = GetJobStatusRequest{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -280,7 +399,7 @@ func (x *GetJobStatusRequest) String() string {
 func (*GetJobStatusRequest) ProtoMessage() {}
 
 func (x *GetJobStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -293,7 +412,7 @@ func (x *GetJobStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetJobStatusRequest) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{2}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetJobStatusRequest) GetJobId() string {
@@ -304,21 +423,17 @@ func (x *GetJobStatusRequest) GetJobId() string {
 }
 
 type GetJobStatusResponse struct {
-	state        protoimpl.MessageState        `protogen:"open.v1"`
-	State        GetJobStatusResponse_JobState `protobuf:"varint,1,opt,name=state,proto3,enum=coordinator.v1.GetJobStatusResponse_JobState" json:"state,omitempty"`
-	Progress     float32                       `protobuf:"fixed32,2,opt,name=progress,proto3" json:"progress,omitempty"` // 0.0 to 1.0
-	ErrorMessage string                        `protobuf:"bytes,3,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
-	// The final composited image URI (only valid if COMPLETED)
-	FinalOutputUri string `protobuf:"bytes,4,opt,name=final_output_uri,json=finalOutputUri,proto3" json:"final_output_uri,omitempty"`
-	// Status of individual layers
-	LayerUris     map[string]string `protobuf:"bytes,5,rep,name=layer_uris,json=layerUris,proto3" json:"layer_uris,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState         `protogen:"open.v1"`
+	JobStatus       GetJobStatusResponse_JobStatus `protobuf:"varint,1,opt,name=job_status,json=jobStatus,proto3,enum=api.proto.coordinator.v1.GetJobStatusResponse_JobStatus" json:"job_status,omitempty"`
+	ProgressPercent float32                        `protobuf:"fixed32,2,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
+	ErrorMessage    string                         `protobuf:"bytes,3,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetJobStatusResponse) Reset() {
 	*x = GetJobStatusResponse{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -330,7 +445,7 @@ func (x *GetJobStatusResponse) String() string {
 func (*GetJobStatusResponse) ProtoMessage() {}
 
 func (x *GetJobStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -343,19 +458,19 @@ func (x *GetJobStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetJobStatusResponse) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *GetJobStatusResponse) GetState() GetJobStatusResponse_JobState {
+func (x *GetJobStatusResponse) GetJobStatus() GetJobStatusResponse_JobStatus {
 	if x != nil {
-		return x.State
+		return x.JobStatus
 	}
-	return GetJobStatusResponse_JOB_STATE_PENDING_UNSPECIFIED
+	return GetJobStatusResponse_JOB_STATUS_UNSPECIFIED
 }
 
-func (x *GetJobStatusResponse) GetProgress() float32 {
+func (x *GetJobStatusResponse) GetProgressPercent() float32 {
 	if x != nil {
-		return x.Progress
+		return x.ProgressPercent
 	}
 	return 0
 }
@@ -367,102 +482,513 @@ func (x *GetJobStatusResponse) GetErrorMessage() string {
 	return ""
 }
 
-func (x *GetJobStatusResponse) GetFinalOutputUri() string {
+type CancelJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelJobRequest) Reset() {
+	*x = CancelJobRequest{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelJobRequest) ProtoMessage() {}
+
+func (x *CancelJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[6]
 	if x != nil {
-		return x.FinalOutputUri
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelJobRequest.ProtoReflect.Descriptor instead.
+func (*CancelJobRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CancelJobRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
 	}
 	return ""
 }
 
-func (x *GetJobStatusResponse) GetLayerUris() map[string]string {
+type CancelJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelJobResponse) Reset() {
+	*x = CancelJobResponse{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelJobResponse) ProtoMessage() {}
+
+func (x *CancelJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelJobResponse.ProtoReflect.Descriptor instead.
+func (*CancelJobResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CancelJobResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+// /* Worker Execution *///
+type GetWorkStreamRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	WorkerId string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"` // UUID of skewer/loom pod
+	// Any tags to ensure workers only get tasks they can handle
+	// e.g., ["gpu", "skewer"] or ["high-mem", "loom"]
+	Capabilities  []string `protobuf:"bytes,2,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkStreamRequest) Reset() {
+	*x = GetWorkStreamRequest{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkStreamRequest) ProtoMessage() {}
+
+func (x *GetWorkStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkStreamRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkStreamRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetWorkStreamRequest) GetWorkerId() string {
+	if x != nil {
+		return x.WorkerId
+	}
+	return ""
+}
+
+func (x *GetWorkStreamRequest) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+type WorkPackage struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	JobId   string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	TaskId  string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	FrameId string                 `protobuf:"bytes,3,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*WorkPackage_RenderTask
+	//	*WorkPackage_MergeTask
+	//	*WorkPackage_CompositeTask
+	Payload       isWorkPackage_Payload `protobuf_oneof:"payload"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkPackage) Reset() {
+	*x = WorkPackage{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkPackage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkPackage) ProtoMessage() {}
+
+func (x *WorkPackage) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkPackage.ProtoReflect.Descriptor instead.
+func (*WorkPackage) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WorkPackage) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *WorkPackage) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *WorkPackage) GetFrameId() string {
+	if x != nil {
+		return x.FrameId
+	}
+	return ""
+}
+
+func (x *WorkPackage) GetPayload() isWorkPackage_Payload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *WorkPackage) GetRenderTask() *RenderTask {
+	if x != nil {
+		if x, ok := x.Payload.(*WorkPackage_RenderTask); ok {
+			return x.RenderTask
+		}
+	}
+	return nil
+}
+
+func (x *WorkPackage) GetMergeTask() *MergeTask {
+	if x != nil {
+		if x, ok := x.Payload.(*WorkPackage_MergeTask); ok {
+			return x.MergeTask
+		}
+	}
+	return nil
+}
+
+func (x *WorkPackage) GetCompositeTask() *CompositeTask {
+	if x != nil {
+		if x, ok := x.Payload.(*WorkPackage_CompositeTask); ok {
+			return x.CompositeTask
+		}
+	}
+	return nil
+}
+
+type isWorkPackage_Payload interface {
+	isWorkPackage_Payload()
+}
+
+type WorkPackage_RenderTask struct {
+	// Run by Skewer: Render a sample chunk
+	RenderTask *RenderTask `protobuf:"bytes,4,opt,name=render_task,json=renderTask,proto3,oneof"`
+}
+
+type WorkPackage_MergeTask struct {
+	// Run by Loom: Ingests partial Deep EXRs, depth-sorts the linked lists, and merges samples at the same Z-depth
+	MergeTask *MergeTask `protobuf:"bytes,5,opt,name=merge_task,json=mergeTask,proto3,oneof"`
+}
+
+type WorkPackage_CompositeTask struct {
+	// Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person) and deep-merges them
+	CompositeTask *CompositeTask `protobuf:"bytes,6,opt,name=composite_task,json=compositeTask,proto3,oneof"`
+}
+
+func (*WorkPackage_RenderTask) isWorkPackage_Payload() {}
+
+func (*WorkPackage_MergeTask) isWorkPackage_Payload() {}
+
+func (*WorkPackage_CompositeTask) isWorkPackage_Payload() {}
+
+type RenderTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scene information
+	SceneUri string `protobuf:"bytes,1,opt,name=scene_uri,json=sceneUri,proto3" json:"scene_uri,omitempty"`
+	Width    int32  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Height   int32  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	// Sample division range
+	SampleStart   int32  `protobuf:"varint,4,opt,name=sample_start,json=sampleStart,proto3" json:"sample_start,omitempty"`
+	SampleEnd     int32  `protobuf:"varint,5,opt,name=sample_end,json=sampleEnd,proto3" json:"sample_end,omitempty"`
+	OutputUri     string `protobuf:"bytes,6,opt,name=output_uri,json=outputUri,proto3" json:"output_uri,omitempty"` // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenderTask) Reset() {
+	*x = RenderTask{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenderTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenderTask) ProtoMessage() {}
+
+func (x *RenderTask) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenderTask.ProtoReflect.Descriptor instead.
+func (*RenderTask) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RenderTask) GetSceneUri() string {
+	if x != nil {
+		return x.SceneUri
+	}
+	return ""
+}
+
+func (x *RenderTask) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *RenderTask) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *RenderTask) GetSampleStart() int32 {
+	if x != nil {
+		return x.SampleStart
+	}
+	return 0
+}
+
+func (x *RenderTask) GetSampleEnd() int32 {
+	if x != nil {
+		return x.SampleEnd
+	}
+	return 0
+}
+
+func (x *RenderTask) GetOutputUri() string {
+	if x != nil {
+		return x.OutputUri
+	}
+	return ""
+}
+
+type MergeTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The PARTIAL deep EXR chunks in a given frame to sort and merge (e.g., render chunk 0 to 3)
+	PartialDeepExrUris []string `protobuf:"bytes,1,rep,name=partial_deep_exr_uris,json=partialDeepExrUris,proto3" json:"partial_deep_exr_uris,omitempty"`
+	OutputUri          string   `protobuf:"bytes,2,opt,name=output_uri,json=outputUri,proto3" json:"output_uri,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *MergeTask) Reset() {
+	*x = MergeTask{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeTask) ProtoMessage() {}
+
+func (x *MergeTask) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeTask.ProtoReflect.Descriptor instead.
+func (*MergeTask) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *MergeTask) GetPartialDeepExrUris() []string {
+	if x != nil {
+		return x.PartialDeepExrUris
+	}
+	return nil
+}
+
+func (x *MergeTask) GetOutputUri() string {
+	if x != nil {
+		return x.OutputUri
+	}
+	return ""
+}
+
+type CompositeTask struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've been "merged" from sample splitting)
+	LayerUris     []string `protobuf:"bytes,1,rep,name=layer_uris,json=layerUris,proto3" json:"layer_uris,omitempty"`
+	Width         int32    `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32    `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	OutputUri     string   `protobuf:"bytes,4,opt,name=output_uri,json=outputUri,proto3" json:"output_uri,omitempty"` // flattened 2D image
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompositeTask) Reset() {
+	*x = CompositeTask{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompositeTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompositeTask) ProtoMessage() {}
+
+func (x *CompositeTask) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompositeTask.ProtoReflect.Descriptor instead.
+func (*CompositeTask) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CompositeTask) GetLayerUris() []string {
 	if x != nil {
 		return x.LayerUris
 	}
 	return nil
 }
 
-type RegisterWorkerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	IpAddress     string                 `protobuf:"bytes,1,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
-	CpuCores      int32                  `protobuf:"varint,2,opt,name=cpu_cores,json=cpuCores,proto3" json:"cpu_cores,omitempty"`
-	WorkerVersion string                 `protobuf:"bytes,3,opt,name=worker_version,json=workerVersion,proto3" json:"worker_version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RegisterWorkerRequest) Reset() {
-	*x = RegisterWorkerRequest{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegisterWorkerRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterWorkerRequest) ProtoMessage() {}
-
-func (x *RegisterWorkerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[4]
+func (x *CompositeTask) GetWidth() int32 {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterWorkerRequest.ProtoReflect.Descriptor instead.
-func (*RegisterWorkerRequest) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *RegisterWorkerRequest) GetIpAddress() string {
-	if x != nil {
-		return x.IpAddress
-	}
-	return ""
-}
-
-func (x *RegisterWorkerRequest) GetCpuCores() int32 {
-	if x != nil {
-		return x.CpuCores
+		return x.Width
 	}
 	return 0
 }
 
-func (x *RegisterWorkerRequest) GetWorkerVersion() string {
+func (x *CompositeTask) GetHeight() int32 {
 	if x != nil {
-		return x.WorkerVersion
+		return x.Height
+	}
+	return 0
+}
+
+func (x *CompositeTask) GetOutputUri() string {
+	if x != nil {
+		return x.OutputUri
 	}
 	return ""
 }
 
-type RegisterWorkerResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+// /* Worker Reporting *///
+type ReportTaskResultRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identification of the job task and worker (may need to add frame number)
+	TaskId   string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	JobId    string `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	WorkerId string `protobuf:"bytes,3,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	// Generic response information
+	Success         bool   `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
+	ErrorMessage    string `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	OutputUri       string `protobuf:"bytes,6,opt,name=output_uri,json=outputUri,proto3" json:"output_uri,omitempty"`
+	ExecutionTimeMs int64  `protobuf:"varint,7,opt,name=execution_time_ms,json=executionTimeMs,proto3" json:"execution_time_ms,omitempty"` // for metrics
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
-func (x *RegisterWorkerResponse) Reset() {
-	*x = RegisterWorkerResponse{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[5]
+func (x *ReportTaskResultRequest) Reset() {
+	*x = ReportTaskResultRequest{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegisterWorkerResponse) String() string {
+func (x *ReportTaskResultRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegisterWorkerResponse) ProtoMessage() {}
+func (*ReportTaskResultRequest) ProtoMessage() {}
 
-func (x *RegisterWorkerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[5]
+func (x *ReportTaskResultRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -473,101 +999,82 @@ func (x *RegisterWorkerResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegisterWorkerResponse.ProtoReflect.Descriptor instead.
-func (*RegisterWorkerResponse) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5}
+// Deprecated: Use ReportTaskResultRequest.ProtoReflect.Descriptor instead.
+func (*ReportTaskResultRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *RegisterWorkerResponse) GetWorkerId() string {
+func (x *ReportTaskResultRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ReportTaskResultRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *ReportTaskResultRequest) GetWorkerId() string {
 	if x != nil {
 		return x.WorkerId
 	}
 	return ""
 }
 
-// Reports status of a worker
-type HeartbeatRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	LoadAverage   float32                `protobuf:"fixed32,2,opt,name=load_average,json=loadAverage,proto3" json:"load_average,omitempty"`
-	IsRendering   bool                   `protobuf:"varint,3,opt,name=is_rendering,json=isRendering,proto3" json:"is_rendering,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HeartbeatRequest) Reset() {
-	*x = HeartbeatRequest{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HeartbeatRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HeartbeatRequest) ProtoMessage() {}
-
-func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[6]
+func (x *ReportTaskResultRequest) GetSuccess() bool {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
-func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *HeartbeatRequest) GetWorkerId() string {
-	if x != nil {
-		return x.WorkerId
-	}
-	return ""
-}
-
-func (x *HeartbeatRequest) GetLoadAverage() float32 {
-	if x != nil {
-		return x.LoadAverage
-	}
-	return 0
-}
-
-func (x *HeartbeatRequest) GetIsRendering() bool {
-	if x != nil {
-		return x.IsRendering
+		return x.Success
 	}
 	return false
 }
 
-type HeartbeatResponse struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Command       HeartbeatResponse_Command `protobuf:"varint,1,opt,name=command,proto3,enum=coordinator.v1.HeartbeatResponse_Command" json:"command,omitempty"`
+func (x *ReportTaskResultRequest) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *ReportTaskResultRequest) GetOutputUri() string {
+	if x != nil {
+		return x.OutputUri
+	}
+	return ""
+}
+
+func (x *ReportTaskResultRequest) GetExecutionTimeMs() int64 {
+	if x != nil {
+		return x.ExecutionTimeMs
+	}
+	return 0
+}
+
+type ReportTaskResultResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Acknowledged  bool                   `protobuf:"varint,1,opt,name=acknowledged,proto3" json:"acknowledged,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *HeartbeatResponse) Reset() {
-	*x = HeartbeatResponse{}
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[7]
+func (x *ReportTaskResultResponse) Reset() {
+	*x = ReportTaskResultResponse{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *HeartbeatResponse) String() string {
+func (x *ReportTaskResultResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*HeartbeatResponse) ProtoMessage() {}
+func (*ReportTaskResultResponse) ProtoMessage() {}
 
-func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_v1_coordinator_proto_msgTypes[7]
+func (x *ReportTaskResultResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,140 +1085,203 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
-func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{7}
+// Deprecated: Use ReportTaskResultResponse.ProtoReflect.Descriptor instead.
+func (*ReportTaskResultResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *HeartbeatResponse) GetCommand() HeartbeatResponse_Command {
+func (x *ReportTaskResultResponse) GetAcknowledged() bool {
 	if x != nil {
-		return x.Command
+		return x.Acknowledged
 	}
-	return HeartbeatResponse_COMMAND_CONTINUE_UNSPECIFIED
+	return false
 }
 
-var File_coordinator_v1_coordinator_proto protoreflect.FileDescriptor
+var File_api_proto_coordinator_v1_coordinator_proto protoreflect.FileDescriptor
 
-const file_coordinator_v1_coordinator_proto_rawDesc = "" +
+const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
-	" coordinator/v1/coordinator.proto\x12\x0ecoordinator.v1\"\xf8\x01\n" +
-	"\x10SubmitJobRequest\x12$\n" +
-	"\x0escene_file_uri\x18\x01 \x01(\tR\fsceneFileUri\x12\x14\n" +
-	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\x05R\x06height\x12*\n" +
-	"\x11samples_per_pixel\x18\x04 \x01(\x05R\x0fsamplesPerPixel\x12\x1b\n" +
-	"\tmax_depth\x18\x05 \x01(\x05R\bmaxDepth\x12\x1f\n" +
-	"\vlayer_names\x18\x06 \x03(\tR\n" +
-	"layerNames\x12&\n" +
-	"\x0foutput_base_uri\x18\a \x01(\tR\routputBaseUri\"*\n" +
+	"*api/proto/coordinator/v1/coordinator.proto\x12\x18api.proto.coordinator.v1\"\xd1\x02\n" +
+	"\x10SubmitJobRequest\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x19\n" +
+	"\bjob_name\x18\x02 \x01(\tR\ajobName\x12\x1d\n" +
+	"\n" +
+	"depends_on\x18\x03 \x03(\tR\tdependsOn\x12\x1d\n" +
+	"\n" +
+	"num_frames\x18\x04 \x01(\x05R\tnumFrames\x12\x14\n" +
+	"\x05width\x18\x05 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x06 \x01(\x05R\x06height\x12D\n" +
+	"\n" +
+	"render_job\x18\a \x01(\v2#.api.proto.coordinator.v1.RenderJobH\x00R\trenderJob\x12M\n" +
+	"\rcomposite_job\x18\b \x01(\v2&.api.proto.coordinator.v1.CompositeJobH\x00R\fcompositeJobB\n" +
+	"\n" +
+	"\bjob_type\"\xa2\x01\n" +
+	"\tRenderJob\x12\x1b\n" +
+	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12#\n" +
+	"\rtotal_samples\x18\x02 \x01(\x05R\ftotalSamples\x12'\n" +
+	"\x0fsample_division\x18\x03 \x01(\x05R\x0esampleDivision\x12*\n" +
+	"\x11output_uri_prefix\x18\x04 \x01(\tR\x0foutputUriPrefix\"h\n" +
+	"\fCompositeJob\x12,\n" +
+	"\x12layer_uri_prefixes\x18\x01 \x03(\tR\x10layerUriPrefixes\x12*\n" +
+	"\x11output_uri_prefix\x18\x02 \x01(\tR\x0foutputUriPrefix\"*\n" +
 	"\x11SubmitJobResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\",\n" +
 	"\x13GetJobStatusRequest\x12\x15\n" +
-	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\xcd\x03\n" +
-	"\x14GetJobStatusResponse\x12C\n" +
-	"\x05state\x18\x01 \x01(\x0e2-.coordinator.v1.GetJobStatusResponse.JobStateR\x05state\x12\x1a\n" +
-	"\bprogress\x18\x02 \x01(\x02R\bprogress\x12#\n" +
-	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\x12(\n" +
-	"\x10final_output_uri\x18\x04 \x01(\tR\x0efinalOutputUri\x12R\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"\xee\x02\n" +
+	"\x14GetJobStatusResponse\x12W\n" +
 	"\n" +
-	"layer_uris\x18\x05 \x03(\v23.coordinator.v1.GetJobStatusResponse.LayerUrisEntryR\tlayerUris\x1a<\n" +
-	"\x0eLayerUrisEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"s\n" +
-	"\bJobState\x12!\n" +
-	"\x1dJOB_STATE_PENDING_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11JOB_STATE_RUNNING\x10\x01\x12\x17\n" +
-	"\x13JOB_STATE_COMPLETED\x10\x02\x12\x14\n" +
-	"\x10JOB_STATE_FAILED\x10\x03\"z\n" +
-	"\x15RegisterWorkerRequest\x12\x1d\n" +
+	"job_status\x18\x01 \x01(\x0e28.api.proto.coordinator.v1.GetJobStatusResponse.JobStatusR\tjobStatus\x12)\n" +
+	"\x10progress_percent\x18\x02 \x01(\x02R\x0fprogressPercent\x12#\n" +
+	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\"\xac\x01\n" +
+	"\tJobStatus\x12\x1a\n" +
+	"\x16JOB_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fJOB_STATUS_PENDING_DEPENDENCIES\x10\x01\x12\x15\n" +
+	"\x11JOB_STATUS_QUEUED\x10\x02\x12\x16\n" +
+	"\x12JOB_STATUS_RUNNING\x10\x03\x12\x18\n" +
+	"\x14JOB_STATUS_COMPLETED\x10\x04\x12\x15\n" +
+	"\x11JOB_STATUS_FAILED\x10\x05\")\n" +
+	"\x10CancelJobRequest\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"-\n" +
+	"\x11CancelJobResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"W\n" +
+	"\x14GetWorkStreamRequest\x12\x1b\n" +
+	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\"\n" +
+	"\fcapabilities\x18\x02 \x03(\tR\fcapabilities\"\xc4\x02\n" +
+	"\vWorkPackage\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x19\n" +
+	"\bframe_id\x18\x03 \x01(\tR\aframeId\x12G\n" +
+	"\vrender_task\x18\x04 \x01(\v2$.api.proto.coordinator.v1.RenderTaskH\x00R\n" +
+	"renderTask\x12D\n" +
 	"\n" +
-	"ip_address\x18\x01 \x01(\tR\tipAddress\x12\x1b\n" +
-	"\tcpu_cores\x18\x02 \x01(\x05R\bcpuCores\x12%\n" +
-	"\x0eworker_version\x18\x03 \x01(\tR\rworkerVersion\"5\n" +
-	"\x16RegisterWorkerResponse\x12\x1b\n" +
-	"\tworker_id\x18\x01 \x01(\tR\bworkerId\"u\n" +
-	"\x10HeartbeatRequest\x12\x1b\n" +
-	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12!\n" +
-	"\fload_average\x18\x02 \x01(\x02R\vloadAverage\x12!\n" +
-	"\fis_rendering\x18\x03 \x01(\bR\visRendering\"\x9b\x01\n" +
-	"\x11HeartbeatResponse\x12C\n" +
-	"\acommand\x18\x01 \x01(\x0e2).coordinator.v1.HeartbeatResponse.CommandR\acommand\"A\n" +
-	"\aCommand\x12 \n" +
-	"\x1cCOMMAND_CONTINUE_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10COMMAND_SHUTDOWN\x10\x012\xf4\x02\n" +
-	"\x12CoordinatorService\x12P\n" +
-	"\tSubmitJob\x12 .coordinator.v1.SubmitJobRequest\x1a!.coordinator.v1.SubmitJobResponse\x12Y\n" +
-	"\fGetJobStatus\x12#.coordinator.v1.GetJobStatusRequest\x1a$.coordinator.v1.GetJobStatusResponse\x12_\n" +
-	"\x0eRegisterWorker\x12%.coordinator.v1.RegisterWorkerRequest\x1a&.coordinator.v1.RegisterWorkerResponse\x12P\n" +
-	"\tHeartbeat\x12 .coordinator.v1.HeartbeatRequest\x1a!.coordinator.v1.HeartbeatResponseB\x1cZ\x1a./api/proto/coordinator/v1b\x06proto3"
+	"merge_task\x18\x05 \x01(\v2#.api.proto.coordinator.v1.MergeTaskH\x00R\tmergeTask\x12P\n" +
+	"\x0ecomposite_task\x18\x06 \x01(\v2'.api.proto.coordinator.v1.CompositeTaskH\x00R\rcompositeTaskB\t\n" +
+	"\apayload\"\xb8\x01\n" +
+	"\n" +
+	"RenderTask\x12\x1b\n" +
+	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x03 \x01(\x05R\x06height\x12!\n" +
+	"\fsample_start\x18\x04 \x01(\x05R\vsampleStart\x12\x1d\n" +
+	"\n" +
+	"sample_end\x18\x05 \x01(\x05R\tsampleEnd\x12\x1d\n" +
+	"\n" +
+	"output_uri\x18\x06 \x01(\tR\toutputUri\"]\n" +
+	"\tMergeTask\x121\n" +
+	"\x15partial_deep_exr_uris\x18\x01 \x03(\tR\x12partialDeepExrUris\x12\x1d\n" +
+	"\n" +
+	"output_uri\x18\x02 \x01(\tR\toutputUri\"{\n" +
+	"\rCompositeTask\x12\x1d\n" +
+	"\n" +
+	"layer_uris\x18\x01 \x03(\tR\tlayerUris\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x03 \x01(\x05R\x06height\x12\x1d\n" +
+	"\n" +
+	"output_uri\x18\x04 \x01(\tR\toutputUri\"\xf0\x01\n" +
+	"\x17ReportTaskResultRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12\x1b\n" +
+	"\tworker_id\x18\x03 \x01(\tR\bworkerId\x12\x18\n" +
+	"\asuccess\x18\x04 \x01(\bR\asuccess\x12#\n" +
+	"\rerror_message\x18\x05 \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\n" +
+	"output_uri\x18\x06 \x01(\tR\toutputUri\x12*\n" +
+	"\x11execution_time_ms\x18\a \x01(\x03R\x0fexecutionTimeMs\">\n" +
+	"\x18ReportTaskResultResponse\x12\"\n" +
+	"\facknowledged\x18\x01 \x01(\bR\facknowledged2\xb4\x04\n" +
+	"\x12CoordinatorService\x12d\n" +
+	"\tSubmitJob\x12*.api.proto.coordinator.v1.SubmitJobRequest\x1a+.api.proto.coordinator.v1.SubmitJobResponse\x12m\n" +
+	"\fGetJobStatus\x12-.api.proto.coordinator.v1.GetJobStatusRequest\x1a..api.proto.coordinator.v1.GetJobStatusResponse\x12d\n" +
+	"\tCancelJob\x12*.api.proto.coordinator.v1.CancelJobRequest\x1a+.api.proto.coordinator.v1.CancelJobResponse\x12h\n" +
+	"\rGetWorkStream\x12..api.proto.coordinator.v1.GetWorkStreamRequest\x1a%.api.proto.coordinator.v1.WorkPackage0\x01\x12y\n" +
+	"\x10ReportTaskResult\x121.api.proto.coordinator.v1.ReportTaskResultRequest\x1a2.api.proto.coordinator.v1.ReportTaskResultResponseB\x1cZ\x1a./api/proto/coordinator/v1b\x06proto3"
 
 var (
-	file_coordinator_v1_coordinator_proto_rawDescOnce sync.Once
-	file_coordinator_v1_coordinator_proto_rawDescData []byte
+	file_api_proto_coordinator_v1_coordinator_proto_rawDescOnce sync.Once
+	file_api_proto_coordinator_v1_coordinator_proto_rawDescData []byte
 )
 
-func file_coordinator_v1_coordinator_proto_rawDescGZIP() []byte {
-	file_coordinator_v1_coordinator_proto_rawDescOnce.Do(func() {
-		file_coordinator_v1_coordinator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_coordinator_v1_coordinator_proto_rawDesc), len(file_coordinator_v1_coordinator_proto_rawDesc)))
+func file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP() []byte {
+	file_api_proto_coordinator_v1_coordinator_proto_rawDescOnce.Do(func() {
+		file_api_proto_coordinator_v1_coordinator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_coordinator_v1_coordinator_proto_rawDesc), len(file_api_proto_coordinator_v1_coordinator_proto_rawDesc)))
 	})
-	return file_coordinator_v1_coordinator_proto_rawDescData
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescData
 }
 
-var file_coordinator_v1_coordinator_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
-var file_coordinator_v1_coordinator_proto_goTypes = []any{
-	(GetJobStatusResponse_JobState)(0), // 0: coordinator.v1.GetJobStatusResponse.JobState
-	(HeartbeatResponse_Command)(0),     // 1: coordinator.v1.HeartbeatResponse.Command
-	(*SubmitJobRequest)(nil),           // 2: coordinator.v1.SubmitJobRequest
-	(*SubmitJobResponse)(nil),          // 3: coordinator.v1.SubmitJobResponse
-	(*GetJobStatusRequest)(nil),        // 4: coordinator.v1.GetJobStatusRequest
-	(*GetJobStatusResponse)(nil),       // 5: coordinator.v1.GetJobStatusResponse
-	(*RegisterWorkerRequest)(nil),      // 6: coordinator.v1.RegisterWorkerRequest
-	(*RegisterWorkerResponse)(nil),     // 7: coordinator.v1.RegisterWorkerResponse
-	(*HeartbeatRequest)(nil),           // 8: coordinator.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),          // 9: coordinator.v1.HeartbeatResponse
-	nil,                                // 10: coordinator.v1.GetJobStatusResponse.LayerUrisEntry
+var file_api_proto_coordinator_v1_coordinator_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_api_proto_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_api_proto_coordinator_v1_coordinator_proto_goTypes = []any{
+	(GetJobStatusResponse_JobStatus)(0), // 0: api.proto.coordinator.v1.GetJobStatusResponse.JobStatus
+	(*SubmitJobRequest)(nil),            // 1: api.proto.coordinator.v1.SubmitJobRequest
+	(*RenderJob)(nil),                   // 2: api.proto.coordinator.v1.RenderJob
+	(*CompositeJob)(nil),                // 3: api.proto.coordinator.v1.CompositeJob
+	(*SubmitJobResponse)(nil),           // 4: api.proto.coordinator.v1.SubmitJobResponse
+	(*GetJobStatusRequest)(nil),         // 5: api.proto.coordinator.v1.GetJobStatusRequest
+	(*GetJobStatusResponse)(nil),        // 6: api.proto.coordinator.v1.GetJobStatusResponse
+	(*CancelJobRequest)(nil),            // 7: api.proto.coordinator.v1.CancelJobRequest
+	(*CancelJobResponse)(nil),           // 8: api.proto.coordinator.v1.CancelJobResponse
+	(*GetWorkStreamRequest)(nil),        // 9: api.proto.coordinator.v1.GetWorkStreamRequest
+	(*WorkPackage)(nil),                 // 10: api.proto.coordinator.v1.WorkPackage
+	(*RenderTask)(nil),                  // 11: api.proto.coordinator.v1.RenderTask
+	(*MergeTask)(nil),                   // 12: api.proto.coordinator.v1.MergeTask
+	(*CompositeTask)(nil),               // 13: api.proto.coordinator.v1.CompositeTask
+	(*ReportTaskResultRequest)(nil),     // 14: api.proto.coordinator.v1.ReportTaskResultRequest
+	(*ReportTaskResultResponse)(nil),    // 15: api.proto.coordinator.v1.ReportTaskResultResponse
 }
-var file_coordinator_v1_coordinator_proto_depIdxs = []int32{
-	0,  // 0: coordinator.v1.GetJobStatusResponse.state:type_name -> coordinator.v1.GetJobStatusResponse.JobState
-	10, // 1: coordinator.v1.GetJobStatusResponse.layer_uris:type_name -> coordinator.v1.GetJobStatusResponse.LayerUrisEntry
-	1,  // 2: coordinator.v1.HeartbeatResponse.command:type_name -> coordinator.v1.HeartbeatResponse.Command
-	2,  // 3: coordinator.v1.CoordinatorService.SubmitJob:input_type -> coordinator.v1.SubmitJobRequest
-	4,  // 4: coordinator.v1.CoordinatorService.GetJobStatus:input_type -> coordinator.v1.GetJobStatusRequest
-	6,  // 5: coordinator.v1.CoordinatorService.RegisterWorker:input_type -> coordinator.v1.RegisterWorkerRequest
-	8,  // 6: coordinator.v1.CoordinatorService.Heartbeat:input_type -> coordinator.v1.HeartbeatRequest
-	3,  // 7: coordinator.v1.CoordinatorService.SubmitJob:output_type -> coordinator.v1.SubmitJobResponse
-	5,  // 8: coordinator.v1.CoordinatorService.GetJobStatus:output_type -> coordinator.v1.GetJobStatusResponse
-	7,  // 9: coordinator.v1.CoordinatorService.RegisterWorker:output_type -> coordinator.v1.RegisterWorkerResponse
-	9,  // 10: coordinator.v1.CoordinatorService.Heartbeat:output_type -> coordinator.v1.HeartbeatResponse
-	7,  // [7:11] is the sub-list for method output_type
-	3,  // [3:7] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
+	2,  // 0: api.proto.coordinator.v1.SubmitJobRequest.render_job:type_name -> api.proto.coordinator.v1.RenderJob
+	3,  // 1: api.proto.coordinator.v1.SubmitJobRequest.composite_job:type_name -> api.proto.coordinator.v1.CompositeJob
+	0,  // 2: api.proto.coordinator.v1.GetJobStatusResponse.job_status:type_name -> api.proto.coordinator.v1.GetJobStatusResponse.JobStatus
+	11, // 3: api.proto.coordinator.v1.WorkPackage.render_task:type_name -> api.proto.coordinator.v1.RenderTask
+	12, // 4: api.proto.coordinator.v1.WorkPackage.merge_task:type_name -> api.proto.coordinator.v1.MergeTask
+	13, // 5: api.proto.coordinator.v1.WorkPackage.composite_task:type_name -> api.proto.coordinator.v1.CompositeTask
+	1,  // 6: api.proto.coordinator.v1.CoordinatorService.SubmitJob:input_type -> api.proto.coordinator.v1.SubmitJobRequest
+	5,  // 7: api.proto.coordinator.v1.CoordinatorService.GetJobStatus:input_type -> api.proto.coordinator.v1.GetJobStatusRequest
+	7,  // 8: api.proto.coordinator.v1.CoordinatorService.CancelJob:input_type -> api.proto.coordinator.v1.CancelJobRequest
+	9,  // 9: api.proto.coordinator.v1.CoordinatorService.GetWorkStream:input_type -> api.proto.coordinator.v1.GetWorkStreamRequest
+	14, // 10: api.proto.coordinator.v1.CoordinatorService.ReportTaskResult:input_type -> api.proto.coordinator.v1.ReportTaskResultRequest
+	4,  // 11: api.proto.coordinator.v1.CoordinatorService.SubmitJob:output_type -> api.proto.coordinator.v1.SubmitJobResponse
+	6,  // 12: api.proto.coordinator.v1.CoordinatorService.GetJobStatus:output_type -> api.proto.coordinator.v1.GetJobStatusResponse
+	8,  // 13: api.proto.coordinator.v1.CoordinatorService.CancelJob:output_type -> api.proto.coordinator.v1.CancelJobResponse
+	10, // 14: api.proto.coordinator.v1.CoordinatorService.GetWorkStream:output_type -> api.proto.coordinator.v1.WorkPackage
+	15, // 15: api.proto.coordinator.v1.CoordinatorService.ReportTaskResult:output_type -> api.proto.coordinator.v1.ReportTaskResultResponse
+	11, // [11:16] is the sub-list for method output_type
+	6,  // [6:11] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
-func init() { file_coordinator_v1_coordinator_proto_init() }
-func file_coordinator_v1_coordinator_proto_init() {
-	if File_coordinator_v1_coordinator_proto != nil {
+func init() { file_api_proto_coordinator_v1_coordinator_proto_init() }
+func file_api_proto_coordinator_v1_coordinator_proto_init() {
+	if File_api_proto_coordinator_v1_coordinator_proto != nil {
 		return
+	}
+	file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0].OneofWrappers = []any{
+		(*SubmitJobRequest_RenderJob)(nil),
+		(*SubmitJobRequest_CompositeJob)(nil),
+	}
+	file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9].OneofWrappers = []any{
+		(*WorkPackage_RenderTask)(nil),
+		(*WorkPackage_MergeTask)(nil),
+		(*WorkPackage_CompositeTask)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_coordinator_v1_coordinator_proto_rawDesc), len(file_coordinator_v1_coordinator_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   9,
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_coordinator_v1_coordinator_proto_rawDesc), len(file_api_proto_coordinator_v1_coordinator_proto_rawDesc)),
+			NumEnums:      1,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_coordinator_v1_coordinator_proto_goTypes,
-		DependencyIndexes: file_coordinator_v1_coordinator_proto_depIdxs,
-		EnumInfos:         file_coordinator_v1_coordinator_proto_enumTypes,
-		MessageInfos:      file_coordinator_v1_coordinator_proto_msgTypes,
+		GoTypes:           file_api_proto_coordinator_v1_coordinator_proto_goTypes,
+		DependencyIndexes: file_api_proto_coordinator_v1_coordinator_proto_depIdxs,
+		EnumInfos:         file_api_proto_coordinator_v1_coordinator_proto_enumTypes,
+		MessageInfos:      file_api_proto_coordinator_v1_coordinator_proto_msgTypes,
 	}.Build()
-	File_coordinator_v1_coordinator_proto = out.File
-	file_coordinator_v1_coordinator_proto_goTypes = nil
-	file_coordinator_v1_coordinator_proto_depIdxs = nil
+	File_api_proto_coordinator_v1_coordinator_proto = out.File
+	file_api_proto_coordinator_v1_coordinator_proto_goTypes = nil
+	file_api_proto_coordinator_v1_coordinator_proto_depIdxs = nil
 }
