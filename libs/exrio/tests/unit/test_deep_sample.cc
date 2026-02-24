@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
-#include "deep_image.h"
+
 #include "../test_helpers.h"
+#include "deep_image.h"
 
 using namespace deep_compositor;
 

@@ -16,7 +16,8 @@ std::pair<DeepSample, DeepSample> splitSample(const DeepSample& sample, float z_
     float thick = sample.thickness();
 
     // Not a volume, or split point not strictly inside the range -> no split
-    if (thick < kEpsilon || z_split <= sample.depth + kEpsilon || z_split >= sample.depth_back - kEpsilon) {
+    if (thick < kEpsilon || z_split <= sample.depth + kEpsilon ||
+        z_split >= sample.depth_back - kEpsilon) {
         DeepSample zero;
         return {sample, zero};
     }
@@ -27,40 +28,40 @@ std::pair<DeepSample, DeepSample> splitSample(const DeepSample& sample, float z_
     if (alpha >= 1.0f) alpha = 1.0f - kEpsilon;
 
     float frontThick = z_split - sample.depth;
-    float backThick  = sample.depth_back - z_split;
+    float backThick = sample.depth_back - z_split;
 
     float alphaFront, alphaBack;
 
     if (alpha <= 0.0f) {
         // Fully transparent -- two zero-alpha fragments
         alphaFront = 0.0f;
-        alphaBack  = 0.0f;
+        alphaBack = 0.0f;
     } else {
         // sigma = -ln(1 - alpha) / thickness
         float sigma = -std::log(1.0f - alpha) / thick;
         alphaFront = 1.0f - std::exp(-sigma * frontThick);
-        alphaBack  = 1.0f - std::exp(-sigma * backThick);
+        alphaBack = 1.0f - std::exp(-sigma * backThick);
     }
 
     // Premultiplied RGB scales with alpha ratio
     float ratioFront = (alpha > 0.0f) ? alphaFront / alpha : 0.0f;
-    float ratioBack  = (alpha > 0.0f) ? alphaBack  / alpha : 0.0f;
+    float ratioBack = (alpha > 0.0f) ? alphaBack / alpha : 0.0f;
 
     DeepSample front;
-    front.depth      = sample.depth;
+    front.depth = sample.depth;
     front.depth_back = z_split;
-    front.red        = sample.red * ratioFront;
-    front.green      = sample.green * ratioFront;
-    front.blue       = sample.blue * ratioFront;
-    front.alpha      = alphaFront;
+    front.red = sample.red * ratioFront;
+    front.green = sample.green * ratioFront;
+    front.blue = sample.blue * ratioFront;
+    front.alpha = alphaFront;
 
     DeepSample back;
-    back.depth      = z_split;
+    back.depth = z_split;
     back.depth_back = sample.depth_back;
-    back.red        = sample.red * ratioBack;
-    back.green      = sample.green * ratioBack;
-    back.blue       = sample.blue * ratioBack;
-    back.alpha      = alphaBack;
+    back.red = sample.red * ratioBack;
+    back.green = sample.green * ratioBack;
+    back.blue = sample.blue * ratioBack;
+    back.alpha = alphaBack;
 
     return {front, back};
 }
@@ -77,12 +78,12 @@ DeepSample blendCoincidentSamples(const DeepSample& a, const DeepSample& b) {
     float scale = (alphaSum > 0.0f) ? alphaCombined / alphaSum : 0.0f;
 
     DeepSample result;
-    result.depth      = a.depth;
+    result.depth = a.depth;
     result.depth_back = a.depth_back;
-    result.red        = (a.red + b.red) * scale;
-    result.green      = (a.green + b.green) * scale;
-    result.blue       = (a.blue + b.blue) * scale;
-    result.alpha      = alphaCombined;
+    result.red = (a.red + b.red) * scale;
+    result.green = (a.green + b.green) * scale;
+    result.blue = (a.blue + b.blue) * scale;
+    result.alpha = alphaCombined;
 
     return result;
 }
@@ -91,8 +92,7 @@ DeepSample blendCoincidentSamples(const DeepSample& a, const DeepSample& b) {
 // mergePixelsVolumetric -- main volumetric merge algorithm
 // ============================================================================
 
-DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels,
-                                float epsilon) {
+DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels, float epsilon) {
     DeepPixel result;
 
     // 1. Collect all samples
@@ -121,7 +121,7 @@ DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels,
 
     // 3. Split each volumetric sample at every split point inside its range
     std::vector<DeepSample> fragments;
-    fragments.reserve(allSamples.size() * 2); // rough estimate
+    fragments.reserve(allSamples.size() * 2);  // rough estimate
 
     for (const auto& sample : allSamples) {
         if (!sample.isVolume()) {
@@ -132,8 +132,7 @@ DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels,
 
         // Find split points strictly inside (depth, depth_back)
         // Use lower_bound on depth + epsilon to skip the front boundary
-        auto it = std::upper_bound(splitPoints.begin(), splitPoints.end(),
-                                   sample.depth);
+        auto it = std::upper_bound(splitPoints.begin(), splitPoints.end(), sample.depth);
 
         // Collect interior split points
         std::vector<float> cuts;
@@ -185,4 +184,4 @@ DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels,
     return result;
 }
 
-} // namespace deep_compositor
+}  // namespace deep_compositor
