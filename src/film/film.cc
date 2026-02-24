@@ -34,7 +34,7 @@ void Film::AddSample(int x, int y, const RGB& L, float weight) {
     p.weight_sum += weight;
 }
 
-void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weight) {
+void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
     if (path_sample.segments.empty()) return;
 

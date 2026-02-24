@@ -70,11 +70,9 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                     float weight = 1.0f;
                     film->AddSample(x, y, pixel_color, weight);
 
-                    if (config.enable_deep) film->AddDeepSample(x, y, result, weight);
+                    if (config.enable_deep) film->AddDeepSample(x, y, result);
                 }
             }
-
-            int done = scanlines_completed.fetch_add(1) + 1;
         }
     };
 
