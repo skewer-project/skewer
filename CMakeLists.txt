@@ -25,7 +25,7 @@ endif()
 # Use system-installed OpenEXR and Imath (install via apt-get or brew)
 find_package(Imath REQUIRED)
 find_package(OpenEXR REQUIRED)
-find_package(ZLIB REQUIRED) # Apparently zlib is sometimes required (I guess for compression?)
+find_package(ZLIB REQUIRED) # Apparently zlib is sometimes required
 
 # Fetch nlohmann/json for scene loading
 include(FetchContent)
@@ -34,7 +34,17 @@ FetchContent_Declare(
     URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
 )
 
-FetchContent_MakeAvailable(nlohmann_json)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(nlohmann_json googletest)
+
+set(BUILD_TESTING ON CACHE BOOL "" FORCE)
+
 # Define Source Files
 # list every .cpp file here. no need for .h
 set(SOURCES
@@ -75,3 +85,7 @@ target_link_libraries(skewer-render
 target_link_options(skewer-render PRIVATE
     -flto
 )
+
+include(GoogleTest)
+enable_testing()
+add_subdirectory(tests)
