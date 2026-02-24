@@ -13,8 +13,11 @@
 
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 #include "film/image_buffer.h"
+#include "stb_image.h"
+#include "stb_image_write.h"
 
 namespace skwr {
 
