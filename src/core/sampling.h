@@ -1,7 +1,7 @@
 #ifndef SKWR_CORE_SAMPLER_H_
 #define SKWR_CORE_SAMPLER_H_
 
-#include "core/constants.h"
+#include "core/math/constants.h"
 #include "core/rng.h"
 #include "core/vec3.h"
 

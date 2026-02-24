@@ -4,7 +4,7 @@
 #include <cstdlib>
 
 #include "core/color.h"
-#include "core/constants.h"
+#include "core/math/constants.h"
 #include "core/ray.h"
 #include "core/rng.h"
 #include "core/spectral/spectral_utils.h"

@@ -1,5 +1,5 @@
-#ifndef SKWR_CORE_CONSTANTS_H_
-#define SKWR_CORE_CONSTANTS_H_
+#ifndef SKWR_CORE_MATH_CONSTANTS_H_
+#define SKWR_CORE_MATH_CONSTANTS_H_
 
 #include <cstdint>
 #include <limits>
@@ -25,4 +25,4 @@ inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_CONSTANTS_H_
+#endif  // SKWR_CORE_MATH_CONSTANTS_H_

@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/vec3.h"
 #include "geometry/mesh.h"

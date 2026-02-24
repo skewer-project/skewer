@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
 
 namespace skwr {
 

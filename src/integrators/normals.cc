@@ -1,7 +1,7 @@
 #include "integrators/normals.h"
 
 #include "core/color.h"
-#include "core/constants.h"
+#include "core/math/constants.h"
 #include "core/ray.h"
 #include "core/vec3.h"
 #include "film/film.h"

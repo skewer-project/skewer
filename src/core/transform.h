@@ -4,7 +4,7 @@
 #include <cmath>
 #include <vector>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
 #include "core/vec3.h"
 
 namespace skwr {

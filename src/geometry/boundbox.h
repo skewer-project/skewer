@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <limits>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
 #include "core/ray.h"
 #include "core/vec3.h"
 
