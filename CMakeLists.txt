@@ -43,6 +43,11 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(nlohmann_json googletest)
 
+# googletest uses std::numeric_limits<double>::infinity() which is not
+# compatible with -ffast-math (which implies -ffinite-math-only).
+# We disable -ffast-math for the gtest target to avoid build errors.
+target_compile_options(gtest PRIVATE "-fno-fast-math")
+
 set(BUILD_TESTING ON CACHE BOOL "" FORCE)
 
 # Define Source Files
