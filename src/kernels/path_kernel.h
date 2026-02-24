@@ -66,13 +66,10 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
         const Material& mat = scene.GetMaterial(si.material_id);
 
-        Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
         // Lazy Evaluation
         Spectrum opacity(1.0f);
-        float alpha = 1.0f;
         if (mat.IsTransparent()) {
             opacity = CurveToSpectrum(mat.opacity, wl);
-            alpha = opacity.Average();
         }
         Spectrum emission(0.0f);
         if (mat.IsEmissive()) {
