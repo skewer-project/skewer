@@ -9,60 +9,76 @@ option go_package = "./api/proto/coordinator/v1";
    Clients: User + Renderer workers + Compositor worker
 */
 
+/*
+   Container service:
+   Manages the DAG (Directed Acyclic Graph) of Render/Composite Jobs
+   and distributes granular Tasks to GKE workers.
+*/
+
 service CoordinatorService {
-  // === CLI API (External) ===
-
-  // Submit a new render job
+  // External API for CLI
   rpc SubmitJob(SubmitJobRequest) returns (SubmitJobResponse);
-
-  // Get job status
   rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
-
-  // Cancel a running job
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
 
-  // === Worker API (Internal - Streaming Pull) ===
-
-  // Worker connects once, holds this stream open indefinitely
-  // Coordinator BLOCKS on this call until work is available
+  // Internal API for Skewer and Loom GKE Workers
   rpc GetWorkStream(GetWorkStreamRequest) returns (stream WorkPackage);
-
-  // Worker reports result of completed task
   rpc ReportTaskResult(ReportTaskResultRequest) returns (ReportTaskResultResponse);
 }
 
-/* CLI Messages */
-
+///* "Job" Submission Level *///
 message SubmitJobRequest {
-  string scene_uri = 1; // GCS path to scene file
-  int32 frame_start = 2;
-  int32 frame_end = 3;
-  int32 samples_per_pixel = 4;
+  string job_id = 1; // UUID of job for tracking
+  string job_name = 2; // eg. "smoke_layer", "ball_layer", "final_composite"
+
+  repeated string depends_on = 3;
+
+  // General job information
+  int32 num_frames = 4;
   int32 width = 5;
   int32 height = 6;
-  string output_uri = 7; // Where to save final result
+
+  oneof job_type {
+    RenderJob render_job = 7;
+    CompositeJob composite_job = 8;
+  }
+}
+
+message RenderJob {
+  string scene_uri = 1;
+  int32 total_samples = 2; // number of rays shot per pixel e.g., 1024
+  int32 sample_division = 3; // e.g., 4 (spawns 4 tasks of 256 samples per frame)
+  string output_uri_prefix = 4; // gs://bucket/renders/smoke/
+}
+
+message CompositeJob {
+  // The layers to combine. For frame x, Loom will look for:
+  // gs://bucket/renders/smoke/frame-0005.exr and gs://bucket/renders/person/frame-0005.exr
+  repeated string layer_uri_prefixes = 1;
+  string output_uri_prefix = 2;
 }
 
 message SubmitJobResponse {
   string job_id = 1;
 }
 
+///* Job Tracking API for User *///
 message GetJobStatusRequest {
   string job_id = 1;
 }
 
 message GetJobStatusResponse {
   enum JobStatus {
-    JOB_STATUS_PENDING_UNSPECIFIED = 0;
-    JOB_STATUS_QUEUED = 1;
-    JOB_STATUS_RENDERING = 2;
-    JOB_STATUS_COMPOSITING = 3;
+    JOB_STATUS_UNSPECIFIED = 0;
+    JOB_STATUS_PENDING_DEPENDENCIES = 1; // waiting for dependency jobs
+    JOB_STATUS_QUEUED = 2;
+    JOB_STATUS_RUNNING = 3;
     JOB_STATUS_COMPLETED = 4;
     JOB_STATUS_FAILED = 5;
   }
-  JobStatus status = 1;
+  JobStatus job_status = 1;
   float progress_percent = 2;
-  string output_uri = 3; // Final result if completed
+  string error_message = 3;
 }
 
 message CancelJobRequest {
@@ -73,63 +89,76 @@ message CancelJobResponse {
   bool success = 1;
 }
 
-/* Worker Messages */
-
+///* Worker Execution *///
 message GetWorkStreamRequest {
-  string worker_id = 1;
-  string worker_capabilities = 2; // e.g., "cpu", "gpu", "high-mem"
+  string worker_id = 1; // UUID of skewer/loom pod
+
+  // Any tags to ensure workers only get tasks they can handle
+  // e.g., ["gpu", "skewer"] or ["high-mem", "loom"]
+  repeated string capabilities = 2;
 }
 
 message WorkPackage {
-  string job_id = 1; // which animation job
-  string task_id = 2; // unique ID for this task
-  int32 frame_id = 3; //which frame
+  string job_id = 1;
+  string task_id = 2;
+  string frame_id = 3;
 
-  // Frame size
-  int32 width = 7;
-  int32 height = 8;
-
-  // Only can be ONE type of task
   oneof payload {
+    // Run by Skewer: Render a sample chunk
     RenderTask render_task = 4;
-    CompositeTask composite_task = 5;
+
+    // Run by Loom: Ingests partial Deep EXRs, depth-sorts the linked lists, and merges samples at the same Z-depth
+    MergeTask merge_task = 5;
+
+    // Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person) and deep-merges them
+    CompositeTask composite_task = 6;
   }
 }
 
 message RenderTask {
-  // Render frame information
+  // Scene information
   string scene_uri = 1;
+  int32 width = 2;
+  int32 height = 3;
 
-  // Which set of samples to render
-  int32 sample_start = 2;
-  int32 sample_end = 3;
-  int32 total_samples = 4;
+  // Sample division range
+  int32 sample_start = 4;
+  int32 sample_end = 5;
 
-  // Where to upload EXR
-  string output_uri = 9;
+  string output_uri = 6; // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
+}
+
+message MergeTask {
+  // The PARTIAL deep EXR chunks in a given frame to sort and merge (e.g., render chunk 0 to 3)
+  repeated string partial_deep_exr_uris = 1;
+  string output_uri = 2;
 }
 
 message CompositeTask {
-  repeated string frame_uris = 3; // All frame EXRs to merge
-  string output_uri = 4; // Final output
+  // The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've been "merged" from sample splitting)
+  repeated string layer_uris = 1;
+
+  int32 width = 2;
+  int32 height = 3;
+
+  string output_uri = 4; // flattened 2D image
 }
 
+///* Worker Reporting *///
 message ReportTaskResultRequest {
-  // Information to identify the task, worker, job and frame
-  string job_id = 1;
-  string task_id = 2;
+  // Identification of the job task and worker (may need to add frame number)
+  string task_id = 1;
+  string job_id = 2;
   string worker_id = 3;
-  int32 frame_id = 4;
 
-  // Basic status report information
-  bool success = 5;
-  string output_uri = 6; // Result file URI
-  string error_message = 7;
+  // Generic response information
+  bool success = 4;
+  string error_message = 5;
+  string output_uri = 6;
 
-  // Metric data
-  int64 execution_time_ms = 8;
+  int64 execution_time_ms = 7; // for metrics
 }
 
 message ReportTaskResultResponse {
-  bool acknowledged = 9;
+  bool acknowledged = 1;
 }
