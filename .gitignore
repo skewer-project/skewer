@@ -19,6 +19,6 @@
 *.swo
 
 # render inputs/outputs
-models/
+objects/
 scenes/
 images/
