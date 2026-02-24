@@ -1,0 +1,24 @@
+# Build and install outputs
+/build/
+/install/
+/output/
+
+# Local cache directories
+/.cache/
+**/.cache/
+
+# CMake user-local settings
+/CMakeUserPresets.json
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/
+.zed/
+*.swp
+*.swo
+
+# render inputs/outputs
+models/
+scenes/
+images/

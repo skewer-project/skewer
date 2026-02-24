@@ -1,0 +1,54 @@
+name: CMake Build And Test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 500M
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-ccache-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'skewer/CMakeLists.txt', 'skewer/tests/CMakeLists.txt', 'loom/CMakeLists.txt', 'libs/exrio/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ccache \
+            libopenexr-dev \
+            libimath-dev \
+            libpng-dev \
+            zlib1g-dev
+
+      - name: Configure
+        run: >
+          cmake --preset ci
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Reset ccache stats
+        run: ccache -z
+
+      - name: Build
+        run: cmake --build --preset ci --parallel
+
+      - name: Test
+        run: ctest --preset ci
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s
