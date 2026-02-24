@@ -24,4 +24,4 @@ inline DeepImage makeVolumeImage1x1(float zFront, float zBack, float r, float g,
     return img;
 }
 
-} // namespace deep_compositor
+}  // namespace deep_compositor

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
 #include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <iomanip>
+#include <string>
 
 namespace deep_compositor {
 
@@ -42,25 +42,25 @@ void logError(const std::string& message);
  * Simple timer class for performance measurements
  */
 class Timer {
-public:
+  public:
     Timer();
-    
+
     /**
      * Reset the timer
      */
     void reset();
-    
+
     /**
      * Get elapsed time in milliseconds
      */
     double elapsedMs() const;
-    
+
     /**
      * Get elapsed time as a formatted string
      */
     std::string elapsedString() const;
 
-private:
+  private:
     std::chrono::high_resolution_clock::time_point start_;
 };
 
@@ -92,7 +92,7 @@ bool fileExists(const std::string& path);
 /**
  * Clamp a value between min and max
  */
-template<typename T>
+template <typename T>
 T clamp(T value, T minVal, T maxVal) {
     return std::max(minVal, std::min(maxVal, value));
 }
@@ -100,9 +100,9 @@ T clamp(T value, T minVal, T maxVal) {
 /**
  * Linear interpolation
  */
-template<typename T>
+template <typename T>
 T lerp(T a, T b, float t) {
     return a + (b - a) * t;
 }
 
-} // namespace deep_compositor
+}  // namespace deep_compositor
