@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
+
 #include <cmath>
+
+#include "../test_helpers.h"
 #include "deep_image.h"
 #include "deep_volume.h"
-#include "../test_helpers.h"
 
 using namespace deep_compositor;
 
@@ -68,13 +70,13 @@ TEST_F(SplitSampleTest, PremultipliedRGBScalesProportionallyWithAlpha) {
     auto [front, back] = splitSample(vol, split);
     // RGB should scale with alphaFront/alpha and alphaBack/alpha respectively
     float ratioFront = front.alpha / vol.alpha;
-    float ratioBack  = back.alpha  / vol.alpha;
-    EXPECT_NEAR(front.red,   vol.red   * ratioFront, kTol);
+    float ratioBack = back.alpha / vol.alpha;
+    EXPECT_NEAR(front.red, vol.red * ratioFront, kTol);
     EXPECT_NEAR(front.green, vol.green * ratioFront, kTol);
-    EXPECT_NEAR(front.blue,  vol.blue  * ratioFront, kTol);
-    EXPECT_NEAR(back.red,    vol.red   * ratioBack,  kTol);
-    EXPECT_NEAR(back.green,  vol.green * ratioBack,  kTol);
-    EXPECT_NEAR(back.blue,   vol.blue  * ratioBack,  kTol);
+    EXPECT_NEAR(front.blue, vol.blue * ratioFront, kTol);
+    EXPECT_NEAR(back.red, vol.red * ratioBack, kTol);
+    EXPECT_NEAR(back.green, vol.green * ratioBack, kTol);
+    EXPECT_NEAR(back.blue, vol.blue * ratioBack, kTol);
 }
 
 TEST_F(SplitSampleTest, SplitAtExactFrontBoundaryDoesNotSplit) {
@@ -171,9 +173,9 @@ TEST_F(BlendCoincidentTest, RGBBlendedProportionally) {
     DeepSample result = blendCoincidentSamples(a, b);
     // alphaCombined = 0.75, alphaSum = 1.0, scale = 0.75
     float scale = 0.75f;
-    EXPECT_NEAR(result.red,   (0.4f + 0.2f)  * scale, kTol);
-    EXPECT_NEAR(result.green, (0.2f + 0.1f)  * scale, kTol);
-    EXPECT_NEAR(result.blue,  (0.1f + 0.05f) * scale, kTol);
+    EXPECT_NEAR(result.red, (0.4f + 0.2f) * scale, kTol);
+    EXPECT_NEAR(result.green, (0.2f + 0.1f) * scale, kTol);
+    EXPECT_NEAR(result.blue, (0.1f + 0.05f) * scale, kTol);
 }
 
 TEST_F(BlendCoincidentTest, DepthRangePreservedFromFirstSample) {
@@ -199,11 +201,10 @@ TEST_F(BlendCoincidentTest, BothZeroAlphaProducesZeroRGB) {
 // ============================================================================
 
 class MergePixelsVolumetricTest : public ::testing::Test {
-protected:
+  protected:
     DeepPixel makePixelWith(std::initializer_list<DeepSample> samples) {
         DeepPixel p;
-        for (const auto& s : samples)
-            p.addSample(s);
+        for (const auto& s : samples) p.addSample(s);
         return p;
     }
 };

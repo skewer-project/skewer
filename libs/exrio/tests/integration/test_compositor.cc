@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
+
 #include <cmath>
 #include <limits>
-#include "deep_image.h"
-#include "deep_compositor.h"
-#include "deep_writer.h"
+
 #include "../test_helpers.h"
+#include "deep_compositor.h"
+#include "deep_image.h"
+#include "deep_writer.h"
 
 using namespace deep_compositor;
 
@@ -13,7 +15,7 @@ using namespace deep_compositor;
 // ============================================================================
 
 class CompositorIntegrationTest : public ::testing::Test {
-protected:
+  protected:
     // Build a 1x1 image with a single point sample
     DeepImage make1x1Point(float z, float r, float g, float b, float a) {
         return makeImage1x1(z, r, g, b, a);
@@ -190,7 +192,7 @@ TEST_F(CompositorIntegrationTest, MergeThresholdAffectsCollapseRadius) {
 TEST_F(CompositorIntegrationTest, FrontSphereOccludesBackSphereOnFlatten) {
     // Fully opaque front (red) blocks blue behind it
     DeepImage front = make1x1Point(1.0f, 0.9f, 0.0f, 0.0f, 1.0f);
-    DeepImage back  = make1x1Point(5.0f, 0.0f, 0.0f, 0.9f, 1.0f);
+    DeepImage back = make1x1Point(5.0f, 0.0f, 0.0f, 0.9f, 1.0f);
     std::vector<DeepImage> inputs = {front, back};
     DeepImage merged = deepMerge(inputs);
     auto flat = flattenImage(merged);
@@ -205,7 +207,7 @@ TEST_F(CompositorIntegrationTest, SemiTransparentFrontRevealsSomeOfBack) {
     // front premul: red=0.5, alpha=0.5 (true red=1.0)
     // back premul: blue=0.9, alpha=1.0
     DeepImage front = make1x1Point(1.0f, 0.5f, 0.0f, 0.0f, 0.5f);
-    DeepImage back  = make1x1Point(5.0f, 0.0f, 0.0f, 0.9f, 1.0f);
+    DeepImage back = make1x1Point(5.0f, 0.0f, 0.0f, 0.9f, 1.0f);
     std::vector<DeepImage> inputs = {front, back};
     DeepImage merged = deepMerge(inputs);
     auto flat = flattenImage(merged);
@@ -233,10 +235,10 @@ TEST_F(CompositorIntegrationTest, PointerVersionProducesSameResultAsValueVersion
     std::vector<const DeepImage*> ptrInputs = {&imgA, &imgB};
 
     DeepImage valueResult = deepMerge(valueInputs);
-    DeepImage ptrResult   = deepMerge(ptrInputs);
+    DeepImage ptrResult = deepMerge(ptrInputs);
 
     auto flatValue = flattenImage(valueResult);
-    auto flatPtr   = flattenImage(ptrResult);
+    auto flatPtr = flattenImage(ptrResult);
 
     ASSERT_EQ(flatValue.size(), flatPtr.size());
     for (size_t i = 0; i < flatValue.size(); ++i) {

@@ -1,17 +1,17 @@
 #include <gtest/gtest.h>
+
 #include <cmath>
 #include <limits>
 #include <stdexcept>
-#include "deep_image.h"
+
 #include "../test_helpers.h"
+#include "deep_image.h"
 
 using namespace deep_compositor;
 
 class DeepImageTest : public ::testing::Test {
-protected:
-    DeepSample makeSample(float z, float a = 0.5f) {
-        return makePoint(z, 0.5f, 0.5f, 0.5f, a);
-    }
+  protected:
+    DeepSample makeSample(float z, float a = 0.5f) { return makePoint(z, 0.5f, 0.5f, 0.5f, a); }
 };
 
 TEST_F(DeepImageTest, DefaultConstructorProducesZeroDimensions) {

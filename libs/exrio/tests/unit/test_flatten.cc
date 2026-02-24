@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
+
 #include <cmath>
+
+#include "../test_helpers.h"
 #include "deep_image.h"
 #include "deep_writer.h"
-#include "../test_helpers.h"
 
 using namespace deep_compositor;
 
@@ -37,7 +39,7 @@ TEST_F(FlattenTest, SingleTransparentSampleCompositeCorrectly) {
     auto rgba = flattenPixel(p);
     // accumR = 0.25 * (1-0) = 0.25; accumA = 0.5 * (1-0) = 0.5
     EXPECT_NEAR(rgba[0], 0.25f, kTol);
-    EXPECT_NEAR(rgba[3], 0.5f,  kTol);
+    EXPECT_NEAR(rgba[3], 0.5f, kTol);
 }
 
 TEST_F(FlattenTest, TwoLayerFrontToBackOver) {
@@ -91,7 +93,7 @@ TEST_F(FlattenTest, OrderMattersForFrontToBackComposite) {
     // Adding samples in either order should produce same result since addSample sorts
     DeepPixel pAB, pBA;
     DeepSample front = makePoint(1.0f, 0.5f, 0.0f, 0.0f, 0.5f);
-    DeepSample back  = makePoint(2.0f, 0.0f, 0.5f, 0.0f, 0.5f);
+    DeepSample back = makePoint(2.0f, 0.0f, 0.5f, 0.0f, 0.5f);
 
     pAB.addSample(front);
     pAB.addSample(back);
@@ -122,7 +124,7 @@ TEST_F(FlattenTest, PixelAtXYMapsToCorrectBufferOffset) {
     auto buf = flattenImage(img);
     size_t idx = (static_cast<size_t>(3) * w + 2) * 4;
     EXPECT_NEAR(buf[idx + 0], 0.75f, kTol);  // red
-    EXPECT_NEAR(buf[idx + 3], 1.0f,  kTol);  // alpha
+    EXPECT_NEAR(buf[idx + 3], 1.0f, kTol);   // alpha
 }
 
 TEST_F(FlattenTest, AllEmptyPixelsProduceZeroBuffer) {

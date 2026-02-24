@@ -1,12 +1,14 @@
 #include <gtest/gtest.h>
+
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <string>
+
+#include "../test_helpers.h"
 #include "deep_image.h"
 #include "deep_reader.h"
 #include "deep_writer.h"
-#include "../test_helpers.h"
 
 using namespace deep_compositor;
 namespace fs = std::filesystem;
@@ -16,7 +18,7 @@ namespace fs = std::filesystem;
 // ============================================================================
 
 class IORoundtripTest : public ::testing::Test {
-protected:
+  protected:
     void SetUp() override {
         // Use std::filesystem to get a reliable, writable temp directory.
         // Create a per-test subdirectory so parallel or repeated runs don't collide.
@@ -38,9 +40,7 @@ protected:
         fs::remove_all(testDir_, ec);  // best-effort cleanup; ignore errors
     }
 
-    std::string tempPath(const std::string& name) {
-        return tempDir_ + name;
-    }
+    std::string tempPath(const std::string& name) { return tempDir_ + name; }
 
     // Write a known deep image and load it back
     DeepImage roundtrip(const DeepImage& img, const std::string& filename) {
@@ -93,10 +93,10 @@ TEST_F(IORoundtripTest, WriteAndReadPreservesRGBAValues) {
     DeepImage loaded = roundtrip(img, path);
     ASSERT_EQ(loaded.pixel(0, 0).sampleCount(), 1u);
     const DeepSample& s = loaded.pixel(0, 0)[0];
-    EXPECT_NEAR(s.red,   0.25f, 1e-6f);
-    EXPECT_NEAR(s.green, 0.5f,  1e-6f);
-    EXPECT_NEAR(s.blue,  0.75f, 1e-6f);
-    EXPECT_NEAR(s.alpha, 0.6f,  1e-6f);
+    EXPECT_NEAR(s.red, 0.25f, 1e-6f);
+    EXPECT_NEAR(s.green, 0.5f, 1e-6f);
+    EXPECT_NEAR(s.blue, 0.75f, 1e-6f);
+    EXPECT_NEAR(s.alpha, 0.6f, 1e-6f);
 }
 
 TEST_F(IORoundtripTest, WriteAndReadPreservesVolumetricDepthBack) {
@@ -105,7 +105,7 @@ TEST_F(IORoundtripTest, WriteAndReadPreservesVolumetricDepthBack) {
     std::string path = tempPath("depth_back.exr");
     DeepImage loaded = roundtrip(img, path);
     ASSERT_EQ(loaded.pixel(0, 0).sampleCount(), 1u);
-    EXPECT_NEAR(loaded.pixel(0, 0)[0].depth,      1.0f, 1e-6f);
+    EXPECT_NEAR(loaded.pixel(0, 0)[0].depth, 1.0f, 1e-6f);
     EXPECT_NEAR(loaded.pixel(0, 0)[0].depth_back, 4.5f, 1e-6f);
 }
 
@@ -124,10 +124,7 @@ TEST_F(IORoundtripTest, WriteAndReadPreservesDepthSortOrder) {
 // ============================================================================
 
 TEST_F(IORoundtripTest, LoadNonExistentFileThrowsDeepReaderException) {
-    EXPECT_THROW(
-        loadDeepEXR(tempPath("does_not_exist_xyz.exr")),
-        DeepReaderException
-    );
+    EXPECT_THROW(loadDeepEXR(tempPath("does_not_exist_xyz.exr")), DeepReaderException);
 }
 
 TEST_F(IORoundtripTest, IsDeepEXRReturnsTrueForWrittenFile) {
@@ -158,10 +155,7 @@ TEST_F(IORoundtripTest, GetDeepEXRInfoReturnsCorrectDimensions) {
 
 TEST_F(IORoundtripTest, WriteDeepEXRWithZeroDimensionsThrows) {
     DeepImage img(0, 0);
-    EXPECT_THROW(
-        writeDeepEXR(img, tempPath("zero_dim.exr")),
-        DeepWriterException
-    );
+    EXPECT_THROW(writeDeepEXR(img, tempPath("zero_dim.exr")), DeepWriterException);
 }
 
 TEST_F(IORoundtripTest, WriteFlatEXRDoesNotThrowForValidImage) {

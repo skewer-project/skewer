@@ -1,13 +1,15 @@
 #include <gtest/gtest.h>
+
 #include <cmath>
 #include <limits>
-#include "deep_image.h"
+
 #include "../test_helpers.h"
+#include "deep_image.h"
 
 using namespace deep_compositor;
 
 class DeepPixelTest : public ::testing::Test {
-protected:
+  protected:
     DeepSample makeSample(float z, float r = 0.5f, float g = 0.5f, float b = 0.5f, float a = 0.8f) {
         return makePoint(z, r, g, b, a);
     }
@@ -70,11 +72,7 @@ TEST_F(DeepPixelTest, AddSamplesWithDuplicateDepthsAllRetained) {
 
 TEST_F(DeepPixelTest, AddSamplesBatchInsertsAllAndSorts) {
     DeepPixel p;
-    std::vector<DeepSample> batch = {
-        makeSample(3.0f),
-        makeSample(1.0f),
-        makeSample(2.0f)
-    };
+    std::vector<DeepSample> batch = {makeSample(3.0f), makeSample(1.0f), makeSample(2.0f)};
     p.addSamples(batch);
     EXPECT_EQ(p.sampleCount(), 3u);
     EXPECT_TRUE(p.isValidSortOrder());
