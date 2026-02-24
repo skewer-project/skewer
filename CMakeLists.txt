@@ -76,6 +76,13 @@ target_include_directories(skewer-render
 
 target_compile_options(skewer-render PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
+# scene_loader.cc includes nlohmann/json which uses infinity() internally.
+# -ffast-math (applied globally) implies -ffinite-math-only which forbids this,
+# so disable it for this translation unit which does no floating-point math.
+set_source_files_properties(src/io/scene_loader.cc PROPERTIES
+    COMPILE_OPTIONS "-fno-fast-math"
+)
+
 # Link libraries
 target_link_libraries(skewer-render
     PRIVATE
