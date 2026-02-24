@@ -74,7 +74,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                 }
             }
 
-            int done = scanlines_completed.fetch_add(1) + 1;
+            scanlines_completed.fetch_add(1);
         }
     };
 
