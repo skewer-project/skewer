@@ -35,12 +35,14 @@ service CoordinatorService {
 
 message SubmitJobRequest {
   string scene_uri = 1; // GCS path to scene file
-  int32 frame_start = 2;
-  int32 frame_end = 3;
+  int32 num_frames = 2;
+
   int32 samples_per_pixel = 4;
-  int32 width = 5;
-  int32 height = 6;
-  string output_uri = 7; // Where to save final result
+  int32 sample_division = 5;
+
+  int32 width = 6;
+  int32 height = 7;
+  string output_uri = 8; // Where to save final result
 }
 
 message SubmitJobResponse {
@@ -101,8 +103,8 @@ message RenderTask {
   string scene_uri = 1;
 
   // Which set of samples to render
-  int32 sample_start = 2;
-  int32 sample_end = 3;
+  int32 sample_idx_start = 2;
+  int32 sample_idx_end = 3;
   int32 total_samples = 4;
 
   // Where to upload EXR
