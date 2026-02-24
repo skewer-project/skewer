@@ -1,8 +1,9 @@
 #pragma once
 
-#include "deep_image.h"
-#include <vector>
 #include <utility>
+#include <vector>
+
+#include "deep_image.h"
 
 namespace deep_compositor {
 
@@ -39,4 +40,4 @@ DeepSample blendCoincidentSamples(const DeepSample& a, const DeepSample& b);
 DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels,
                                 float epsilon = 0.001f);
 
-} // namespace deep_compositor
+}  // namespace deep_compositor
