@@ -5,10 +5,10 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "../external/srgb_spec_data.h"
 #include "core/color.h"
 #include "core/spectral/rgb2spec.h"
 #include "core/spectral/spectral_curve.h"
-#include "core/spectral/srgb_spec_data.h"
 #include "core/spectrum.h"
 
 namespace skwr {
