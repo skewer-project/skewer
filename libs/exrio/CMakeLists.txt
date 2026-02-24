@@ -11,12 +11,12 @@ find_package(Imath REQUIRED)
 find_package(PNG QUIET)
 
 add_library(exrio STATIC
-    src/deep_image.cpp
-    src/deep_reader.cpp
-    src/deep_writer.cpp
-    src/deep_compositor.cpp
-    src/deep_volume.cpp
-    src/utils.cpp
+    src/deep_image.cc
+    src/deep_reader.cc
+    src/deep_writer.cc
+    src/deep_compositor.cc
+    src/deep_volume.cc
+    src/utils.cc
 )
 
 # Alias so consumers can write exrio::exrio whether built in-tree or via find_package
@@ -57,7 +57,7 @@ if(BUILD_TESTING)
     enable_testing()
     include(GoogleTest)
 
-    file(GLOB_RECURSE EXRIO_UNIT_TEST_SOURCES tests/unit/*.cpp)
+    file(GLOB_RECURSE EXRIO_UNIT_TEST_SOURCES tests/unit/*.cc)
     if(EXRIO_UNIT_TEST_SOURCES)
         add_executable(exrio_unit_tests ${EXRIO_UNIT_TEST_SOURCES})
         target_link_libraries(exrio_unit_tests PRIVATE exrio GTest::gtest_main)
@@ -69,7 +69,7 @@ if(BUILD_TESTING)
         gtest_discover_tests(exrio_unit_tests)
     endif()
 
-    file(GLOB_RECURSE EXRIO_INTEGRATION_TEST_SOURCES tests/integration/*.cpp)
+    file(GLOB_RECURSE EXRIO_INTEGRATION_TEST_SOURCES tests/integration/*.cc)
     if(EXRIO_INTEGRATION_TEST_SOURCES)
         add_executable(exrio_integration_tests ${EXRIO_INTEGRATION_TEST_SOURCES})
         target_link_libraries(exrio_integration_tests PRIVATE exrio GTest::gtest_main)
