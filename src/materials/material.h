@@ -16,7 +16,7 @@ struct alignas(16) Material {
     float roughness;                             // 0.0 = Perfect Mirror, 1.0 = Matte
     float ior;                                   // Index of refraction
     float dispersion;                            // Cauchy b coeff (a is ior)
-    SpectralCurve opacity = {1.0f, 1.0f, 1.0f};  // 1 = opaque, 0 = fully transparent
+    SpectralCurve opacity = {{1.0f, 1.0f, 1.0f}};  // 1 = opaque, 0 = fully transparent
     // OR: texture reference later
     MaterialType type;
 

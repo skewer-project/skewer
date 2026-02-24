@@ -27,7 +27,7 @@ namespace skwr {
 
 // Helper to compute the base pointer offset for OpenEXR frame buffers
 template <typename T>
-static char* makeBasePointer(T* data, int minX, int minY, int width, size_t xStride,
+static char* makeBasePointer(T* data, int minX, int minY, [[maybe_unused]] int width, size_t xStride,
                              size_t yStride) {
     return reinterpret_cast<char*>(data) - static_cast<ptrdiff_t>(minX) * xStride -
            static_cast<ptrdiff_t>(minY) * yStride;

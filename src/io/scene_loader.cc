@@ -4,7 +4,10 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnan-infinity-disabled"
 #include <nlohmann/json.hpp>
+#pragma clang diagnostic pop
 #include <stdexcept>
 #include <string>
 #include <vector>
