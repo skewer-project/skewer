@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "accelerators/bvh.h"
-#include "core/vec3.h"
+#include "core/math/vec3.h"
 #include "geometry/intersect_sphere.h"
 #include "geometry/intersect_triangle.h"
 #include "geometry/mesh.h"

@@ -1,7 +1,7 @@
 #ifndef SKWR_CORE_Ray_H_
 #define SKWR_CORE_Ray_H_
 
-#include "core/vec3.h"
+#include "core/math/vec3.h"
 
 namespace skwr {
 

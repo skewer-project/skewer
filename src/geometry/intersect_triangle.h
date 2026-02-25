@@ -1,7 +1,7 @@
 #ifndef SKWR_GEOMETRY_INTERSECT_TRIANGLE_H_
 #define SKWR_GEOMETRY_INTERSECT_TRIANGLE_H_
 
-#include "core/vec3.h"
+#include "core/math/vec3.h"
 #include "geometry/triangle.h"
 #include "scene/surface_interaction.h"
 

@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
+#include "core/math/vec3.h"
 #include "core/ray.h"
-#include "core/vec3.h"
 
 /* TODO: Implement Deferred Differential Geometry */
 

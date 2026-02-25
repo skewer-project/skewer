@@ -9,10 +9,10 @@
 #include <string>
 #include <vector>
 
+#include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/transform.h"
-#include "core/vec3.h"
 #include "geometry/sphere.h"
 #include "io/obj_loader.h"
 #include "materials/material.h"

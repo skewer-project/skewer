@@ -1,7 +1,7 @@
-#ifndef SKWR_CORE_ONB_H_
-#define SKWR_CORE_ONB_H_
+#ifndef SKWR_CORE_MATH_ONB_H_
+#define SKWR_CORE_MATH_ONB_H_
 
-#include "core/vec3.h"
+#include "core/math/vec3.h"
 
 /**
  * Orthonormal Basis
@@ -39,4 +39,4 @@ struct ONB {
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_ONB_H_
+#endif  // SKWR_CORE_MATH_ONB_H_

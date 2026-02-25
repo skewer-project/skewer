@@ -2,8 +2,8 @@
 #define SKWR_CORE_SAMPLER_H_
 
 #include "core/math/constants.h"
+#include "core/math/vec3.h"
 #include "core/rng.h"
-#include "core/vec3.h"
 
 namespace skwr {
 

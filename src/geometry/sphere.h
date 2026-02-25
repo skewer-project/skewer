@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "core/vec3.h"
+#include "core/math/vec3.h"
 
 namespace skwr {
 

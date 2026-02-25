@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "core/vec3.h"
+#include "core/math/vec3.h"
 #include "materials/material.h"
 #include "scene/scene.h"
 

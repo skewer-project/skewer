@@ -5,11 +5,11 @@
 
 #include "core/color.h"
 #include "core/math/constants.h"
+#include "core/math/vec3.h"
 #include "core/ray.h"
 #include "core/rng.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
-#include "core/vec3.h"
 #include "integrators/path_sample.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
