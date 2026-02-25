@@ -17,13 +17,21 @@ struct alignas(16) Material {
     float ior;                                   // Index of refraction
     float dispersion;                            // Cauchy b coeff (a is ior)
     SpectralCurve opacity = {1.0f, 1.0f, 1.0f};  // 1 = opaque, 0 = fully transparent
-    // OR: texture reference later
     MaterialType type;
+
+    // Texture references (kNoTexture = UINT32_MAX means no texture)
+    uint32_t albedo_tex = UINT32_MAX;
+    uint32_t normal_tex = UINT32_MAX;
+    uint32_t roughness_tex = UINT32_MAX;
 
     bool IsEmissive() const { return emission.scale > 0.0f; }
     bool IsTransparent() const {
         return opacity.coeff[0] < 1.0f || opacity.coeff[1] < 1.0f || opacity.coeff[2] < 1.0f;
     }
+
+    bool HasAlbedoTexture() const { return albedo_tex != UINT32_MAX; }
+    bool HasNormalMap() const { return normal_tex != UINT32_MAX; }
+    bool HasRoughnessMap() const { return roughness_tex != UINT32_MAX; }
 };
 
 }  // namespace skwr

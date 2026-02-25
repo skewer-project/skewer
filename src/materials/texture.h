@@ -1,90 +1,34 @@
-// #ifndef TEXTURE_H
-// #define TEXTURE_H
-// //==============================================================================================
-// // Texture classes for material color and pattern definition.
-// //==============================================================================================
+#ifndef SKWR_MATERIALS_TEXTURE_H_
+#define SKWR_MATERIALS_TEXTURE_H_
 
-// #include "core/spectrum.h"
-// #include "io/rtw_stb_image.h"
+#include <cstdint>
+#include <string>
+#include <vector>
 
-// class texture {
-//   public:
-//     virtual ~texture() = default;
+#include "core/color.h"
 
-//     virtual color value(double u, double v, const point3& p) const = 0;
-// };
+namespace skwr {
 
-// class solid_color : public texture {
-//   public:
-//     solid_color(const color& albedo) : albedo(albedo) {}
+constexpr uint32_t kNoTexture = UINT32_MAX;
 
-//     solid_color(double red, double green, double blue) : solid_color(color(red, green, blue)) {}
+// Image-based texture: stores linear-light RGB float data.
+// Sample() performs bilinear interpolation with repeat (tiling) wrapping.
+struct ImageTexture {
+    std::vector<float> data;  // Linear RGB, w*h*3 floats
+    int width = 0;
+    int height = 0;
 
-//     color value(double u, double v, const point3& p) const override { return albedo; }
+    // Load from file using stb_image (linear float).
+    // Returns false on failure.
+    bool Load(const std::string& filepath);
 
-//   private:
-//     color albedo;
-// };
+    // Sample at UV coordinates with bilinear filtering and repeat wrapping.
+    // Callers pass si.uv.x() and si.uv.y().
+    RGB Sample(float u, float v) const;
 
-// class checker_texture : public texture {
-//   public:
-//     checker_texture(double scale, shared_ptr<texture> even, shared_ptr<texture> odd)
-//         : inv_scale(1.0 / scale), even(even), odd(odd) {}
+    bool IsValid() const { return !data.empty(); }
+};
 
-//     checker_texture(double scale, const color& c1, const color& c2)
-//         : checker_texture(scale, make_shared<solid_color>(c1), make_shared<solid_color>(c2)) {}
+}  // namespace skwr
 
-//     color value(double u, double v, const point3& p) const override {
-//         auto xInteger = int(std::floor(inv_scale * p.x()));
-//         auto yInteger = int(std::floor(inv_scale * p.y()));
-//         auto zInteger = int(std::floor(inv_scale * p.z()));
-
-//         bool isEven = (xInteger + yInteger + zInteger) % 2 == 0;
-
-//         return isEven ? even->value(u, v, p) : odd->value(u, v, p);
-//     }
-
-//   private:
-//     double inv_scale;
-//     shared_ptr<texture> even;
-//     shared_ptr<texture> odd;
-// };
-
-// class image_texture : public texture {
-//   public:
-//     image_texture(const char* filename) : image(filename) {}
-
-//     color value(double u, double v, const point3& p) const override {
-//         // If we have no texture data, return solid cyan as a debugging aid.
-//         if (image.height() <= 0) return color(0, 1, 1);
-
-//         // Clamp input texture coordinates to [0,1] x [1,0]
-//         u = interval(0, 1).clamp(u);
-//         v = 1.0 - interval(0, 1).clamp(v);  // Flip V to image coordinates
-
-//         auto i = int(u * image.width());
-//         auto j = int(v * image.height());
-//         auto pixel = image.pixel_data(i, j);
-
-//         auto color_scale = 1.0 / 255.0;
-//         return color(color_scale * pixel[0], color_scale * pixel[1], color_scale * pixel[2]);
-//     }
-
-//   private:
-//     rtw_image image;
-// };
-
-// class noise_texture : public texture {
-//   public:
-//     noise_texture(double scale) : scale(scale) {}
-
-//     color value(double u, double v, const point3& p) const override {
-//         return color(0.5, 0.5, 0.5) * (1 + std::sin(scale * p.z() + 10 * noise.turb(p, 7)));
-//     }
-
-//   private:
-//     perlin noise;
-//     double scale;
-// };
-
-// #endif
+#endif  // SKWR_MATERIALS_TEXTURE_H_

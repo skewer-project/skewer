@@ -35,61 +35,61 @@ inline float FrDielectric(float cosThetaI, float etaI, float etaT) {
     return (Rparl * Rparl + Rperp * Rperp) / 2.0f;
 }
 
-Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n,
+Spectrum EvalBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const Vec3& wi,
                   const SampledWavelengths& wl) {
     if (mat.type != MaterialType::Lambertian) return Spectrum(0.0f);  // specular = Dirac delta
 
-    float cosine = Dot(wi, n);
+    float cosine = Dot(wi, sd.n_shading);
     if (cosine <= 0.0f) return Spectrum(0.f);
 
-    Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
+    Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
 
     return albedo * kInvPi;
 }
 
-float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
+float PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const Vec3& wi) {
     if (mat.type != MaterialType::Lambertian) return 0.0f;
 
-    float cosine = Dot(wi, n);
+    float cosine = Dot(wi, sd.n_shading);
     if (cosine <= 0.0) return 0.f;
     return cosine * kInvPi;  // Cos-weighted hemisphere sampling
 }
 
-bool SampleLambertian(const Material& mat, const SurfaceInteraction& si, RNG& rng,
-                      const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
+                      RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     ONB uvw;
-    uvw.BuildFromW(si.n_geom);
+    uvw.BuildFromW(sd.n_shading);
 
     Vec3 local_dir = RandomCosineDirection(rng);
     wi = uvw.Local(local_dir);
 
     // Explicit PDF and Eval
-    float cosine = std::fmax(0.0f, Dot(wi, si.n_geom));
+    float cosine = std::fmax(0.0f, Dot(wi, sd.n_shading));
     if (cosine <= 0.0f) return false;
 
-    Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
+    Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
     pdf = cosine / kPi;
     f = albedo * kInvPi;
     return true;
 }
 
-bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng,
-                 const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
-    wi = Reflect(-si.wo, si.n_geom);  // We reflect "incoming view" = -wo
+bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
+                 RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+    wi = Reflect(-si.wo, sd.n_shading);  // Reflect against shading normal
 
     // TODO: Microfacet distribution (thanks gemini)
     // This roughness approach (adding a random sphere vector) is a non-physical hack
     // It works visually for basic ray tracers, but will lose energy at grazing angles.
     // The industry standard is to use a Microfacet Distribution (e.g., GGX/Trowbridge-Reitz)
-    if (mat.roughness > 0.0f) {
-        wi = Normalize(wi + (mat.roughness * RandomInUnitSphere(rng)));
+    if (sd.roughness > 0.0f) {
+        wi = Normalize(wi + (sd.roughness * RandomInUnitSphere(rng)));
     }
 
     // Check if valid (above surface)
-    float cosine = Dot(wi, si.n_geom);
+    float cosine = Dot(wi, sd.n_shading);
     if (cosine <= 0.0f) return false;
 
-    Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
+    Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
 
     // Delta Distribution Logic
     pdf = 1.0f;
@@ -98,8 +98,8 @@ bool SampleMetal(const Material& mat, const SurfaceInteraction& si, RNG& rng,
 }
 
 // Returns true if a valid bounce occurred, outputs the new direction (wi), pdf, and BSDF (f)
-bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rng,
-                      const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
+                      RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     bool entering = si.front_face;
     bool is_dispersive = mat.dispersion > 0.0f;
 
@@ -179,17 +179,18 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
     }
 }
 
-bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
-                const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+bool SampleBSDF(const Material& mat, const ShadingData& sd, const Ray& r_in,
+                const SurfaceInteraction& si, RNG& rng, const SampledWavelengths& wl, Vec3& wi,
+                float& pdf, Spectrum& f) {
     switch (mat.type) {
         case MaterialType::Lambertian:
-            return SampleLambertian(mat, si, rng, wl, wi, pdf, f);
+            return SampleLambertian(mat, sd, si, rng, wl, wi, pdf, f);
 
         case MaterialType::Metal:
-            return SampleMetal(mat, si, rng, wl, wi, pdf, f);
+            return SampleMetal(mat, sd, si, rng, wl, wi, pdf, f);
 
         case MaterialType::Dielectric:
-            return SampleDielectric(mat, si, rng, wl, wi, pdf, f);  // Implement similarly
+            return SampleDielectric(mat, sd, si, rng, wl, wi, pdf, f);
     }
     return false;
 }

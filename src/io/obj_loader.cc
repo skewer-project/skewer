@@ -11,6 +11,7 @@
 #include "core/vec3.h"
 #include "geometry/mesh.h"
 #include "materials/material.h"
+#include "materials/texture.h"
 #include "scene/scene.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -18,7 +19,27 @@
 
 namespace skwr {
 
-Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
+// Helper: load a texture from an .mtl texture name if non-empty.
+// Returns kNoTexture if the name is empty or load fails.
+static uint32_t LoadMtlTexture(const std::string& texname, const std::string& base_path,
+                               Scene& scene) {
+    if (texname.empty()) return kNoTexture;
+
+    std::string filepath;
+    if (!texname.empty() && texname[0] == '/') {
+        filepath = texname;
+    } else {
+        filepath = base_path.empty() ? texname : (base_path + "/" + texname);
+    }
+
+    ImageTexture tex;
+    if (!tex.Load(filepath)) return kNoTexture;
+
+    return scene.AddTexture(std::move(tex));
+}
+
+Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
+                            const std::string& base_path) {
     Material mat{};
 
     std::clog << "  Material: \"" << mtl.name << "\"" << " Kd=(" << mtl.diffuse[0] << ", "
@@ -31,6 +52,13 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
         mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
         mat.roughness = std::max(0.0f, std::min(1.0f, mtl.roughness * 0.5f));
         std::clog << "    -> Metal (PBR)" << std::endl;
+        mat.albedo_tex = LoadMtlTexture(mtl.diffuse_texname, base_path, scene);
+        mat.roughness_tex = LoadMtlTexture(mtl.roughness_texname, base_path, scene);
+        {
+            const std::string& n =
+                mtl.normal_texname.empty() ? mtl.bump_texname : mtl.normal_texname;
+            mat.normal_tex = LoadMtlTexture(n, base_path, scene);
+        }
         return mat;
     }
 
@@ -53,6 +81,12 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
         float fuzz = 1.0f - std::min(1.0f, mtl.shininess / 1000.0f);
         mat.roughness = std::max(0.0f, std::min(0.5f, fuzz));
         std::clog << "    -> Metal (specular)" << std::endl;
+        mat.albedo_tex = LoadMtlTexture(mtl.diffuse_texname, base_path, scene);
+        {
+            const std::string& n =
+                mtl.normal_texname.empty() ? mtl.bump_texname : mtl.normal_texname;
+            mat.normal_tex = LoadMtlTexture(n, base_path, scene);
+        }
         return mat;
     }
 
@@ -68,6 +102,16 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl) {
     } else {
         std::clog << "    -> Lambertian" << std::endl;
     }
+
+    // Load texture maps.
+    // Prefer PBR keywords (map_Pr, norm) but fall back to classic equivalents:
+    //   normal: "norm" (PBR) → "map_Bump" / "bump" (classic)
+    mat.albedo_tex = LoadMtlTexture(mtl.diffuse_texname, base_path, scene);
+    {
+        const std::string& n = mtl.normal_texname.empty() ? mtl.bump_texname : mtl.normal_texname;
+        mat.normal_tex = LoadMtlTexture(n, base_path, scene);
+    }
+    mat.roughness_tex = LoadMtlTexture(mtl.roughness_texname, base_path, scene);
 
     return mat;
 }
@@ -137,7 +181,7 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
 
     std::clog << "[OBJ] Converting " << materials.size() << " materials" << std::endl;
     for (const auto& mtl : materials) {
-        Material converted = ConvertObjMaterial(mtl);
+        Material converted = ConvertObjMaterial(mtl, scene, base_path);
         material_id_map.push_back(scene.AddMaterial(converted));
     }
 
@@ -181,10 +225,25 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
                 mesh.material_id = GetOrCreateFallback();
             }
 
-            // Vertex deduplication map: original OBJ vertex index -> local mesh index
-            // Key is (vertex_index, normal_index) pair encoded as uint64
-            std::unordered_map<uint64_t, uint32_t> vertex_map;
+            // Vertex deduplication key: (vertex_index, normal_index, texcoord_index)
+            struct VertexKey {
+                int vi, ni, ti;
+                bool operator==(const VertexKey& o) const {
+                    return vi == o.vi && ni == o.ni && ti == o.ti;
+                }
+            };
+            struct VertexKeyHash {
+                size_t operator()(const VertexKey& k) const {
+                    size_t h = std::hash<int>{}(k.vi);
+                    h ^= std::hash<int>{}(k.ni) * 2654435761ULL;
+                    h ^= std::hash<int>{}(k.ti) * 2246822519ULL;
+                    return h;
+                }
+            };
+            std::unordered_map<VertexKey, uint32_t, VertexKeyHash> vertex_map;
+
             bool has_normals = !attrib.normals.empty();
+            bool has_texcoords = !attrib.texcoords.empty();
 
             for (size_t f : face_indices) {
                 size_t fv = shape.mesh.num_face_vertices[f];
@@ -202,11 +261,10 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
                 for (int v = 0; v < 3; v++) {
                     tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
 
-                    // Encode vertex+normal index pair for deduplication
-                    uint64_t key = (static_cast<uint64_t>(idx.vertex_index) << 32);
-                    if (has_normals && idx.normal_index >= 0) {
-                        key |= static_cast<uint64_t>(static_cast<uint32_t>(idx.normal_index));
-                    }
+                    VertexKey key{idx.vertex_index,
+                                  (has_normals && idx.normal_index >= 0) ? idx.normal_index : -1,
+                                  (has_texcoords && idx.texcoord_index >= 0) ? idx.texcoord_index
+                                                                              : -1};
 
                     auto it = vertex_map.find(key);
                     if (it != vertex_map.end()) {
@@ -231,6 +289,13 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
                                                   attrib.normals[3 * idx.normal_index + 1],
                                                   attrib.normals[3 * idx.normal_index + 2]));
                         }
+
+                        // UV (if available)
+                        if (has_texcoords && idx.texcoord_index >= 0) {
+                            mesh.uv.push_back(
+                                Vec3(attrib.texcoords[2 * idx.texcoord_index + 0],
+                                     attrib.texcoords[2 * idx.texcoord_index + 1], 0.0f));
+                        }
                     }
                 }
 
@@ -239,9 +304,12 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
                 mesh.indices.push_back(tri_indices[2]);
             }
 
-            // If normals were partially available, clear them to avoid mismatched sizes
+            // If normals/UVs were partially available, clear them to avoid mismatched sizes
             if (!mesh.n.empty() && mesh.n.size() != mesh.p.size()) {
                 mesh.n.clear();
+            }
+            if (!mesh.uv.empty() && mesh.uv.size() != mesh.p.size()) {
+                mesh.uv.clear();
             }
 
             total_triangles += static_cast<uint32_t>(mesh.indices.size() / 3);
