@@ -120,7 +120,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
             Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
             SurfaceInteraction shadow_si;  // dummy
-            if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon, &shadow_si)) {
+            if (!scene.Intersect(shadow_ray, 0.f, dist - 2.0f * kShadowEpsilon, &shadow_si)) {
                 float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                 // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                 if (cos_light > 0) {
@@ -134,8 +134,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     // Weight = 1.0 / (N_lights * PDF_w)
                     // L += beta * f * Le * cos_surf * Weight
                     Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
-                    Spectrum direct_L =
-                        beta * f_val * light_spec * cos_surf * scene.InvLightCount() / light_pdf_w;
+                    Spectrum direct_L = beta * f_val * light_spec * cos_surf /
+                                        (light_pdf_w * scene.InvLightCount());
                     direct_L *= opacity;
                     L += direct_L;
                 }
