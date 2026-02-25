@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "core/vec3.h"
+#include "core/math/vec3.h"
 
 namespace skwr {
 

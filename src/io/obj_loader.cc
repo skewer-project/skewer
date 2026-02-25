@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "core/math/constants.h"
+#include "core/math/vec3.h"
 #include "core/spectral/spectral_utils.h"
-#include "core/vec3.h"
 #include "geometry/mesh.h"
 #include "materials/material.h"
 #include "scene/scene.h"

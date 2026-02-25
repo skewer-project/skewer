@@ -1,7 +1,7 @@
 #include "materials/bsdf.h"
 
 #include "core/math/constants.h"
-#include "core/onb.h"
+#include "core/math/onb.h"
 #include "core/sampling.h"
 #include "core/spectral/spectral_utils.h"
 

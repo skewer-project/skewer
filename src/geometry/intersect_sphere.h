@@ -3,8 +3,8 @@
 
 #include <cmath>
 
+#include "core/math/vec3.h"
 #include "core/ray.h"
-#include "core/vec3.h"
 #include "geometry/sphere.h"
 #include "scene/surface_interaction.h"
 

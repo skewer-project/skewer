@@ -3,8 +3,8 @@
 #include <iostream>
 #include <memory>
 
+#include "core/math/vec3.h"
 #include "core/spectral/spectral_utils.h"
-#include "core/vec3.h"
 #include "film/film.h"
 #include "film/image_buffer.h"
 #include "integrators/integrator.h"
