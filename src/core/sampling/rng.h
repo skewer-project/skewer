@@ -1,5 +1,5 @@
-#ifndef SKWR_CORE_RNG_H_
-#define SKWR_CORE_RNG_H_
+#ifndef SKWR_CORE_SAMPLING_RNG_H_
+#define SKWR_CORE_SAMPLING_RNG_H_
 
 #include <algorithm>
 #include <cstdint>
@@ -50,4 +50,4 @@ class RNG {
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_RNG_H_
+#endif  // SKWR_CORE_SAMPLING_RNG_H_

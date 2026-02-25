@@ -7,7 +7,7 @@
 #include "core/math/constants.h"
 #include "core/math/vec3.h"
 #include "core/ray.h"
-#include "core/rng.h"
+#include "core/sampling/rng.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
 #include "integrators/path_sample.h"

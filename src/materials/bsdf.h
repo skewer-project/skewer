@@ -2,7 +2,7 @@
 #define SKWR_MATERIALS_BSDF_H_
 
 #include "core/math/vec3.h"
-#include "core/rng.h"
+#include "core/sampling/rng.h"
 #include "core/spectral/spectrum.h"
 #include "materials/material.h"
 #include "scene/surface_interaction.h"
