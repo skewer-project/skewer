@@ -8,45 +8,20 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Find required packages
-find_package(OpenEXR REQUIRED)
-find_package(Imath REQUIRED)
-find_package(PNG QUIET)
-
-# Option for PNG support
-if(PNG_FOUND)
-    message(STATUS "PNG support enabled")
-else()
-    message(STATUS "PNG support disabled (libpng not found)")
+if(NOT TARGET exrio::exrio)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio/CMakeLists.txt")
+        add_subdirectory(
+            "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio"
+            "${CMAKE_CURRENT_BINARY_DIR}/exrio"
+        )
+    else()
+        find_package(exrio REQUIRED CONFIG)
+    endif()
 endif()
-
-# Core library (shared between main executable, test generator, and tests)
-add_library(compositor_lib STATIC
-    src/utils.cc
-    src/deep_image.cc
-    src/deep_reader.cc
-    src/deep_writer.cc
-    src/deep_compositor.cc
-    src/deep_volume.cc
-)
-
-target_include_directories(compositor_lib PUBLIC ${PROJECT_SOURCE_DIR}/src)
-
-target_link_libraries(compositor_lib
-    OpenEXR::OpenEXR
-    Imath::Imath
-)
-
-if(PNG_FOUND)
-    target_compile_definitions(compositor_lib PUBLIC HAS_PNG_SUPPORT)
-    target_link_libraries(compositor_lib PNG::PNG)
-endif()
-
-target_compile_options(compositor_lib PRIVATE -Wall -Wextra -Wpedantic)
 
 # Main executable
 add_executable(deep_compositor src/main.cc)
-target_link_libraries(deep_compositor compositor_lib)
+target_link_libraries(deep_compositor PRIVATE exrio::exrio)
 
 # Create output directory
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
