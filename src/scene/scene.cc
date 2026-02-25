@@ -4,13 +4,13 @@
 
 #include "accelerators/bvh.h"
 #include "core/math/vec3.h"
+#include "core/sampling/surface_interaction.h"
 #include "geometry/intersect_sphere.h"
 #include "geometry/intersect_triangle.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
 #include "materials/material.h"
-#include "scene/surface_interaction.h"
 
 namespace skwr {
 

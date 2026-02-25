@@ -9,12 +9,12 @@
 #include "core/ray.h"
 #include "core/sampling/path_sample.h"
 #include "core/sampling/rng.h"
+#include "core/sampling/surface_interaction.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "scene/scene.h"
-#include "scene/surface_interaction.h"
 #include "session/render_options.h"
 
 namespace skwr {
