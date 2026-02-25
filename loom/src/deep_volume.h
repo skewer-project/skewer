@@ -1,9 +1,9 @@
 #pragma once
 
+#include <exrio/deep_image.h>
+
 #include <utility>
 #include <vector>
-
-#include <exrio/deep_image.h>
 
 namespace deep_compositor {
 

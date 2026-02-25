@@ -1,12 +1,12 @@
 #include "deep_compositor.h"
 
-#include "deep_volume.h"
-
 #include <exrio/utils.h>
 
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
+
+#include "deep_volume.h"
 
 namespace deep_compositor {
 

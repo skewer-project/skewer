@@ -1,3 +1,4 @@
+#include <exrio/deep_writer.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -5,7 +6,6 @@
 
 #include "../test_helpers.h"
 #include "deep_compositor.h"
-#include <exrio/deep_writer.h>
 
 using namespace deep_compositor;
 
