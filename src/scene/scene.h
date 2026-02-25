@@ -17,7 +17,7 @@
 namespace skwr {
 
 // Forward declarations of pointers
-struct Ray;
+class Ray;
 struct SurfaceInteraction;
 
 class Scene {

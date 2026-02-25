@@ -168,7 +168,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 // For Dielectrics/Metals, opacity is typically 1.0
                 // For transparent diffuse, we need to account for absorption
                 if (mat.type == MaterialType::Lambertian) {
-                    weight *= opacity;  // Absorb based on opacity
+                    weight *= alpha;  // Absorb based on opacity
                 }
 
                 beta *= weight;

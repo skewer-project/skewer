@@ -31,7 +31,7 @@ class Film {
     Film(int width, int height);
 
     void AddSample(int x, int y, const RGB& L, float weight = 1.0f);
-    void AddDeepSample(int x, int y, const PathSample& path_sample, float weight = 1.0f);
+    void AddDeepSample(int x, int y, const PathSample& path_sample);
 
     // Saves to disk (PPM, EXR)
     void WriteImage(const std::string& filename) const;
