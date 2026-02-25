@@ -5,11 +5,11 @@
 #include <vector>
 
 #include "barkeep.h"
+#include "core/sampling/path_sample.h"
 #include "core/sampling/sampling.h"
 #include "core/sampling/wavelength_sampler.h"
 #include "core/spectral/spectrum.h"
 #include "film/film.h"
-#include "integrators/path_sample.h"
 #include "kernels/path_kernel.h"
 #include "scene/camera.h"
 #include "scene/light.h"
