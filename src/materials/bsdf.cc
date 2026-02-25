@@ -37,6 +37,7 @@ inline float FrDielectric(float cosThetaI, float etaI, float etaT) {
 
 Spectrum EvalBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const Vec3& wi,
                   const SampledWavelengths& wl) {
+    (void)wo;
     if (mat.type != MaterialType::Lambertian) return Spectrum(0.0f);  // specular = Dirac delta
 
     float cosine = Dot(wi, sd.n_shading);
@@ -48,6 +49,7 @@ Spectrum EvalBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, co
 }
 
 float PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const Vec3& wi) {
+    (void)wo;
     if (mat.type != MaterialType::Lambertian) return 0.0f;
 
     float cosine = Dot(wi, sd.n_shading);
@@ -57,6 +59,8 @@ float PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const 
 
 bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
                       RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+    (void)mat;
+    (void)si;
     ONB uvw;
     uvw.BuildFromW(sd.n_shading);
 
@@ -75,6 +79,7 @@ bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceI
 
 bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si, RNG& rng,
                  const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+    (void)mat;
     wi = Reflect(-si.wo, sd.n_shading);  // Reflect against shading normal
 
     // TODO: Microfacet distribution (thanks gemini)
@@ -100,6 +105,7 @@ bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceIntera
 // Returns true if a valid bounce occurred, outputs the new direction (wi), pdf, and BSDF (f)
 bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
                       RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+    (void)sd;
     bool entering = si.front_face;
     bool is_dispersive = mat.dispersion > 0.0f;
 
@@ -182,6 +188,7 @@ bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceI
 bool SampleBSDF(const Material& mat, const ShadingData& sd, const Ray& r_in,
                 const SurfaceInteraction& si, RNG& rng, const SampledWavelengths& wl, Vec3& wi,
                 float& pdf, Spectrum& f) {
+    (void)r_in;
     switch (mat.type) {
         case MaterialType::Lambertian:
             return SampleLambertian(mat, sd, si, rng, wl, wi, pdf, f);
