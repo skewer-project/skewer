@@ -21,7 +21,10 @@ class VolumeStack {
     VolumeStack() : count_(0) {}
 
     inline void Push(uint16_t medium_id, uint16_t priority) {
+        if (Contains(medium_id)) return;
         if (count_ >= kMaxMediumStack) return;  // Silent drop or log warning in debug
+        // assert(count_ < kMaxMediumStack);
+        // In release: maybe replace lowest-priority element
 
         uint8_t insert_idx = 0;
         while (insert_idx < count_ && priorities_[insert_idx] >= priority) {
@@ -53,6 +56,12 @@ class VolumeStack {
     }
 
     inline uint16_t GetActiveMedium() const { return (count_ > 0) ? ids_[0] : kVacuumMediumId; }
+
+    inline bool Contains(uint16_t medium_id) const {
+        for (uint8_t i = 0; i < count_; ++i)
+            if (ids_[i] == medium_id) return true;
+        return false;
+    }
 
   private:
     uint16_t ids_[kMaxMediumStack];
