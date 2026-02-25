@@ -11,6 +11,10 @@ option(SKEWER_COMBINED_BUILD_EXRIO "Build exrio helper library" ON)
 option(SKEWER_COMBINED_BUILD_LOOM "Build loom deep compositor" ON)
 option(SKEWER_COMBINED_BUILD_SKEWER "Build skewer deep renderer" ON)
 
+if(SKEWER_COMBINED_BUILD_LOOM AND NOT SKEWER_COMBINED_BUILD_EXRIO)
+    message(FATAL_ERROR "SKEWER_COMBINED_BUILD_LOOM=ON requires SKEWER_COMBINED_BUILD_EXRIO=ON")
+endif()
+
 if(SKEWER_COMBINED_BUILD_EXRIO)
     add_subdirectory(libs/exrio)
 endif()

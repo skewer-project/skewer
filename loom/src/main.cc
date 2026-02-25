@@ -3,11 +3,11 @@
 #include <string>
 #include <vector>
 
-#include "deep_compositor.h"
-#include "deep_image.h"
-#include "deep_reader.h"
-#include "deep_writer.h"
-#include "utils.h"
+#include "exrio/deep_compositor.h"
+#include "exrio/deep_image.h"
+#include "exrio/deep_reader.h"
+#include "exrio/deep_writer.h"
+#include "exrio/utils.h"
 
 namespace {
 
