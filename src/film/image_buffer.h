@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "core/color.h"
+#include "core/color/color.h"
 
 namespace skwr {
 

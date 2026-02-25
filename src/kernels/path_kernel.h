@@ -3,7 +3,7 @@
 
 #include <cstdlib>
 
-#include "core/color.h"
+#include "core/color/color.h"
 #include "core/math/constants.h"
 #include "core/math/vec3.h"
 #include "core/ray.h"

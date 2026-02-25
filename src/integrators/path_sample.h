@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "core/color.h"
+#include "core/color/color.h"
 #include "core/spectral/spectrum.h"
 
 namespace skwr {
