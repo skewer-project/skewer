@@ -3,9 +3,9 @@
 
 #include "core/math/vec3.h"
 #include "core/sampling/rng.h"
+#include "core/sampling/surface_interaction.h"
 #include "core/spectral/spectrum.h"
 #include "materials/material.h"
-#include "scene/surface_interaction.h"
 
 namespace skwr {
 
