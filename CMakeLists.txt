@@ -97,9 +97,10 @@ target_link_libraries(skewer-render
     ZLIB::ZLIB
 )
 
-include(GoogleTest)
-enable_testing()
-add_subdirectory(tests)
 target_link_options(skewer-render PRIVATE
     -flto
 )
+
+include(GoogleTest)
+enable_testing()
+add_subdirectory(tests)
