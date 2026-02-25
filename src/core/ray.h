@@ -1,5 +1,5 @@
-#ifndef SKWR_CORE_Ray_H_
-#define SKWR_CORE_Ray_H_
+#ifndef SKWR_CORE_RAY_H_
+#define SKWR_CORE_RAY_H_
 
 #include "core/math/vec3.h"
 
@@ -36,4 +36,4 @@ class Ray {
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_Ray_H_
+#endif  // SKWR_CORE_RAY_H_
