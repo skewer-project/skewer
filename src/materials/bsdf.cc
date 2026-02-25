@@ -2,7 +2,7 @@
 
 #include "core/math/constants.h"
 #include "core/math/onb.h"
-#include "core/sampling.h"
+#include "core/sampling/sampling.h"
 #include "core/spectral/spectral_utils.h"
 
 namespace skwr {
