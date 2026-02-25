@@ -34,6 +34,7 @@ void Scene::Build() {
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
         const Mesh& mesh_ref = meshes_[mesh_id];
+        const Material& mat = materials_[mesh_ref.material_id];
 
         for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
             uint32_t i0 = mesh_ref.indices[i];

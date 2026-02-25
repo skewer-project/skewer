@@ -67,8 +67,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
         const Material& mat = scene.GetMaterial(si.material_id);
         ShadingData sd = ResolveShadingData(mat, si, scene);
-
-        Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
         // Lazy Evaluation
         Spectrum opacity(1.0f);
         float alpha = 1.0f;
