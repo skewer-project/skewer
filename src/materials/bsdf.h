@@ -34,8 +34,8 @@ inline float Reflectance(float cosine, float refraction_ratio) {
 bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
                       RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);
 
-bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
-                 RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);
+bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si, RNG& rng,
+                 const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);
 
 bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
                       RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f);

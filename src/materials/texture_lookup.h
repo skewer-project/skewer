@@ -15,9 +15,9 @@ namespace skwr {
 
 // Resolved per-hit shading data (textures already sampled).
 struct ShadingData {
-    SpectralCurve albedo;   // Resolved albedo (from texture or flat material color)
-    float roughness;        // Resolved roughness (from texture or flat material value)
-    Vec3 n_shading;         // Shading normal (may be perturbed by normal map)
+    SpectralCurve albedo;  // Resolved albedo (from texture or flat material color)
+    float roughness;       // Resolved roughness (from texture or flat material value)
+    Vec3 n_shading;        // Shading normal (may be perturbed by normal map)
 };
 
 // Resolve per-hit shading data for the given material and surface interaction.
