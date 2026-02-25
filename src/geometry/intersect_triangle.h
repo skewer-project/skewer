@@ -2,8 +2,8 @@
 #define SKWR_GEOMETRY_INTERSECT_TRIANGLE_H_
 
 #include "core/math/vec3.h"
+#include "core/sampling/surface_interaction.h"
 #include "geometry/triangle.h"
-#include "scene/surface_interaction.h"
 
 namespace skwr {
 
