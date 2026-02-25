@@ -2,13 +2,13 @@
 // (Removed from io/rtw_stb_image.h to avoid duplicate symbol issues.)
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
-#include "stb_image.h"
-
 #include "materials/texture.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+
+#include "stb_image.h"
 
 namespace skwr {
 

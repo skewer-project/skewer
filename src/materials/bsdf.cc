@@ -73,8 +73,8 @@ bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceI
     return true;
 }
 
-bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
-                 RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
+bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si, RNG& rng,
+                 const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     wi = Reflect(-si.wo, sd.n_shading);  // Reflect against shading normal
 
     // TODO: Microfacet distribution (thanks gemini)

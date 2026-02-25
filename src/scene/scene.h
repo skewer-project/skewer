@@ -26,7 +26,7 @@ class Scene {
 
     uint32_t AddSphere(const Sphere& s);
     uint32_t AddMaterial(const Material& m);
-    uint32_t AddMesh(Mesh&& m);     // Returns mesh_id (index in the meshes_ vector)
+    uint32_t AddMesh(Mesh&& m);             // Returns mesh_id (index in the meshes_ vector)
     uint32_t AddTexture(ImageTexture&& t);  // Returns texture_id
 
     const Material& GetMaterial(uint32_t id) const { return materials_[id]; }

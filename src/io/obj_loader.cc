@@ -268,10 +268,10 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
                 for (int v = 0; v < 3; v++) {
                     tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
 
-                    VertexKey key{idx.vertex_index,
-                                  (has_normals && idx.normal_index >= 0) ? idx.normal_index : -1,
-                                  (has_texcoords && idx.texcoord_index >= 0) ? idx.texcoord_index
-                                                                              : -1};
+                    VertexKey key{
+                        idx.vertex_index,
+                        (has_normals && idx.normal_index >= 0) ? idx.normal_index : -1,
+                        (has_texcoords && idx.texcoord_index >= 0) ? idx.texcoord_index : -1};
 
                     auto it = vertex_map.find(key);
                     if (it != vertex_map.end()) {
@@ -299,9 +299,9 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
 
                         // UV (if available)
                         if (has_texcoords && idx.texcoord_index >= 0) {
-                            mesh.uv.push_back(
-                                Vec3(attrib.texcoords[2 * idx.texcoord_index + 0],
-                                     attrib.texcoords[2 * idx.texcoord_index + 1], 0.0f));
+                            mesh.uv.push_back(Vec3(attrib.texcoords[2 * idx.texcoord_index + 0],
+                                                   attrib.texcoords[2 * idx.texcoord_index + 1],
+                                                   0.0f));
                         }
                     }
                 }
