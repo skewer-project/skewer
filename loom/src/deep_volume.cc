@@ -1,4 +1,4 @@
-#include <exrio/deep_volume.h>
+#include "deep_volume.h"
 
 #include <algorithm>
 #include <cmath>

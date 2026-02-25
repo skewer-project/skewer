@@ -15,6 +15,9 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: "pip"
 
       - name: Install clang-format
         run: |
@@ -32,6 +35,7 @@ jobs:
             skewer/src \
             skewer/tests \
             loom/src \
+            loom/tests \
             libs/exrio/src \
             libs/exrio/tests \
             libs/exrio/include \

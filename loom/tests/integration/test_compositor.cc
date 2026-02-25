@@ -5,8 +5,7 @@
 
 #include "../test_helpers.h"
 #include "deep_compositor.h"
-#include "deep_image.h"
-#include "deep_writer.h"
+#include <exrio/deep_writer.h>
 
 using namespace deep_compositor;
 
@@ -172,13 +171,13 @@ TEST_F(CompositorIntegrationTest, MergeThresholdAffectsCollapseRadius) {
     DeepImage imgB = make1x1Point(1.0005f, 0.5f, 0.5f, 0.5f, 0.5f);
     std::vector<DeepImage> inputs = {imgA, imgB};
 
-    // Tiny threshold — samples far apart relative to threshold → not merged
+    // Tiny threshold — samples far apart relative to threshold -> not merged
     CompositorOptions tinyThresh;
     tinyThresh.mergeThreshold = 0.0001f;
     DeepImage resultTiny = deepMerge(inputs, tinyThresh);
     EXPECT_EQ(resultTiny.pixel(0, 0).sampleCount(), 2u);
 
-    // Large threshold — samples within threshold → merged
+    // Large threshold — samples within threshold -> merged
     CompositorOptions bigThresh;
     bigThresh.mergeThreshold = 0.01f;
     DeepImage resultBig = deepMerge(inputs, bigThresh);

@@ -3,7 +3,6 @@
 #include <cmath>
 
 #include "../test_helpers.h"
-#include "deep_image.h"
 #include "deep_volume.h"
 
 using namespace deep_compositor;
@@ -247,7 +246,7 @@ TEST_F(MergePixelsVolumetricTest, TwoCompletelyCoincidentVolumesBlendIntoOne) {
 }
 
 TEST_F(MergePixelsVolumetricTest, OverlappingVolumesSplitAndBlendCorrectly) {
-    // A: [1,3], B: [2,4] → 3 non-overlapping intervals: [1,2], [2,3], [3,4]
+    // A: [1,3], B: [2,4] -> 3 non-overlapping intervals: [1,2], [2,3], [3,4]
     DeepPixel pA, pB;
     pA.addSample(makeVolume(1.0f, 3.0f, 0.6f, 0.6f, 0.6f, 0.8f));
     pB.addSample(makeVolume(2.0f, 4.0f, 0.4f, 0.4f, 0.4f, 0.6f));
@@ -274,7 +273,7 @@ TEST_F(MergePixelsVolumetricTest, BeerLambertInvariantPreservedAfterSplitAndBlen
 }
 
 TEST_F(MergePixelsVolumetricTest, PointSampleInsideVolumeProducesThreeFragments) {
-    // Volume [1,4] and point at z=2 → [1,2], point[2,2], [2,4]
+    // Volume [1,4] and point at z=2 -> [1,2], point[2,2], [2,4]
     DeepPixel pVol, pPoint;
     pVol.addSample(makeVolume(1.0f, 4.0f, 0.6f, 0.6f, 0.6f, 0.8f));
     pPoint.addSample(makePoint(2.0f, 0.5f, 0.5f, 0.5f, 0.5f));
@@ -293,7 +292,7 @@ TEST_F(MergePixelsVolumetricTest, OutputSamplesAreSortedByDepth) {
 }
 
 TEST_F(MergePixelsVolumetricTest, MergeThreeOverlappingVolumes) {
-    // A:[1,3], B:[2,4], C:[2.5,5] → 5 intervals: [1,2],[2,2.5],[2.5,3],[3,4],[4,5]
+    // A:[1,3], B:[2,4], C:[2.5,5] -> 5 intervals: [1,2],[2,2.5],[2.5,3],[3,4],[4,5]
     DeepPixel pA, pB, pC;
     pA.addSample(makeVolume(1.0f, 3.0f, 0.6f, 0.6f, 0.6f, 0.8f));
     pB.addSample(makeVolume(2.0f, 4.0f, 0.4f, 0.4f, 0.4f, 0.6f));

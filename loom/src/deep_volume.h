@@ -3,7 +3,7 @@
 #include <utility>
 #include <vector>
 
-#include "deep_image.h"
+#include <exrio/deep_image.h>
 
 namespace deep_compositor {
 
