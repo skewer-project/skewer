@@ -208,8 +208,12 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
         // Group face indices by material ID
         // Key: OBJ material index (-1 for no material)
         std::unordered_map<int, std::vector<size_t>> mat_to_faces;
+        std::vector<size_t> face_index_offsets(shape.mesh.num_face_vertices.size());
+        size_t running_index_offset = 0;
 
         for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+            face_index_offsets[f] = running_index_offset;
+            running_index_offset += shape.mesh.num_face_vertices[f];
             int mat_id = shape.mesh.material_ids[f];
             mat_to_faces[mat_id].push_back(f);
         }
@@ -224,6 +228,14 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
             } else {
                 mesh.material_id = GetOrCreateFallback();
             }
+
+            bool has_normals = !attrib.normals.empty();
+            bool has_texcoords = !attrib.texcoords.empty();
+            size_t max_vertices = face_indices.size() * 3;
+            mesh.indices.reserve(max_vertices);
+            mesh.p.reserve(max_vertices);
+            if (has_normals) mesh.n.reserve(max_vertices);
+            if (has_texcoords) mesh.uv.reserve(max_vertices);
 
             // Vertex deduplication key: (vertex_index, normal_index, texcoord_index)
             struct VertexKey {
@@ -241,20 +253,15 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
                 }
             };
             std::unordered_map<VertexKey, uint32_t, VertexKeyHash> vertex_map;
-
-            bool has_normals = !attrib.normals.empty();
-            bool has_texcoords = !attrib.texcoords.empty();
+            vertex_map.reserve(max_vertices);
 
             for (size_t f : face_indices) {
                 size_t fv = shape.mesh.num_face_vertices[f];
                 if (fv != 3)
                     continue;  // Skip non-triangles (shouldn't happen with triangulate=true)
 
-                // Compute the face's index offset into the shape's index buffer
-                size_t index_offset = 0;
-                for (size_t k = 0; k < f; k++) {
-                    index_offset += shape.mesh.num_face_vertices[k];
-                }
+                // O(1) lookup into precomputed face->index-buffer offset table.
+                size_t index_offset = face_index_offsets[f];
 
                 uint32_t tri_indices[3];
 

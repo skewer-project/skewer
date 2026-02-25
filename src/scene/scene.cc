@@ -46,6 +46,7 @@ void Scene::Build() {
             t.e1 = mesh_ref.p[i1] - t.p0;
             t.e2 = mesh_ref.p[i2] - t.p0;
             t.material_id = mesh_ref.material_id;
+            t.needs_tangent_frame = mat.HasNormalMap();
 
             if (!mesh_ref.n.empty()) {
                 t.n0 = mesh_ref.n[i0];

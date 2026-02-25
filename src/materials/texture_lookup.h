@@ -29,6 +29,10 @@ inline ShadingData ResolveShadingData(const Material& mat, const SurfaceInteract
     sd.roughness = mat.roughness;
     sd.n_shading = si.n_geom;
 
+    if (!mat.HasAlbedoTexture() && !mat.HasRoughnessMap() && !mat.HasNormalMap()) {
+        return sd;
+    }
+
     float u = si.uv.x();
     float v = si.uv.y();
 
