@@ -14,6 +14,7 @@
 #include "core/spectral/spectrum.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
+#include "materials/texture_lookup.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
 
@@ -65,8 +66,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         // AddSegment(result, t_prev, si.t, Spectrum(0.0f), 0.0f);
 
         const Material& mat = scene.GetMaterial(si.material_id);
-
-        Spectrum albedo = CurveToSpectrum(mat.albedo, wl);
+        ShadingData sd = ResolveShadingData(mat, si, scene);
         // Lazy Evaluation
         Spectrum opacity(1.0f);
         float alpha = 1.0f;
@@ -128,8 +128,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
                     // BSDF Evaluation
-                    float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n_geom));
-                    Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n_geom, wl);
+                    float cos_surf = std::fmax(0.0f, Dot(wi_light, sd.n_shading));
+                    Spectrum f_val = EvalBSDF(mat, sd, si.wo, wi_light, wl);
 
                     // Accumulate
                     // Weight = 1.0 / (N_lights * PDF_w)
@@ -149,7 +149,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         Spectrum f;
 
         /* BSDF check */
-        if (SampleBSDF(mat, r, si, rng, wl, wi, pdf, f)) {
+        if (SampleBSDF(mat, sd, r, si, rng, wl, wi, pdf, f)) {
             if (pdf > 0) {
                 float refract = Dot(wi, si.n_geom);
 
@@ -166,7 +166,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 // For Dielectrics/Metals, opacity is typically 1.0
                 // For transparent diffuse, we need to account for absorption
                 if (mat.type == MaterialType::Lambertian) {
-                    weight *= opacity;  // Absorb based on opacity
+                    weight *= alpha;  // Absorb based on opacity
                 }
 
                 beta *= weight;
