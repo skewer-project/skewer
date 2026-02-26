@@ -98,10 +98,9 @@ void DeepImageBuffer::SetPixel(int x, int y, const std::vector<DeepSample>& newS
 
     size_t idx = y * width_ + x;
     size_t start = pixelOffsets_[idx];
-    size_t end = pixelOffsets_[idx + 1];
+    [[maybe_unused]] size_t end = pixelOffsets_[idx + 1];
 
-    size_t slotSize = end - start;
-    assert(newSamples.size() == slotSize &&
+    assert(newSamples.size() == (end - start) &&
            "SetPixel called with the wrong number of samples!");  // Safety Check
 
     // Mem-copy all samples in place

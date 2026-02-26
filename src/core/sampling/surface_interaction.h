@@ -20,9 +20,12 @@ struct SurfaceInteraction {
     bool front_face;  // Is normal pointing at ray? (Is it the outside face?)
     uint32_t material_id;
 
+    // UV and tangent frame
+    Vec3 uv;          // Surface UV (z unused)
+    Vec3 dpdu, dpdv;  // Surface tangents (for normal mapping/anisotropy)
+
     // Shading data
-    Vec3 n_shading;   // smooth normal (interpolated)
-    Vec3 dpdu, dpdv;  // Tangents (for bump mapping/anisotropy)
+    Vec3 n_shading;  // smooth normal (interpolated)
 
     // Helper to align normal against the incoming ray
     inline void SetFaceNormal(const Ray& r, const Vec3& outward_normal) {
