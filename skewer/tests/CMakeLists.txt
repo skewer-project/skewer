@@ -18,8 +18,8 @@ add_executable(unit_tests
 # Include directories (same as main app)
 target_include_directories(unit_tests
     PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/external
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/external
 )
 
 # Link dependencies (GTest + Project deps)
