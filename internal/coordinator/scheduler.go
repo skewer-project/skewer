@@ -171,3 +171,15 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 		}
 	}
 }
+
+func (s *Scheduler) PurgeJobTasks(jobID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for taskID, task := range s.activeTasks {
+		if task.JobID == jobID {
+			delete(s.activeTasks, taskID)
+		}
+	}
+	return nil
+}

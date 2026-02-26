@@ -18,6 +18,14 @@ func NewDAG() *DAG {
 	}
 }
 
+func (d *DAG) GetNode(nodeID string) (Node, error) {
+	node, exists := d.nodes[nodeID]
+	if !exists {
+		return nil, errors.New("[ERROR] Node not found")
+	}
+	return node, nil
+}
+
 func (d *DAG) AddNode(node Node) {
 	d.nodes[node.ID()] = node
 }
