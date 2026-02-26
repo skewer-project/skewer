@@ -1,17 +1,24 @@
-.vscode/
-.zed/
-build/
+# Build and install outputs
+/build/
+/install/
+/output/
 
-.cache
+# Local cache directories
+/.cache/
+**/.cache/
+
+# CMake user-local settings
+/CMakeUserPresets.json
+
+# OS/editor files
 .DS_Store
+.vscode/
+.idea/
+.zed/
+*.swp
+*.swo
 
-# scene assets
-images/
+# render inputs/outputs
 objects/
 scenes/
-
-# generated images
-*.exr
-*.ppm
-*.png
-*.jpg
+images/
