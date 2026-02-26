@@ -5,6 +5,8 @@
 
 #include "core/cpu_config.h"
 
+namespace {
+
 /**
  * A Priority Set
  * - LIFO stack structure to keep track of Index Of Refraction values for media the ray enters
@@ -68,5 +70,7 @@ class VolumeStack {
     uint16_t priorities_[kMaxMediumStack];
     uint8_t count_;
 };
+
+}  // namespace
 
 #endif  // SKWR_CORE_SAMPLING_VOLUME_STACK_H_
