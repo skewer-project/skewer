@@ -5,8 +5,10 @@
 #include <ImfDeepFrameBuffer.h>
 #include <ImfDeepScanLineInputFile.h>
 #include <ImfDeepScanLineOutputFile.h>
+#include <ImfFrameBuffer.h>
 #include <ImfHeader.h>
 #include <ImfMultiPartInputFile.h>
+#include <ImfOutputFile.h>
 #include <ImfPartType.h>
 #include <ImfPixelType.h>
 #include <half.h>
@@ -167,6 +169,52 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string& filename) {
     }
 
     return deepbuf;
+}
+
+void ImageIO::SaveFlatEXR(const FlatImageBuffer& buf, const std::string& filename) {
+    const int width = buf.width_;
+    const int height = buf.height_;
+
+    Imf::Header header(width, height);
+    header.compression() = Imf::ZIP_COMPRESSION;
+    header.channels().insert("R", Imf::Channel(Imf::FLOAT));
+    header.channels().insert("G", Imf::Channel(Imf::FLOAT));
+    header.channels().insert("B", Imf::Channel(Imf::FLOAT));
+    header.channels().insert("A", Imf::Channel(Imf::FLOAT));
+
+    // Deinterleave RGB struct into separate flat arrays for OpenEXR.
+    const size_t nPixels = static_cast<size_t>(width) * height;
+    std::vector<float> rData(nPixels);
+    std::vector<float> gData(nPixels);
+    std::vector<float> bData(nPixels);
+
+    for (size_t i = 0; i < nPixels; ++i) {
+        rData[i] = buf.pixels_[i].r();
+        gData[i] = buf.pixels_[i].g();
+        bData[i] = buf.pixels_[i].b();
+    }
+
+    const size_t xStride = sizeof(float);
+    const size_t yStride = sizeof(float) * width;
+
+    Imf::FrameBuffer frameBuffer;
+    frameBuffer.insert("R", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(rData.data()),
+                                       xStride, yStride));
+    frameBuffer.insert("G", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(gData.data()),
+                                       xStride, yStride));
+    frameBuffer.insert("B", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(bData.data()),
+                                       xStride, yStride));
+    // alpha_ is already a contiguous float vector — no copy needed.
+    frameBuffer.insert("A",
+                       Imf::Slice(Imf::FLOAT,
+                                  reinterpret_cast<char*>(const_cast<float*>(buf.alpha_.data())),
+                                  xStride, yStride));
+
+    Imf::OutputFile file(filename.c_str(), header);
+    file.setFrameBuffer(frameBuffer);
+    file.writePixels(height);
+
+    std::clog << "Saved flat RGBA EXR: " << filename << "\n";
 }
 
 void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string& filename) {

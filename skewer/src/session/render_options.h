@@ -18,6 +18,9 @@ struct IntegratorConfig {
     int start_sample;
     int num_threads = 0;  // 0 = auto-detect (hardware_concurrency)
     bool enable_deep = false;
+    // When true, primary rays that miss all geometry produce alpha=0 instead of
+    // opaque black. Enables clean layer compositing without a black background matte.
+    bool transparent_background = false;
     Vec3 cam_w;
 };
 

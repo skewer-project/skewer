@@ -13,7 +13,8 @@
 namespace skwr {
 
 struct Pixel {
-    RGB color_sum = RGB(0.0f);       // Accumulated Radiance
+    RGB color_sum = RGB(0.0f);       // Accumulated Radiance (premultiplied by alpha)
+    float alpha_sum = 0.0f;          // Accumulated coverage
     float weight_sum = 0.0f;         // Total weight (filter weight * count)
     std::atomic<int> deep_head{-1};  // Head of linked list
 };
@@ -30,12 +31,17 @@ class Film {
   public:
     Film(int width, int height);
 
-    void AddSample(int x, int y, const RGB& L, float weight = 1.0f);
+    // alpha is the flat-pass coverage for this sample (0=transparent, 1=opaque).
+    void AddSample(int x, int y, const RGB& L, float alpha, float weight = 1.0f);
     void AddDeepSample(int x, int y, const PathSample& path_sample);
 
     // Saves to disk (PPM, EXR)
     void WriteImage(const std::string& filename) const;
     std::unique_ptr<DeepImageBuffer> CreateDeepBuffer(const int total_pixel_samples) const;
+
+    // Builds a flat RGBA buffer suitable for export as a compositing-friendly EXR.
+    // Colors are premultiplied; alpha reflects average coverage per pixel.
+    std::unique_ptr<FlatImageBuffer> CreateFlatBuffer() const;
 
     int width() { return width_; }
     int height() { return height_; }

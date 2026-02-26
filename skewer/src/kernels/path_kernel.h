@@ -55,9 +55,14 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
     for (int depth = 0; depth < config.max_depth; ++depth) {
         SurfaceInteraction si;
         if (!scene.Intersect(r, kShadowEpsilon, kInfinity, &si)) {
-            // Environment Segment
-            Spectrum env_L = beta * Spectrum(0.0f);
-            L += env_L;
+            // Primary-ray miss: no geometry hit.
+            // In transparent-background mode the environment contributes nothing
+            // (alpha stays 0 so compositors see through to layers behind).
+            // In opaque mode, treat it as a black environment (alpha = 1).
+            if (!config.transparent_background) {
+                Spectrum env_L = beta * Spectrum(0.0f);
+                L += env_L;
+            }
             break;
         }
 
@@ -193,15 +198,25 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
     }
 
     RGB final_rgb = SpectrumToRGB(L, wl);
+
+    // Flat-pass alpha: 1 if any foreground geometry was hit, 0 on a pure miss.
+    // With transparent_background=false a miss is treated as an opaque background
+    // so alpha stays 1 (backward-compatible behaviour).
+    result.alpha = valid_deep_hit ? 1.0f : (config.transparent_background ? 0.0f : 1.0f);
+
     if (valid_deep_hit) {
         Vec3 to_hit = deep_hit_point - deep_origin;
         float z_depth = Dot(to_hit, config.cam_w);
         // Ensure we don't get negative depth behind camera
         if (z_depth < 0.0f) z_depth = 0.0f;
         AddSegment(result, z_depth, z_depth + kShadowEpsilon, final_rgb, deep_hit_alpha);
-    } else {
+    } else if (!config.transparent_background) {
+        // Opaque mode: record the miss as a solid far-clip sample so the deep
+        // pixel still represents a fully-covered (black) background.
         AddSegment(result, kFarClip, kFarClip + 1000.0f, final_rgb, deep_hit_alpha);
     }
+    // transparent_background + no hit → empty segments → alpha=0 in deep output.
+
     result.L = L;
     return result;
 }
