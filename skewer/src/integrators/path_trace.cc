@@ -68,7 +68,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                     RGB pixel_color = SpectrumToRGB(result.L, wl);
 
                     float weight = 1.0f;
-                    film->AddSample(x, y, pixel_color, weight);
+                    film->AddSample(x, y, pixel_color, result.alpha, weight);
 
                     if (config.enable_deep) film->AddDeepSample(x, y, result);
                 }

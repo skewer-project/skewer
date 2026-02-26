@@ -343,6 +343,8 @@ static SceneConfig ParseConfig(const json& j) {
         opts.integrator_config.max_depth = GetOr(r, "max_depth", 50);
         opts.integrator_config.num_threads = GetOr(r, "threads", 0);
         opts.integrator_config.enable_deep = GetOr(r, "enable_deep", false);
+        opts.integrator_config.transparent_background =
+            GetOr(r, "transparent_background", false);
 
         // Image config (nested)
         if (r.contains("image")) {
