@@ -12,6 +12,9 @@
 #include <half.h>
 
 #include <cassert>
+#include <cstdint>
+#include <cstring>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
@@ -250,6 +253,55 @@ void ImageIO::SaveEXR(const DeepImageBuffer& buf, const std::string& filename) {
     file.writePixels(height);
 
     std::clog << "Saved EXR: " << filename << std::endl;
+}
+
+DeepImageBuffer ImageIO::LoadKebab(const std::string& filename) {
+    // File stream taht will write to DeepImageBuffer
+    std::ifstream in(filename, std::ios::binary);
+    if (!in) throw std::runtime_error("Could not open .kebab file");
+
+    KebabHeader header;
+    in.read(reinterpret_cast<char*>(&header), sizeof(header));
+
+    // Check if magic is correct
+    if (std::strcmp(header.magic, "KEBB")) throw std::runtime_error("Not a .kebab file");
+    DeepImageBuffer buf(header.width, header.height, header.totalSamples);
+
+    // Read pixel offset data
+    in.read(reinterpret_cast<char*>(buf.pixelOffsets_.data()),
+            buf.pixelOffsets_.size() * sizeof(size_t));
+
+    // Read sample data
+    in.read(reinterpret_cast<char*>(buf.allSamples_.data()),
+            buf.allSamples_.size() * sizeof(DeepSample));
+
+    in.close();
+
+    return buf;
+}
+
+void ImageIO::SaveKebab(const DeepImageBuffer& buf, const std::string& filename) {
+    // File stream that will write out to the filesystem
+    std::ofstream out(filename, std::ios::binary);
+
+    // Serialize the header to our file
+    KebabHeader header = {
+        .width = static_cast<uint32_t>(buf.width_),
+        .height = static_cast<uint32_t>(buf.height_),
+        .totalSamples = static_cast<uint64_t>(buf.allSamples_.size()),
+    };
+    out.write(reinterpret_cast<const char*>(&header), sizeof(header));
+
+    // Serialize the offsets
+    size_t offsetBytes = buf.pixelOffsets_.size() * sizeof(size_t);
+    out.write(reinterpret_cast<const char*>(buf.pixelOffsets_.data()), offsetBytes);
+
+    // Serialize the samples
+    size_t sampleBytes = buf.allSamples_.size() * sizeof(DeepSample);
+    out.write(reinterpret_cast<const char*>(buf.allSamples_.data()), sampleBytes);
+
+    // Close file stream
+    out.close();
 }
 
 }  // namespace skwr

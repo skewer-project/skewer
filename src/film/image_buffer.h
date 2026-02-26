@@ -52,6 +52,7 @@ class DeepImageBuffer {
     friend class ImageIO;
 
   public:
+    DeepImageBuffer(int width, int height, size_t totalSamples);
     DeepImageBuffer(int width, int height, size_t totalSamples,
                     const Imf::Array2D<unsigned int>& sampleCounts);
 
