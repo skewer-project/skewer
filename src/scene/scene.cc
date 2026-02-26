@@ -34,6 +34,7 @@ void Scene::Build() {
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
         const Mesh& mesh_ref = meshes_[mesh_id];
+        const Material& mat = materials_[mesh_ref.material_id];
 
         for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
             uint32_t i0 = mesh_ref.indices[i];
@@ -45,6 +46,7 @@ void Scene::Build() {
             t.e1 = mesh_ref.p[i1] - t.p0;
             t.e2 = mesh_ref.p[i2] - t.p0;
             t.material_id = mesh_ref.material_id;
+            t.needs_tangent_frame = mat.HasNormalMap();
 
             if (!mesh_ref.n.empty()) {
                 t.n0 = mesh_ref.n[i0];
@@ -53,6 +55,14 @@ void Scene::Build() {
             } else {
                 Vec3 geom_n = Normalize(Cross(t.e1, t.e2));
                 t.n0 = t.n1 = t.n2 = geom_n;
+            }
+
+            if (!mesh_ref.uv.empty()) {
+                t.uv0 = mesh_ref.uv[i0];
+                t.uv1 = mesh_ref.uv[i1];
+                t.uv2 = mesh_ref.uv[i2];
+            } else {
+                t.uv0 = t.uv1 = t.uv2 = Vec3(0.0f, 0.0f, 0.0f);
             }
 
             triangles_.push_back(t);
@@ -148,6 +158,11 @@ uint32_t Scene::AddMaterial(const Material& m) {
 uint32_t Scene::AddMesh(Mesh&& m) {
     meshes_.push_back(std::move(m));
     return (uint32_t)meshes_.size() - 1;
+}
+
+uint32_t Scene::AddTexture(ImageTexture&& t) {
+    textures_.push_back(std::move(t));
+    return static_cast<uint32_t>(textures_.size() - 1);
 }
 
 }  // namespace skwr
