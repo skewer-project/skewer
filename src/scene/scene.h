@@ -39,6 +39,7 @@ class Scene {
     const std::vector<Triangle>& Triangles() const { return triangles_; }
     const std::vector<Material>& Materials() const { return materials_; }
     const std::vector<AreaLight>& Lights() const { return lights_; }
+    const std::vector<HomogeneousMedium>& homogeneous_media() const { return homogeneous_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
 
     void Build();  // Construct the BVH from the shapes list
