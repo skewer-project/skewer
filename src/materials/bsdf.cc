@@ -7,6 +7,49 @@
 
 namespace skwr {
 
+// -----------------------------------------------------------------------------
+// GGX Microfacet Helpers
+// -----------------------------------------------------------------------------
+
+inline float GGX_D(const Vec3& n, const Vec3& h, float alpha) {
+    float NoH = Dot(n, h);
+    if (NoH <= 0.0f) return 0.0f;
+    float a2 = alpha * alpha;
+    float denom = (NoH * NoH * (a2 - 1.0f) + 1.0f);
+    return a2 * kInvPi / (denom * denom);
+}
+
+inline float GGX_G1(const Vec3& v, const Vec3& h, const Vec3& n, float alpha) {
+    float VoH = Dot(v, h);
+    if (VoH <= 0.0f) return 0.0f;  // Microfacet is pointing away from the sensor
+    float NoV = std::max(0.0001f, Dot(n, v));
+    float a2 = alpha * alpha;
+    float denom = NoV + std::sqrt(a2 + (1.0f - a2) * NoV * NoV);
+    return (2.0f * NoV) / denom;
+}
+
+inline float GGX_G(const Vec3& wo, const Vec3& wi, const Vec3& h, const Vec3& n, float alpha) {
+    // Smith's shadowing-masking function is the product of G1 for both view and light directions
+    return GGX_G1(wo, h, n, alpha) * GGX_G1(wi, h, n, alpha);
+}
+
+inline Vec3 SampleGGX(const Vec3& n, float alpha, RNG& rng) {
+    float xi1 = rng.UniformFloat();
+    float xi2 = rng.UniformFloat();
+
+    // Map random numbers to a microfacet normal (half-vector)
+    float phi = 2.0f * kPi * xi1;
+    float cosTheta = std::sqrt((1.0f - xi2) / (1.0f + (alpha * alpha - 1.0f) * xi2));
+    float sinTheta = std::sqrt(1.0f - cosTheta * cosTheta);
+
+    Vec3 h_local(sinTheta * std::cos(phi), sinTheta * std::sin(phi), cosTheta);
+
+    // Transform from local tangent space to world space
+    ONB uvw;
+    uvw.BuildFromW(n);
+    return uvw.Local(h_local);
+}
+
 // Exact dielectric Fresnel reflectance
 inline float FrDielectric(float cosThetaI, float etaI, float etaT) {
     cosThetaI = std::clamp(cosThetaI, -1.0f, 1.0f);
@@ -79,26 +122,39 @@ bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceI
 
 bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si, RNG& rng,
                  const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
-    (void)mat;
-    wi = Reflect(-si.wo, sd.n_shading);  // Reflect against shading normal
+    // Perceptual roughness mapping (artists prefer roughness^2)
+    // Clamp to prevent dividing by zero on perfectly smooth mirrors
+    float alpha = std::max(0.001f, mat.roughness * mat.roughness);
 
-    // TODO: Microfacet distribution (thanks gemini)
-    // This roughness approach (adding a random sphere vector) is a non-physical hack
-    // It works visually for basic ray tracers, but will lose energy at grazing angles.
-    // The industry standard is to use a Microfacet Distribution (e.g., GGX/Trowbridge-Reitz)
-    if (sd.roughness > 0.0f) {
-        wi = Normalize(wi + (sd.roughness * RandomInUnitSphere(rng)));
-    }
+    Vec3 wo = si.wo;
 
-    // Check if valid (above surface)
-    float cosine = Dot(wi, sd.n_shading);
-    if (cosine <= 0.0f) return false;
+    // Sample random microscopic mirror normal (half-vector 'h')
+    Vec3 h = SampleGGX(sd.n_shading, alpha, rng);
 
-    Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
+    // Reflect the camera ray off that specific micro-mirror to get the light direction
+    wi = Reflect(-wo, h);
 
-    // Delta Distribution Logic
-    pdf = 1.0f;
-    f = albedo / cosine;  // Cancels the cosine in the rendering equation
+    float NoI = Dot(sd.n_shading, wi);
+    float NoO = Dot(sd.n_shading, wo);
+
+    if (NoI <= 0.0f || NoO <= 0.0f) return false;  // under surface = kill
+
+    // Evaluate the GGX terms
+    float D = GGX_D(sd.n_shading, h, alpha);
+    float G = GGX_G(wo, wi, h, sd.n_shading, alpha);
+
+    // F (Fresnel) is handled by the spectral albedo curve for basic metals
+    Spectrum F = CurveToSpectrum(mat.albedo, wl);
+
+    // Calculate the PDF of sampling this specific direction
+    float HoO = std::abs(Dot(h, wo));
+    pdf = (D * Dot(sd.n_shading, h)) / (4.0f * HoO);
+    if (pdf <= 0.0f) return false;
+
+    // Assemble the Cook-Torrance Microfacet BRDF
+    // f = (D * G * F) / (4 * NoI * NoO)
+    f = F * ((D * G) / (4.0f * NoI * NoO));
+
     return true;
 }
 
