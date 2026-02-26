@@ -79,6 +79,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             emission = CurveToSpectrum(mat.emission, wl);
             if (specular_bounce) {
                 L += beta * emission;
+                deep_hit_point = si.point;  // Record actual emissive surface depth
                 valid_deep_hit = true;
             }
         }
