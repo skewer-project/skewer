@@ -7,7 +7,7 @@ namespace skwr {
 class Scene;
 class Camera;
 class Film;
-class IntegratorConfig;
+struct IntegratorConfig;
 
 // Abstract base class (or just use a single PathTracer class for now)
 class Integrator {
