@@ -2,6 +2,7 @@
 /build/
 /install/
 /output/
+/Testing
 
 # Local cache directories
 /.cache/
