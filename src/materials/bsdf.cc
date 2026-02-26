@@ -78,7 +78,7 @@ inline float FrDielectric(float cosThetaI, float etaI, float etaT) {
     return (Rparl * Rparl + Rperp * Rperp) / 2.0f;
 }
 
-Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n,
+Spectrum EvalBSDF(const Material& mat, const Vec3& /*wo*/, const Vec3& wi, const Vec3& n,
                   const SampledWavelengths& wl) {
     if (mat.type != MaterialType::Lambertian) return Spectrum(0.0f);  // specular = Dirac delta
 
@@ -90,7 +90,7 @@ Spectrum EvalBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec
     return albedo * kInvPi;
 }
 
-float PdfBSDF(const Material& mat, const Vec3& wo, const Vec3& wi, const Vec3& n) {
+float PdfBSDF(const Material& mat, const Vec3& /*wo*/, const Vec3& wi, const Vec3& n) {
     if (mat.type != MaterialType::Lambertian) return 0.0f;
 
     float cosine = Dot(wi, n);
@@ -236,7 +236,7 @@ bool SampleDielectric(const Material& mat, const SurfaceInteraction& si, RNG& rn
     }
 }
 
-bool SampleBSDF(const Material& mat, const Ray& r_in, const SurfaceInteraction& si, RNG& rng,
+bool SampleBSDF(const Material& mat, const Ray& /*r_in*/, const SurfaceInteraction& si, RNG& rng,
                 const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     switch (mat.type) {
         case MaterialType::Lambertian:

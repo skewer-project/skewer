@@ -11,12 +11,12 @@ enum class MaterialType : uint8_t { Lambertian, Metal, Dielectric };
 
 // 32-byte aligned to fit in cache?
 struct alignas(16) Material {
-    SpectralCurve albedo;                        // Color (Diffuse or Specular)
-    SpectralCurve emission;                      //
-    float roughness;                             // 0.0 = Perfect Mirror, 1.0 = Matte
-    float ior;                                   // Index of refraction
-    float dispersion;                            // Cauchy b coeff (a is ior)
-    SpectralCurve opacity = {1.0f, 1.0f, 1.0f};  // 1 = opaque, 0 = fully transparent
+    SpectralCurve albedo;                          // Color (Diffuse or Specular)
+    SpectralCurve emission;                        //
+    float roughness;                               // 0.0 = Perfect Mirror, 1.0 = Matte
+    float ior;                                     // Index of refraction
+    float dispersion;                              // Cauchy b coeff (a is ior)
+    SpectralCurve opacity = {{1.0f, 1.0f, 1.0f}};  // 1 = opaque, 0 = fully transparent
     // OR: texture reference later
     MaterialType type;
 

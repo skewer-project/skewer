@@ -8,8 +8,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebugInfo)
 endif()
 
-# Set C++ Standard (C++17 is good for modern features)
-set(CMAKE_CXX_STANDARD 17)
+# Set C++ Standard (C++20 is good for modern features)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Fixes CMake FetchContent warning
@@ -18,7 +18,7 @@ cmake_policy(SET CMP0135 NEW)
 
 # Compiler Optimizations
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options(-O3 -flto -ffast-math -mcpu=native)
+    add_compile_options(-O3 -flto -ffast-math -march=native -Wall -Wextra -Werror -Wpedantic -std=c++20)
     # Optional: -flto (Link Time Optimization) for even more speed but slower build
 endif()
 
@@ -42,6 +42,11 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(nlohmann_json googletest)
+
+# googletest uses std::numeric_limits<double>::infinity() which is not
+# compatible with -ffast-math (which implies -ffinite-math-only).
+# We disable -ffast-math for the gtest target to avoid build errors.
+target_compile_options(gtest PRIVATE "-fno-fast-math")
 
 set(BUILD_TESTING ON CACHE BOOL "" FORCE)
 
@@ -74,6 +79,15 @@ target_include_directories(skewer-render
         ${CMAKE_SOURCE_DIR}/external
 )
 
+target_compile_options(skewer-render PRIVATE -Wall -Wextra -Werror -Wpedantic -std=c++20)
+
+# scene_loader.cc includes nlohmann/json which uses infinity() internally.
+# -ffast-math (applied globally) implies -ffinite-math-only which forbids this,
+# so disable it for this translation unit which does no floating-point math.
+set_source_files_properties(src/io/scene_loader.cc PROPERTIES
+    COMPILE_OPTIONS "-fno-fast-math"
+)
+
 # Link libraries
 target_link_libraries(skewer-render
     PRIVATE
@@ -82,6 +96,7 @@ target_link_libraries(skewer-render
     OpenEXR::OpenEXR
     ZLIB::ZLIB
 )
+
 target_link_options(skewer-render PRIVATE
     -flto
 )
