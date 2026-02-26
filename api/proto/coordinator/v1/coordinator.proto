@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package api.proto.coordinator.v1;
 
-option go_package = "./api/proto/coordinator/v1";
+option go_package = "github.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1";
 
 /*
    Server: Coordinator
