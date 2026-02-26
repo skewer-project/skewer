@@ -22,3 +22,7 @@
 objects/
 scenes/
 images/
+
+# generated images
+*.exr
+*.ppm
