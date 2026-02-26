@@ -1,0 +1,48 @@
+name: Clang-Format Check
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  check-code-format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install clang-format
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "clang-format>=21"
+
+      - name: Verify clang-format version
+        run: clang-format --version
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          mapfile -t files < <(find \
+            skewer/apps \
+            skewer/src \
+            skewer/tests \
+            loom/src \
+            loom/tests \
+            libs/exrio/src \
+            libs/exrio/tests \
+            libs/exrio/include \
+            -type f \( -name "*.cc" -o -name "*.cpp" -o -name "*.h" \))
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No C/C++ files found to check."
+            exit 0
+          fi
+
+          clang-format --dry-run --Werror --style=file:.clang-format "${files[@]}"
