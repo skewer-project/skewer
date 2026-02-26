@@ -34,6 +34,19 @@ class RNG {
         return (xorshifted >> rot) | (xorshifted << ((~rot + 1u) & 31));
     }
 
+    uint32_t UniformUInt32(uint32_t bound) {
+        // PCG recommended bounded RNG
+        uint32_t threshold = -bound % bound;
+
+        while (true) {
+            uint32_t r = UniformUInt32();
+            if (r >= threshold) return r % bound;
+        }
+    }
+
+    // Returns int in [0, bound). Bound can't be 0!!
+    int UniformInt(int bound) { return int(UniformUInt32(uint32_t(bound))); }
+
     // Returns float in [0, 1)
     float UniformFloat() {
         // High-performance float conversion
