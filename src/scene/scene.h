@@ -12,6 +12,7 @@
 #include "geometry/triangle.h"
 #include "materials/material.h"
 #include "materials/texture.h"
+#include "media/mediums.h"
 #include "scene/light.h"
 
 namespace skwr {
@@ -55,6 +56,8 @@ class Scene {
     std::vector<Mesh> meshes_;
     std::vector<Triangle> triangles_;
     std::vector<AreaLight> lights_;
+    std::vector<HomogeneousMedium> homogeneous_media_;
+    // std::vector<GridMedium> grid_media_;
     BVH bvh_;
     float inv_light_count_;
 };

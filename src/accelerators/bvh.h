@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "core/ray.h"
+#include "core/sampling/surface_interaction.h"
 #include "geometry/boundbox.h"
 #include "geometry/triangle.h"
 
@@ -41,6 +43,8 @@ class BVH {
     const std::vector<BVHNode>& GetNodes() const { return nodes_; }
 
     bool IsEmpty() const { return nodes_.empty(); }
+    bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
+                   const std::vector<Triangle>& triangles) const;
 
   private:
     std::vector<BVHNode> nodes_;
