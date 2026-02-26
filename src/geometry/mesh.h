@@ -10,9 +10,9 @@ namespace skwr {
 
 struct Mesh {
     // Structure of Arrays style data
-    std::vector<Vec3> p;  // Positions
-    std::vector<Vec3> n;  // Normals (optional, could be empty)
-    // std::vector<Vec3> uv // Texture coords
+    std::vector<Vec3> p;   // Positions
+    std::vector<Vec3> n;   // Normals (optional, could be empty)
+    std::vector<Vec3> uv;  // Texture coords (z unused, access via .x()/.y())
 
     // Index buffer
     std::vector<uint32_t> indices;
