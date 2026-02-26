@@ -28,12 +28,8 @@ inline Mesh CreateQuad(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec
     mesh.n = {n, n, n, n};
 
     // 4. UVs (Standard 0-1 mapping)
-    // mesh.uv = {
-    //     Vec3(0, 0, 0),  // p0
-    //     Vec3(1, 0, 0),  // p1
-    //     Vec3(1, 1, 0),  // p2
-    //     Vec3(0, 1, 0)   // p3
-    // };
+    mesh.uv = {Vec3(0.0f, 0.0f, 0.0f), Vec3(1.0f, 0.0f, 0.0f), Vec3(1.0f, 1.0f, 0.0f),
+               Vec3(0.0f, 1.0f, 0.0f)};
 
     return mesh;
 }

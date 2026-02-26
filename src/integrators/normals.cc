@@ -14,6 +14,7 @@ namespace skwr {
 
 void Normals::Render(const Scene& scene, const Camera& cam, Film* film,
                      const IntegratorConfig& config) {
+    (void)config;
     for (int y = 0; y < film->height(); ++y) {
         for (int x = 0; x < film->width(); ++x) {
             // Integrator calculates normalized coords

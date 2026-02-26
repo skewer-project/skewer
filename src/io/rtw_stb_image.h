@@ -9,7 +9,7 @@
 #pragma warning(push, 0)
 #endif
 
-#define STB_IMAGE_IMPLEMENTATION
+// STB_IMAGE_IMPLEMENTATION is defined in materials/texture.cc
 #define STBI_FAILURE_USERMSG
 #include <cstdlib>
 #include <iostream>
