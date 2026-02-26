@@ -1,17 +1,29 @@
 #ifndef SKWR_MEDIA_MEDIUMS_H_
 #define SKWR_MEDIA_MEDIUMS_H_
 
+#include <cstdint>
+
 #include "core/spectral/spectrum.h"
 
 namespace skwr {
 
-// Explicit constants for our Bit-Packed IDs
-constexpr uint16_t kMediumTypeVacuum = 0;
-constexpr uint16_t kMediumTypeHomogeneous = 1;
-constexpr uint16_t kMediumTypeGrid = 2;
+enum class MediumType : uint16_t { Vacuum = 0, Homogeneous = 1, Grid = 2 };
 
+// Bit-packing layout constants
 constexpr uint16_t kMediumTypeShift = 14;
 constexpr uint16_t kMediumIndexMask = 0x3FFF;  // 0011 1111 1111 1111
+
+// Helper functions to cleanly encapsulate the casting verbosity
+inline uint16_t PackMediumId(MediumType type, uint16_t index) {
+    // Cast the enum to an integer to shift it, then bitwise-OR with the index
+    return (static_cast<uint16_t>(type) << kMediumTypeShift) | (index & kMediumIndexMask);
+}
+
+inline MediumType ExtractMediumType(uint16_t packed_id) {
+    return static_cast<MediumType>(packed_id >> kMediumTypeShift);
+}
+
+inline uint16_t ExtractMediumIndex(uint16_t packed_id) { return packed_id & kMediumIndexMask; }
 
 struct HomogeneousMedium {
     // Absorption and scattering coefficients (rgb or spectral)
@@ -25,6 +37,7 @@ struct HomogeneousMedium {
     Spectrum Extinction() const { return sigma_a + sigma_s; }
 };
 
+/* TODO */
 struct GridMedium {
     // Pointers or handles to your VDB/Dense 3D voxel grids
     const float* density_grid;
