@@ -16,6 +16,7 @@
 #include "geometry/sphere.h"
 #include "io/obj_loader.h"
 #include "materials/material.h"
+#include "materials/texture.h"
 #include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
@@ -70,7 +71,30 @@ static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_va
 
 using MaterialMap = std::map<std::string, uint32_t>;
 
-static MaterialMap ParseMaterials(const json& j, Scene& scene) {
+// Helper: load a texture from a path string.
+// Resolves relative paths against scene_dir.
+// Returns kNoTexture if the string is empty or load fails.
+static uint32_t LoadSceneTexture(const json& m, const std::string& key,
+                                 const std::string& scene_dir, Scene& scene) {
+    if (!m.contains(key)) return kNoTexture;
+
+    std::string texpath = m[key].get<std::string>();
+    if (texpath.empty()) return kNoTexture;
+
+    std::string filepath;
+    if (!texpath.empty() && texpath[0] == '/') {
+        filepath = texpath;
+    } else {
+        filepath = scene_dir.empty() ? texpath : (scene_dir + "/" + texpath);
+    }
+
+    ImageTexture tex;
+    if (!tex.Load(filepath)) return kNoTexture;
+
+    return scene.AddTexture(std::move(tex));
+}
+
+static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string& scene_dir) {
     MaterialMap mat_map;
 
     if (!j.contains("materials")) {
@@ -105,6 +129,11 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene) {
         // Optional emission and opacity (apply to any material type)
         mat.emission = RGBToCurve(GetRGBOr(m, "emission", RGB(0.0f)));
         mat.opacity = RGBToCurve(GetRGBOr(m, "opacity", RGB(1.0f)));
+
+        // Optional texture maps (paths resolved relative to scene file directory)
+        mat.albedo_tex = LoadSceneTexture(m, "albedo_texture", scene_dir, scene);
+        mat.normal_tex = LoadSceneTexture(m, "normal_texture", scene_dir, scene);
+        mat.roughness_tex = LoadSceneTexture(m, "roughness_texture", scene_dir, scene);
 
         uint32_t id = scene.AddMaterial(mat);
         mat_map[name] = id;
@@ -357,7 +386,7 @@ SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
     }
 
     // 1. Parse materials first (objects reference them by name)
-    MaterialMap mat_map = ParseMaterials(j, scene);
+    MaterialMap mat_map = ParseMaterials(j, scene, scene_dir);
 
     // 2. Parse objects (geometry)
     ParseObjects(j, mat_map, scene, scene_dir);

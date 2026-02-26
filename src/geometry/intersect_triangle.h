@@ -1,6 +1,8 @@
 #ifndef SKWR_GEOMETRY_INTERSECT_TRIANGLE_H_
 #define SKWR_GEOMETRY_INTERSECT_TRIANGLE_H_
 
+#include <cmath>
+
 #include "core/vec3.h"
 #include "geometry/triangle.h"
 #include "scene/surface_interaction.h"
@@ -39,6 +41,31 @@ inline bool IntersectTriangle(const Ray& r, const Triangle& tri, float t_min, fl
     float w = 1.0f - u - v;
     si->n_geom = Normalize(w * tri.n0 + u * tri.n1 + v * tri.n2);
     si->SetFaceNormal(r, si->n_geom);
+
+    // Barycentric interpolation of UV coordinates.
+    si->uv = w * tri.uv0 + u * tri.uv1 + v * tri.uv2;
+
+    // Tangent frame is only needed for normal-mapped materials.
+    if (tri.needs_tangent_frame) {
+        Vec3 duv1 = tri.uv1 - tri.uv0;
+        Vec3 duv2 = tri.uv2 - tri.uv0;
+        float uv_det = duv1.x() * duv2.y() - duv1.y() * duv2.x();
+
+        if (uv_det > 1e-8f || uv_det < -1e-8f) {
+            float inv_uv_det = 1.0f / uv_det;
+            si->dpdu = (duv2.y() * tri.e1 - duv1.y() * tri.e2) * inv_uv_det;
+            si->dpdv = (-duv2.x() * tri.e1 + duv1.x() * tri.e2) * inv_uv_det;
+        } else {
+            // Degenerate UVs: build an arbitrary tangent frame from the normal.
+            Vec3 n = si->n_geom;
+            Vec3 axis = (std::abs(n.y()) < 0.9f) ? Vec3(0.0f, 1.0f, 0.0f) : Vec3(1.0f, 0.0f, 0.0f);
+            si->dpdu = Normalize(Cross(axis, n));
+            si->dpdv = Cross(n, si->dpdu);
+        }
+    } else {
+        si->dpdu = Vec3(0.0f, 0.0f, 0.0f);
+        si->dpdv = Vec3(0.0f, 0.0f, 0.0f);
+    }
 
     return true;
 }
