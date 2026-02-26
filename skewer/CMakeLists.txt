@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(Skewer LANGUAGES CXX)
 
-# Set default build type to Release if not specified
-if(NOT CMAKE_BUILD_TYPE)
+# Respect top-level build type when included as a subproject
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebugInfo)
 endif()
 
@@ -76,8 +76,8 @@ add_executable(skewer-render ${SOURCES})
 # Include directories tell CMake where to look for header files
 target_include_directories(skewer-render
     PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/external
+        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/external
 )
 
 target_compile_options(skewer-render PRIVATE -Wall -Wextra -Werror -Wpedantic -std=c++20)
