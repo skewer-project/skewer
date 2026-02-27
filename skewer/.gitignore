@@ -1,0 +1,17 @@
+.vscode/
+.zed/
+build/
+
+.cache
+.DS_Store
+
+# scene assets
+images/
+objects/
+scenes/
+
+# generated images
+*.exr
+*.ppm
+*.png
+*.jpg
