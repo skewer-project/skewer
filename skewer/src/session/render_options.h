@@ -21,6 +21,14 @@ struct IntegratorConfig {
     // When true, primary rays that miss all geometry produce alpha=0 instead of
     // opaque black. Enables clean layer compositing without a black background matte.
     bool transparent_background = false;
+
+    // How many surface bounces are checked when deciding if a pixel is "covered"
+    // by a visible object. Only meaningful when transparent_background=true.
+    //   1 (default) – only the first surface hit must be visible (strict camera visibility)
+    //   2-4         – allows seeing visible objects through N-1 invisible surfaces
+    //                 e.g. a visible sphere seen in an invisible mirror
+    int visibility_depth = 1;
+
     Vec3 cam_w;
 };
 
