@@ -91,9 +91,16 @@ func (jt *JobTracker) AddJob(job Job) error {
 	if _, exists := jt.activeJobs[job.ID()]; exists {
 		return fmt.Errorf("[ERROR] Adding job that already exists with ID %s.", job.ID())
 	} else {
+		jobDeps := job.GetDependencies()
+
 		// Add the job to the live tracker
-		jt.activeJobs[job.ID()] = job
-		jt.pendingDeps[job.ID()] = len(job.GetDependencies())
+		if len(jobDeps) == 0 {
+			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_PENDING_DEPENDENCIES)
+		} else {
+			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_QUEUED)
+			jt.activeJobs[job.ID()] = job
+		}
+		jt.pendingDeps[job.ID()] = len(jobDeps)
 
 		// Add the job and dependencies to the graph
 		jt.graph.AddNode(job)

@@ -7,8 +7,9 @@ type Node interface {
 }
 
 type DAG struct {
-	nodes map[string]Node
-	deps  map[string][]string
+	nodes      map[string]Node
+	deps       map[string][]string
+	successors map[string][]string
 }
 
 func NewDAG() *DAG {
@@ -33,6 +34,13 @@ func (d *DAG) AddNode(node Node) {
 // Add a dependency where "from" depends on "to"
 func (d *DAG) AddDependency(from, to Node) {
 	d.deps[from.ID()] = append(d.deps[from.ID()], to.ID())
+
+	// 'to' is a dependency for 'from' -> so 'from' is a successor of 'to'
+	d.successors[to.ID()] = append(d.successors[to.ID()], from.ID())
+}
+
+func (d *DAG) GetSuccessors(nodeID string) []string {
+	return d.successors[nodeID]
 }
 
 func (d *DAG) TopologicalSort() ([]Node, error) {
