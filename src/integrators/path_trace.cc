@@ -6,6 +6,8 @@
 
 #include "barkeep.h"
 #include "core/sampling.h"
+#include "core/sampling/wavelength_sampler.h"
+#include "core/spectrum.h"
 #include "film/film.h"
 #include "integrators/path_sample.h"
 #include "kernels/path_kernel.h"
@@ -52,23 +54,27 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
             std::clog.flush();
             for (int x = 0; x < width; ++x) {
+                RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
-                    RNG rng = MakeDeterministicPixelRNG(x, y, width, s);
                     float u = (float(x) + rng.UniformFloat()) / width;
                     float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
 
+                    SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+
                     Ray r = cam.GetRay(u, v);
 
-                    PathSample result = Li(r, scene, rng, config);
+                    PathSample result = Li(r, scene, rng, config, wl);
+
+                    RGB pixel_color = SpectrumToRGB(result.L, wl);
 
                     float weight = 1.0f;
-                    film->AddSample(x, y, result.L.ToRGB(), weight);
+                    film->AddSample(x, y, pixel_color, weight);
 
-                    if (config.enable_deep) film->AddDeepSample(x, y, result, weight);
+                    if (config.enable_deep) film->AddDeepSample(x, y, result);
                 }
             }
 
-            int done = scanlines_completed.fetch_add(1) + 1;
+            scanlines_completed.fetch_add(1);
         }
     };
 

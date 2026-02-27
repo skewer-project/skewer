@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "geometry/boundbox.h"
-#include "geometry/mesh.h"
 #include "geometry/triangle.h"
 
 namespace skwr {
@@ -35,8 +34,9 @@ struct BVHPrimitiveInfo {
 
 class BVH {
   public:
-    // Build the tree and REORDER the triangles vector for cache locality
-    void Build(std::vector<Triangle>& triangles, const std::vector<Mesh>& meshes);
+    // Build the tree and REORDER the triangles vector for cache locality.
+    // Triangles must already have their vertex data pre-baked (see Scene::AddMesh).
+    void Build(std::vector<Triangle>& triangles);
 
     const std::vector<BVHNode>& GetNodes() const { return nodes_; }
 

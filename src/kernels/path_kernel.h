@@ -1,25 +1,27 @@
 #ifndef SKWR_KERNELS_PATH_KERNEL_H_
 #define SKWR_KERNELS_PATH_KERNEL_H_
 
-#include <algorithm>
 #include <cstdlib>
 
+#include "core/color.h"
 #include "core/constants.h"
 #include "core/ray.h"
 #include "core/rng.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/spectrum.h"
 #include "core/vec3.h"
 #include "integrators/path_sample.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
+#include "materials/texture_lookup.h"
 #include "scene/scene.h"
 #include "scene/surface_interaction.h"
 #include "session/render_options.h"
 
 namespace skwr {
 
-inline void AddSegment(PathSample& sample, const float& t_min, const float& t_max,
-                       const Spectrum& L, const float& alpha) {
+inline void AddSegment(PathSample& sample, const float& t_min, const float& t_max, const RGB& L,
+                       const float& alpha) {
     sample.segments.push_back({t_min, t_max, L, alpha});
 }
 
@@ -34,7 +36,8 @@ inline void AddSegment(PathSample& sample, const float& t_min, const float& t_ma
  * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
  * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
  */
-inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config) {
+inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
+                     const SampledWavelengths& wl) {
     PathSample result;
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
@@ -43,7 +46,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
     // Deep Info
     bool valid_deep_hit = false;
-    Point3 deep_hit_point = r.at(1e10f);
+    Point3 deep_hit_point = r.at(kFarClip);
     Vec3 deep_origin = r.origin();
     float deep_hit_alpha = 1.0f;  // default solid
 
@@ -63,6 +66,22 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         // AddSegment(result, t_prev, si.t, Spectrum(0.0f), 0.0f);
 
         const Material& mat = scene.GetMaterial(si.material_id);
+        ShadingData sd = ResolveShadingData(mat, si, scene);
+        // Lazy Evaluation
+        Spectrum opacity(1.0f);
+        float alpha = 1.0f;
+        if (mat.IsTransparent()) {
+            opacity = CurveToSpectrum(mat.opacity, wl);
+            alpha = opacity.Average();
+        }
+        Spectrum emission(0.0f);
+        if (mat.IsEmissive()) {
+            emission = CurveToSpectrum(mat.emission, wl);
+            if (specular_bounce) {
+                L += beta * emission;
+                valid_deep_hit = true;
+            }
+        }
 
         // Record if it's the first deep hit
         if (!valid_deep_hit) {
@@ -71,17 +90,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             deep_hit_point = si.point;
             // For volumetrics, we RAY MARCH here from r.origin to si.point
             // and AddSegment() continuously.
-        }
-
-        // Calculate surface opacity (alpha for this segment)
-        Spectrum opacity = mat.opacity;
-        float alpha = mat.IsTransparent() ? opacity.Average() : 1.0f;
-
-        /* Emission check for if we hit a light */
-        if (mat.IsEmissive()) {
-            if (specular_bounce) {
-                L += beta * mat.emission;
-            }
         }
 
         // /* Handle transparency - straight-through transmission */
@@ -113,22 +121,22 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
             Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
             SurfaceInteraction shadow_si;  // dummy
-            if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon, &shadow_si)) {
+            if (!scene.Intersect(shadow_ray, 0.f, dist - 2.0f * kShadowEpsilon, &shadow_si)) {
                 float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                 // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                 if (cos_light > 0) {
                     float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
                     // BSDF Evaluation
-                    float cos_surf = std::fmax(0.0f, Dot(wi_light, si.n_geom));
-                    Spectrum f_val = EvalBSDF(mat, si.wo, wi_light, si.n_geom);
+                    float cos_surf = std::fmax(0.0f, Dot(wi_light, sd.n_shading));
+                    Spectrum f_val = EvalBSDF(mat, sd, si.wo, wi_light, wl);
 
                     // Accumulate
                     // Weight = 1.0 / (N_lights * PDF_w)
                     // L += beta * f * Le * cos_surf * Weight
-                    float selection_prob = 1.0f / scene.Lights().size();
-                    Spectrum direct_L =
-                        beta * f_val * ls.emission * cos_surf / (light_pdf_w * selection_prob);
+                    Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
+                    Spectrum direct_L = beta * f_val * light_spec * cos_surf /
+                                        (light_pdf_w * scene.InvLightCount());
                     direct_L *= opacity;
                     L += direct_L;
                 }
@@ -141,7 +149,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         Spectrum f;
 
         /* BSDF check */
-        if (SampleBSDF(mat, r, si, rng, wi, pdf, f)) {
+        if (SampleBSDF(mat, sd, r, si, rng, wl, wi, pdf, f)) {
             if (pdf > 0) {
                 float refract = Dot(wi, si.n_geom);
 
@@ -158,7 +166,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 // For Dielectrics/Metals, opacity is typically 1.0
                 // For transparent diffuse, we need to account for absorption
                 if (mat.type == MaterialType::Lambertian) {
-                    weight *= opacity;  // Absorb based on opacity
+                    weight *= alpha;  // Absorb based on opacity
                 }
 
                 beta *= weight;
@@ -173,23 +181,25 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             break;
         }
 
-        // Russian Roulette method to kill weak rays early
-        // is an optimization cause weak rays = weak influence on final
+        // Russian Roulette
         if (depth > 3) {
-            float p = std::max(beta.r(), std::max(beta.g(), beta.b()));
+            float max_beta = beta.MaxComponentValue();
+            if (max_beta < 0.001f) break;
+            float p = std::min(0.95f, max_beta);
             if (rng.UniformFloat() > p) break;
             beta = beta * (1.0f / p);
         }
     }
 
+    RGB final_rgb = SpectrumToRGB(L, wl);
     if (valid_deep_hit) {
         Vec3 to_hit = deep_hit_point - deep_origin;
         float z_depth = Dot(to_hit, config.cam_w);
         // Ensure we don't get negative depth behind camera
         if (z_depth < 0.0f) z_depth = 0.0f;
-        AddSegment(result, z_depth, z_depth + kShadowEpsilon, L, deep_hit_alpha);
+        AddSegment(result, z_depth, z_depth + kShadowEpsilon, final_rgb, deep_hit_alpha);
     } else {
-        AddSegment(result, kFarClip, kFarClip + kShadowEpsilon, L, deep_hit_alpha);
+        AddSegment(result, kFarClip, kFarClip + 1000.0f, final_rgb, deep_hit_alpha);
     }
     result.L = L;
     return result;

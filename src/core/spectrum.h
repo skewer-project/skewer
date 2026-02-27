@@ -1,157 +1,143 @@
-#ifndef SKWR_CORE_SPECTRUM_H_
-#define SKWR_CORE_SPECTRUM_H_
+#ifndef SKWR_CORE_SPECTRAL_SPECTRUM_H_
+#define SKWR_CORE_SPECTRAL_SPECTRUM_H_
 
 #include <algorithm>
-#include <iostream>
+#include <array>
+#include <cmath>
 
-#include "core/color.h"
+#include "core/cpu_config.h"
 
 namespace skwr {
 
-// ex refactor
-// template<int N>
-// class Spectrum {
-// public:
-//     static constexpr int Size() { return N; }
+template <int NSamples>
+struct alignas(16) SpectralPacket {
+    static_assert(NSamples > 0);
 
-//     Float MaxComponent() const {
-//         return *std::max_element(c.begin(), c.end());
-//     }
-
-//     Float MinComponent() const {
-//         return *std::min_element(c.begin(), c.end());
-//     }
-
-//     Float Average() const {
-//         return std::accumulate(c.begin(), c.end(), Float(0)) / N;
-//     }
-
-//     Float& operator[](int i)       { return c[i]; }
-//     Float  operator[](int i) const { return c[i]; }
-
-// private:
-//     std::array<Float, N> c;
-// };
-
-class Spectrum {
   public:
-    // Constructors
-    Spectrum() : c{0, 0, 0} {}
-    explicit Spectrum(float r, float g, float b) : c{r, g, b} {}
-    explicit Spectrum(float v) : c{v, v, v} {}
+    SpectralPacket() {
+        for (int i = 0; i < NSamples; ++i) values[i] = 0.0f;
+    };
+    explicit SpectralPacket(float a) {
+        for (int i = 0; i < NSamples; ++i) values[i] = a;
+    }
 
-    float r() const { return c[0]; }
-    float g() const { return c[1]; }
-    float b() const { return c[2]; }
+    float operator[](int i) const { return values[i]; }
+    float& operator[](int i) { return values[i]; }
 
-    Spectrum& operator+=(const Spectrum& v) {
-        c[0] += v.c[0];
-        c[1] += v.c[1];
-        c[2] += v.c[2];
+    // // Raw Data Access (Needed for IO / OpenEXR)
+    // float* data() { return c; }
+    // const float* data() const { return c; }
+
+    bool IsBlack() const {
+        for (int i = 0; i < NSamples; ++i)
+            if (values[i] != 0.f) return false;
+        return true;
+    };
+    bool HasNaNs() const {
+        for (int i = 0; i < NSamples; ++i)
+            if (std::isnan(values[i])) return true;
+        return false;
+    }
+
+    SpectralPacket& operator+=(const SpectralPacket& s) {
+        for (int i = 0; i < NSamples; ++i) values[i] += s.values[i];
         return *this;
     }
-
-    Spectrum& operator-=(const Spectrum& v) {
-        c[0] -= v.c[0];
-        c[1] -= v.c[1];
-        c[2] -= v.c[2];
-        return *this;
-    }
-
-    Spectrum& operator*=(const Spectrum& v) {
-        c[0] *= v.c[0];
-        c[1] *= v.c[1];
-        c[2] *= v.c[2];
-        return *this;
-    }
-
-    Spectrum& operator*=(float t) {
-        c[0] *= t;
-        c[1] *= t;
-        c[2] *= t;
-        return *this;
-    }
-
-    Spectrum& operator/=(float t) {
-        float k = 1.0 / t;
-        c[0] *= k;
-        c[1] *= k;
-        c[2] *= k;
-        return *this;
-    }
-
-    // Raw Data Access (Needed for IO / OpenEXR)
-    float* data() { return c; }
-    const float* data() const { return c; }
-
-    bool IsBlack() const { return c[0] == 0 && c[1] == 0 && c[2] == 0; }
-    bool HasNaNs() const { return std::isnan(c[0]) || std::isnan(c[1]) || std::isnan(c[2]); }
-
-    // Convert Physics -> Data (For the Film)
-    RGB ToRGB() const { return RGB(c[0], c[1], c[2]); }
-
-    // Convert Data -> Physics (For Textures)
-    static Spectrum FromColor(const RGB& color) {
-        return Spectrum(color.r(), color.g(), color.b());
-    }
-
-    /**
-     * TODO: When refactoring spectrum, a lot of this will change
-     * These are just temporarily slap-on fixes
-     * template<int N>
-        class Spectrum {
-        public:
-            static constexpr int Size() { return N; }
-            Float MaxComponent() const {
-                return *std::max_element(c.begin(), c.end());
-            }
-
-            Float MinComponent() const {
-                return *std::min_element(c.begin(), c.end());
-            }
-        private:
-            Float c[N];
-        };
-     */
-    int Size() const { return sizeof(c) / sizeof(c[0]); }
-    float MaxComponent() const { return *std::max_element(c, c + Size()); }
-    float MinComponent() const { return *std::min_element(c, c + Size()); }
-    float Average() const {
-        float sum = 0.0f;
-        for (int i = 0; i < Size(); ++i) {
-            sum += c[i];
+    SpectralPacket& operator-=(const SpectralPacket& s) {
+        for (int i = 0; i < NSamples; ++i) {
+            values[i] -= s.values[i];
         }
-        return sum / Size();
+        return *this;
+    }
+    SpectralPacket& operator*=(const SpectralPacket& s) {
+        for (int i = 0; i < NSamples; ++i) {
+            values[i] *= s.values[i];
+        }
+        return *this;
+    }
+    SpectralPacket& operator*=(float a) {
+        for (int i = 0; i < NSamples; ++i) {
+            values[i] *= a;
+        }
+        return *this;
+    }
+    SpectralPacket& operator/=(const SpectralPacket& s) {
+        for (int i = 0; i < NSamples; ++i) {
+            values[i] /= s.values[i];
+        }
+        return *this;
+    }
+    SpectralPacket& operator/=(float a) {
+        for (int i = 0; i < NSamples; ++i) {
+            values[i] /= a;
+        }
+        return *this;
+    }
+
+    float MinComponentValue() const {
+        float m = values[0];
+        for (int i = 1; i < NSamples; ++i) m = std::min(m, values[i]);
+        return m;
+    }
+
+    float MaxComponentValue() const {
+        float m = values[0];
+        for (int i = 1; i < NSamples; ++i) m = std::max(m, values[i]);
+        return m;
+    }
+
+    float Average() const {
+        float sum = values[0];
+        for (int i = 1; i < NSamples; ++i) sum += values[i];
+        return sum / NSamples;
     }
 
   private:
-    float c[3];
+    std::array<float, NSamples> values;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const Spectrum& c) {
-    return out << c.r() << ' ' << c.g() << ' ' << c.b();
+template <int NSamples>
+inline SpectralPacket<NSamples> operator+(SpectralPacket<NSamples> s,
+                                          const SpectralPacket<NSamples>& c) {
+    return s += c;
 }
 
-inline Spectrum operator+(const Spectrum& c, const Spectrum& d) {
-    return Spectrum(c.r() + d.r(), c.g() + d.g(), c.b() + d.b());
+template <int NSamples>
+inline SpectralPacket<NSamples> operator-(SpectralPacket<NSamples> s,
+                                          const SpectralPacket<NSamples>& c) {
+    return s -= c;
 }
 
-inline Spectrum operator-(const Spectrum& c, const Spectrum& d) {
-    return Spectrum(c.r() - d.r(), c.g() - d.g(), c.b() - d.b());
+template <int NSamples>
+inline SpectralPacket<NSamples> operator*(SpectralPacket<NSamples> s,
+                                          const SpectralPacket<NSamples>& c) {
+    return s *= c;
 }
 
-inline Spectrum operator*(const Spectrum& c, const Spectrum& d) {
-    return Spectrum(c.r() * d.r(), c.g() * d.g(), c.b() * d.b());
+template <int NSamples>
+inline SpectralPacket<NSamples> operator*(float a, SpectralPacket<NSamples> s) {
+    return s *= a;
 }
 
-inline Spectrum operator*(float t, const Spectrum& c) {
-    return Spectrum(t * c.r(), t * c.g(), t * c.b());
+template <int NSamples>
+inline SpectralPacket<NSamples> operator*(SpectralPacket<NSamples> s, float a) {
+    return s *= a;
 }
 
-inline Spectrum operator*(const Spectrum& c, float t) { return t * c; }
+template <int NSamples>
+inline SpectralPacket<NSamples> operator/(SpectralPacket<NSamples> s, float a) {
+    return s /= a;
+}
 
-inline Spectrum operator/(const Spectrum& c, float t) { return c * (1.0 / t); }
+template <int N>
+struct WavelengthPacket {
+    std::array<float, N> lambda;
+    std::array<float, N> pdf;
+};
+
+using Spectrum = SpectralPacket<kNSamples>;
+using SampledWavelengths = WavelengthPacket<kNSamples>;
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_SPECTRUM_H_
+#endif  // SKWR_CORE_SPECTRAL_SPECTRUM_H_

@@ -3,13 +3,18 @@
 
 #include <cstdint>
 
+#include "core/vec3.h"
+
 namespace skwr {
 
-// Storing full vertices bloats the BVH and cache
-// We just storing references to the mesh here
 struct Triangle {
-    uint32_t mesh_id;  // ID of the mesh this belongs to
-    uint32_t v_idx;    // Starting index in the index buffer (0, 3, 6...)
+    Vec3 p0;             // Vertex 0 position
+    Vec3 e1;             // Edge 1: p1 - p0
+    Vec3 e2;             // Edge 2: p2 - p0
+    Vec3 n0, n1, n2;     // Per-vertex normals (all set to geometric normal for flat meshes)
+    Vec3 uv0, uv1, uv2;  // Per-vertex UVs (z unused)
+    uint32_t material_id;
+    bool needs_tangent_frame = false;  // True only when material uses a normal map
 };
 
 }  // namespace skwr

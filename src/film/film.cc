@@ -34,7 +34,7 @@ void Film::AddSample(int x, int y, const RGB& L, float weight) {
     p.weight_sum += weight;
 }
 
-void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weight) {
+void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
     if (path_sample.segments.empty()) return;
 
@@ -61,7 +61,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample, float weig
         DeepSegmentNode& node = deep_pool_[node_index];
         node.z_front = seg.z_front;
         node.z_back = seg.z_back;
-        node.L = seg.L.ToRGB();
+        node.L = seg.L;
         node.alpha = seg.alpha;
         node.next = prev_head;
         prev_head = node_index;

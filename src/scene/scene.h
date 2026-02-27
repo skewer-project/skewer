@@ -11,12 +11,13 @@
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
 #include "materials/material.h"
+#include "materials/texture.h"
 #include "scene/light.h"
 
 namespace skwr {
 
 // Forward declarations of pointers
-struct Ray;
+class Ray;
 struct SurfaceInteraction;
 
 class Scene {
@@ -25,9 +26,11 @@ class Scene {
 
     uint32_t AddSphere(const Sphere& s);
     uint32_t AddMaterial(const Material& m);
-    uint32_t AddMesh(Mesh&& m);  // Returns mesh_id (index in the meshes_ vector)
+    uint32_t AddMesh(Mesh&& m);             // Returns mesh_id (index in the meshes_ vector)
+    uint32_t AddTexture(ImageTexture&& t);  // Returns texture_id
 
     const Material& GetMaterial(uint32_t id) const { return materials_[id]; }
+    const ImageTexture& GetTexture(uint32_t id) const { return textures_[id]; }
     const Mesh& GetMesh(uint32_t id) const { return meshes_[id]; }
     Mesh& GetMutableMesh(uint32_t id) { return meshes_[id]; }
     size_t MeshCount() const { return meshes_.size(); }
@@ -35,6 +38,7 @@ class Scene {
     const std::vector<Triangle>& Triangles() const { return triangles_; }
     const std::vector<Material>& Materials() const { return materials_; }
     const std::vector<AreaLight>& Lights() const { return lights_; }
+    const float& InvLightCount() const { return inv_light_count_; }
 
     void Build();  // Construct the BVH from the shapes list
 
@@ -47,10 +51,12 @@ class Scene {
   private:
     std::vector<Sphere> spheres_;
     std::vector<Material> materials_;
+    std::vector<ImageTexture> textures_;
     std::vector<Mesh> meshes_;
     std::vector<Triangle> triangles_;
     std::vector<AreaLight> lights_;
     BVH bvh_;
+    float inv_light_count_;
 };
 
 }  // namespace skwr

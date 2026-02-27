@@ -57,11 +57,19 @@ inline Vec3 RandomCosineDirection(RNG& rng) {
     // Standard mapping from unit square to hemisphere
     float phi = 2.0f * kPi * r1;
 
-    float x = std::cos(phi) * std::sqrt(r1);  // Sqrt corrects the density
-    float y = std::sin(phi) * std::sqrt(r1);
-    float z = std::sqrt(1.0f - r1);  // This ensures z^2 + r^2 = 1
+    float x = std::cos(phi) * std::sqrt(r2);  // Sqrt corrects the density
+    float y = std::sin(phi) * std::sqrt(r2);
+    float z = std::sqrt(1.0f - r2);  // This ensures z^2 + r^2 = 1
 
     return Vec3(x, y, z);
+}
+
+// 64-bit mixing function for RNG seeding
+inline uint64_t SplitMix64(uint64_t z) {
+    z += 0x9e3779b97f4a7c15ULL;
+    z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ULL;
+    z = (z ^ (z >> 27u)) * 0x94d049bb133111ebULL;
+    return z ^ (z >> 31u);
 }
 
 // Fully deterministic per-pixel RNG, thread-order independent
@@ -69,12 +77,11 @@ inline RNG MakeDeterministicPixelRNG(uint32_t x, uint32_t y, int width, uint32_t
     // Get linear pixel ID
     uint64_t pixel_id = (uint64_t)y * width + x;
 
-    // Mix pixel ID to generate a unique stream (sequence)
-    // Use a simple hash / integer mixing function to avoid correlation
-    uint64_t seq = pixel_id * kGoldenRatio;  // golden ratio hash
+    // Scramble the pixel ID to pick a mathematically distinct PCG sequence
+    uint64_t seq = SplitMix64(pixel_id);
 
-    // Sample index as the RNG offset
-    uint64_t seed = sample_index;
+    // Mix the pixel ID and starting sample to create a unique initial state
+    uint64_t seed = SplitMix64(pixel_id ^ SplitMix64(sample_index));
 
     return RNG(seq, seed);
 }

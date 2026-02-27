@@ -13,8 +13,11 @@
 
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 #include "film/image_buffer.h"
+#include "stb_image.h"
+#include "stb_image_write.h"
 
 namespace skwr {
 
@@ -24,8 +27,8 @@ namespace skwr {
 
 // Helper to compute the base pointer offset for OpenEXR frame buffers
 template <typename T>
-static char* makeBasePointer(T* data, int minX, int minY, int width, size_t xStride,
-                             size_t yStride) {
+static char* makeBasePointer(T* data, int minX, int minY, [[maybe_unused]] int width,
+                             size_t xStride, size_t yStride) {
     return reinterpret_cast<char*>(data) - static_cast<ptrdiff_t>(minX) * xStride -
            static_cast<ptrdiff_t>(minY) * yStride;
 }
