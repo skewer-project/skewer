@@ -64,7 +64,9 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     // 6. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
     integrator_ = CreateIntegrator(options_.integrator_type);
-    options_.integrator_config.cam_w = camera_->GetW();
+    // GetW() returns the backward-facing basis vector (look_from - look_at).
+    // Negate it so cam_w points forward for correct depth projection.
+    options_.integrator_config.cam_w = -camera_->GetW();
 
     std::cout << "[Session] Ready: " << options_.image_config.width << "x"
               << options_.image_config.height

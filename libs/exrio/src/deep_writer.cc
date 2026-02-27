@@ -363,19 +363,18 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
                 b /= a;
             }
 
-            // Simple Reinhard tone mapping for HDR values
-            auto toneMap = [](float v) -> float { return v / (1.0f + v); };
+            // Per-channel Reinhard tone mapping (handles HDR gracefully)
+            r = std::max(0.0f, r);
+            g = std::max(0.0f, g);
+            b = std::max(0.0f, b);
+            r = r / (1.0f + r);
+            g = g / (1.0f + g);
+            b = b / (1.0f + b);
 
-            // Apply tone mapping only if values exceed 1.0
-            if (r > 1.0f || g > 1.0f || b > 1.0f) {
-                float maxVal = std::max({r, g, b});
-                if (maxVal > 1.0f) {
-                    float scale = toneMap(maxVal) / maxVal;
-                    r *= scale;
-                    g *= scale;
-                    b *= scale;
-                }
-            }
+            // sRGB gamma correction
+            r = std::pow(r, 1.0f / 2.2f);
+            g = std::pow(g, 1.0f / 2.2f);
+            b = std::pow(b, 1.0f / 2.2f);
 
             // Clamp and convert to 8-bit
             auto toU8 = [](float v) -> uint8_t {
