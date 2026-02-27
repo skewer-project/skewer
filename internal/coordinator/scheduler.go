@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
 )
 
 type Task struct {
@@ -56,22 +57,62 @@ func (s *Scheduler) EnqueueTask(payload interface{}, jobID string, frameID strin
 }
 
 // gRPC streaming handlers will just call this in a loop.
-func (s *Scheduler) GetNextTask(ctx context.Context) (*Task, error) {
-	select {
-	case task := <-s.taskQueue:
-		// We got a task --> Now safely record it as active.
-		s.mu.Lock()
+func (s *Scheduler) GetNextTask(ctx context.Context, capabilities []string) (*Task, error) {
 
-		task.StartedAt = time.Now()
-		s.activeTasks[task.ID] = task
-
-		s.mu.Unlock()
-		return task, nil
-
-	case <-ctx.Done():
-		// The worker pod is disconnected by GKE or the server is shutting down
-		return nil, ctx.Err()
+	if len(capabilities) == 0 {
+		return nil, fmt.Errorf("[ERROR] No capabilities provided")
 	}
+
+	workerType := "none"
+	for _, capability := range capabilities {
+		if capability == "skewer" || capability == "loom" {
+			workerType = capability
+			break
+		}
+	}
+
+	if workerType == "none" {
+		return nil, fmt.Errorf("[ERROR] No compatible worker type found")
+	}
+
+	for {
+		select {
+		case task := <-s.taskQueue:
+			// Check task type against worker type
+			switch task.Payload.(type) {
+			case *pb.WorkPackage_RenderTask:
+				if workerType != "skewer" {
+					s.RequeueTask(task.ID)
+					continue
+				}
+			case *pb.WorkPackage_MergeTask:
+				if workerType != "loom" {
+					s.RequeueTask(task.ID)
+					continue
+				}
+			case *pb.WorkPackage_CompositeTask:
+				if workerType != "loom" {
+					s.RequeueTask(task.ID)
+					continue
+				}
+			default:
+				// We got a task --> Now safely record it as active.
+				s.mu.Lock()
+
+				task.StartedAt = time.Now()
+				s.activeTasks[task.ID] = task
+
+				s.mu.Unlock()
+				return task, nil
+			}
+
+		case <-ctx.Done():
+			// The worker pod is disconnected by GKE or the server is shutting down
+			return nil, ctx.Err()
+		}
+
+	}
+
 }
 
 // Safely removes and returns the task
@@ -102,15 +143,15 @@ func (s *Scheduler) RequeueTask(taskID string) {
 				return t.ID, nil
 			default:
 				// The channel is full! Refuse the job instead of hanging.
-				return "", fmt.Errorf("[SCHEDULER] Scheduler queue is at capacity")
+				return "", fmt.Errorf("[SCHEDULER] Scheduler queue is at capacity. Lost task %s\n", taskID)
 			}
 		}(task)
 	}
 }
 
 // MarkTaskComplete removes it from active tracking without doing anything with the values
-func (s *Scheduler) MarkTaskComplete(taskID string) {
-	s.popActiveTask(taskID)
+func (s *Scheduler) MarkTaskComplete(taskID string) (*Task, bool) {
+	return s.popActiveTask(taskID)
 }
 
 // GetQueueLength returns current queue size for KEDA. NO LOCKS NEEDED.
