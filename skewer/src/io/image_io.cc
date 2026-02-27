@@ -198,17 +198,16 @@ void ImageIO::SaveFlatEXR(const FlatImageBuffer& buf, const std::string& filenam
     const size_t yStride = sizeof(float) * width;
 
     Imf::FrameBuffer frameBuffer;
-    frameBuffer.insert("R", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(rData.data()),
-                                       xStride, yStride));
-    frameBuffer.insert("G", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(gData.data()),
-                                       xStride, yStride));
-    frameBuffer.insert("B", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(bData.data()),
-                                       xStride, yStride));
+    frameBuffer.insert(
+        "R", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(rData.data()), xStride, yStride));
+    frameBuffer.insert(
+        "G", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(gData.data()), xStride, yStride));
+    frameBuffer.insert(
+        "B", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(bData.data()), xStride, yStride));
     // alpha_ is already a contiguous float vector — no copy needed.
-    frameBuffer.insert("A",
-                       Imf::Slice(Imf::FLOAT,
-                                  reinterpret_cast<char*>(const_cast<float*>(buf.alpha_.data())),
-                                  xStride, yStride));
+    frameBuffer.insert(
+        "A", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(const_cast<float*>(buf.alpha_.data())),
+                        xStride, yStride));
 
     Imf::OutputFile file(filename.c_str(), header);
     file.setFrameBuffer(frameBuffer);
