@@ -232,7 +232,7 @@ void Film::WriteImage(const std::string& filename) const {
         }
     }
 
-    deep_compositor::writePNG(rgba, width_, height_, filename);
+    exrio::writePNG(rgba, width_, height_, filename);
     std::cout << "Wrote image to " << filename << "\n";
 }
 
