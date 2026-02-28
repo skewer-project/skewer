@@ -134,8 +134,8 @@ deep_compositor::DeepImage Film::BuildDeepImage(const int total_pixel_samples) c
             // Convert to deep_compositor::DeepSample and add to result
             deep_compositor::DeepPixel& pixel = result.pixel(x, y);
             for (const DeepSample& seg : segments) {
-                pixel.addSample(deep_compositor::DeepSample(
-                    seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
+                pixel.addSample(deep_compositor::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g,
+                                                            seg.b, seg.alpha));
             }
         }
     }
