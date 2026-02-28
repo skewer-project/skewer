@@ -63,6 +63,12 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                     Ray r = cam.GetRay(u, v);
 
+                    uint16_t global_med = scene.GetGlobalMedium();
+                    if (global_med != 0) {
+                        // Global medium usually has priority 0 so bounded media can override it
+                        r.vol_stack().Push(global_med, 0);
+                    }
+
                     PathSample result = Li(r, scene, rng, config, wl);
 
                     RGB pixel_color = SpectrumToRGB(result.L, wl);

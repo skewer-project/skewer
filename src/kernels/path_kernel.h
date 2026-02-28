@@ -81,24 +81,59 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         if (scatterMedium) {
             ray_t += mi.t;
 
-            // Compute NEE for the volume point (mi) (in-scatter)
-            // L += beta * EstimateDirect(mi, scene, rng, ...);
+            /* 1. Volume Next Event Estimation (Direct Lighting) */
+            if (!scene.Lights().empty()) {
+                int light_index = int(rng.UniformFloat() * scene.Lights().size());
+                const AreaLight& light = scene.Lights()[light_index];
+                LightSample ls = SampleLight(scene, light, rng);
 
-            // Sample Phase Function to get new ray direction
-            // update beta with transmittance
-            // beta *= phase_eval / phase_pdf;
+                Vec3 to_light = ls.p - mi.point;
+                float dist_sq = to_light.LengthSquared();
+                float dist = std::sqrt(dist_sq);
+                Vec3 wi_light = to_light / dist;
+
+                // Setup shadow ray
+                Ray shadow_ray(mi.point, wi_light);
+                shadow_ray.vol_stack() = r.vol_stack();  // Copy stack!
+
+                SurfaceInteraction shadow_si;
+                if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon, &shadow_si)) {
+                    float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
+                    if (cos_light > 0) {
+                        float light_pdf_w = ls.pdf * dist_sq / cos_light;
+
+                        // [Volume Specific] Evaluate Phase & Transmittance
+                        float phase_val = EvalHG(mi.phase_g, mi.wo, wi_light);
+                        Spectrum Tr = CalculateTransmittance(scene, shadow_ray, dist);
+                        Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
+
+                        // Accumulate
+                        Spectrum direct_L = beta * phase_val * Tr * light_spec /
+                                            (light_pdf_w * scene.InvLightCount());
+                        segment_L += direct_L;
+                    }
+                }
+            }
+
+            /* 2. Commit Deep Segment */
             if (specular_bounce) {
-                // AddSegment(result, interval_start, mi.t, L, interval_opacity);
-                specular_bounce = false;
+                AddDeepSegment(result, r, segment_start, ray_t, segment_L, 1.0f, r.origin(),
+                               config.cam_w, wl);
             }
             segment_start = ray_t;
             L += segment_L;
             segment_L = Spectrum(0.0f);
-            // r = Ray(mi.point, new_dir);
-            specular_bounce = false;
-            // interval_start = mi.t;
-            // r = Ray(mi.point, new_dir);
-            // r.vol_stack() remains unchanged
+
+            /* 3. Sample Phase Function for Indirect Bounce */
+            Vec3 next_wi;
+            SampleHG(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(), next_wi);
+
+            // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0!
+            // The sampling routine perfectly importance samples the distribution.
+            // So beta is unchanged by the directional scatter itself.
+
+            r = Ray(mi.point, next_wi);
+            r.vol_stack() = ray.vol_stack();  // Medium stack remains identical inside the volume
             specular_bounce = false;
         }
         if (scatterSurface) {
@@ -297,3 +332,27 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 // Point3 deep_hit_point = r.at(kFarClip);
 
 // float deep_hit_alpha = 1.0f;  // default solid
+
+// if (scatterMedium) {
+//     ray_t += mi.t;
+
+//     // Compute NEE for the volume point (mi) (in-scatter)
+//     // L += beta * EstimateDirect(mi, scene, rng, ...);
+
+//     // Sample Phase Function to get new ray direction
+//     // update beta with transmittance
+//     // beta *= phase_eval / phase_pdf;
+//     if (specular_bounce) {
+//         // AddSegment(result, interval_start, mi.t, L, interval_opacity);
+//         specular_bounce = false;
+//     }
+//     segment_start = ray_t;
+//     L += segment_L;
+//     segment_L = Spectrum(0.0f);
+//     // r = Ray(mi.point, new_dir);
+//     specular_bounce = false;
+//     // interval_start = mi.t;
+//     // r = Ray(mi.point, new_dir);
+//     // r.vol_stack() remains unchanged
+//     specular_bounce = false;
+// }
