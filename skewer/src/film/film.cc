@@ -1,9 +1,10 @@
 #include "film/film.h"
 
+#include <exrio/deep_writer.h>
+
 #include <atomic>
 
 #include "core/constants.h"
-#include "film/image_buffer.h"
 #include "integrators/path_sample.h"
 
 namespace skwr {
@@ -212,25 +213,27 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 }
 
 void Film::WriteImage(const std::string& filename) const {
-    // Create a TEMPORARY buffer just for this export
-    ImageBuffer temp_buffer(width_, height_);
+    std::vector<float> rgba(static_cast<size_t>(width_) * height_ * 4);
 
-    // Bake the data (Convert Accumulator -> Output Format)
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
 
-            RGB final_color(0, 0, 0);
+            RGB color(0, 0, 0);
             if (p.weight_sum > 0) {
-                final_color = p.color_sum / p.weight_sum;
+                color = p.color_sum / p.weight_sum;
             }
 
-            temp_buffer.SetPixel(x, y, final_color);
+            size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
+            rgba[idx + 0] = color.r();
+            rgba[idx + 1] = color.g();
+            rgba[idx + 2] = color.b();
+            rgba[idx + 3] = 1.0f;
         }
     }
 
-    // Save to disk
-    temp_buffer.WritePPM(filename);
+    deep_compositor::writePNG(rgba, width_, height_, filename);
+    std::cout << "Wrote image to " << filename << "\n";
 }
 
 }  // namespace skwr
