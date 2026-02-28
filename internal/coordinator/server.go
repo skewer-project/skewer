@@ -348,18 +348,38 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 	return nil
 }
 
-func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, params *pb.CompositeJobParams) error {
-	// TODO: Loop over req.NumFrames.
-	// Create *pb.CompositeTask objects.
-	// Call s.scheduler.EnqueueTask(...) for each frame.
-	for _, frame := range req. {
-		task := &pb.CompositeTask{
-			JobId:    jobID,
-			FrameId:  frame,
-			NumTasks: params.NumTasks,
+func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {
+
+	for frameID := range req.NumFrames {
+
+		// gs://bucket/renders/smoke
+		layerUris := job.GetLayerUriPrefixes()
+		for idx, uriPrefix := range layerUris {
+			fullLayerUri, err := url.JoinPath(uriPrefix, fmt.Sprintf("frame-%d", frameID))
+			if err != nil {
+				return err
+			}
+
+			layerUris[idx] = fullLayerUri
 		}
-		s.scheduler.EnqueueTask(task, jobID, frame)
+
+		finalOutputUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
+		if err != nil {
+			return err
+		}
+
+		task := &pb.CompositeTask{
+			LayerUris: layerUris,
+
+			Width:  req.GetWidth(),
+			Height: req.GetHeight(),
+
+			OutputUri: finalOutputUri,
+		}
+		s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID))
+
 	}
+
 	return nil
 }
 
