@@ -128,20 +128,30 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 
 	for {
 		// Block and wait for the Scheduler to hand us a task.
-		// TODO: Update scheduler.GetNextTask to accept `capabilities` so it only
+		// scheduler.GetNextTask accepts `capabilities` so it only
 		// hands Loom tasks to Loom workers, and Skewer tasks to Skewer workers.
 		task, err := s.scheduler.GetNextTask(stream.Context(), capabilities)
 		if err != nil {
 			// If the context is cancelled (worker disconnected), exit cleanly
-			log.Printf("Worker %s stream closed: %v", workerID, err)
+			log.Printf("[SERVER]: Worker %s stream closed: %v", workerID, err)
 			return err
+		}
+
+		// Lazy cancellation check
+		job, err := s.tracker.GetJob(task.JobID)
+
+		// If the job is marked as FAILED, throw this task in the trash!
+		if err == nil && job.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_FAILED {
+			log.Printf("[SERVER]: Skipping cancelled task %s for job %s", task.ID, task.JobID)
+			s.scheduler.MarkTaskComplete(task.ID) // Remove from active memory
+			continue                              // Loop back to the top and grab the next task
 		}
 
 		// Package task into the Protobuf format.
 		workPackage := &pb.WorkPackage{
-			JobId:  task.JobID,
-			TaskId: task.ID,
-			// FrameId: task.FrameID, // Assuming you added this to your Task struct
+			JobId:   task.JobID,
+			TaskId:  task.ID,
+			FrameId: task.FrameID,
 		}
 
 		// Type-assert the payload and map it to the Protobuf 'oneof'
@@ -153,13 +163,13 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 		case *pb.CompositeTask:
 			workPackage.Payload = &pb.WorkPackage_CompositeTask{CompositeTask: t}
 		default:
-			log.Printf("Critical: Unknown task payload type for task %s", task.ID)
+			log.Printf("[ERROR]: Unknown task payload type for task %s", task.ID)
 			continue
 		}
 
 		// Send workPackage down the wire
 		if err := stream.Send(workPackage); err != nil {
-			log.Printf("Failed to send task to worker %s: %v", workerID, err)
+			log.Printf("[ERROR]: Failed to send task to worker %s: %v", workerID, err)
 			// The worker dropped offline exactly as we tried to send.
 			// Immediately requeue the task so it isn't lost.
 			s.scheduler.RequeueTask(task.ID)
