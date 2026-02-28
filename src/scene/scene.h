@@ -30,6 +30,8 @@ class Scene {
     uint32_t AddMesh(Mesh&& m);             // Returns mesh_id (index in the meshes_ vector)
     uint32_t AddTexture(ImageTexture&& t);  // Returns texture_id
     uint16_t AddHomogeneousMedium(const HomogeneousMedium& m);
+    void SetGlobalMedium(uint16_t medium_id) { global_medium_id_ = medium_id; }
+    uint16_t GetGlobalMedium() const { return global_medium_id_; }
 
     const Material& GetMaterial(uint32_t id) const { return materials_[id]; }
     const ImageTexture& GetTexture(uint32_t id) const { return textures_[id]; }
@@ -49,7 +51,6 @@ class Scene {
     // The Integrator calls this millions of times.
     // rn loops through linearly, but when BVH is implemented, should be faster
     bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
-    bool IntersectBVH(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
 
   private:
     std::vector<Sphere> spheres_;
@@ -62,6 +63,7 @@ class Scene {
     // std::vector<GridMedium> grid_media_;
     BVH bvh_;
     float inv_light_count_;
+    uint16_t global_medium_id_ = 0;  // 0 represents Vacuum
 };
 
 }  // namespace skwr

@@ -44,6 +44,18 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     scene_ = std::make_unique<Scene>();
     SceneConfig config = LoadSceneFile(scene_file, *scene_);
 
+    // TEMPORARY HARDCODED GLOBAL FOG
+    HomogeneousMedium fog;
+    // Low density so we can still see the scene! (e.g., 0.05)
+    // Spectrum is RGB or whatever your spectral layout is
+    fog.sigma_a = Spectrum(0.0f);   // No absorption
+    fog.sigma_s = Spectrum(0.05f);  // Mild scattering
+    fog.g = 0.0f;                   // Isotropic (scatters equally in all directions)
+
+    // 3. Register it and set it as global
+    uint16_t fog_id = scene_->AddHomogeneousMedium(fog);
+    scene_->SetGlobalMedium(fog_id);
+
     // 2. Build BVH acceleration structure
     scene_->Build();
 
