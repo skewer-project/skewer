@@ -20,6 +20,10 @@ struct SurfaceInteraction {
     bool front_face;  // Is normal pointing at ray? (Is it the outside face?)
     uint32_t material_id;
 
+    uint16_t exterior_medium;
+    uint16_t interior_medium;
+    uint16_t priority;
+
     // UV and tangent frame
     Vec3 uv;          // Surface UV (z unused)
     Vec3 dpdu, dpdv;  // Surface tangents (for normal mapping/anisotropy)

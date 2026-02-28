@@ -11,6 +11,9 @@ struct Sphere {
     Vec3 center;
     float radius;
     uint32_t material_id;
+    uint16_t interior_medium;
+    uint16_t exterior_medium;
+    uint16_t priority;
 };
 
 }  // namespace skwr

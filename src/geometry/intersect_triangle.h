@@ -35,6 +35,9 @@ inline bool IntersectTriangle(const Ray& r, const Triangle& tri, float t_min, fl
     si->t = t;
     si->point = r.at(t);
     si->material_id = tri.material_id;
+    si->exterior_medium = tri.exterior_medium;
+    si->interior_medium = tri.interior_medium;
+    si->priority = tri.priority;
 
     // Barycentric interpolation of pre-baked normals.
     // For flat meshes n0==n1==n2==geometric normal, so no branch needed.
