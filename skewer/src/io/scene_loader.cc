@@ -323,7 +323,7 @@ static SceneConfig ParseConfig(const json& j) {
     opts.integrator_config.enable_deep = false;
     opts.image_config.width = 800;
     opts.image_config.height = 450;
-    opts.image_config.outfile = "output.ppm";
+    opts.image_config.outfile = "output.png";
     opts.image_config.exrfile = "output.exr";
 
     if (j.contains("render")) {
@@ -349,7 +349,7 @@ static SceneConfig ParseConfig(const json& j) {
             const auto& img = r["image"];
             opts.image_config.width = GetOr(img, "width", 800);
             opts.image_config.height = GetOr(img, "height", 450);
-            opts.image_config.outfile = GetOr<std::string>(img, "outfile", "output.ppm");
+            opts.image_config.outfile = GetOr<std::string>(img, "outfile", "output.png");
             opts.image_config.exrfile = GetOr<std::string>(img, "exrfile", "output.exr");
         }
     }
