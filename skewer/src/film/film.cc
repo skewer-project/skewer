@@ -22,7 +22,7 @@ Film::Film(int width, int height)
     // deep_pool_.resize(width_ * height_ * 16 * 4);
 }
 
-void Film::AddSample(int x, int y, const RGB& L, float weight) {
+void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
 
     Pixel& p = GetPixel(x, y);
@@ -31,6 +31,7 @@ void Film::AddSample(int x, int y, const RGB& L, float weight) {
     // For true safety, you might want to use atomics or accept some race conditions
     // In practice, the races are benign (slightly wrong accumulated values)
     p.color_sum += L * weight;
+    p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
 }
 
@@ -229,6 +230,30 @@ void Film::WriteImage(const std::string& filename) const {
 
     // Save to disk
     temp_buffer.WritePPM(filename);
+}
+
+std::unique_ptr<FlatImageBuffer> Film::CreateFlatBuffer() const {
+    auto buf = std::make_unique<FlatImageBuffer>(width_, height_);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const Pixel& p = GetPixel(x, y);
+
+            RGB color(0.0f);
+            float alpha = 0.0f;
+
+            if (p.weight_sum > 0) {
+                // color_sum is already premultiplied (misses contribute 0 to both),
+                // so dividing by weight gives premultiplied average.
+                color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
+            }
+
+            buf->SetPixel(x, y, color, alpha);
+        }
+    }
+
+    return buf;
 }
 
 }  // namespace skwr

@@ -25,6 +25,14 @@ struct alignas(16) Material {
     uint32_t normal_tex = UINT32_MAX;
     uint32_t roughness_tex = UINT32_MAX;
 
+    // When false the object is physically present (scatters rays, casts shadows,
+    // contributes indirect light) but is excluded from the camera-visibility
+    // window check in transparent-background renders.  Rays that only hit
+    // invisible objects within the first `visibility_depth` bounces produce a
+    // transparent pixel, allowing invisible geometry to light visible objects
+    // without polluting the layer alpha.
+    bool visible = true;
+
     bool IsEmissive() const { return emission.scale > 0.0f; }
     bool IsTransparent() const {
         return opacity.coeff[0] < 1.0f || opacity.coeff[1] < 1.0f || opacity.coeff[2] < 1.0f;

@@ -18,6 +18,28 @@ void ImageBuffer::SetPixel(int x, int y, const RGB& color) {
     pixels_[y * width_ + x] = color;
 }
 
+// ---------------------------------------------------------------------------
+// FlatImageBuffer
+// ---------------------------------------------------------------------------
+
+FlatImageBuffer::FlatImageBuffer(int width, int height)
+    : width_(width),
+      height_(height),
+      pixels_(static_cast<size_t>(width) * height),
+      alpha_(static_cast<size_t>(width) * height, 1.0f) {}
+
+FlatImageBuffer::FlatImageBuffer(int width, int height, std::vector<RGB> pixels)
+    : width_(width),
+      height_(height),
+      pixels_(std::move(pixels)),
+      alpha_(static_cast<size_t>(width) * height, 1.0f) {}
+
+void FlatImageBuffer::SetPixel(int x, int y, const RGB& s) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    pixels_[static_cast<size_t>(y) * width_ + x] = s;
+    // alpha_ stays at its current value (1.0 unless previously set)
+}
+
 // For debug and testing purposes, we can keep this PPM writer but
 // ultimately we should move this to a separate src/io/image_io.h or something
 void ImageBuffer::WritePPM(const std::string& filename) const {
@@ -48,6 +70,13 @@ void ImageBuffer::WritePPM(const std::string& filename) const {
 
     out.close();
     std::cout << "Wrote image to " << filename << "\n";
+}
+
+void FlatImageBuffer::SetPixel(int x, int y, const RGB& s, float alpha) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    size_t idx = static_cast<size_t>(y) * width_ + x;
+    pixels_[idx] = s;
+    alpha_[idx] = alpha;
 }
 
 /*

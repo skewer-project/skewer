@@ -96,6 +96,7 @@ void RenderSession::Render() {
 void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
+
         if (options_.integrator_config.enable_deep) {
             std::unique_ptr<DeepImageBuffer> buf =
                 film_->CreateDeepBuffer(options_.integrator_config.samples_per_pixel);

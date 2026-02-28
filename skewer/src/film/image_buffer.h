@@ -72,19 +72,29 @@ class DeepImageBuffer {
 };
 
 class FlatImageBuffer {
+    friend class ImageIO;
+
   public:
-    FlatImageBuffer(int width, int height) : width_(width), height_(height), pixels_({}) {};
+    FlatImageBuffer(int width, int height);
 
-    FlatImageBuffer(int width, int height, std::vector<RGB> pixels)
-        : width_(width), height_(height), pixels_(pixels) {};
+    FlatImageBuffer(int width, int height, std::vector<RGB> pixels);
 
-    // Set a pixel's color (0,0 is top-left usually)
+    // Set a pixel's RGB only (alpha stays at its initialised value of 1.0).
     void SetPixel(int x, int y, const RGB& s);
+
+    // Set a pixel with explicit premultiplied alpha.
+    void SetPixel(int x, int y, const RGB& s, float alpha);
+
+    int GetWidth() const { return width_; }
+    int GetHeight() const { return height_; }
 
   private:
     int width_;
     int height_;
     std::vector<RGB> pixels_;
+    // Premultiplied alpha channel. Same size as pixels_, initialised to 1.0
+    // (fully opaque) so RGB-only writes remain backward-compatible.
+    std::vector<float> alpha_;
 };
 
 }  // namespace skwr
