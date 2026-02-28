@@ -184,30 +184,97 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 	taskID := req.GetTaskId()
 	jobID := req.GetJobId()
 
-	log.Printf("Task %s completed by worker %s: success=%v", taskID, req.WorkerId, req.Success)
+	log.Printf("[SERVER] Task %s completed by worker %s: success=%v", taskID, req.WorkerId, req.Success)
 
-	// 1. Tell the scheduler the worker is officially done with it (stops the Sweeper timeout)
-	s.scheduler.MarkTaskComplete(taskID)
+	// Tell the scheduler the worker is officially done with it (stops the Sweeper timeout)
+	task, exists := s.scheduler.MarkTaskComplete(taskID)
 
 	if !req.Success {
-		// TODO: Handle failure. Requeue the task, or increment a failure counter
-		// in your JobTracker and fail the whole job if it exceeds max retries.
+		// Handle failure. Requeue the task, or increment a failure counter
+		// in the JobTracker and fail the whole job if it exceeds max retries.
+		if exists {
+			task.Retries++
+			if task.Retries > 3 {
+				log.Printf("[SERVER] Task %s failed too many times. Failing Job %s", taskID, jobID)
+				s.tracker.activeJobs[jobID].SetStatus(pb.GetJobStatusResponse_JOB_STATUS_FAILED)
+				s.scheduler.PurgeJobTasks(jobID) // Stop other tasks for this job
+			} else {
+				s.scheduler.RequeueTask(taskID)
+			}
+		} else {
+			// fmt.Errorf("[ERROR]: Task %s not found in active tasks", taskID)
+			return &pb.ReportTaskResultResponse{Acknowledged: false}, nil
+		}
 		return &pb.ReportTaskResultResponse{Acknowledged: true}, nil
 	}
 
-	// 2. Update the DAG state
-	// TODO: Implement the logic to update your JobTracker
-	// e.g., tracker.MarkChunkComplete(jobID, req.FrameId)
+	// Update completed Tasks for the job
+	job, err := s.tracker.GetJob(task.JobID)
+	if err != nil {
+		return &pb.ReportTaskResultResponse{Acknowledged: false}, err
+	}
 
-	// 3. Queue downstream dependencies
-	// TODO: If that was the final Skewer chunk for Frame 5, queue the Loom MergeTask
-	// TODO: If that was the final frame for the Job, check if a dependent CompositeJob needs to wake up
+	var complete bool
+	switch jobType := job.(type) {
+	case *RenderJob:
+		jobType.mu.Lock()
+
+		// Update completed tasks and check if job is complete
+		jobType.CompletedTasks++
+		complete = jobType.CompletedTasks == jobType.TotalTasks
+
+		// Update the specific frame's progress
+		frameState := jobType.Frames[task.FrameID]
+		frameState.CompletedChunks++
+
+		// Check if frame is complete
+		if frameState.CompletedChunks == frameState.TotalChunks {
+			log.Printf("Frame %s for job %s is fully rendered! Queuing MergeTask.", task.FrameID, jobID)
+
+			// NOW we hand it to the scheduler
+			s.scheduler.EnqueueTask(frameState.PendingMerge, jobID, task.FrameID)
+
+			// Free up memory
+			frameState.PendingMerge = nil
+		}
+		jobType.mu.Unlock()
+
+	case *CompositeJob:
+		jobType.mu.Lock()
+		jobType.CompletedFrames++
+		complete = jobType.CompletedFrames == jobType.TotalFrames
+		jobType.mu.Unlock()
+	}
+
+	// Queue downstream dependencies if job is complete
+	if complete {
+		job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_COMPLETED)
+
+		// Ask the tracker to safely update the math and report unlocked dependencies
+		unlockedJobs := s.tracker.UnlockDependencies(job.ID())
+
+		// Loop through whatever jobs just hit 0 dependencies and queue them
+		for _, newJob := range unlockedJobs {
+			// (You will eventually call s.handleCompositeJobSubmit here
+			// to actually queue the tasks for the newly unlocked job)
+			log.Printf("Job %s is fully unlocked and ready to queue!", newJob.ID())
+
+			// Type assert to figure out what kind of job just unlocked and queue it
+			req := newJob.GetOriginalReq()
+			switch typedJob := newJob.(type) {
+			case *RenderJob:
+				s.handleRenderJobSubmit(typedJob.ID(), req, req.GetRenderJob())
+			case *CompositeJob:
+				s.handleCompositeJobSubmit(typedJob.ID(), req, req.GetCompositeJob())
+			}
+		}
+	}
 
 	return &pb.ReportTaskResultResponse{Acknowledged: true}, nil
 }
 
 // =====================================================================
-// STUBBED HELPERS (Business Logic)
+// STUBBED HELPERS
 // =====================================================================
 
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, params *pb.RenderJobParams) error {
