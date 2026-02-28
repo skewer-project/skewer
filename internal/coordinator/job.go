@@ -181,3 +181,23 @@ func (jt *JobTracker) CancelJob(jobID string) error {
 	// Flush any pending tasks for this job from the Scheduler queue
 	return nil
 }
+
+func (jt *JobTracker) UnlockDependencies(jobID string) []Job {
+	jt.mu.Lock()
+	defer jt.mu.Unlock()
+
+	var unlockedJobs []Job
+	successors := jt.graph.GetSuccessors(jobID)
+
+	for _, successorID := range successors {
+		jt.pendingDeps[successorID]--
+
+		if jt.pendingDeps[successorID] == 0 {
+			job := jt.activeJobs[successorID]
+			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_QUEUED)
+			unlockedJobs = append(unlockedJobs, job)
+		}
+	}
+
+	return unlockedJobs
+}
