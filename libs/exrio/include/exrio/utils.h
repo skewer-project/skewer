@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 
-namespace deep_compositor {
+namespace exrio {
 
 /**
  * Global verbosity flag for logging
@@ -105,4 +105,4 @@ T lerp(T a, T b, float t) {
     return a + (b - a) * t;
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio

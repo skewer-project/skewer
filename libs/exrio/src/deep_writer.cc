@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace deep_compositor {
+namespace exrio {
 
 // ============================================================================
 // Flattening Operations
@@ -397,4 +397,4 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
 #endif
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio

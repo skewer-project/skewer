@@ -4,7 +4,7 @@
 #include <cmath>
 #include <set>
 
-namespace deep_compositor {
+namespace exrio {
 
 // ============================================================================
 // splitSample -- Beer-Lambert exponential attenuation
@@ -184,4 +184,4 @@ DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels, flo
     return result;
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio

@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-namespace deep_compositor {
+namespace exrio {
 
 /**
  * Split a volumetric sample at an interior depth using Beer-Lambert
@@ -40,4 +40,4 @@ DeepSample blendCoincidentSamples(const DeepSample& a, const DeepSample& b);
 DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels,
                                 float epsilon = 0.001f);
 
-}  // namespace deep_compositor
+}  // namespace exrio

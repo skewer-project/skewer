@@ -99,9 +99,9 @@ void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
         if (options_.integrator_config.enable_deep) {
-            deep_compositor::DeepImage img =
+            exrio::DeepImage img =
                 film_->BuildDeepImage(options_.integrator_config.samples_per_pixel);
-            deep_compositor::writeDeepEXR(img, options_.image_config.exrfile);
+            exrio::writeDeepEXR(img, options_.image_config.exrfile);
         }
     }
 }
