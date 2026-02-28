@@ -35,7 +35,7 @@ class Film {
     void AddSample(int x, int y, const RGB& L, float weight = 1.0f);
     void AddDeepSample(int x, int y, const PathSample& path_sample);
 
-    // Saves to disk (PPM, EXR)
+    // Saves to disk (PNG, EXR)
     void WriteImage(const std::string& filename) const;
     deep_compositor::DeepImage BuildDeepImage(const int total_pixel_samples) const;
 
