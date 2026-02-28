@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+#include <exrio/deep_image.h>
+
 #include "core/color.h"
 #include "film/image_buffer.h"
 #include "integrators/path_sample.h"
@@ -35,7 +37,7 @@ class Film {
 
     // Saves to disk (PPM, EXR)
     void WriteImage(const std::string& filename) const;
-    std::unique_ptr<DeepImageBuffer> CreateDeepBuffer(const int total_pixel_samples) const;
+    deep_compositor::DeepImage BuildDeepImage(const int total_pixel_samples) const;
 
     int width() { return width_; }
     int height() { return height_; }
