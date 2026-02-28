@@ -123,7 +123,7 @@ message RenderTask {
 
   // Sample division range
   int32 sample_start = 4;
-  int32 sample_end = 5;
+  int32 sample_end = 5; // End is EXCLUSIVE
 
   string output_uri = 6; // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
 }
