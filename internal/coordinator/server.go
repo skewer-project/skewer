@@ -359,23 +359,27 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 	for frameID := range req.NumFrames {
 
 		// gs://bucket/renders/smoke
-		layerUris := job.GetLayerUriPrefixes()
-		for idx, uriPrefix := range layerUris {
+		originalPrefixes := job.GetLayerUriPrefixes()
+
+		// Create a fresh slice for THIS specific frame task
+		frameLayerUris := make([]string, len(originalPrefixes))
+
+		for idx, uriPrefix := range originalPrefixes {
 			fullLayerUri, err := url.JoinPath(uriPrefix, fmt.Sprintf("frame-%d", frameID))
 			if err != nil {
 				return err
 			}
-
-			layerUris[idx] = fullLayerUri
+			frameLayerUris[idx] = fullLayerUri // Safe!
 		}
 
+		// Finally safely join path
 		finalOutputUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
 		if err != nil {
 			return err
 		}
 
 		task := &pb.CompositeTask{
-			LayerUris: layerUris,
+			LayerUris: frameLayerUris,
 
 			Width:  req.GetWidth(),
 			Height: req.GetHeight(),
