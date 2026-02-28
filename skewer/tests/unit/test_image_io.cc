@@ -1,10 +1,9 @@
+#include <exrio/deep_image.h>
+#include <exrio/deep_writer.h>
 #include <gtest/gtest.h>
 
 #include <filesystem>
 #include <vector>
-
-#include <exrio/deep_image.h>
-#include <exrio/deep_writer.h>
 
 #include "film/image_buffer.h"
 #include "io/image_io.h"
