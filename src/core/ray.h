@@ -24,6 +24,7 @@ class Ray {
     const Vec3& direction() const { return dir_; }
     const Vec3& inv_direction() const { return inv_dir_; }
     const VolumeStack& vol_stack() const { return vol_stack_; }
+    VolumeStack& vol_stack() { return vol_stack_; }
     // double time() const { return tm_; }
 
     // 3D pos (P) on Ray is function of P(t) = A + tb, A = origin, b = Ray direction
