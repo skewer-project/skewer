@@ -1,10 +1,10 @@
 #include "session/render_session.h"
 
-#include <iostream>
-#include <memory>
-
 #include <exrio/deep_image.h>
 #include <exrio/deep_writer.h>
+
+#include <iostream>
+#include <memory>
 
 #include "core/spectral/spectral_utils.h"
 #include "core/vec3.h"

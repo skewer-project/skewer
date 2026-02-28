@@ -1,12 +1,12 @@
 #ifndef SKWR_FILM_FILM_H_
 #define SKWR_FILM_FILM_H_
 
+#include <exrio/deep_image.h>
+
 #include <atomic>
 #include <cstddef>
 #include <memory>
 #include <vector>
-
-#include <exrio/deep_image.h>
 
 #include "core/color.h"
 #include "film/image_buffer.h"
