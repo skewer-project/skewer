@@ -123,4 +123,19 @@ uint32_t Scene::AddTexture(ImageTexture&& t) {
     return static_cast<uint32_t>(textures_.size() - 1);
 }
 
+uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
+    homogeneous_media_.push_back(m);
+    uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1);
+    // Pack: Type 1 (Homogeneous) + index
+    return (static_cast<uint16_t>(MediumType::Homogeneous) << 14) | (index & 0x3FFF);
+}
+
+// TODO: grids
+// uint16_t Scene::AddGridMedium(const GridMedium& m) {
+//     grid_media_.push_back(m);
+//     uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
+//     // Pack: Type 2 (Grid) + index
+//     return (static_cast<uint16_t>(MediumType::Grid) << 14) | (index & 0x3FFF);
+// }
+
 }  // namespace skwr
