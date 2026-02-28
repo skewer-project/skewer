@@ -334,6 +334,11 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			return err
 		}
 		renderJob := genericJob.(*RenderJob)
+
+		// While this is technically safe because the tasks haven't been queued yet, it's probably better
+		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
+		// at that exact millisecond
+		renderJob.mu.Lock()
 		if renderJob.Frames == nil {
 			renderJob.Frames = make(map[string]*FrameState)
 		}
@@ -343,6 +348,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			TotalChunks:     renderJob.SampleDivision,
 			PendingMerge:    mergeTask,
 		}
+		renderJob.mu.Unlock()
 	}
 
 	return nil
