@@ -14,7 +14,7 @@ type Task struct {
 	ID      string
 	JobID   string
 	FrameID string
-	Payload interface{} // *pb.RenderTask or *pb.CompositeTask
+	Payload any // *pb.RenderTask or *pb.CompositeTask
 
 	CreatedAt time.Time
 	StartedAt time.Time // WHEN the worker pulled it
@@ -23,13 +23,15 @@ type Task struct {
 
 type Scheduler struct {
 	mu          sync.Mutex
-	taskQueue   chan *Task       // Pending tasks (thread safe)
+	skewerQueue chan *Task       // Only for Render Tasks (thread safe)
+	loomQueue   chan *Task       // Only for Merge/Composite Tasks (thread safe)
 	activeTasks map[string]*Task // Tasks currently being worked on
 }
 
 func NewScheduler(maxQueueSize int) *Scheduler {
 	return &Scheduler{
-		taskQueue:   make(chan *Task, maxQueueSize),
+		skewerQueue: make(chan *Task, maxQueueSize),
+		loomQueue:   make(chan *Task, maxQueueSize),
 		activeTasks: make(map[string]*Task),
 	}
 }
@@ -45,13 +47,24 @@ func (s *Scheduler) EnqueueTask(payload interface{}, jobID string, frameID strin
 		CreatedAt: time.Now(),
 	}
 
-	// Adding to the queue here must be atomic
-	select {
-	case s.taskQueue <- task: // thread save
-		return taskID, nil
+	// Figure out which queue to put it in, and do it atomically
+	switch payload.(type) {
+	case *pb.RenderTask:
+		select {
+		case s.skewerQueue <- task:
+			return taskID, nil
+		default:
+			return "", fmt.Errorf("[Error] Skewer queue is at capacity")
+		}
+	case *pb.MergeTask, *pb.CompositeTask:
+		select {
+		case s.loomQueue <- task:
+			return taskID, nil
+		default:
+			return "", fmt.Errorf("[Error] Loom queue is at capacity")
+		}
 	default:
-		// The channel is full. Refuse the job instead of hanging.
-		return "", fmt.Errorf("[Error] Scheduler queue is at capacity")
+		return "", fmt.Errorf("[Error] Unknown task payload type")
 	}
 
 }
@@ -75,44 +88,40 @@ func (s *Scheduler) GetNextTask(ctx context.Context, capabilities []string) (*Ta
 		return nil, fmt.Errorf("[ERROR] No compatible worker type found")
 	}
 
+	// Get next type based on workerType
 	for {
-		select {
-		case task := <-s.taskQueue:
-			// Check task type against worker type
-			switch task.Payload.(type) {
-			case *pb.WorkPackage_RenderTask:
-				if workerType != "skewer" {
-					s.RequeueTask(task.ID)
-					continue
-				}
-			case *pb.WorkPackage_MergeTask:
-				if workerType != "loom" {
-					s.RequeueTask(task.ID)
-					continue
-				}
-			case *pb.WorkPackage_CompositeTask:
-				if workerType != "loom" {
-					s.RequeueTask(task.ID)
-					continue
-				}
-			default:
-				// We got a task --> Now safely record it as active.
-				s.mu.Lock()
+		switch workerType {
+		case "skewer":
+			select {
+			case task := <-s.skewerQueue: // Pull ONLY from Skewer Queue
 
+				s.mu.Lock()
 				task.StartedAt = time.Now()
 				s.activeTasks[task.ID] = task
-
 				s.mu.Unlock()
+
 				return task, nil
+
+			case <-ctx.Done():
+				return nil, ctx.Err()
 			}
 
-		case <-ctx.Done():
-			// The worker pod is disconnected by GKE or the server is shutting down
-			return nil, ctx.Err()
+		case "loom":
+			select {
+			case task := <-s.loomQueue: // Pull ONLY from Loom Queue
+
+				s.mu.Lock()
+				task.StartedAt = time.Now()
+				s.activeTasks[task.ID] = task
+				s.mu.Unlock()
+
+				return task, nil
+
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 		}
-
 	}
-
 }
 
 // Safely removes and returns the task
@@ -127,23 +136,33 @@ func (s *Scheduler) popActiveTask(taskID string) (*Task, bool) {
 	return task, exists
 }
 
-// Call this if a worker drops off.
 func (s *Scheduler) RequeueTask(taskID string) {
 	task, exists := s.popActiveTask(taskID)
 
-	// Put the task back into the scheduler queue
 	if exists {
 		task.CreatedAt = time.Now()
 
-		// Push it back onto the queue for another worker to grab.
-		// We do this in a goroutine so it doesn't block if the queue is temporarily full.
-		go func(t *Task) (string, error) {
-			select {
-			case s.taskQueue <- t:
-				return t.ID, nil
-			default:
-				// The channel is full! Refuse the job instead of hanging.
-				return "", fmt.Errorf("[SCHEDULER] Scheduler queue is at capacity. Lost task %s\n", taskID)
+		// Push it back onto the correct queue in a goroutine
+		go func(t *Task) {
+			switch t.Payload.(type) {
+
+			// Route to Skewer Queue
+			case *pb.RenderTask:
+				select {
+				case s.skewerQueue <- t:
+					fmt.Printf("[SCHEDULER] Requeued Skewer task %s\n", t.ID)
+				default:
+					fmt.Printf("[SCHEDULER] Skewer queue is full. Lost task %s\n", t.ID)
+				}
+
+			// Route to Loom Queue
+			case *pb.MergeTask, *pb.CompositeTask:
+				select {
+				case s.loomQueue <- t:
+					fmt.Printf("[SCHEDULER] Requeued Loom task %s\n", t.ID)
+				default:
+					fmt.Printf("[SCHEDULER] Loom queue is full. Lost task %s\n", t.ID)
+				}
 			}
 		}(task)
 	}
@@ -156,8 +175,7 @@ func (s *Scheduler) MarkTaskComplete(taskID string) (*Task, bool) {
 
 // GetQueueLength returns current queue size for KEDA. NO LOCKS NEEDED.
 func (s *Scheduler) GetQueueLength() int {
-	// len() on a buffered channel is thread-safe!
-	return len(s.taskQueue)
+	return len(s.skewerQueue) + len(s.loomQueue)
 }
 
 // StartSweeper runs a background loop to reclaim tasks from dead workers (that may have segfaulted).
@@ -204,11 +222,24 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 		}
 
 		// Push it back to the queue
-		select {
-		case s.taskQueue <- task:
-			fmt.Printf("[SCHEDULER] Worker timeout! Requeued task %s (Retry %d/3)\n", task.ID, task.Retries)
-		default:
-			fmt.Printf("[SCHEDULER] Queue is full! Lost timed-out task %s\n", task.ID)
+		// Figure out which queue the dead task belongs to!
+		switch task.Payload.(type) {
+
+		case *pb.RenderTask:
+			select {
+			case s.skewerQueue <- task:
+				fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", task.ID, task.Retries)
+			default:
+				fmt.Printf("[SCHEDULER] Skewer queue is full! Lost timed-out task %s\n", task.ID)
+			}
+
+		case *pb.MergeTask, *pb.CompositeTask:
+			select {
+			case s.loomQueue <- task:
+				fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", task.ID, task.Retries)
+			default:
+				fmt.Printf("[SCHEDULER] Loom queue is full! Lost timed-out task %s\n", task.ID)
+			}
 		}
 	}
 }
