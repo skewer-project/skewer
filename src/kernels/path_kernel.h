@@ -81,7 +81,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         if (scatterMedium) {
             ray_t += mi.t;
 
-            /* 1. Volume Next Event Estimation (Direct Lighting) */
+            /* Volume Next Event Estimation (Direct Lighting) */
             if (!scene.Lights().empty()) {
                 int light_index = int(rng.UniformFloat() * scene.Lights().size());
                 const AreaLight& light = scene.Lights()[light_index];
@@ -94,7 +94,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
                 // Setup shadow ray
                 Ray shadow_ray(mi.point, wi_light);
-                shadow_ray.vol_stack() = r.vol_stack();  // Copy stack!
+                shadow_ray.vol_stack() = r.vol_stack();
 
                 SurfaceInteraction shadow_si;
                 if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon, &shadow_si)) {
@@ -115,7 +115,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 }
             }
 
-            /* 2. Commit Deep Segment */
+            /* Commit Deep Segment */
             if (specular_bounce) {
                 AddDeepSegment(result, r, segment_start, ray_t, segment_L, 1.0f, r.origin(),
                                config.cam_w, wl);
@@ -128,15 +128,15 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             Vec3 next_wi;
             SampleHG(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(), next_wi);
 
-            // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0!
-            // The sampling routine perfectly importance samples the distribution.
-            // So beta is unchanged by the directional scatter itself.
-
+            // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0
+            // The sampling routine perfectly importance samples the distribution so beta is
+            // unchanged by the directional scatter itself
+            VolumeStack stack = r.vol_stack();
             r = Ray(mi.point, next_wi);
-            r.vol_stack() = ray.vol_stack();  // Medium stack remains identical inside the volume
+            r.vol_stack() = stack;
             specular_bounce = false;
-        }
-        if (scatterSurface) {
+
+        } else if (scatterSurface) {
             ray_t += si.t;
             const Material& mat = scene.GetMaterial(si.material_id);
             ShadingData sd = ResolveShadingData(mat, si, scene);
@@ -206,6 +206,13 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
                 }
             }
+            if (specular_bounce) {
+                AddDeepSegment(result, r, segment_start, ray_t, segment_L, 1.0f, r.origin(),
+                               config.cam_w, wl);
+            }
+            segment_start = ray_t;
+            L += segment_L;
+            segment_L = Spectrum(0.0f);
 
             /* Indirect bounce case */
             Vec3 wi;
@@ -227,56 +234,35 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
 
                     beta *= weight;
-                    if (specular_bounce) {
-                        AddDeepSegment(result, r, segment_start, ray_t, segment_L, 1.0f, r.origin(),
-                                       config.cam_w, wl);
-                    }
-                    segment_start = ray_t;
-                    L += segment_L;
-                    segment_L = Spectrum(0.0f);
 
                     Ray next_ray(si.point + (wi * kShadowEpsilon), wi);
                     next_ray.vol_stack() = r.vol_stack();
 
-                    // Check for Transmission (did it cross the boundary?)
-                    // si.wo points towards the camera. wi points towards the next bounce.
+                    // 2. Manage the volume stack boundaries
                     float to_cam = Dot(si.wo, si.n_geom);
                     bool is_transmission = (to_cam * refract < 0.0f);
 
                     if (is_transmission) {
-                        // Check if we hit the outside face (entering) or inside face (exiting)
                         bool hit_outside = to_cam > 0.0f;
-
                         if (hit_outside) {
-                            // Entering the object. Push the object's interior medium.
-                            // Note: You need to fetch this from the material or shape!
                             uint16_t interior_medium = si.interior_medium;
                             if (interior_medium != 0) {
                                 next_ray.vol_stack().Push(interior_medium, si.priority);
                             }
                         } else {
-                            // Exiting the object. Pop the current medium.
                             next_ray.vol_stack().Pop(next_ray.vol_stack().GetActiveMedium());
                         }
-
-                        // Note: When transmitting, we offset the ray origin to the *other* side
-                        // of the surface to avoid self-intersection with the interior face.
-                        r = Ray(si.point - (si.n_geom * kShadowEpsilon), wi);
-                    } else {
-                        // Standard reflection.
-                        r = Ray(si.point + (si.n_geom * kShadowEpsilon), wi);
                     }
+                    r = next_ray;
 
                     // If this bounce was sharp (Metal/Glass), next hit counts as specular
                     specular_bounce =
                         (mat.type == MaterialType::Metal || mat.type == MaterialType::Dielectric);
                 }
             } else {
-                // Absorbed (black body)
                 break;
             }
-        }
-        if (!scatterSurface) {
+        } else if (!scatterSurface) {
             // Environment Segment
             Spectrum env_L = beta * Spectrum(0.0f);
             segment_L += env_L;
@@ -284,6 +270,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 AddDeepSegment(result, r, segment_start, kFarClip, segment_L, 1.0f, r.origin(),
                                config.cam_w, wl);
             }
+            L += segment_L;
             break;
         }
 
