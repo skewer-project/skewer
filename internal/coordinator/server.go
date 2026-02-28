@@ -97,18 +97,15 @@ func (s *Server) GetJobStatus(ctx context.Context, req *pb.GetJobStatusRequest) 
 	}, nil
 }
 
-// TODO: Implement CancelJob
 func (s *Server) CancelJob(ctx context.Context, req *pb.CancelJobRequest) (*pb.CancelJobResponse, error) {
-	// Get job ID
-	job, exists := s.tracker.activeJobs[req.JobId]
-	if !exists {
+	// Use the JobTracker's CancelJob function
+	err := s.tracker.CancelJob(req.JobId)
+
+	if err != nil {
 		return &pb.CancelJobResponse{
 			Success: false,
-		}, fmt.Errorf("[ERROR] Job with ID %s not found.", req.JobId)
+		}, nil
 	}
-
-	// Change the status of this job to FAILED (TODO: add CANCELLED to protobuf later)
-	job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_FAILED)
 
 	// Flush any pending tasks for this job from the Scheduler queue
 	s.scheduler.PurgeJobTasks(req.JobId)
