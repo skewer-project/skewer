@@ -14,8 +14,9 @@ type DAG struct {
 
 func NewDAG() *DAG {
 	return &DAG{
-		nodes: make(map[string]Node),
-		deps:  make(map[string][]string),
+		nodes:      make(map[string]Node),
+		deps:       make(map[string][]string),
+		successors: make(map[string][]string),
 	}
 }
 
