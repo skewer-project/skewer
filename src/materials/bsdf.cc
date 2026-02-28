@@ -153,7 +153,7 @@ bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceIntera
 
     // Calculate the PDF of sampling this specific direction
     float HoO = std::abs(Dot(h, wo));
-    pdf = (D * Dot(si.n_shading, h)) / (4.0f * HoO);
+    pdf = (D * Dot(si.n_geom, h)) / (4.0f * HoO);
     if (pdf <= 0.0f) return false;
 
     // Assemble the Cook-Torrance Microfacet BRDF
