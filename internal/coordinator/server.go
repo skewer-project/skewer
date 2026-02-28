@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
 )
@@ -16,10 +17,11 @@ type Server struct {
 	tracker   *JobTracker
 }
 
-func NewServer(scheduler *Scheduler, manager *CloudManager) *Server {
+func NewServer(scheduler *Scheduler, manager *CloudManager, tracker *JobTracker) *Server {
 	return &Server{
 		scheduler: scheduler,
 		manager:   manager,
+		tracker:   tracker,
 	}
 }
 
@@ -42,11 +44,7 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 			Status:         pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
 			TotalTasks:     req.NumFrames * jobTypes.RenderJob.SampleDivision,
 			SampleDivision: jobTypes.RenderJob.SampleDivision,
-		}
-
-		err := s.handleRenderJobSubmit(jobID, req, jobTypes.RenderJob)
-		if err != nil {
-			return nil, err
+			OriginalReq:    req,
 		}
 	case *pb.SubmitJobRequest_CompositeJob:
 		newJob = &CompositeJob{
@@ -54,11 +52,7 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 			Dependencies: req.DependsOn,
 			Status:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
 			TotalFrames:  req.NumFrames,
-		}
-
-		err := s.handleCompositeJobSubmit(jobID, req, jobTypes.CompositeJob)
-		if err != nil {
-			return nil, err
+			OriginalReq:  req,
 		}
 	default:
 		return nil, fmt.Errorf("[ERROR] Unknown job type provided.")
@@ -67,6 +61,21 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 	// Add the job to the JobTracker
 	if err := s.tracker.AddJob(newJob); err != nil {
 		return nil, err
+	}
+
+	// ONLY queue the tasks if there are NO dependencies!
+	if len(req.DependsOn) == 0 {
+		var err error
+		switch req.JobType.(type) {
+		case *pb.SubmitJobRequest_RenderJob:
+			err = s.handleRenderJobSubmit(jobID, req, req.GetRenderJob())
+		case *pb.SubmitJobRequest_CompositeJob:
+			err = s.handleCompositeJobSubmit(jobID, req, req.GetCompositeJob())
+		}
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &pb.SubmitJobResponse{JobId: jobID}, nil
