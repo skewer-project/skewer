@@ -1,12 +1,12 @@
 #ifndef SKWR_FILM_FILM_H_
 #define SKWR_FILM_FILM_H_
 
+#include <exrio/deep_image.h>
+
 #include <atomic>
 #include <cstddef>
 #include <memory>
 #include <vector>
-
-#include <exrio/deep_image.h>
 
 #include "core/color.h"
 #include "film/image_buffer.h"
@@ -37,7 +37,7 @@ class Film {
 
     // Saves to disk (PPM, EXR)
     void WriteImage(const std::string& filename) const;
-    deep_compositor::DeepImage BuildDeepImage(const int total_pixel_samples) const;
+    exrio::DeepImage BuildDeepImage(const int total_pixel_samples) const;
 
     int width() { return width_; }
     int height() { return height_; }
