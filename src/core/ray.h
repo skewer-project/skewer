@@ -21,6 +21,7 @@ class Ray {
     }
 
     const Point3& origin() const { return orig_; }
+    Point3& origin() { return orig_; }
     const Vec3& direction() const { return dir_; }
     const Vec3& inv_direction() const { return inv_dir_; }
     const VolumeStack& vol_stack() const { return vol_stack_; }
