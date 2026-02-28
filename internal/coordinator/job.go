@@ -120,6 +120,14 @@ type JobTracker struct {
 	activeJobs map[string]Job
 }
 
+func NewJobTracker() *JobTracker {
+	return &JobTracker{
+		graph:       *NewDAG(), // Initialize the internal DAG
+		pendingDeps: make(map[string]int),
+		activeJobs:  make(map[string]Job),
+	}
+}
+
 func (jt *JobTracker) AddJob(job Job) error {
 	// Check if job already exists
 	jt.mu.Lock()
