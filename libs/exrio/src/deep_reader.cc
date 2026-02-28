@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-namespace deep_compositor {
+namespace exrio {
 
 bool isDeepEXR(const std::string& filename) {
     try {
@@ -238,4 +238,4 @@ DeepImage loadDeepEXR(const std::string& filename) {
     return result;
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio
