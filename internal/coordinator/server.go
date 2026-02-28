@@ -277,12 +277,74 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 // STUBBED HELPERS
 // =====================================================================
 
-func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, params *pb.RenderJobParams) error {
-	// TODO: Use your math logic here!
-	// Loop over req.NumFrames.
-	// Loop over params.SampleDivision.
-	// Create *pb.RenderTask objects.
-	// Call s.scheduler.EnqueueTask(...) for each chunk.
+func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
+	numSamplesPerWorker := job.GetTotalSamples() / job.GetSampleDivision()
+	extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
+
+	for frameID := range req.NumFrames {
+		var sampleStart int32 = 0
+		var outputUris []string
+		for chunk := range numSamplesPerWorker {
+			uriSuffix := fmt.Sprintf("frame-%d-chunk-%d", frameID, chunk)
+
+			// Add in remainder
+			var sampleEnd int32 = sampleStart + numSamplesPerWorker
+			if extraSamplesPerWorker > 0 {
+				extraSamplesPerWorker--
+				sampleEnd++
+			}
+
+			// Safe URI joining with net/url
+			outputUri, err := url.JoinPath(job.GetOutputUriPrefix(), uriSuffix)
+			if err != nil {
+				return err
+			}
+
+			outputUris = append(outputUris, outputUri)
+
+			task := &pb.RenderTask{
+				SceneUri: job.GetSceneUri(),
+				Width:    req.GetWidth(),
+				Height:   req.GetHeight(),
+
+				SampleStart: sampleStart,
+				SampleEnd:   sampleEnd, // End is EXCLUSIVE
+
+				OutputUri: outputUri,
+			}
+			s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID))
+
+			sampleStart = sampleEnd
+		}
+
+		// Create the Merge task
+		mergeUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
+		if err != nil {
+			return err
+		}
+
+		mergeTask := &pb.MergeTask{
+			PartialDeepExrUris: outputUris,
+			OutputUri:          mergeUri,
+		}
+
+		// DON'T enqueue MergeTask. Store it in memory instead and wait until all chunks are completed
+		genericJob, err := s.tracker.GetJob(req.GetJobId())
+		if err != nil {
+			return err
+		}
+		renderJob := genericJob.(*RenderJob)
+		if renderJob.Frames == nil {
+			renderJob.Frames = make(map[string]*FrameState)
+		}
+
+		renderJob.Frames[fmt.Sprint(frameID)] = &FrameState{
+			CompletedChunks: 0,
+			TotalChunks:     renderJob.SampleDivision,
+			PendingMerge:    mergeTask,
+		}
+	}
+
 	return nil
 }
 
