@@ -4,6 +4,7 @@
 #include "deep_compositor.h"
 #include "utils.h"
 #include "deep_options.h"
+#include "deep_info.h"
 
 #include <iostream>
 #include <string>
@@ -41,10 +42,10 @@ void printUsage(const char* programName) {
               << "  --help, -h           Show this help message\n\n"
               << "Example:\n"
               << "  " << programName << " --deep-output --verbose \\\n"
-              << "      demo/inputs/nebula_red.exr \\\n"
-              << "      demo/inputs/nebula_green.exr \\\n"
-              << "      demo/inputs/backdrop.exr \\\n"
+              << "      test_data/ground_plane.exr \\\n"
               << "      output/result\n\n"
+              << "      test_data/sphere_front.exr \\\n"
+              << "      test_data/sphere_back.exr \\\n"
               << "Outputs:\n"
               << "  <output_prefix>_merged.exr  (deep EXR, if --deep-output)\n"
               << "  <output_prefix>_flat.exr    (standard EXR)\n"
@@ -232,7 +233,7 @@ int main(int argc, char* argv[]) {
     int width = imagesInfo[0]->width();
 
     log("Starting processing...");
-     std::vector<float> finalImage = processAllEXR(opts, height, width, imagesInfo);
+    std::vector<float> finalImage = processAllEXR(opts, height, width, imagesInfo);
 
 
     log("\nWriting outputs...");

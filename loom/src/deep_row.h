@@ -113,7 +113,7 @@ private:
 
 
 // Converts a row of deep data into a flattened RGBA image row
-void flattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
+inline void flattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
     for (int x = 0; x < deepRow.width; ++x) {
         const float* pixelData = deepRow.getPixelData(x);
         int numSamples = deepRow.sampleCounts[x];

@@ -3,6 +3,7 @@
 #include <exrio/deep_image.h>
 #include <vector>
 #include "deep_options.h"
+#include "deep_info.h"
 
 namespace deep_compositor {
 
