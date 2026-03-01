@@ -68,7 +68,6 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width, std
     std::vector<std::vector<DeepRow>> m_inputBuffer;
     std::vector<DeepRow> m_mergedBuffer;
 
-     std::mutex merge_mutex; // For synchronizing progress bar updates
 
     // Initialize all row statuses to EMPTY (0)
     std::vector<std::atomic<int>> rowStatus(height);

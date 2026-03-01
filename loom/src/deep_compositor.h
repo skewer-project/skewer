@@ -2,6 +2,8 @@
 
 #include <exrio/deep_image.h>
 #include <vector>
+#include <memory>
+
 #include "deep_options.h"
 #include "deep_info.h"
 
