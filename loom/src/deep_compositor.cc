@@ -5,6 +5,7 @@
 #include "indicators.h"
 #include "deep_row.h"
 #include "deep_merger.h"
+#include "deep_info.h"
 
 #include <exrio/deep_reader.h>
 #include <OpenEXR/ImfDeepScanLineInputFile.h>
