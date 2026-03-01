@@ -78,8 +78,6 @@ public:
     }
 
 
-    DeepInfo(DeepInfo&&) noexcept = default;
-    DeepInfo& operator=(DeepInfo&&) noexcept = default;
 
     // 2. Explicitly forbid Copying (Since the EXR file handle can't be duplicated)
     DeepInfo(const DeepInfo&) = delete;
