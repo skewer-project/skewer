@@ -40,21 +40,21 @@ file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
 
 target_compile_options(deep_compositor PRIVATE -Wall -Wextra -Wpedantic)
 
-# if(BUILD_TESTING)
-#     include(FetchContent)
-#     if(NOT TARGET GTest::gtest_main)
-#         FetchContent_Declare(
-#             googletest
-#             URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-#         )
-#         set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-#         FetchContent_MakeAvailable(googletest)
-#     endif()
+if(BUILD_TESTING)
+    include(FetchContent)
+    if(NOT TARGET GTest::gtest_main)
+        FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+        )
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(googletest)
+    endif()
 
-#     enable_testing()
-#     include(GoogleTest)
-#     add_subdirectory(tests)
-# endif()
+    enable_testing()
+    include(GoogleTest)
+    add_subdirectory(tests)
+endif()
 
 # Install targets
 install(TARGETS deep_compositor
