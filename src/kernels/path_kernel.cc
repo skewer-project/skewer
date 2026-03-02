@@ -1,6 +1,3 @@
-#ifndef SKWR_KERNELS_PATH_KERNEL_H_
-#define SKWR_KERNELS_PATH_KERNEL_H_
-
 #include <cstdlib>
 
 #include "core/color/color.h"
@@ -14,7 +11,7 @@
 #include "core/sampling/surface_interaction.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
-#include "kernels/volume_dispatch.h"
+#include "kernels/volume_dispatch.cc"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "materials/texture_lookup.h"
@@ -412,8 +409,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 }
 
 }  // namespace skwr
-
-#endif  // SKWR_KERNELS_PATH_KERNEL_H_
 
 /**
  * RGB final_rgb = SpectrumToRGB(L, wl);

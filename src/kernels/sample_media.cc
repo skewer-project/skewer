@@ -1,6 +1,3 @@
-#ifndef SKWR_KERNELS_SAMPLE_MEDIA_H_
-#define SKWR_KERNELS_SAMPLE_MEDIA_H_
-
 #include <algorithm>
 #include <cmath>
 
@@ -155,5 +152,3 @@ inline bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surfa
 }
 
 }  // namespace skwr
-
-#endif  // SKWR_KERNELS_SAMPLE_MEDIA_H_
