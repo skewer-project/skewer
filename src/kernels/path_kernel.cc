@@ -1,3 +1,5 @@
+#include "kernels/path_kernel.h"
+
 #include <cstdlib>
 
 #include "core/color/color.h"
@@ -11,7 +13,9 @@
 #include "core/sampling/surface_interaction.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
-#include "kernels/volume_dispatch.cc"
+#include "kernels/utils/visibility.h"
+#include "kernels/utils/volume_tracking.h"
+#include "kernels/volume_dispatch.h"
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "materials/texture_lookup.h"
@@ -52,8 +56,8 @@ inline void AddDeepSegment(PathSample& sample, const Ray& ray, float t_min, floa
  * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
  * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
  */
-inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
-                     const SampledWavelengths& wl) {
+PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
+              const SampledWavelengths& wl) {
     PathSample result;
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
@@ -94,63 +98,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 Ray shadow_ray(mi.point, wi_light);
                 shadow_ray.vol_stack() = r.vol_stack();
 
-                Spectrum Tr(1.0f);
-                float remaining_dist = dist;
-                bool is_visible = true;
+                Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dist, rng, wl);
 
-                while (true) {
-                    SurfaceInteraction shadow_si;
-                    if (scene.Intersect(shadow_ray, kShadowEpsilon, remaining_dist - kShadowEpsilon,
-                                        &shadow_si)) {
-                        // Accumulate volume transmittance through the current medium up to the hit
-                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t);
-
-                        // Transport policy (update if it crosses boundary)
-                        if (shadow_si.interior_medium != shadow_si.exterior_medium) {
-                            float to_light_dot_n = Dot(shadow_ray.direction(), shadow_si.n_geom);
-                            if (to_light_dot_n < 0.0f) {
-                                if (shadow_si.interior_medium != kVacuumMediumId &&
-                                    shadow_si.interior_medium != 0) {
-                                    shadow_ray.vol_stack().Push(shadow_si.interior_medium,
-                                                                shadow_si.priority);
-                                }
-                            } else {
-                                if (shadow_si.interior_medium != kVacuumMediumId &&
-                                    shadow_si.interior_medium != 0) {
-                                    shadow_ray.vol_stack().Pop(shadow_si.interior_medium);
-                                }
-                            }
-                        }
-
-                        // Shading policy (check opacity)
-                        if (shadow_si.material_id != kNullMaterialId) {
-                            const Material& shadow_mat = scene.GetMaterial(shadow_si.material_id);
-
-                            // If it's a solid, opaque object, the light is blocked
-                            if (shadow_mat.type != MaterialType::Dielectric &&
-                                !shadow_mat.IsTransparent()) {
-                                is_visible = false;
-                                break;
-                            }
-
-                            // If it's glass/transparent, attenuate by the surface color
-                            Tr *= CurveToSpectrum(shadow_mat.albedo, wl);
-                        }
-
-                        // Advance the shadow ray past the surface
-                        Ray next_ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
-                                     shadow_ray.direction());
-                        next_ray.vol_stack() = shadow_ray.vol_stack();
-                        shadow_ray = next_ray;
-                        remaining_dist -= shadow_si.t;
-                        if (remaining_dist <= 0.0f) break;
-                    } else {
-                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
-                        break;
-                    }
-                }
-
-                if (is_visible && Tr.MaxComponentValue() > 0.0f) {
+                if (Tr.MaxComponentValue() > 0.0f) {
                     float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                     if (cos_light > 0) {
                         float light_pdf_w = ls.pdf * dist_sq / cos_light;
@@ -266,61 +216,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
                 shadow_ray.vol_stack() = r.vol_stack();
 
-                Spectrum Tr(1.0f);
-                float remaining_dist = dist;
-                bool is_visible = true;
+                Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dist, rng, wl);
 
-                while (true) {
-                    SurfaceInteraction shadow_si;  // dummy
-                    if (scene.Intersect(shadow_ray, kShadowEpsilon,
-                                        remaining_dist - 2.0f * kShadowEpsilon, &shadow_si)) {
-                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t);
-
-                        // Transport policy (update if it crosses boundary)
-                        if (shadow_si.interior_medium != shadow_si.exterior_medium) {
-                            float to_light_dot_n = Dot(shadow_ray.direction(), shadow_si.n_geom);
-                            if (to_light_dot_n < 0.0f) {
-                                if (shadow_si.interior_medium != kVacuumMediumId &&
-                                    shadow_si.interior_medium != 0) {
-                                    shadow_ray.vol_stack().Push(shadow_si.interior_medium,
-                                                                shadow_si.priority);
-                                }
-                            } else {
-                                if (shadow_si.interior_medium != kVacuumMediumId &&
-                                    shadow_si.interior_medium != 0) {
-                                    shadow_ray.vol_stack().Pop(shadow_si.interior_medium);
-                                }
-                            }
-                        }
-
-                        // Shading policy (check opacity)
-                        if (shadow_si.material_id != kNullMaterialId) {
-                            const Material& shadow_mat = scene.GetMaterial(shadow_si.material_id);
-
-                            // If it's a solid, opaque object, the light is blocked
-                            if (shadow_mat.type != MaterialType::Dielectric &&
-                                !shadow_mat.IsTransparent()) {
-                                is_visible = false;
-                                break;
-                            }
-
-                            // If it's glass/transparent, attenuate by the surface color
-                            Tr *= CurveToSpectrum(shadow_mat.albedo, wl);
-                        }
-
-                        // Advance the shadow ray past the surface
-                        Ray next_ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
-                                     shadow_ray.direction());
-                        next_ray.vol_stack() = shadow_ray.vol_stack();
-                        shadow_ray = next_ray;
-                        remaining_dist -= shadow_si.t;
-                        if (remaining_dist <= 0.0f) break;
-                    } else {
-                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
-                        break;
-                    }
-                }
-                if (is_visible && Tr.MaxComponentValue() > 0.0f) {
+                if (Tr.MaxComponentValue() > 0.0f) {
                     float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                     // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                     if (cos_light > 0) {

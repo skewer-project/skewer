@@ -8,6 +8,7 @@
 #include "core/sampling/path_sample.h"
 #include "core/sampling/sampling.h"
 #include "core/sampling/wavelength_sampler.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
 #include "film/film.h"
 #include "kernels/path_kernel.h"
