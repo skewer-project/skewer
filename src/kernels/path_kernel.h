@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 #include "core/color/color.h"
+#include "core/cpu_config.h"
 #include "core/math/constants.h"
 #include "core/math/vec3.h"
 #include "core/ray.h"
@@ -96,15 +97,65 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 Ray shadow_ray(mi.point, wi_light);
                 shadow_ray.vol_stack() = r.vol_stack();
 
-                SurfaceInteraction shadow_si;
-                if (!scene.Intersect(shadow_ray, 0.f, dist - kShadowEpsilon, &shadow_si)) {
+                Spectrum Tr(1.0f);
+                float remaining_dist = dist;
+                bool is_visible = true;
+
+                while (true) {
+                    SurfaceInteraction shadow_si;
+                    if (scene.Intersect(shadow_ray, kShadowEpsilon, remaining_dist - kShadowEpsilon,
+                                        &shadow_si)) {
+                        // Accumulate volume transmittance through the current medium up to the hit
+                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t);
+
+                        // Transport policy (update if it crosses boundary)
+                        if (shadow_si.interior_medium != shadow_si.exterior_medium) {
+                            float to_light_dot_n = Dot(shadow_ray.direction(), shadow_si.n_geom);
+                            if (to_light_dot_n < 0.0f) {
+                                if (shadow_si.interior_medium != kVacuumMediumId &&
+                                    shadow_si.interior_medium != 0) {
+                                    shadow_ray.vol_stack().Push(shadow_si.interior_medium,
+                                                                shadow_si.priority);
+                                }
+                            } else {
+                                shadow_ray.vol_stack().Pop(
+                                    shadow_ray.vol_stack().GetActiveMedium());
+                            }
+                        }
+
+                        // Shading policy (check opacity)
+                        if (shadow_si.material_id != kNullMaterialId) {
+                            const Material& shadow_mat = scene.GetMaterial(shadow_si.material_id);
+
+                            // If it's a solid, opaque object, the light is blocked
+                            if (shadow_mat.type != MaterialType::Dielectric &&
+                                !shadow_mat.IsTransparent()) {
+                                is_visible = false;
+                                break;
+                            }
+
+                            // If it's glass/transparent, attenuate by the surface color
+                            Tr *= CurveToSpectrum(shadow_mat.albedo, wl);
+                        }
+
+                        // Advance the shadow ray past the surface
+                        shadow_ray =
+                            Ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
+                                shadow_ray.direction());
+                        remaining_dist -= shadow_si.t;
+                    } else {
+                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
+                        break;
+                    }
+                }
+
+                if (is_visible && Tr.MaxComponentValue() > 0.0f) {
                     float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                     if (cos_light > 0) {
                         float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
-                        // [Volume Specific] Evaluate Phase & Transmittance
+                        // Evaluate Phase & Transmittance
                         float phase_val = EvalHG(mi.phase_g, mi.wo, wi_light);
-                        Spectrum Tr = CalculateTransmittance(scene, rng, shadow_ray, dist);
                         Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
 
                         // Accumulate
@@ -139,6 +190,33 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         } else if (scatterSurface) {
             ray_t += si.t;
             const Material& mat = scene.GetMaterial(si.material_id);
+
+            // ==========================================
+            // TRANSPORT POLICY (Medium Transitions)
+            // ==========================================
+            if (si.interior_medium != si.exterior_medium) {
+                float to_cam = Dot(si.wo, si.n_geom);
+                if (to_cam > 0.0f) {
+                    // Entering the interior medium
+                    if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
+                        r.vol_stack().Push(si.interior_medium, si.priority);
+                    }
+                } else {
+                    // Exiting the interior medium
+                    // TODO: For nested dielectrics, pop based on specific ID instead of active med
+                    r.vol_stack().Pop(r.vol_stack().GetActiveMedium());
+                }
+            }
+            // ==========================================
+            // SHADING POLICY (Opacity & BSDF)
+            // ==========================================
+            if (si.material_id == kVacuumMediumId) {
+                // This is a pure medium boundary. No shading required.
+                // Advance the ray strictly forward and continue traversing.
+                r = Ray(si.point + (r.direction() * kShadowEpsilon), r.direction());
+                continue;
+            }
+
             ShadingData sd = ResolveShadingData(mat, si, scene);
             // Lazy Evaluation
             Spectrum opacity(1.0f);
@@ -183,8 +261,59 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 Vec3 wi_light = to_light / dist;
 
                 Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
-                SurfaceInteraction shadow_si;  // dummy
-                if (!scene.Intersect(shadow_ray, 0.f, dist - 2.0f * kShadowEpsilon, &shadow_si)) {
+                shadow_ray.vol_stack() = r.vol_stack();
+
+                Spectrum Tr(1.0f);
+                float remaining_dist = dist;
+                bool is_visible = true;
+
+                while (true) {
+                    SurfaceInteraction shadow_si;  // dummy
+                    if (scene.Intersect(shadow_ray, 0.0f, remaining_dist - 2.0f * kShadowEpsilon,
+                                        &shadow_si)) {
+                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t);
+
+                        // Transport policy (update if it crosses boundary)
+                        if (shadow_si.interior_medium != shadow_si.exterior_medium) {
+                            float to_light_dot_n = Dot(shadow_ray.direction(), shadow_si.n_geom);
+                            if (to_light_dot_n < 0.0f) {
+                                if (shadow_si.interior_medium != kVacuumMediumId &&
+                                    shadow_si.interior_medium != 0) {
+                                    shadow_ray.vol_stack().Push(shadow_si.interior_medium,
+                                                                shadow_si.priority);
+                                }
+                            } else {
+                                shadow_ray.vol_stack().Pop(
+                                    shadow_ray.vol_stack().GetActiveMedium());
+                            }
+                        }
+
+                        // Shading policy (check opacity)
+                        if (shadow_si.material_id != kNullMaterialId) {
+                            const Material& shadow_mat = scene.GetMaterial(shadow_si.material_id);
+
+                            // If it's a solid, opaque object, the light is blocked
+                            if (shadow_mat.type != MaterialType::Dielectric &&
+                                !shadow_mat.IsTransparent()) {
+                                is_visible = false;
+                                break;
+                            }
+
+                            // If it's glass/transparent, attenuate by the surface color
+                            Tr *= CurveToSpectrum(shadow_mat.albedo, wl);
+                        }
+
+                        // Advance the shadow ray past the surface
+                        shadow_ray =
+                            Ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
+                                shadow_ray.direction());
+                        remaining_dist -= shadow_si.t;
+                    } else {
+                        Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
+                        break;
+                    }
+                }
+                if (is_visible && Tr.MaxComponentValue() > 0.0f) {
                     float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
                     // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                     if (cos_light > 0) {
@@ -198,7 +327,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                         // Weight = 1.0 / (N_lights * PDF_w)
                         // L += beta * f * Le * cos_surf * Weight
                         Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
-                        Spectrum direct_L = beta * f_val * light_spec * cos_surf /
+                        Spectrum direct_L = beta * f_val * Tr * light_spec * cos_surf /
                                             (light_pdf_w * scene.InvLightCount());
                         // interval_L += T * L_scatter;
                         direct_L *= opacity;
@@ -206,6 +335,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
                 }
             }
+
             if (specular_bounce) {
                 AddDeepSegment(result, r, segment_start, ray_t, segment_L, 1.0f, r.origin(),
                                config.cam_w, wl);
@@ -234,26 +364,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
 
                     beta *= weight;
-
-                    Ray next_ray(si.point + (wi * kShadowEpsilon), wi);
-                    next_ray.vol_stack() = r.vol_stack();
-
-                    // 2. Manage the volume stack boundaries
-                    float to_cam = Dot(si.wo, si.n_geom);
-                    bool is_transmission = (to_cam * refract < 0.0f);
-
-                    if (is_transmission) {
-                        bool hit_outside = to_cam > 0.0f;
-                        if (hit_outside) {
-                            uint16_t interior_medium = si.interior_medium;
-                            if (interior_medium != 0) {
-                                next_ray.vol_stack().Push(interior_medium, si.priority);
-                            }
-                        } else {
-                            next_ray.vol_stack().Pop(next_ray.vol_stack().GetActiveMedium());
-                        }
-                    }
-                    r = next_ray;
+                    r = Ray(si.point + (wi * kShadowEpsilon), wi);
 
                     // If this bounce was sharp (Metal/Glass), next hit counts as specular
                     specular_bounce =
