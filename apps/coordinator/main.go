@@ -15,7 +15,7 @@ func main() {
 	// Listen on a TCP port
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatalf("[Error] Failed to listen: %v", err)
+		log.Fatalf("[ERROR] Failed to listen: %v", err)
 	}
 	log.Printf("Coordinator listening on :50051")
 
@@ -31,7 +31,7 @@ func main() {
 	// Create Cloud Manager (passing an empty string for local testing if credentials aren't explicitly provided yet)
 	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")
 	if err != nil {
-		log.Fatalf("[Error] Failed to initialize Cloud Manager: %v", err)
+		log.Fatalf("[ERROR] Failed to initialize Cloud Manager: %v", err)
 	}
 
 	myServer := coordinator.NewServer(scheduler, cloudManager, tracker) // Logical server
@@ -41,6 +41,6 @@ func main() {
 
 	// Serve the server
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("[Error] Failed to serve: %v", err)
+		log.Fatalf("[ERROR] Failed to serve: %v", err)
 	}
 }
