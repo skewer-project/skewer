@@ -119,7 +119,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                                 }
                             } else {
                                 int active = shadow_ray.vol_stack().GetActiveMedium();
-                                if (active != 0) shadow_ray.vol_stack().Pop(active);
+                                if (active != 0 && active != kVacuumMediumId) {
+                                    r.vol_stack().Pop(active);
+                                }
                             }
                         }
 
@@ -206,7 +208,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     // Exiting the interior medium
                     // TODO: For nested dielectrics, pop based on specific ID instead of active med
                     int active = r.vol_stack().GetActiveMedium();
-                    if (active != 0) r.vol_stack().Pop(active);
+                    if (active != 0 && active != kVacuumMediumId) {
+                        r.vol_stack().Pop(active);
+                    }
                 }
             }
             // ==========================================
@@ -288,7 +292,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                                 }
                             } else {
                                 int active = shadow_ray.vol_stack().GetActiveMedium();
-                                if (active != 0) shadow_ray.vol_stack().Pop(active);
+                                if (active != 0 && active != kVacuumMediumId) {
+                                    r.vol_stack().Pop(active);
+                                }
                             }
                         }
 
