@@ -139,9 +139,11 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                         }
 
                         // Advance the shadow ray past the surface
+                        VolumeStack stack = shadow_ray.vol_stack();
                         shadow_ray =
                             Ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
                                 shadow_ray.direction());
+                        shadow_ray.vol_stack() = stack;
                         remaining_dist -= shadow_si.t;
                     } else {
                         Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
@@ -210,10 +212,10 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             // ==========================================
             // SHADING POLICY (Opacity & BSDF)
             // ==========================================
-            if (si.material_id == kVacuumMediumId) {
-                // This is a pure medium boundary. No shading required.
-                // Advance the ray strictly forward and continue traversing.
-                r = Ray(si.point + (r.direction() * kShadowEpsilon), r.direction());
+            if (si.material_id == kNullMaterialId) {
+                Ray next_ray(si.point + (r.direction() * kShadowEpsilon), r.direction());
+                next_ray.vol_stack() = r.vol_stack();
+                r = next_ray;
                 continue;
             }
 
@@ -304,9 +306,11 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                         }
 
                         // Advance the shadow ray past the surface
+                        VolumeStack stack = shadow_ray.vol_stack();
                         shadow_ray =
                             Ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
                                 shadow_ray.direction());
+                        shadow_ray.vol_stack() = stack;
                         remaining_dist -= shadow_si.t;
                     } else {
                         Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
@@ -364,7 +368,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
 
                     beta *= weight;
+                    VolumeStack stack = r.vol_stack();
                     r = Ray(si.point + (wi * kShadowEpsilon), wi);
+                    r.vol_stack() = stack;
 
                     // If this bounce was sharp (Metal/Glass), next hit counts as specular
                     specular_bounce =
