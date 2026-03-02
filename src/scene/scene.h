@@ -43,6 +43,7 @@ class Scene {
     const std::vector<Material>& Materials() const { return materials_; }
     const std::vector<AreaLight>& Lights() const { return lights_; }
     const std::vector<HomogeneousMedium>& homogeneous_media() const { return homogeneous_media_; }
+    const std::vector<GridMedium>& grid_media() const { return grid_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
 
     void Build();  // Construct the BVH from the shapes list
@@ -60,7 +61,8 @@ class Scene {
     std::vector<Triangle> triangles_;
     std::vector<AreaLight> lights_;
     std::vector<HomogeneousMedium> homogeneous_media_;
-    // std::vector<GridMedium> grid_media_;
+    std::vector<GridMedium> grid_media_;
+    // std::vector<NanoVDBMedium> nanovdb_media_; // TODO
     BVH bvh_;
     float inv_light_count_;
     uint16_t global_medium_id_ = 0;  // 0 represents Vacuum
