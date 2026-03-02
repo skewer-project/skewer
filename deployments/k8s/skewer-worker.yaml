@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skewer-worker
+  namespace: default
+  labels:
+    app: skewer-worker
+spec:
+  replicas: 0 # Scaled dynamically by the Coordinator
+  selector:
+    matchLabels:
+      app: skewer-worker
+  template:
+    metadata:
+      labels:
+        app: skewer-worker
+    spec:
+      containers:
+      - name: worker
+        # NOTE: Replace this with Google Artifact Registry URI
+        image: skewer-worker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: COORDINATOR_ADDRESS
+          value: "skewer-coordinator.default.svc.cluster.local:50051"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/etc/secrets/credentials.json"
+        volumeMounts:
+        - name: gcp-credentials
+          mountPath: "/etc/secrets"
+          readOnly: true
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "1Gi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+      volumes:
+      - name: gcp-credentials
+        secret:
+          secretName: skewer-gcp-creds
+          optional: false
