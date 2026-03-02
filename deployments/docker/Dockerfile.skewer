@@ -1,0 +1,42 @@
+# Stage 1: Build the C++ Renderer
+FROM ubuntu:24.04 AS builder
+
+# Prevent tzdata apt-get prompt from hanging
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    libopenexr-dev \
+    libimath-dev \
+    zlib1g-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the entire source tree
+COPY . .
+
+# Run the CMake build specifically for the Skewer target
+RUN cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF
+RUN cmake --build --preset release --target skewer-render --parallel 2
+
+# Stage 2: Create a minimal runner image
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install ONLY the runtime libraries required to execute the binary
+RUN apt-get update && apt-get install -y \
+    libimath-3-1-29 \
+    libopenexr-3-1-30 \
+    zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/build/release/skewer/skewer-render /usr/local/bin/skewer-render
+
+# Setting the entrypoint directly to the skewer binary makes the container behave like the CLI tool
+ENTRYPOINT ["/usr/local/bin/skewer-render"]
