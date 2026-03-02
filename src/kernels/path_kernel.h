@@ -191,7 +191,6 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
         } else if (scatterSurface) {
             ray_t += si.t;
-            const Material& mat = scene.GetMaterial(si.material_id);
 
             // ==========================================
             // TRANSPORT POLICY (Medium Transitions)
@@ -219,6 +218,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 continue;
             }
 
+            const Material& mat = scene.GetMaterial(si.material_id);
             ShadingData sd = ResolveShadingData(mat, si, scene);
             // Lazy Evaluation
             Spectrum opacity(1.0f);
@@ -271,8 +271,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
                 while (true) {
                     SurfaceInteraction shadow_si;  // dummy
-                    if (scene.Intersect(shadow_ray, 0.0f, remaining_dist - 2.0f * kShadowEpsilon,
-                                        &shadow_si)) {
+                    if (scene.Intersect(shadow_ray, kShadowEpsilon,
+                                        remaining_dist - 2.0f * kShadowEpsilon, &shadow_si)) {
                         Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t);
 
                         // Transport policy (update if it crosses boundary)
