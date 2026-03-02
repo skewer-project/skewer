@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include "core/math/constants.h"
 #include "core/math/onb.h"
 #include "core/ray.h"
 #include "core/sampling/medium_interaction.h"
@@ -16,7 +17,7 @@ namespace skwr {
 
 /* Volume Dispatcher - returns true if scattering event occurs, false if hit surface */
 inline bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spectrum& beta,
-                         MediumInteraction& mi, const SampledWavelengths& wl) {
+                         MediumInteraction& mi) {
     uint16_t active_id = ray.vol_stack().GetActiveMedium();
 
     // Decode the Bit-Packed ID
@@ -32,7 +33,7 @@ inline bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& r
             return SampleHomogeneous(scene.homogeneous_media()[index], ray, t_max, rng, beta, mi);
 
         case static_cast<int>(MediumType::Grid):
-            return SampleGrid(scene.grid_media()[index], ray, t_max, rng, beta, mi, wl);
+            return SampleGrid(scene.grid_media()[index], ray, t_max, rng, beta, mi);
             return false;
 
         default:
@@ -49,8 +50,8 @@ inline bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& r
 inline Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_ray,
                                            float dist, RNG& rng) {
     float t_min_box = 0.0f;
-    float t_max_box = 0.0f;
-    if (!medium.bbox.Intersect(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
+    float t_max_box = kInfinity;
+    if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
 
     float t_min = std::max(0.0f, t_min_box);
     float t_max = std::min(dist, t_max_box);
