@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 
@@ -20,7 +21,20 @@ func main() {
 
 	grpcServer := grpc.NewServer() // Generic gRPC server
 
-	myServer := coordinator.NewServer() // Logical server
+	// Create dependencies
+	// TODO: Make these configurable and make arguments for skewer and loom queue sizes separate
+	scheduler := coordinator.NewScheduler(10000) // The max queue size for both task queues.
+	tracker := coordinator.NewJobTracker()
+
+	ctx := context.Background()
+
+	// Create Cloud Manager (passing an empty string for local testing if credentials aren't explicitly provided yet)
+	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")
+	if err != nil {
+		log.Fatalf("[Error] Failed to initialize Cloud Manager: %v", err)
+	}
+
+	myServer := coordinator.NewServer(scheduler, cloudManager, tracker) // Logical server
 
 	// Register logical server with gRPC engine
 	pb.RegisterCoordinatorServiceServer(grpcServer, myServer)
