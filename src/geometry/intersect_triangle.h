@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "core/math/vec3.h"
+#include "core/ray.h"
 #include "core/sampling/surface_interaction.h"
 #include "geometry/triangle.h"
 
@@ -43,7 +44,7 @@ inline bool IntersectTriangle(const Ray& r, const Triangle& tri, float t_min, fl
     // For flat meshes n0==n1==n2==geometric normal, so no branch needed.
     float w = 1.0f - u - v;
     si->n_geom = Normalize(w * tri.n0 + u * tri.n1 + v * tri.n2);
-    si->SetFaceNormal(r, si->n_geom);
+    si->wo = -r.direction();
 
     // Barycentric interpolation of UV coordinates.
     si->uv = w * tri.uv0 + u * tri.uv1 + v * tri.uv2;
