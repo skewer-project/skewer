@@ -40,23 +40,30 @@ inline bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& r
     }
 }
 
-inline Spectrum CalculateTransmittance(const Scene& scene, const Ray& shadow_ray, float dist) {
+inline Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray,
+                                       float dist) {
     uint16_t active_id = shadow_ray.vol_stack().GetActiveMedium();
     if (active_id == 0) return Spectrum(1.0f);  // Vacuum
 
-    MediumType type = static_cast<MediumType>(active_id >> 14);
-    uint16_t index = active_id & 0x3FFF;
+    MediumType type = static_cast<MediumType>(active_id >> kMediumTypeShift);
+    uint16_t index = active_id & kMediumIndexMask;
 
-    if (type == MediumType::Homogeneous) {
-        const HomogeneousMedium& med = scene.homogeneous_media()[index];
-        Spectrum sigma_t = med.Extinction();
-        Spectrum tr;
-        for (int i = 0; i < kNSamples; ++i) {
-            tr[i] = std::exp(-sigma_t[i] * dist);
+    switch (type) {
+        case MediumType::Homogeneous: {
+            const HomogeneousMedium& med = scene.homogeneous_media()[index];
+            Spectrum sigma_t = med.Extinction();
+            Spectrum tr;
+            for (int i = 0; i < kNSamples; ++i) {
+                tr[i] = std::exp(-sigma_t[i] * dist);
+            }
+            return tr;
         }
-        return tr;
+        case MediumType::Grid: {
+            return CalculateGridTransmittance(scene.grid_media()[index], shadow_ray, dist, rng);
+        }
+        default:
+            return Spectrum(1.0f);
     }
-    return Spectrum(1.0f);  // Fallback
 }
 
 inline float EvalHG(float g, const Vec3& wo, const Vec3& wi) {

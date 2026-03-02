@@ -104,7 +104,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
 
                         // [Volume Specific] Evaluate Phase & Transmittance
                         float phase_val = EvalHG(mi.phase_g, mi.wo, wi_light);
-                        Spectrum Tr = CalculateTransmittance(scene, shadow_ray, dist);
+                        Spectrum Tr = CalculateTransmittance(scene, rng, shadow_ray, dist);
                         Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
 
                         // Accumulate
