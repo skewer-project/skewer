@@ -52,16 +52,16 @@ struct GridMedium {
     // Helper to get base extinction
     Spectrum Extinction() const { return sigma_a_base + sigma_s_base; }
 
-    // Procedural density for testing (returns 0.0 to 1.0)
+    // Procedural Soft Cloud: Density falls off linearly from the center
     // Later, this will do a 3D array lookup or VDB sample.
     float GetDensity(const Point3& p) const {
         Vec3 center = bbox.Centroid();
         float radius = (bbox.max().x() - bbox.min().x()) * 0.5f;
-        // procedural sphere stub
-        if ((p - center).LengthSquared() < radius * radius) {
-            return 1.0f;  // Full density
-        }
-        return 0.0f;  // Empty space
+        float dist = (p - center).Length();
+        if (dist >= radius) return 0.0f;
+
+        // Smooth linear falloff: 1.0 at center, 0.0 at radius edge
+        return 1.0f - (dist / radius);
     }
 
     // TODO: When implementing OpenVDB + Cam update
