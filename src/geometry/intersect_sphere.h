@@ -32,7 +32,8 @@ inline bool IntersectSphere(const Ray& r, const Sphere& s, float t_min, float t_
 
     // Outward normal (before face-flipping)
     Vec3 outward_normal = (si->point - s.center) / s.radius;
-    si->SetFaceNormal(r, outward_normal);
+    si->wo = -r.direction();
+    si->n_geom = outward_normal;
     si->material_id = s.material_id;
     si->exterior_medium = s.exterior_medium;
     si->interior_medium = s.interior_medium;
