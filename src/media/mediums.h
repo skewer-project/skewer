@@ -3,7 +3,9 @@
 
 #include <cstdint>
 
+#include "core/math/vec3.h"
 #include "core/spectral/spectrum.h"
+#include "geometry/boundbox.h"
 
 namespace skwr {
 
@@ -37,21 +39,35 @@ struct HomogeneousMedium {
     Spectrum Extinction() const { return sigma_a + sigma_s; }
 };
 
-/* TODO */
 struct GridMedium {
-    // Pointers or handles to your VDB/Dense 3D voxel grids
-    const float* density_grid;
-
+    // Base properties (color/albedo of the smoke)
     Spectrum sigma_a_base;
     Spectrum sigma_s_base;
     float g;
 
-    // The maximum possible density in the entire grid.
-    // CRITICAL for Delta Tracking (the majorant).
     float max_density;
+
+    BoundBox bbox;
+
+    // Helper to get base extinction
+    Spectrum Extinction() const { return sigma_a_base + sigma_s_base; }
+
+    // Procedural density for testing (returns 0.0 to 1.0)
+    // Later, this will do a 3D array lookup or VDB sample.
+    float GetDensity(const Point3& p) const {
+        Vec3 center = bbox.Centroid();
+        float radius = (bbox.max().x() - bbox.min().x()) * 0.5f;
+        // procedural sphere stub
+        if ((p - center).LengthSquared() < radius * radius) {
+            return 1.0f;  // Full density
+        }
+        return 0.0f;  // Empty space
+    }
 
     // TODO: When implementing OpenVDB + Cam update
     // Transform from World Space to Grid Local Space
+    // --- STUBS FOR OPENVDB / VOXELS ---
+    // openvdb::FloatGrid::Ptr density_grid;
     // Mat4 world_to_grid;
 };
 
