@@ -20,6 +20,8 @@ inline bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& r
                          MediumInteraction& mi) {
     uint16_t active_id = ray.vol_stack().GetActiveMedium();
 
+    if (active_id == 0 || active_id == kVacuumMediumId) return false;
+
     // Decode the Bit-Packed ID
     uint16_t type = active_id >> kMediumTypeShift;
     uint16_t index = active_id & kMediumIndexMask;
@@ -96,7 +98,7 @@ inline Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& 
 inline Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray,
                                        float dist) {
     uint16_t active_id = shadow_ray.vol_stack().GetActiveMedium();
-    if (active_id == 0) return Spectrum(1.0f);  // Vacuum
+    if (active_id == 0 || active_id == kVacuumMediumId) return Spectrum(1.0f);  // Vacuum
 
     MediumType type = static_cast<MediumType>(active_id >> kMediumTypeShift);
     uint16_t index = active_id & kMediumIndexMask;
