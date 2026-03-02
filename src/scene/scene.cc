@@ -20,6 +20,8 @@ void Scene::Build() {
 
     // Re-register sphere lights
     for (uint32_t i = 0; i < (uint32_t)spheres_.size(); ++i) {
+        if (spheres_[i].material_id == kNullMaterialId) continue;
+
         const Material& mat = materials_[spheres_[i].material_id];
         if (mat.IsEmissive()) {
             AreaLight light;
@@ -135,6 +137,7 @@ uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
 uint16_t Scene::AddGridMedium(const GridMedium& m) {
     grid_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
+    // Pack: Type 2 (Grid) + index
     return (static_cast<uint16_t>(MediumType::Grid) << kMediumTypeShift) |
            (index & kMediumIndexMask);
 }
