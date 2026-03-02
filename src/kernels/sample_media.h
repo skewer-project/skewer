@@ -1,5 +1,5 @@
-#ifndef SKWR_KERNELS_SAMPLE_HOMOGENEOUS_H_
-#define SKWR_KERNELS_SAMPLE_HOMOGENEOUS_H_
+#ifndef SKWR_KERNELS_SAMPLE_MEDIA_H_
+#define SKWR_KERNELS_SAMPLE_MEDIA_H_
 
 #include <algorithm>
 #include <cmath>
@@ -10,6 +10,7 @@
 #include "core/sampling/medium_interaction.h"
 #include "core/sampling/rng.h"
 #include "core/spectral/spectrum.h"
+#include "geometry/boundbox.h"
 #include "media/mediums.h"
 
 namespace skwr {
@@ -83,6 +84,75 @@ inline bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, flo
     return true;
 }
 
+/**
+ * In heterogeneous media, we take the max density as a majorant (upper bound) to sample as if it
+ * were homogeneous, but for areas with density < majorant, we take a probability of the sample,
+ * corresponding to the reduced density
+ */
+inline bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
+                       Spectrum& beta, MediumInteraction& mi, const SampledWavelengths& wl) {
+    float t_min_box = 0.0f;
+    float t_max_box = 0.0f;
+    if (!medium.bbox.Intersect(r, t_min_box, t_max_box)) return false;
+
+    // Constrain marching bounds
+    float t_min = std::max(0.0f, t_min_box);  // start at the box edge or where ray currently is
+    float t_max = std::min(t_max_surface, t_max_box);  // stop at the box edge or at solid surface
+    if (t_min >= t_max) return false;
+
+    // Delta Tracking (Woodcock Tracking) Loop
+    float t = t_min;
+    float majorant =
+        medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
+    if (majorant <= 0.0f) return false;
+    int hero = wl.lambda[0];
+
+    while (true) {
+        // Sample a distance step based on the majorant
+        float xi_1 = rng.UniformFloat();
+        t -= std::log(std::max(1.0f - xi_1, kEpsilon)) / majorant;
+
+        if (t >= t_max) break;  // Exited vol if stepped out of the box or hit surface
+
+        // The REAL density at this point
+        float density = medium.GetDensity(r.at(t));
+        // Calculate the actual Extinction coefficient here
+        Spectrum sigma_t = density * (medium.sigma_a_base + medium.sigma_s_base);
+        Spectrum sigma_s = density * medium.sigma_s_base;
+
+        // Probability of a REAL collision
+        float p_real = sigma_t[hero] / majorant;
+
+        if (rng.UniformFloat() < p_real) {
+            // --- REAL COLLISION! ---
+            // Divide the entire spectrum by the HERO's extinction
+            beta *= (sigma_s / sigma_t[hero]);
+
+            mi.t = t;
+            mi.point = r.at(t);
+            mi.wo = -r.direction();
+            mi.phase_g = medium.g;
+            mi.sigma_s = sigma_s;
+            mi.alpha = 1.0f;
+
+            return true;
+        }
+
+        // --- NULL COLLISION ---
+        // If the grid has spectrally varying extinction (e.g., colored base_sigma_t),
+        // we must weight the non-hero channels.
+        // Note: If sigma_t is perfectly uniform across all channels (grey smoke),
+        // this safely evaluates to 1.0.
+        Spectrum null_weight = (Spectrum(majorant) - sigma_t) / (majorant - sigma_t[hero]);
+        beta *= null_weight;
+    }
+
+    // Escaped without scattering
+    // With Delta Tracking, passing through without a collision means
+    // throughput (beta) remains exactly 1.0!
+    return false;
+}
+
 }  // namespace skwr
 
-#endif  // SKWR_KERNELS_SAMPLE_HOMOGENEOUS_H_
+#endif  // SKWR_KERNELS_SAMPLE_MEDIA_H_
