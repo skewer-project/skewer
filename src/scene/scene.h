@@ -30,6 +30,7 @@ class Scene {
     uint32_t AddMesh(Mesh&& m);             // Returns mesh_id (index in the meshes_ vector)
     uint32_t AddTexture(ImageTexture&& t);  // Returns texture_id
     uint16_t AddHomogeneousMedium(const HomogeneousMedium& m);
+    uint16_t AddGridMedium(const GridMedium& m);
     void SetGlobalMedium(uint16_t medium_id) { global_medium_id_ = medium_id; }
     uint16_t GetGlobalMedium() const { return global_medium_id_; }
 
