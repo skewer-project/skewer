@@ -52,16 +52,40 @@ struct GridMedium {
     // Helper to get base extinction
     Spectrum Extinction() const { return sigma_a_base + sigma_s_base; }
 
-    // Procedural Soft Cloud: Density falls off linearly from the center
-    // Later, this will do a 3D array lookup or VDB sample.
+    // // Procedural Soft Cloud: Density falls off linearly from the center
+    // // Later, this will do a 3D array lookup or VDB sample.
+    // float GetDensity(const Point3& p) const {
+    //     Vec3 center = bbox.Centroid();
+    //     float radius = (bbox.max().x() - bbox.min().x()) * 0.5f;
+    //     float dist = (p - center).Length();
+    //     if (dist >= radius) return 0.0f;
+
+    //     // Smooth linear falloff: 1.0 at center, 0.0 at radius edge
+    //     return 1.0f - (dist / radius);
+    // }
     float GetDensity(const Point3& p) const {
         Vec3 center = bbox.Centroid();
         float radius = (bbox.max().x() - bbox.min().x()) * 0.5f;
         float dist = (p - center).Length();
+
         if (dist >= radius) return 0.0f;
 
-        // Smooth linear falloff: 1.0 at center, 0.0 at radius edge
-        return 1.0f - (dist / radius);
+        // 1. Base smooth falloff
+        float base_density = 1.0f - (dist / radius);
+
+        // 2. Cheap Procedural Noise (3D Sine Waves)
+        // Multiply coordinates by a frequency factor to create "lumps"
+        float freq = 6.0f;
+        float noise = std::sin(p.x() * freq) * std::sin(p.y() * freq) * std::sin(p.z() * freq);
+
+        // Map noise from [-1, 1] to [0, 1] and blend it into the cloud
+        noise = (noise + 1.0f) * 0.5f;
+
+        // 3. Combine and carve out empty space
+        float final_density = base_density * noise;
+
+        // Use a threshold to create hard wispy edges (like real smoke)
+        return final_density > 0.15f ? final_density : 0.0f;
     }
 
     // TODO: When implementing OpenVDB + Cam update
