@@ -76,7 +76,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         bool scatterMedium = false;
 
         if (r.vol_stack().GetActiveMedium() != 0) {
-            scatterMedium = SampleMedium(r, scene, t_max, rng, beta, mi, wl);
+            scatterMedium = SampleMedium(r, scene, t_max, rng, beta, mi);
         }
         // vol dispatch, sample medium with t_surface as upper bound
         if (scatterMedium) {
@@ -197,7 +197,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             // ==========================================
             if (si.interior_medium != si.exterior_medium) {
                 float cos = Dot(r.direction(), si.n_geom);
-                if (cos > 0.0f) {
+                if (cos < 0.0f) {
                     // Entering the interior medium
                     if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
                         r.vol_stack().Push(si.interior_medium, si.priority);
