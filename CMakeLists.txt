@@ -71,6 +71,8 @@ set(SOURCES
     src/kernels/path_kernel.cc
     src/kernels/sample_media.cc
     src/kernels/volume_dispatch.cc
+    src/kernels/utils/visibility.cc
+    src/kernels/utils/volume_tracking.cc
 )
 
 # Create Executable

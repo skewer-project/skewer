@@ -1,3 +1,5 @@
+#include "kernels/sample_media.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -25,8 +27,8 @@ namespace skwr {
  * Set a random number ξ equal to the cumulative distribution function and solve for t:
  *      t = −ln(1 − ξ) / σ_t
  */
-inline bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_max, RNG& rng,
-                              Spectrum& beta, MediumInteraction& mi) {
+bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_max, RNG& rng,
+                       Spectrum& beta, MediumInteraction& mi) {
     Spectrum sigma_t = medium.Extinction();  // sigma_a + sigma_s
 
     // Sampling a color channel to find t
@@ -86,8 +88,8 @@ inline bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, flo
  * were homogeneous, but for areas with density < majorant, we take a probability of the sample,
  * corresponding to the reduced density
  */
-inline bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                       Spectrum& beta, MediumInteraction& mi) {
+bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
+                Spectrum& beta, MediumInteraction& mi) {
     float t_min_box = 0.0f;
     float t_max_box = kInfinity;
     if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
