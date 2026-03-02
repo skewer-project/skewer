@@ -1,6 +1,3 @@
-#ifndef SKWR_KERNELS_VOLUME_DISPATCH_H_
-#define SKWR_KERNELS_VOLUME_DISPATCH_H_
-
 #include <cstdint>
 
 #include "core/math/constants.h"
@@ -9,7 +6,7 @@
 #include "core/sampling/medium_interaction.h"
 #include "core/sampling/rng.h"
 #include "core/spectral/spectrum.h"
-#include "kernels/sample_media.h"
+#include "kernels/sample_media.cc"
 #include "media/mediums.h"
 #include "scene/scene.h"
 
@@ -149,5 +146,3 @@ inline void SampleHG(float g, const Vec3& wo, float u1, float u2, Vec3& wi) {
 }
 
 }  // namespace skwr
-
-#endif  // SKWR_KERNELS_VOLUME_DISPATCH_H_

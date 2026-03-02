@@ -68,6 +68,9 @@ set(SOURCES
     src/materials/bsdf.cc
     src/materials/texture.cc
     src/core/spectral/rgb2spec.cc
+    src/kernels/path_kernel.cc
+    src/kernels/sample_media.cc
+    src/kernels/volume_dispatch.cc
 )
 
 # Create Executable
