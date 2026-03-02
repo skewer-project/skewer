@@ -118,8 +118,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                                                                 shadow_si.priority);
                                 }
                             } else {
-                                shadow_ray.vol_stack().Pop(
-                                    shadow_ray.vol_stack().GetActiveMedium());
+                                int active = shadow_ray.vol_stack().GetActiveMedium();
+                                if (active != 0) shadow_ray.vol_stack().Pop(active);
                             }
                         }
 
@@ -139,12 +139,12 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                         }
 
                         // Advance the shadow ray past the surface
-                        VolumeStack stack = shadow_ray.vol_stack();
-                        shadow_ray =
-                            Ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
-                                shadow_ray.direction());
-                        shadow_ray.vol_stack() = stack;
+                        Ray next_ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
+                                     shadow_ray.direction());
+                        next_ray.vol_stack() = shadow_ray.vol_stack();
+                        shadow_ray = next_ray;
                         remaining_dist -= shadow_si.t;
+                        if (remaining_dist <= 0.0f) break;
                     } else {
                         Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
                         break;
@@ -184,9 +184,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0
             // The sampling routine perfectly importance samples the distribution so beta is
             // unchanged by the directional scatter itself
-            VolumeStack stack = r.vol_stack();
-            r = Ray(mi.point, next_wi);
-            r.vol_stack() = stack;
+            Ray next_r(mi.point, next_wi);
+            next_r.vol_stack() = r.vol_stack();
+            r = next_r;
             specular_bounce = false;
 
         } else if (scatterSurface) {
@@ -196,8 +196,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             // TRANSPORT POLICY (Medium Transitions)
             // ==========================================
             if (si.interior_medium != si.exterior_medium) {
-                float to_cam = Dot(si.wo, si.n_geom);
-                if (to_cam > 0.0f) {
+                float cos = Dot(r.direction(), si.n_geom);
+                if (cos > 0.0f) {
                     // Entering the interior medium
                     if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
                         r.vol_stack().Push(si.interior_medium, si.priority);
@@ -205,7 +205,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 } else {
                     // Exiting the interior medium
                     // TODO: For nested dielectrics, pop based on specific ID instead of active med
-                    r.vol_stack().Pop(r.vol_stack().GetActiveMedium());
+                    int active = r.vol_stack().GetActiveMedium();
+                    if (active != 0) r.vol_stack().Pop(active);
                 }
             }
             // ==========================================
@@ -215,6 +216,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                 Ray next_ray(si.point + (r.direction() * kShadowEpsilon), r.direction());
                 next_ray.vol_stack() = r.vol_stack();
                 r = next_ray;
+                depth--;
                 continue;
             }
 
@@ -285,8 +287,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                                                                 shadow_si.priority);
                                 }
                             } else {
-                                shadow_ray.vol_stack().Pop(
-                                    shadow_ray.vol_stack().GetActiveMedium());
+                                int active = shadow_ray.vol_stack().GetActiveMedium();
+                                if (active != 0) shadow_ray.vol_stack().Pop(active);
                             }
                         }
 
@@ -306,12 +308,12 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                         }
 
                         // Advance the shadow ray past the surface
-                        VolumeStack stack = shadow_ray.vol_stack();
-                        shadow_ray =
-                            Ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
-                                shadow_ray.direction());
-                        shadow_ray.vol_stack() = stack;
+                        Ray next_ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
+                                     shadow_ray.direction());
+                        next_ray.vol_stack() = shadow_ray.vol_stack();
+                        shadow_ray = next_ray;
                         remaining_dist -= shadow_si.t;
+                        if (remaining_dist <= 0.0f) break;
                     } else {
                         Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
                         break;
@@ -368,9 +370,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
 
                     beta *= weight;
-                    VolumeStack stack = r.vol_stack();
-                    r = Ray(si.point + (wi * kShadowEpsilon), wi);
-                    r.vol_stack() = stack;
+                    Ray next_r(si.point + (wi * kShadowEpsilon), wi);
+                    next_r.vol_stack() = r.vol_stack();
+                    r = next_r;
 
                     // If this bounce was sharp (Metal/Glass), next hit counts as specular
                     specular_bounce =
