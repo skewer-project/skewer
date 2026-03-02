@@ -1,0 +1,27 @@
+# Ignore Git
+.git
+.gitignore
+.github
+
+# Ignore CMake build artifacts and caches
+build/
+out/
+install/
+Testing/
+CMakeUserPresets.json
+
+# Ignore IDE configs
+.vscode/
+.idea/
+.zed/
+
+# Ignore outputs
+objects/
+scenes/
+images/
+*.exr
+*.ppm
+
+# Ignore Go binaries
+coordinator
+*.exe
