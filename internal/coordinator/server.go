@@ -124,7 +124,7 @@ func (s *Server) CancelJob(ctx context.Context, req *pb.CancelJobRequest) (*pb.C
 func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.CoordinatorService_GetWorkStreamServer) error {
 	workerID := req.WorkerId
 	capabilities := req.Capabilities
-	log.Printf("Worker %s connected. Capabilities: %v", workerID, capabilities)
+	log.Printf("[COORDINATOR] Worker %s connected. Capabilities: %v", workerID, capabilities)
 
 	for {
 		// Block and wait for the Scheduler to hand us a task.
@@ -142,7 +142,7 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 
 		// If the job is marked as FAILED, throw this task in the trash!
 		if err == nil && job.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_FAILED {
-			log.Printf("[SERVER]: Skipping cancelled task %s for job %s", task.ID, task.JobID)
+			log.Printf("[COORDINATOR]: Skipping cancelled task %s for job %s", task.ID, task.JobID)
 			s.scheduler.MarkTaskComplete(task.ID) // Remove from active memory
 			continue                              // Loop back to the top and grab the next task
 		}
@@ -176,7 +176,7 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 			return err
 		}
 
-		log.Printf("Assigned task %s to worker %s", task.ID, workerID)
+		log.Printf("[COORDINATOR]: Assigned task %s to worker %s", task.ID, workerID)
 	}
 }
 
@@ -184,7 +184,7 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 	taskID := req.GetTaskId()
 	jobID := req.GetJobId()
 
-	log.Printf("[SERVER] Task %s completed by worker %s: success=%v", taskID, req.WorkerId, req.Success)
+	log.Printf("[COORDINATOR]: Task %s completed by worker %s: success=%v", taskID, req.WorkerId, req.Success)
 
 	// Tell the scheduler the worker is officially done with it (stops the Sweeper timeout)
 	task, exists := s.scheduler.MarkTaskComplete(taskID)
@@ -195,7 +195,7 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 		if exists {
 			task.Retries++
 			if task.Retries > 3 {
-				log.Printf("[SERVER] Task %s failed too many times. Failing Job %s", taskID, jobID)
+				log.Printf("[COORDINATOR]: Task %s failed too many times. Failing Job %s", taskID, jobID)
 				s.tracker.activeJobs[jobID].SetStatus(pb.GetJobStatusResponse_JOB_STATUS_FAILED)
 				s.scheduler.PurgeJobTasks(jobID) // Stop other tasks for this job
 			} else {
@@ -229,7 +229,7 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 
 		// Check if frame is complete
 		if frameState.CompletedChunks == frameState.TotalChunks {
-			log.Printf("Frame %s for job %s is fully rendered! Queuing MergeTask.", task.FrameID, jobID)
+			log.Printf("[COORDINATOR]: Frame %s for job %s is fully rendered! Queuing MergeTask.", task.FrameID, jobID)
 
 			// NOW we hand it to the scheduler
 			s.scheduler.EnqueueTask(frameState.PendingMerge, jobID, task.FrameID)
@@ -257,7 +257,7 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 		for _, newJob := range unlockedJobs {
 			// (You will eventually call s.handleCompositeJobSubmit here
 			// to actually queue the tasks for the newly unlocked job)
-			log.Printf("Job %s is fully unlocked and ready to queue!", newJob.ID())
+			log.Printf("[COORDINATOR]: Job %s is fully unlocked and ready to queue!", newJob.ID())
 
 			// Type assert to figure out what kind of job just unlocked and queue it
 			req := newJob.GetOriginalReq()
