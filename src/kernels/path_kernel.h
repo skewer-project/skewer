@@ -75,7 +75,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         bool scatterMedium = false;
 
         if (r.vol_stack().GetActiveMedium() != 0) {
-            scatterMedium = SampleMedium(r, scene, t_max, rng, beta, mi);
+            scatterMedium = SampleMedium(r, scene, t_max, rng, beta, mi, wl);
         }
         // vol dispatch, sample medium with t_surface as upper bound
         if (scatterMedium) {
