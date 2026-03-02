@@ -40,6 +40,58 @@ inline bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& r
     }
 }
 
+/**
+ * Ratio tracking for shadow rays instead of delta tracking
+ * Ratio Tracking treats the volume as partially transparent at every step. It steps forward using
+ * the majorant and continuously multiplies the transmittance T_r by the probability of a
+ * null collision: T_r ⋅(1 − σ_t(x)/σˉ_t)
+ */
+inline Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_ray,
+                                           float dist, RNG& rng) {
+    float t_min_box = 0.0f;
+    float t_max_box = 0.0f;
+    if (!medium.bbox.Intersect(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
+
+    float t_min = std::max(0.0f, t_min_box);
+    float t_max = std::min(dist, t_max_box);
+    if (t_min >= t_max) return Spectrum(1.0f);
+
+    float t = t_min;
+    Spectrum Tr(1.0f);
+
+    float majorant =
+        medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
+    if (majorant <= 0.0f) return Tr;
+
+    while (true) {
+        // Step forward using the majorant
+        t += -std::log(std::max(1.0f - rng.UniformFloat(), kEpsilon)) / majorant;
+        if (t >= t_max) break;
+
+        // Evaluate actual density at this point
+        float density = medium.GetDensity(shadow_ray.at(t));
+        Spectrum sigma_t = density * (medium.sigma_a_base + medium.sigma_s_base);
+
+        // Attenuate transmittance by the probability of NOT hitting a particle
+        Spectrum null_prob = Spectrum(1.0f) - (sigma_t / majorant);
+
+        for (int i = 0; i < kNSamples; ++i) {
+            Tr[i] *= std::max(0.0f, null_prob[i]);
+        }
+
+        // Russian Roulette (If transmittance is basically 0 kill early to save expensive
+        // VDB/density lookups)
+        float max_tr = Tr.MaxComponentValue();
+        if (max_tr < 0.05f) {
+            float q = std::max(0.05f, 1.0f - max_tr);
+            if (rng.UniformFloat() < q) return Spectrum(0.0f);
+            Tr = Tr / (1.0f - q);
+        }
+    }
+
+    return Tr;
+}
+
 inline Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray,
                                        float dist) {
     uint16_t active_id = shadow_ray.vol_stack().GetActiveMedium();
