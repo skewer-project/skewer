@@ -1,0 +1,45 @@
+# Stage 1: Build the C++ Compositor
+FROM ubuntu:24.04 AS builder
+
+# Prevent tzdata apt-get prompt from hanging
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    libopenexr-dev \
+    libimath-dev \
+    zlib1g-dev \
+    libpng-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the entire source tree
+COPY . .
+
+# Run the CMake build specifically for the Loom target
+RUN cmake --preset release -DSKEWER_COMBINED_BUILD_SKEWER=OFF
+RUN cmake --build --preset release --target deep_compositor --parallel 2
+
+# Stage 2: Create a minimal runner image
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install ONLY the runtime libraries required to execute the binary
+# Note: we need libpng16-16+ installed as well for Loom
+RUN apt-get update && apt-get install -y \
+    libimath-3-1-29 \
+    libopenexr-3-1-30 \
+    zlib1g \
+    libpng16-16t64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/build/release/loom/deep_compositor /usr/local/bin/deep_compositor
+
+# Setting the entrypoint directly to the loom binary makes the container behave like the CLI tool
+ENTRYPOINT ["/usr/local/bin/deep_compositor"]
