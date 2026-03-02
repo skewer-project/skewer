@@ -91,6 +91,51 @@ func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, workerCount int) e
 
 	replicas := int32(workerCount)
 
+	// Define volumes and mounts dynamically based on whether we are local or in the cloud.
+	var volumes []corev1.Volume
+	var volumeMounts []corev1.VolumeMount
+	var envVars []corev1.EnvVar
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  "COORDINATOR_ADDRESS",
+		Value: "skewer-coordinator.default.svc.cluster.local:50051",
+	})
+
+	if c.credentialsFile == "" {
+		// LOCAL MODE: Mount a local hostPath directory to /data
+		volumes = append(volumes, corev1.Volume{
+			Name: "skewer-data",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/mnt/skewer-data",
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "skewer-data",
+			MountPath: "/data",
+		})
+	} else {
+		// CLOUD MODE: Mount the secret to /etc/secrets
+		volumes = append(volumes, corev1.Volume{
+			Name: "gcp-credentials",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "skewer-gcp-creds",
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "gcp-credentials",
+			MountPath: "/etc/secrets",
+			ReadOnly:  true,
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  "GOOGLE_APPLICATION_CREDENTIALS",
+			Value: "/etc/secrets/credentials.json",
+		})
+	}
+
 	if k8serrors.IsNotFound(err) {
 		// Create a new Deployment if it doesn't exist
 		newDeployment := &appsv1.Deployment{
@@ -113,16 +158,14 @@ func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, workerCount int) e
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name:  "worker",
-								Image: "us-docker.pkg.dev/PROJECT_ID/REPO/skewer-worker:latest", // Placeholder image, replace with user registry
-								Env: []corev1.EnvVar{
-									{
-										Name:  "GOOGLE_APPLICATION_CREDENTIALS",
-										Value: "/etc/secrets/credentials.json",
-									},
-								},
+								Name:            "worker",
+								Image:           "skewer-worker:latest", // Updated to match local naming scheme
+								ImagePullPolicy: corev1.PullIfNotPresent,
+								Env:             envVars,
+								VolumeMounts:    volumeMounts,
 							},
 						},
+						Volumes: volumes,
 					},
 				},
 			},
