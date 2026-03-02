@@ -282,6 +282,37 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 	extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
 
 	for frameID := range req.NumFrames {
+		// Create the Merge task
+		mergeUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
+		if err != nil {
+			return err
+		}
+
+		// DON'T enqueue MergeTask. Store it in memory instead and wait until all chunks are completed
+		genericJob, err := s.tracker.GetJob(req.GetJobId())
+		if err != nil {
+			return err
+		}
+		renderJob := genericJob.(*RenderJob)
+
+		// While this is technically safe because the tasks haven't been queued yet, it's probably better
+		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
+		// at that exact millisecond
+		renderJob.mu.Lock()
+		if renderJob.Frames == nil {
+			renderJob.Frames = make(map[string]*FrameState)
+		}
+
+		renderJob.Frames[fmt.Sprint(frameID)] = &FrameState{
+			CompletedChunks: 0,
+			TotalChunks:     renderJob.SampleDivision,
+			PendingMerge: &pb.MergeTask{
+				OutputUri: mergeUri,
+				// NOTE: We append the PartialDeepExrUris as we generate them below
+			},
+		}
+		renderJob.mu.Unlock()
+
 		var sampleStart int32 = 0
 		var outputUris []string
 		for chunk := range numSamplesPerWorker {
@@ -317,37 +348,9 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			sampleStart = sampleEnd
 		}
 
-		// Create the Merge task
-		mergeUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
-		if err != nil {
-			return err
-		}
-
-		mergeTask := &pb.MergeTask{
-			PartialDeepExrUris: outputUris,
-			OutputUri:          mergeUri,
-		}
-
-		// DON'T enqueue MergeTask. Store it in memory instead and wait until all chunks are completed
-		genericJob, err := s.tracker.GetJob(req.GetJobId())
-		if err != nil {
-			return err
-		}
-		renderJob := genericJob.(*RenderJob)
-
-		// While this is technically safe because the tasks haven't been queued yet, it's probably better
-		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
-		// at that exact millisecond
+		// Update the pending merge task with the generated URIs
 		renderJob.mu.Lock()
-		if renderJob.Frames == nil {
-			renderJob.Frames = make(map[string]*FrameState)
-		}
-
-		renderJob.Frames[fmt.Sprint(frameID)] = &FrameState{
-			CompletedChunks: 0,
-			TotalChunks:     renderJob.SampleDivision,
-			PendingMerge:    mergeTask,
-		}
+		renderJob.Frames[fmt.Sprint(frameID)].PendingMerge.PartialDeepExrUris = outputUris
 		renderJob.mu.Unlock()
 	}
 
