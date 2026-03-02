@@ -44,6 +44,7 @@ class VolumeStack {
     }
 
     inline void Pop(uint16_t medium_id) {
+        if (count_ == 0) return;  // Prevent segfault
         for (uint8_t i = 0; i < count_; ++i) {
             if (ids_[i] == medium_id) {
                 // Shift everything above it down
