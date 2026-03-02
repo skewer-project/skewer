@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "accelerators/bvh.h"
+#include "core/cpu_config.h"
 #include "core/math/vec3.h"
 #include "core/sampling/surface_interaction.h"
 #include "geometry/intersect_sphere.h"
@@ -48,6 +49,8 @@ void Scene::Build() {
             t.e1 = mesh_ref.p[i1] - t.p0;
             t.e2 = mesh_ref.p[i2] - t.p0;
             t.material_id = mesh_ref.material_id;
+            t.interior_medium = kVacuumMediumId;
+            t.exterior_medium = kVacuumMediumId;
             t.needs_tangent_frame = mat.HasNormalMap();
 
             if (!mesh_ref.n.empty()) {
