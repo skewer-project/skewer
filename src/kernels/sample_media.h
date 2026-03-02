@@ -90,10 +90,10 @@ inline bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, flo
  * corresponding to the reduced density
  */
 inline bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                       Spectrum& beta, MediumInteraction& mi, const SampledWavelengths& wl) {
+                       Spectrum& beta, MediumInteraction& mi) {
     float t_min_box = 0.0f;
-    float t_max_box = 0.0f;
-    if (!medium.bbox.Intersect(r, t_min_box, t_max_box)) return false;
+    float t_max_box = kInfinity;
+    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
 
     // Constrain marching bounds
     float t_min = std::max(0.0f, t_min_box);  // start at the box edge or where ray currently is
@@ -105,7 +105,7 @@ inline bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surfa
     float majorant =
         medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
     if (majorant <= 0.0f) return false;
-    int hero = wl.lambda[0];
+    int hero = 0;  // 0 index is always hero
 
     while (true) {
         // Sample a distance step based on the majorant
@@ -143,7 +143,8 @@ inline bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surfa
         // we must weight the non-hero channels.
         // Note: If sigma_t is perfectly uniform across all channels (grey smoke),
         // this safely evaluates to 1.0.
-        Spectrum null_weight = (Spectrum(majorant) - sigma_t) / (majorant - sigma_t[hero]);
+        float denom = std::max(majorant - sigma_t[hero], kEpsilon);
+        Spectrum null_weight = (Spectrum(majorant) - sigma_t) / denom;
         beta *= null_weight;
     }
 
