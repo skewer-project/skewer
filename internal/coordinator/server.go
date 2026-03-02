@@ -13,11 +13,11 @@ import (
 type Server struct {
 	pb.UnimplementedCoordinatorServiceServer
 	scheduler *Scheduler
-	manager   *CloudManager
+	manager   CloudManager
 	tracker   *JobTracker
 }
 
-func NewServer(scheduler *Scheduler, manager *CloudManager, tracker *JobTracker) *Server {
+func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) *Server {
 	return &Server{
 		scheduler: scheduler,
 		manager:   manager,
