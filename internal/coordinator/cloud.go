@@ -1,6 +1,172 @@
 package coordinator
 
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+
+	"cloud.google.com/go/storage"
+	"google.golang.org/api/option"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
 type CloudManager interface {
-	EnsureCapacity(workerCount int) error
-	ProvisionStorage(projectID string) error
+	EnsureCapacity(ctx context.Context, workerCount int) error
+	ProvisionStorage(ctx context.Context, bucketName string) error
+}
+
+type K8sCloudManager struct {
+	k8sClient       *kubernetes.Clientset
+	storageClient   *storage.Client
+	credentialsFile string
+}
+
+// NewK8sCloudManager initializes a new CloudManager using Kubernetes and GCP.
+// It detects whether it is running inside a cluster (GKE) or outside (Minikube).
+// It also takes a path to a user-provided GCP Service Account JSON key string.
+func NewK8sCloudManager(ctx context.Context, credentialsFile string) (*K8sCloudManager, error) {
+	var config *rest.Config
+	var err error
+
+	// Try in-cluster configuration first (e.g. running inside GKE)
+	config, err = rest.InClusterConfig()
+	if err != nil {
+		// Fallback to out-of-cluster config (e.g. Minikube on laptop)
+		kubeconfig := os.Getenv("KUBECONFIG")
+		if kubeconfig == "" {
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get user home dir: %w", err)
+			}
+			kubeconfig = filepath.Join(homeDir, ".kube", "config")
+		}
+
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
+		}
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create k8s clientset: %w", err)
+	}
+
+	var storageClient *storage.Client
+	if credentialsFile != "" {
+		log.Printf("[coordinator] Initializing GCP Storage client with provided credentials: %s", credentialsFile)
+		// Use the modern WithAuthCredentialsFile option
+		storageClient, err = storage.NewClient(ctx, option.WithAuthCredentialsFile(option.ServiceAccount, credentialsFile))
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize GCP storage client: %w", err)
+		}
+	} else {
+		log.Printf("[coordinator] Warning: No GCP credentials provided. Storage provisioning will fail.")
+	}
+
+	return &K8sCloudManager{
+		k8sClient:       clientset,
+		storageClient:   storageClient,
+		credentialsFile: credentialsFile,
+	}, nil
+}
+
+// EnsureCapacity creates or updates a Kubernetes Deployment for the C++ workers.
+func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, workerCount int) error {
+	log.Printf("[coordinator] Ensuring capacity: configuring %d workers...", workerCount)
+
+	deploymentsClient := c.k8sClient.AppsV1().Deployments("default")
+	deploymentName := "skewer-worker"
+
+	// Look up the existing deployment
+	deployment, err := deploymentsClient.Get(ctx, deploymentName, metav1.GetOptions{})
+
+	replicas := int32(workerCount)
+
+	if k8serrors.IsNotFound(err) {
+		// Create a new Deployment if it doesn't exist
+		newDeployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: deploymentName,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &replicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "skewer-worker",
+					},
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"app": "skewer-worker",
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "worker",
+								Image: "us-docker.pkg.dev/PROJECT_ID/REPO/skewer-worker:latest", // Placeholder image, replace with user registry
+								Env: []corev1.EnvVar{
+									{
+										Name:  "GOOGLE_APPLICATION_CREDENTIALS",
+										Value: "/etc/secrets/credentials.json",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		_, err = deploymentsClient.Create(ctx, newDeployment, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create deployment: %w", err)
+		}
+		log.Printf("[coordinator] Created new deployment %s with %d replicas.", deploymentName, workerCount)
+	} else if err != nil {
+		return fmt.Errorf("failed to get deployment: %w", err)
+	} else {
+		// Update existing Deployment
+		if *deployment.Spec.Replicas != replicas {
+			deployment.Spec.Replicas = &replicas
+			_, err = deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update deployment replicas: %w", err)
+			}
+			log.Printf("[coordinator] Updated deployment %s to %d replicas.", deploymentName, workerCount)
+		} else {
+			log.Printf("[coordinator] Deployment %s already at %d replicas. No change needed.", deploymentName, workerCount)
+		}
+	}
+
+	return nil
+}
+
+// ProvisionStorage verifies access to the user's GCP bucket and configures storage.
+func (c *K8sCloudManager) ProvisionStorage(ctx context.Context, bucketName string) error {
+	if c.storageClient == nil {
+		return fmt.Errorf("GCP storage client not initialized; missing credentials")
+	}
+
+	log.Printf("[coordinator] Verifying storage access to bucket: gs://%s", bucketName)
+
+	// A simple check to ensure we can list objects or get bucket metadata.
+	bucket := c.storageClient.Bucket(bucketName)
+	attrs, err := bucket.Attrs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to access user bucket (gs://%s): %w", bucketName, err)
+	}
+
+	log.Printf("[coordinator] Successfully verified access to target bucket gs://%s (Location: %s)", attrs.Name, attrs.Location)
+	return nil
 }
