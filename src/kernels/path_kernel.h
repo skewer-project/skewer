@@ -118,9 +118,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                                                                 shadow_si.priority);
                                 }
                             } else {
-                                int active = shadow_ray.vol_stack().GetActiveMedium();
-                                if (active != 0 && active != kVacuumMediumId) {
-                                    r.vol_stack().Pop(active);
+                                if (shadow_si.interior_medium != kVacuumMediumId &&
+                                    shadow_si.interior_medium != 0) {
+                                    shadow_ray.vol_stack().Pop(shadow_si.interior_medium);
                                 }
                             }
                         }
@@ -206,10 +206,8 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                     }
                 } else {
                     // Exiting the interior medium
-                    // TODO: For nested dielectrics, pop based on specific ID instead of active med
-                    int active = r.vol_stack().GetActiveMedium();
-                    if (active != 0 && active != kVacuumMediumId) {
-                        r.vol_stack().Pop(active);
+                    if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
+                        r.vol_stack().Pop(si.interior_medium);
                     }
                 }
             }
@@ -291,9 +289,9 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
                                                                 shadow_si.priority);
                                 }
                             } else {
-                                int active = shadow_ray.vol_stack().GetActiveMedium();
-                                if (active != 0 && active != kVacuumMediumId) {
-                                    r.vol_stack().Pop(active);
+                                if (shadow_si.interior_medium != kVacuumMediumId &&
+                                    shadow_si.interior_medium != 0) {
+                                    shadow_ray.vol_stack().Pop(shadow_si.interior_medium);
                                 }
                             }
                         }
