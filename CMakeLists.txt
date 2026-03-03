@@ -11,6 +11,9 @@ endif()
 
 include(CTest)
 
+find_package(gRPC REQUIRED)
+find_package(Protobuf REQUIRED)
+
 option(SKEWER_COMBINED_BUILD_EXRIO "Build exrio helper library" ON)
 option(SKEWER_COMBINED_BUILD_LOOM "Build loom deep compositor" ON)
 option(SKEWER_COMBINED_BUILD_SKEWER "Build skewer deep renderer" ON)
@@ -22,6 +25,9 @@ endif()
 if(SKEWER_COMBINED_BUILD_EXRIO)
     add_subdirectory(libs/exrio)
 endif()
+
+# Build gRPC Proto Stubs
+add_subdirectory(api)
 
 if(SKEWER_COMBINED_BUILD_LOOM)
     add_subdirectory(loom)
