@@ -20,6 +20,7 @@
 #include "materials/material.h"
 #include "materials/texture_lookup.h"
 #include "scene/scene.h"
+#include "scene/skybox.h"
 #include "session/render_options.h"
 
 namespace skwr {
@@ -282,8 +283,8 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             }
         } else if (!scatterSurface) {
             // Environment Segment
-            Spectrum env_L = beta * Spectrum(0.0f);
-            segment_L += env_L;
+            Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
+            segment_L += env_L * beta;
             if (specular_bounce) {
                 AddDeepSegment(result, r, segment_start, kFarClip, segment_L, 1.0f, r.origin(),
                                config.cam_w, wl);
