@@ -7,7 +7,7 @@
 #include "../test_helpers.h"
 #include "deep_compositor.h"
 
-using namespace deep_compositor;
+using namespace exrio;
 
 // ============================================================================
 // deepMerge correctness tests
