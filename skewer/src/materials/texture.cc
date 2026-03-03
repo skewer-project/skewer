@@ -14,6 +14,7 @@ namespace skwr {
 
 bool ImageTexture::Load(const std::string& filepath) {
     int n;
+    stbi_set_flip_vertically_on_load(true);
     float* raw = stbi_loadf(filepath.c_str(), &width, &height, &n, 3);
     if (!raw) {
         std::cerr << "[Texture] Failed to load: " << filepath << " (" << stbi_failure_reason()
