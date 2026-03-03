@@ -4,10 +4,13 @@
 
 #include <atomic>
 
+#include "barkeep.h"
 #include "core/constants.h"
 #include "integrators/path_sample.h"
 
 namespace skwr {
+
+namespace bk = barkeep;
 
 Film::Film(int width, int height)
     : width_(width),
@@ -96,10 +99,22 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     // Pass 2: Create the deep image
     exrio::DeepImage result(width_, height_);
 
-    // Pass 3: Copy, Sort, and merge segments
+    // Pass 3: Copy, Sort, and merge segments (with progress bar)
+    std::atomic<size_t> pixels_done(0);
+    size_t total_pixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
+    auto bar = bk::ProgressBar(&pixels_done, {.total = total_pixels,
+                                              .message = "Building deep image",
+                                              .speed = 0.0,
+                                              .speed_unit = "px/s",
+                                              .style = bk::ProgressBarStyle::Line});
+    if (total_pixels > 0) bar->show();
+
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (counts[y * width_ + x] == 0) continue;
+            if (counts[y * width_ + x] == 0) {
+                ++pixels_done;
+                continue;
+            }
 
             // Collect samples for this pixel
             std::vector<DeepSample> segments;
@@ -138,8 +153,11 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                 pixel.addSample(
                     exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
             }
+            ++pixels_done;
         }
     }
+
+    if (total_pixels > 0) bar->done();
 
     return result;
 }
