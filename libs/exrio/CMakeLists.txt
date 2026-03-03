@@ -28,8 +28,8 @@ target_include_directories(exrio
 
 target_link_libraries(exrio
     PUBLIC
-        SYSTEM OpenEXR::OpenEXR
-        SYSTEM Imath::Imath
+        OpenEXR::OpenEXR
+        Imath::Imath
 )
 
 if(PNG_FOUND)
