@@ -18,11 +18,6 @@ cmake_policy(SET CMP0135 NEW)
 
 option(SKEWER_BUILD_NATIVE_OPTIMIZATIONS "Enable native CPU tuning for skewer-render" ON)
 
-# Use system-installed OpenEXR and Imath (install via apt-get or brew)
-find_package(Imath REQUIRED)
-find_package(OpenEXR REQUIRED)
-find_package(ZLIB REQUIRED) # Apparently zlib is sometimes required
-
 # Fetch nlohmann/json for scene loading
 include(FetchContent)
 if(NOT TARGET nlohmann_json::nlohmann_json)
@@ -81,9 +76,7 @@ set_source_files_properties(src/io/scene_loader.cc PROPERTIES
 target_link_libraries(skewer-render
     PRIVATE
     nlohmann_json::nlohmann_json
-    Imath::Imath
-    OpenEXR::OpenEXR
-    ZLIB::ZLIB
+    exrio::exrio
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
