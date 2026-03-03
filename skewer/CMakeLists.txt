@@ -57,6 +57,11 @@ set(SKEWER_CORE_SOURCES
     src/core/spectral/rgb2spec.cc
 )
 
+# Find Required Dependencies for worker binaries
+find_package(Imath REQUIRED)
+find_package(OpenEXR REQUIRED)
+find_package(ZLIB REQUIRED)
+
 # Create Executables
 add_executable(skewer-render apps/cli/main.cc ${SKEWER_CORE_SOURCES})
 add_executable(skewer-worker apps/worker/main.cc ${SKEWER_CORE_SOURCES})
