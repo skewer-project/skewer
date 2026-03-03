@@ -5,7 +5,7 @@
 #include "../test_helpers.h"
 #include "deep_volume.h"
 
-using namespace deep_compositor;
+using namespace exrio;
 
 static constexpr float kTol = 1e-5f;
 

@@ -5,7 +5,7 @@
 
 #include "deep_image.h"
 
-namespace deep_compositor {
+namespace exrio {
 
 /**
  * Exception thrown for deep EXR writing errors
@@ -80,4 +80,4 @@ std::array<float, 4> flattenPixel(const DeepPixel& pixel);
  */
 std::vector<float> flattenImage(const DeepImage& img);
 
-}  // namespace deep_compositor
+}  // namespace exrio
