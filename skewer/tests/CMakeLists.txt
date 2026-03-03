@@ -27,9 +27,7 @@ target_link_libraries(unit_tests
     PRIVATE
     GTest::gtest_main
     nlohmann_json::nlohmann_json
-    Imath::Imath
-    OpenEXR::OpenEXR
-    ZLIB::ZLIB
+    exrio::exrio
 )
 
 # Auto-discover tests

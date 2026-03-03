@@ -1,12 +1,14 @@
 #include "session/render_session.h"
 
+#include <exrio/deep_image.h>
+#include <exrio/deep_writer.h>
+
 #include <iostream>
 #include <memory>
 
 #include "core/spectral/spectral_utils.h"
 #include "core/vec3.h"
 #include "film/film.h"
-#include "film/image_buffer.h"
 #include "integrators/integrator.h"
 #include "integrators/normals.h"
 #include "integrators/path_trace.h"
@@ -97,9 +99,9 @@ void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
         if (options_.integrator_config.enable_deep) {
-            std::unique_ptr<DeepImageBuffer> buf =
-                film_->CreateDeepBuffer(options_.integrator_config.samples_per_pixel);
-            ImageIO::SaveEXR(*buf, options_.image_config.exrfile);
+            deep_compositor::DeepImage img =
+                film_->BuildDeepImage(options_.integrator_config.samples_per_pixel);
+            deep_compositor::writeDeepEXR(img, options_.image_config.exrfile);
         }
     }
 }
