@@ -12,7 +12,7 @@
 #include "deep_options.h"
 #include "utils.h"
 
-namespace {
+namespace deep_compositor {
 
 const char* VERSION = "1.0";
 
@@ -139,8 +139,8 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
 
     return true;
 }
-
-}  // anonymous namespace
+}
+  // anonymous namespace
 
 int main(int argc, char* argv[]) {
     using namespace deep_compositor;
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
     //
     for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
         const std::string& filename = opts.inputFiles[i];
-        if (!isDeepEXR(filename)) {
+        if (!exrio::isDeepEXR(filename)) {
             logError("File is not a deep EXR: " + filename);
             return 1;
         }
@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
         printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.inputFiles.size(), filename.c_str());
         try {
             // Check if it's a deep EXR
-            if (!isDeepEXR(filename)) {
+            if (!exrio::isDeepEXR(filename)) {
                 logError("File is not a deep EXR: " + filename);
                 return 1;
             }
@@ -209,14 +209,14 @@ int main(int argc, char* argv[]) {
 
             imagesInfo.push_back(std::move(img));
 
-        } catch (const deep_compositor::DeepReaderException& e) {
+        } catch (const exrio::DeepReaderException& e) {
             logError("Failed to load " + filename + ": " + e.what());
             return 1;
         } catch (const std::exception& e) {
             logError("Unexpected error loading " + filename + ": " + e.what());
             return 1;
         }
-        if (!isDeepEXR(filename)) {
+        if (!exrio::isDeepEXR(filename)) {
             logError("File is not a deep EXR: " + filename);
             return 1;
         }
@@ -249,15 +249,15 @@ int main(int argc, char* argv[]) {
         if (opts.pngOutput) {
             std::string pngPath = opts.outputPrefix + ".png";
 
-            if (hasPNGSupport()) {
-                writePNG(finalImage, height, width, pngPath);
+            if (exrio::hasPNGSupport()) {
+                exrio::writePNG(finalImage, height, width, pngPath);
                 log("  Wrote: " + pngPath);
             } else {
                 log("  Skipped PNG (libpng not available)");
             }
         }
 
-    } catch (const deep_compositor::DeepReaderException& e) {
+    } catch (const exrio::DeepReaderException& e) {
         logError("Failed to write output: " + std::string(e.what()));
         return 1;
     }
@@ -272,3 +272,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+

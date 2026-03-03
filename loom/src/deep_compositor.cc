@@ -310,39 +310,39 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     return finalImage;
 }
 
-bool validateDimensions(const std::vector<DeepImage>& inputs) {
-    if (inputs.empty()) {
-        return true;
-    }
+// bool validateDimensions(const std::vector<DeepImage>& inputs) {
+//     if (inputs.empty()) {
+//         return true;
+//     }
 
-    int width = inputs[0].width();
-    int height = inputs[0].height();
+//     int width = inputs[0].width();
+//     int height = inputs[0].height();
 
-    for (size_t i = 1; i < inputs.size(); ++i) {
-        if (inputs[i].width() != width || inputs[i].height() != height) {
-            return false;
-        }
-    }
+//     for (size_t i = 1; i < inputs.size(); ++i) {
+//         if (inputs[i].width() != width || inputs[i].height() != height) {
+//             return false;
+//         }
+//     }
 
-    return true;
-}
+//     return true;
+// }
 
-bool validateDimensions(const std::vector<const DeepImage*>& inputs) {
-    if (inputs.empty()) {
-        return true;
-    }
+// bool validateDimensions(const std::vector<const DeepImage*>& inputs) {
+//     if (inputs.empty()) {
+//         return true;
+//     }
 
-    int width = inputs[0]->width();
-    int height = inputs[0]->height();
+//     int width = inputs[0]->width();
+//     int height = inputs[0]->height();
 
-    for (size_t i = 1; i < inputs.size(); ++i) {
-        if (inputs[i]->width() != width || inputs[i]->height() != height) {
-            return false;
-        }
-    }
+//     for (size_t i = 1; i < inputs.size(); ++i) {
+//         if (inputs[i]->width() != width || inputs[i]->height() != height) {
+//             return false;
+//         }
+//     }
 
-    return true;
-}
+//     return true;
+// }
 
 // DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels,
 //                       float mergeThreshold) {
@@ -371,4 +371,4 @@ bool validateDimensions(const std::vector<const DeepImage*>& inputs) {
 //     return result;
 // }
 
-}  // namespace deep_compositor
+}  // namespace exrio

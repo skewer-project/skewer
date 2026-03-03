@@ -65,7 +65,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
  * @param mergeThreshold Epsilon for merging nearby samples
  * @return Merged deep pixel with sorted samples
  */
-DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels, float mergeThreshold = 0.001f);
+// DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels, float mergeThreshold = 0.001f);
 
 /**
  * Validate that all images have compatible dimensions
@@ -73,7 +73,7 @@ DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels, float mergeTh
  * @param inputs Vector of images to validate
  * @return true if all dimensions match
  */
-bool validateDimensions(const std::vector<DeepImage>& inputs);
-bool validateDimensions(const std::vector<const DeepImage*>& inputs);
+// bool validateDimensions(const std::vector<DeepImage>& inputs);
+// bool validateDimensions(const std::vector<const DeepImage*>& inputs);
 
-}  // namespace deep_compositor
+}  // namespace exrio
