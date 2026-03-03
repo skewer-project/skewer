@@ -155,7 +155,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
             SurfaceInteraction shadow_si;  // dummy
             if (!scene.Intersect(shadow_ray, 0.f, dist - 2.0f * kShadowEpsilon, &shadow_si)) {
-                float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
+                float cos_light = std::abs(Dot(-wi_light, ls.n));
                 // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                 if (cos_light > 0) {
                     float light_pdf_w = ls.pdf * dist_sq / cos_light;
