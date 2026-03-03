@@ -45,8 +45,7 @@ endif()
 
 # Define Source Files
 # list every .cpp file here. no need for .h
-set(SOURCES
-    apps/cli/main.cc
+set(SKEWER_CORE_SOURCES
     src/session/render_session.cc
     src/scene/scene.cc
     src/film/film.cc
@@ -63,14 +62,21 @@ set(SOURCES
     src/core/spectral/rgb2spec.cc
 )
 
-# Create Executable
-add_executable(skewer-render ${SOURCES})
+# Create Executables
+add_executable(skewer-render apps/cli/main.cc ${SKEWER_CORE_SOURCES})
+add_executable(skewer-worker apps/worker/main.cc ${SKEWER_CORE_SOURCES})
 
 # Include directories tell CMake where to look for header files
 target_include_directories(skewer-render
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/external
+)
+target_include_directories(skewer-worker
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/external
+        ${CMAKE_BINARY_DIR}
 )
 
 set_source_files_properties(src/io/scene_loader.cc PROPERTIES
@@ -86,10 +92,21 @@ target_link_libraries(skewer-render
     ZLIB::ZLIB
 )
 
+target_link_libraries(skewer-worker
+    PRIVATE
+    nlohmann_json::nlohmann_json
+    Imath::Imath
+    OpenEXR::OpenEXR
+    ZLIB::ZLIB
+    coordinator_proto
+)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(skewer-render PRIVATE -ffast-math)
+    target_compile_options(skewer-worker PRIVATE -ffast-math)
     if(SKEWER_BUILD_NATIVE_OPTIMIZATIONS)
         target_compile_options(skewer-render PRIVATE -mcpu=native)
+        target_compile_options(skewer-worker PRIVATE -mcpu=native)
     endif()
 endif()
 
