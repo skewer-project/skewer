@@ -136,7 +136,6 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
 
         uint32_t id = scene.AddMaterial(mat);
         mat_map[name] = id;
-
     }
 
     return mat_map;
@@ -256,7 +255,6 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
             }
         }
     }
-
 }
 
 static void ParseObjects(const json& j, const MaterialMap& mat_map, Scene& scene,
