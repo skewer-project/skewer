@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -138,8 +137,6 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
         uint32_t id = scene.AddMaterial(mat);
         mat_map[name] = id;
 
-        std::clog << "[Scene] Material '" << name << "' -> " << type << " (id=" << id << ")"
-                  << std::endl;
     }
 
     return mat_map;
@@ -170,7 +167,6 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scen
     float radius = obj.at("radius").get<float>();
 
     scene.AddSphere(Sphere{center, radius, mat_id});
-    std::clog << "[Scene] Sphere at (" << center << "), r=" << radius << std::endl;
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
@@ -190,11 +186,6 @@ static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene,
     scene.AddMesh(CreateQuad(p0, p1, p2, p3, mat_id));
 
     std::string comment = GetOr<std::string>(obj, "comment", "");
-    if (!comment.empty()) {
-        std::clog << "[Scene] Quad: " << comment << std::endl;
-    } else {
-        std::clog << "[Scene] Quad" << std::endl;
-    }
 }
 
 static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, int index,
@@ -266,7 +257,6 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
         }
     }
 
-    std::clog << "[Scene] OBJ: " << filepath << " (auto_fit=" << auto_fit << ")" << std::endl;
 }
 
 static void ParseObjects(const json& j, const MaterialMap& mat_map, Scene& scene,
@@ -362,8 +352,6 @@ static SceneConfig ParseConfig(const json& j) {
 //------------------------------------------------------------------------------
 
 SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
-    std::clog << "[Scene] Loading scene file: " << filepath << std::endl;
-
     // Open and parse JSON
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -394,7 +382,6 @@ SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
     // 3. Parse camera and render config
     SceneConfig config = ParseConfig(j);
 
-    std::clog << "[Scene] Scene loaded successfully" << std::endl;
     return config;
 }
 

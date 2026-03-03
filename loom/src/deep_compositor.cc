@@ -1,5 +1,7 @@
+#include "barkeep.h"
 #include "deep_compositor.h"
 
+#include <atomic>
 #include <exrio/utils.h>
 
 #include <algorithm>
@@ -9,6 +11,7 @@
 #include "deep_volume.h"
 
 namespace exrio {
+namespace bk = barkeep;
 
 bool validateDimensions(const std::vector<DeepImage>& inputs) {
     if (inputs.empty()) {
@@ -100,6 +103,18 @@ DeepImage deepMerge(const std::vector<const DeepImage*>& inputs, const Composito
     // Create output image
     DeepImage result(width, height);
 
+    // Progress bar for heavy merge loop
+    std::atomic<size_t> mergedPixels(0);
+    auto totalPixels = static_cast<size_t>(width) * static_cast<size_t>(height);
+    auto bar = bk::ProgressBar(&mergedPixels, {.total = totalPixels,
+                                               .message = "Merging deep samples",
+                                               .speed = 0.0,
+                                               .speed_unit = "px/s",
+                                               .style = bk::ProgressBarStyle::Line});
+    if (totalPixels > 0) {
+        bar->show();
+    }
+
     // Prepare pixel pointer arrays for each input
     std::vector<const DeepPixel*> pixelPtrs(inputs.size());
 
@@ -114,7 +129,11 @@ DeepImage deepMerge(const std::vector<const DeepImage*>& inputs, const Composito
             // Merge pixels
             float threshold = options.enableMerging ? options.mergeThreshold : 0.0f;
             result.pixel(x, y) = mergePixels(pixelPtrs, threshold);
+            ++mergedPixels;
         }
+    }
+    if (totalPixels > 0) {
+        bar->done();
     }
 
     double mergeTime = timer.elapsedMs();
