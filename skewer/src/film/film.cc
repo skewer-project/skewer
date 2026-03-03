@@ -221,15 +221,17 @@ void Film::WriteImage(const std::string& filename) const {
             const Pixel& p = GetPixel(x, y);
 
             RGB color(0, 0, 0);
+            float alpha = 0.0f;
             if (p.weight_sum > 0) {
                 color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
             }
 
             size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
             rgba[idx + 0] = color.r();
             rgba[idx + 1] = color.g();
             rgba[idx + 2] = color.b();
-            rgba[idx + 3] = 1.0f;
+            rgba[idx + 3] = alpha;
         }
     }
 
