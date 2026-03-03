@@ -5,6 +5,7 @@
 #include <mutex>
 #include <set>
 #include <vector>
+#include <cmath>
 
 #include "deep_row.h"
 
