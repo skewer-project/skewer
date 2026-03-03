@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strings"
 
+	"github.com/google/uuid"
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
 )
 
@@ -30,7 +32,11 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) 
 // ================= //
 
 func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.SubmitJobResponse, error) {
-	jobID := req.JobId // May make this a coordinator-generated ID
+	jobID := req.JobId
+	if jobID == "" {
+		jobID = uuid.New().String()
+	}
+
 	log.Printf("[COORDINATOR] Received SubmitJob request: %s", jobID)
 
 	var newJob Job
@@ -282,10 +288,13 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 	extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
 
 	for frameID := range req.NumFrames {
+		// Replace #### with padded frame ID if it exists in the scene URI
+		frameSceneUri := strings.ReplaceAll(job.GetSceneUri(), "####", fmt.Sprintf("%04d", frameID+1))
+
 		var sampleStart int32 = 0
 		var outputUris []string
 		for chunk := range numSamplesPerWorker {
-			uriSuffix := fmt.Sprintf("frame-%d-chunk-%d", frameID, chunk)
+			uriSuffix := fmt.Sprintf("frame-%04d-chunk-%d.exr", frameID+1, chunk)
 
 			// Add in remainder
 			var sampleEnd int32 = sampleStart + numSamplesPerWorker
@@ -303,7 +312,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			outputUris = append(outputUris, outputUri)
 
 			task := &pb.RenderTask{
-				SceneUri: job.GetSceneUri(),
+				SceneUri: frameSceneUri,
 				Width:    req.GetWidth(),
 				Height:   req.GetHeight(),
 
@@ -318,7 +327,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 		}
 
 		// Create the Merge task
-		mergeUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
+		mergeUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%04d.exr", frameID+1))
 		if err != nil {
 			return err
 		}
@@ -365,7 +374,7 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		frameLayerUris := make([]string, len(originalPrefixes))
 
 		for idx, uriPrefix := range originalPrefixes {
-			fullLayerUri, err := url.JoinPath(uriPrefix, fmt.Sprintf("frame-%d", frameID))
+			fullLayerUri, err := url.JoinPath(uriPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 			if err != nil {
 				return err
 			}
@@ -373,7 +382,7 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		}
 
 		// Finally safely join path
-		finalOutputUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
+		finalOutputUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%04d.exr", frameID+1))
 		if err != nil {
 			return err
 		}
