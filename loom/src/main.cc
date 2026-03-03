@@ -1,27 +1,27 @@
 #include <exrio/deep_image.h>
 #include <exrio/deep_reader.h>
 #include <exrio/deep_writer.h>
-#include "deep_compositor.h"
-#include "utils.h"
-#include "deep_options.h"
-#include "deep_info.h"
 
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cstring>
+
+#include "deep_compositor.h"
+#include "deep_info.h"
+#include "deep_options.h"
+#include "utils.h"
 
 namespace {
 
 const char* VERSION = "1.0";
-
 
 bool isFloat(const std::string& s) {
     std::istringstream iss(s);
     float f;
     // Try to read a float, check if successful and no non-whitespace characters remain
     if (!(iss >> f)) {
-        return false; // Conversion failed
+        return false;  // Conversion failed
     }
     // Check if there are any non-whitespace characters left in the stream
     // Use std::ws to consume any trailing whitespace
@@ -30,7 +30,8 @@ bool isFloat(const std::string& s) {
 
 void printUsage(const char* programName) {
     std::cout << "Deep Image Compositor v" << VERSION << "\n\n"
-              << "Usage: " << programName << " [options] <input1.exr> [input2.exr ...] <output_prefix>\n\n"
+              << "Usage: " << programName
+              << " [options] <input1.exr> [input2.exr ...] <output_prefix>\n\n"
               << "Options:\n"
               << "  --deep-output        Write merged deep EXR (default: off)\n"
               << "  --flat-output        Write flattened EXR (default: on)\n"
@@ -56,10 +57,10 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
     if (argc < 2) {
         return false;
     }
-    
+
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        
+
         if (arg == "--help" || arg == "-h") {
             opts.showHelp = true;
             return true;
@@ -102,29 +103,26 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
                 try {
                     float offset = std::stof(arg);
                     opts.inputZOffsets.push_back(offset);
-                    continue; // Don't treat this as an input file
+                    continue;  // Don't treat this as an input file
                 } catch (...) {
                     std::cerr << "Error: Invalid Z offset value: " << arg << "\n";
                     return false;
                 }
-            } else{
-                
+            } else {
                 if (opts.modOffset && (opts.inputFiles.size() == opts.inputZOffsets.size() + 1)) {
-                    opts.inputZOffsets.push_back(0); // Default offset for this file
+                    opts.inputZOffsets.push_back(0);  // Default offset for this file
                 }
-                opts.inputFiles.push_back(arg); // Could be input file or output prefix, we'll determine later
+                opts.inputFiles.push_back(
+                    arg);  // Could be input file or output prefix, we'll determine later
             }
-           
-            
         }
-       
+    }
+    if (opts.modOffset && (opts.inputFiles.size() != opts.inputZOffsets.size())) {
+        opts.inputZOffsets.push_back(0);  // Default offset for last file if not provided
+    }
+    // std::cerr << "There are " << opts.inputFiles.size() << " input files and " <<
+    // opts.inputZOffsets.size() << " Z offsets\n";
 
-    }
-    if (opts.modOffset && (opts.inputFiles.size() != opts.inputZOffsets.size() )) {
-        opts.inputZOffsets.push_back(0); // Default offset for last file if not provided
-    }
-    // std::cerr << "There are " << opts.inputFiles.size() << " input files and " << opts.inputZOffsets.size() << " Z offsets\n";
-    
     // for (size_t i = 0; i < opts.inputZOffsets.size(); ++i) {
     //     std::cerr << "Z Offset " << i << ": " << opts.inputZOffsets[i] << "\n";
     // }
@@ -134,44 +132,41 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
         std::cerr << "Error: Need at least one input file and an output prefix\n";
         return false;
     }
-    
+
     // Last positional arg is output prefix
     opts.outputPrefix = opts.inputFiles.back();
     opts.inputFiles.pop_back();
-    
+
     return true;
 }
 
-} // anonymous namespace
-
-
-
+}  // anonymous namespace
 
 int main(int argc, char* argv[]) {
     using namespace deep_compositor;
-    
+
     Options opts;
-    
+
     if (!parseArgs(argc, argv, opts)) {
         printUsage(argv[0]);
         return 1;
     }
-    
+
     if (opts.showHelp) {
         printUsage(argv[0]);
         return 0;
     }
-    
+
     // Set verbose mode
     setVerbose(opts.verbose);
-    
+
     log("Deep Compositor v" + std::string(VERSION));
-    
+
     Timer totalTimer;
 
     log("Loading inputs...");
     Timer loadTimer;
-    // 
+    //
     for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
         const std::string& filename = opts.inputFiles[i];
         if (!isDeepEXR(filename)) {
@@ -180,43 +175,41 @@ int main(int argc, char* argv[]) {
         }
     }
 
-
     std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
-
 
     for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
         const std::string& filename = opts.inputFiles[i];
 
-        logVerbose("  [" + std::to_string(i + 1) + "/" + 
-                   std::to_string(opts.inputFiles.size()) + "] " + filename);
+        logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.inputFiles.size()) +
+                   "] " + filename);
         printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.inputFiles.size(), filename.c_str());
-         try {
+        try {
             // Check if it's a deep EXR
             if (!isDeepEXR(filename)) {
                 logError("File is not a deep EXR: " + filename);
                 return 1;
             }
-            
-            auto img = std::make_unique<DeepInfo>(filename); 
+
+            auto img = std::make_unique<DeepInfo>(filename);
             // Log statistics
-            std::string stats = "    " + std::to_string(img->width()) + "x" + 
-                               std::to_string(img->height());
+            std::string stats =
+                "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
             logVerbose(stats);
             if (!imagesInfo.empty()) {
-                if (img->width() != imagesInfo[0]->width() || 
+                if (img->width() != imagesInfo[0]->width() ||
                     img->height() != imagesInfo[0]->height()) {
                     logError("Image dimensions mismatch: " + filename);
-                    logError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" + 
-                            std::to_string(imagesInfo[0]->height()));
-                    logError("  Got: " + std::to_string(img->width()) + "x" + 
-                            std::to_string(img->height()));
+                    logError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
+                             std::to_string(imagesInfo[0]->height()));
+                    logError("  Got: " + std::to_string(img->width()) + "x" +
+                             std::to_string(img->height()));
                     return 1;
                 }
             }
 
             imagesInfo.push_back(std::move(img));
 
-         } catch (const deep_compositor::DeepReaderException& e) {
+        } catch (const deep_compositor::DeepReaderException& e) {
             logError("Failed to load " + filename + ": " + e.what());
             return 1;
         } catch (const std::exception& e) {
@@ -227,18 +220,16 @@ int main(int argc, char* argv[]) {
             logError("File is not a deep EXR: " + filename);
             return 1;
         }
-       
-    }  
+    }
     int height = imagesInfo[0]->height();
     int width = imagesInfo[0]->width();
 
     log("Starting processing...");
     std::vector<float> finalImage = processAllEXR(opts, height, width, imagesInfo);
 
-
     log("\nWriting outputs...");
     Timer writeTimer;
-    
+
     try {
         // // Write deep output if requested
         // if (opts.deepOutput) {
@@ -246,18 +237,18 @@ int main(int argc, char* argv[]) {
         //     writeDeepEXR(merged, deepPath);
         //     log("  Wrote: " + deepPath);
         // }
-        
+
         // // Write flat EXR if requested
         // if (opts.flatOutput) {
         //     std::string flatPath = opts.outputPrefix + "_flat.exr";
         //     writeFlatEXR(flatRgba, merged.width(), merged.height(), flatPath);
         //     log("  Wrote: " + flatPath);
         // }
-        
+
         // Write PNG if requested
         if (opts.pngOutput) {
             std::string pngPath = opts.outputPrefix + ".png";
-            
+
             if (hasPNGSupport()) {
                 writePNG(finalImage, height, width, pngPath);
                 log("  Wrote: " + pngPath);
@@ -265,20 +256,19 @@ int main(int argc, char* argv[]) {
                 log("  Skipped PNG (libpng not available)");
             }
         }
-        
+
     } catch (const deep_compositor::DeepReaderException& e) {
         logError("Failed to write output: " + std::string(e.what()));
         return 1;
     }
-    
+
     // logVerbose("  Write time: " + writeTimer.elapsedString());
-    
+
     // ========================================================================
     // Summary
     // ========================================================================
 
-    
     log("\nDone! Total time: " + totalTimer.elapsedString());
-    
+
     return 0;
 }
