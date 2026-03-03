@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
+
 #include <vector>
+
 #include "deep_row.h"
 
 class DeepRowTest : public ::testing::Test {
-protected:
+  protected:
     /**
      * Updated Helper for the new Layout:
      * [0] R, [1] G, [2] B, [3] A, [4] Z (Front), [5] ZBack
@@ -14,7 +16,7 @@ protected:
         data[2] = b;
         data[3] = a;
         data[4] = z;
-        data[5] = (zBack < 0) ? z : zBack; // Point samples have Z == ZBack
+        data[5] = (zBack < 0) ? z : zBack;  // Point samples have Z == ZBack
     }
 };
 
@@ -35,7 +37,7 @@ TEST_F(DeepRowTest, ClearResetsRow) {
     row.allocate(10, 100);
     row.clear();
     // Assuming clear resets or handles out-of-bounds gracefully
-    EXPECT_EQ(row.getSampleCount(0), 0u); 
+    EXPECT_EQ(row.getSampleCount(0), 0u);
 }
 
 // Adapted from: SingleImagePassesThroughCorrectly
@@ -43,7 +45,7 @@ TEST_F(DeepRowTest, SingleSampleFlatteningIsCorrect) {
     DeepRow row;
     unsigned int counts[1] = {1};
     row.allocate(1, counts);
-    
+
     float* sample = row.getSampleData(0, 0);
     // Setting Z=1.0, R=0.8, G=0.6, B=0.4, A=0.9
     setSample(sample, 1.0f, 0.8f, 0.6f, 0.4f, 0.9f);
@@ -51,8 +53,8 @@ TEST_F(DeepRowTest, SingleSampleFlatteningIsCorrect) {
     std::vector<float> rgba(4);
     flattenRow(row, rgba);
 
-    EXPECT_FLOAT_EQ(rgba[0], 0.8f); // R
-    EXPECT_FLOAT_EQ(rgba[3], 0.9f); // A
+    EXPECT_FLOAT_EQ(rgba[0], 0.8f);  // R
+    EXPECT_FLOAT_EQ(rgba[3], 0.9f);  // A
 }
 
 // Adapted from: FlattenedOutputAlphaClampedToOne
@@ -107,8 +109,8 @@ TEST_F(DeepRowTest, SemiTransparentFrontRevealsBack) {
     flattenRow(row, rgba);
 
     // Both Red and Blue should contribute to the final pixel
-    EXPECT_GT(rgba[0], 0.0f); // Some Red
-    EXPECT_GT(rgba[2], 0.0f); // Some Blue
+    EXPECT_GT(rgba[0], 0.0f);  // Some Red
+    EXPECT_GT(rgba[2], 0.0f);  // Some Blue
 }
 
 // ============================================================================
@@ -120,9 +122,9 @@ TEST_F(DeepRowTest, MaxSamplesAllocationResetsState) {
     DeepRow row;
     // Allocate space for 5 pixels and 20 total samples
     row.allocate(5, 20);
-    
+
     // Initially, sample counts per pixel should be 0 even if buffer is allocated
-    for(int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 5; ++i) {
         EXPECT_EQ(row.getSampleCount(i), 0u);
     }
 }
@@ -132,6 +134,6 @@ TEST_F(DeepRowTest, DataPointerConsistency) {
     DeepRow row;
     unsigned int counts[1] = {1};
     row.allocate(1, counts);
-    
+
     EXPECT_EQ(row.getPixelData(0), row.getSampleData(0, 0));
 }

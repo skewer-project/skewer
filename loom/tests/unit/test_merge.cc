@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
+
 #include <vector>
+
+#include "deep_merger.h"  // Assuming this contains RawSample and merge functions
 #include "deep_row.h"
-#include "deep_merger.h" // Assuming this contains RawSample and merge functions
 
 class DeepPixelMergeTest : public ::testing::Test {
-protected:
+  protected:
     // Helper to create a RawSample
     RawSample makeSample(float r, float g, float b, float a, float z, float zBack = -1.0f) {
         float finalZBack = (zBack < 0) ? z : zBack;
@@ -28,15 +30,15 @@ protected:
 TEST_F(DeepPixelMergeTest, VolumetricSplittingMathIsCorrect) {
     // Layout: R, G, B, A, Z, ZBack
     RawSample vol = makeSample(0.4f, 0.4f, 0.4f, 0.5f, 0.0f, 10.0f);
-    
+
     // Split exactly in the middle (zSplit = 5.0)
     auto [front, back] = splitSample(vol, 5.0f);
-    
+
     EXPECT_FLOAT_EQ(front.z, 0.0f);
     EXPECT_FLOAT_EQ(front.z_back, 5.0f);
     EXPECT_FLOAT_EQ(back.z, 5.0f);
     EXPECT_FLOAT_EQ(back.z_back, 10.0f);
-    
+
     // Alpha for 50% thickness: 1 - sqrt(1 - 0.5) ≈ 0.29289
     EXPECT_NEAR(front.a, 0.29289f, 1e-4f);
     EXPECT_FLOAT_EQ(front.a, back.a);
@@ -48,7 +50,7 @@ TEST_F(DeepPixelMergeTest, VolumetricSplittingMathIsCorrect) {
 
 TEST_F(DeepPixelMergeTest, DirectMergeSortsByDepth) {
     DeepRow row;
-    row.allocate(1, 10); 
+    row.allocate(1, 10);
 
     auto sFar = packSamples({makeSample(0.1f, 0.1f, 0.1f, 1.0f, 10.0f)});
     auto sNear = packSamples({makeSample(0.5f, 0.5f, 0.5f, 1.0f, 2.0f)});
@@ -96,13 +98,13 @@ TEST_F(DeepPixelMergeTest, VolumetricSplitHandlesOverlappingSamples) {
     sortAndMergePixelsWithSplit(0, {volA.data(), ptB.data()}, {1, 1}, row);
 
     ASSERT_EQ(row.getSampleCount(0), 3u);
-    
+
     // Sample 0: Front vol segment (ZBack is index 5)
-    EXPECT_FLOAT_EQ(row.getSampleData(0, 0)[5], 5.0f); 
+    EXPECT_FLOAT_EQ(row.getSampleData(0, 0)[5], 5.0f);
     // Sample 1: The Point (Z is index 4)
-    EXPECT_FLOAT_EQ(row.getSampleData(0, 1)[4], 5.0f); 
+    EXPECT_FLOAT_EQ(row.getSampleData(0, 1)[4], 5.0f);
     // Sample 2: Back vol segment (Z is index 4)
-    EXPECT_FLOAT_EQ(row.getSampleData(0, 2)[4], 5.0f); 
+    EXPECT_FLOAT_EQ(row.getSampleData(0, 2)[4], 5.0f);
 }
 
 // ============================================================================
@@ -124,7 +126,7 @@ TEST_F(DeepPixelMergeTest, VolumetricSplitHandlesOverlappingSamples) {
 //     sortAndMergePixelsDirect(0, ptrs, counts, row);
 
 //     ASSERT_EQ(row.getSampleCount(0), 1u);
-    
+
 //     // Volumetric transmission blending for Alpha: 1 - (1-0.5)*(1-0.5) = 0.75
 //     EXPECT_FLOAT_EQ(row.getSampleData(0, 0)[3], 0.75f);
 // }
