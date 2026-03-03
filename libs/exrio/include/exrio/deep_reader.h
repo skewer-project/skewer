@@ -4,7 +4,7 @@
 
 #include "deep_image.h"
 
-namespace deep_compositor {
+namespace exrio {
 
 /**
  * Exception thrown for deep EXR reading errors
@@ -42,4 +42,4 @@ bool isDeepEXR(const std::string& filename);
  */
 bool getDeepEXRInfo(const std::string& filename, int& width, int& height, bool& isDeep);
 
-}  // namespace deep_compositor
+}  // namespace exrio

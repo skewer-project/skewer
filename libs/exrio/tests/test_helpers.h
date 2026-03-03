@@ -2,7 +2,7 @@
 
 #include "deep_image.h"
 
-namespace deep_compositor {
+namespace exrio {
 
 inline DeepSample makePoint(float z, float r, float g, float b, float a) {
     return DeepSample(z, r, g, b, a);
@@ -24,4 +24,4 @@ inline DeepImage makeVolumeImage1x1(float zFront, float zBack, float r, float g,
     return img;
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio
