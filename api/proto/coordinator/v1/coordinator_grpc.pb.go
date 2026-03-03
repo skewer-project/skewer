@@ -4,7 +4,7 @@
 // - protoc             v6.33.4
 // source: api/proto/coordinator/v1/coordinator.proto
 
-package v1
+package coordinatorv1
 
 import (
 	context "context"
