@@ -47,7 +47,7 @@ add_library(loom_compositor STATIC
     src/deep_volume.cc
 )
 target_include_directories(loom_compositor PUBLIC ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(loom_compositor PUBLIC SYSTEM exrio::exrio)
+target_link_libraries(loom_compositor PUBLIC  exrio::exrio)
 target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter) 
 
 # Main executable
