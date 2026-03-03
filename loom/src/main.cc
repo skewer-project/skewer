@@ -139,8 +139,8 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
 
     return true;
 }
-}
-  // anonymous namespace
+}  // namespace deep_compositor
+   // anonymous namespace
 
 int main(int argc, char* argv[]) {
     using namespace deep_compositor;
@@ -272,4 +272,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-

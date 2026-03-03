@@ -371,4 +371,4 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
 //     return result;
 // }
 
-}  // namespace exrio
+}  // namespace deep_compositor
