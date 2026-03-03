@@ -144,22 +144,29 @@ std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer(const int total_pixel_sa
 // Helper: Merge overlapping/adjacent segments
 std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
                                                 const int total_pixel_samples) const {
-    if (input.size() <= 1) return input;
+    if (input.empty()) return input;
 
     std::vector<DeepSample> merged;
     merged.reserve(input.size() / 4);  // estimate
 
-    const float depth_epsilon = 1e-4;  // Tolerance for "same depth"
-
     DeepSample current = input[0];
+    // Track the previous sample's depth for consecutive-gap detection.
+    // Comparing against the previous sample (rather than the cluster start)
+    // correctly handles gradual depth changes across curved surfaces.
+    float prev_z_front = current.z_front;
+    float prev_z_back = current.z_back;
 
     for (size_t i = 1; i < input.size(); ++i) {
         const DeepSample& next = input[i];
         if (next.alpha <= 0.0f) continue;
 
-        // Check if this is at the "same depth" as current
-        bool same_depth = (std::abs(next.z_front - current.z_front) < depth_epsilon) &&
-                          (std::abs(next.z_back - current.z_back) < depth_epsilon);
+        // Depth-relative tolerance: accounts for sub-pixel depth variation
+        // caused by surface curvature, ray jittering, and anti-aliasing.
+        // At depth 10 → epsilon ≈ 0.01, at depth 100 → epsilon ≈ 0.1
+        float depth_epsilon = std::max(1e-2f, std::abs(prev_z_front) * 1e-3f);
+
+        bool same_depth = (std::abs(next.z_front - prev_z_front) < depth_epsilon) &&
+                          (std::abs(next.z_back - prev_z_back) < depth_epsilon);
 
         if (same_depth) {
             current.r += next.r;
@@ -170,6 +177,9 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
             merged.push_back(current);
             current = next;
         }
+
+        prev_z_front = next.z_front;
+        prev_z_back = next.z_back;
     }
 
     merged.push_back(current);
