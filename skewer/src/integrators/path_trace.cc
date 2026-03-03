@@ -41,9 +41,9 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     auto bar = bk::ProgressBar(&scanlines_completed, {
                                                          .total = height,
                                                          .message = "Rendering",
-                                                         .speed = 0.0,
+                                                         .speed = 0.2,
                                                          .speed_unit = "scanlines/s",
-                                                         .style = bk::ProgressBarStyle::Line,
+                                                         .style = bk::ProgressBarStyle::Rich,
                                                      });
 
     // Worker function - each thread grabs scanlines dynamically
@@ -91,8 +91,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     }
 
     bar->done();
-
-    std::clog << "\n";
 }
 
 }  // namespace skwr

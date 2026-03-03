@@ -1,13 +1,13 @@
-#include "barkeep.h"
 #include "deep_compositor.h"
 
-#include <atomic>
 #include <exrio/utils.h>
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <stdexcept>
 
+#include "barkeep.h"
 #include "deep_volume.h"
 
 namespace exrio {
@@ -108,9 +108,9 @@ DeepImage deepMerge(const std::vector<const DeepImage*>& inputs, const Composito
     auto totalPixels = static_cast<size_t>(width) * static_cast<size_t>(height);
     auto bar = bk::ProgressBar(&mergedPixels, {.total = totalPixels,
                                                .message = "Merging deep samples",
-                                               .speed = 0.0,
+                                               .speed = 0.2,
                                                .speed_unit = "px/s",
-                                               .style = bk::ProgressBarStyle::Line});
+                                               .style = bk::ProgressBarStyle::Rich});
     if (totalPixels > 0) {
         bar->show();
     }
