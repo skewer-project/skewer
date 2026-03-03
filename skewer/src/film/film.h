@@ -1,6 +1,8 @@
 #ifndef SKWR_FILM_FILM_H_
 #define SKWR_FILM_FILM_H_
 
+#include <exrio/deep_image.h>
+
 #include <atomic>
 #include <cstddef>
 #include <memory>
@@ -35,9 +37,9 @@ class Film {
     void AddSample(int x, int y, const RGB& L, float alpha, float weight = 1.0f);
     void AddDeepSample(int x, int y, const PathSample& path_sample);
 
-    // Saves to disk (PPM, EXR)
+    // Saves to disk (PNG, EXR)
     void WriteImage(const std::string& filename) const;
-    std::unique_ptr<DeepImageBuffer> CreateDeepBuffer(const int total_pixel_samples) const;
+    exrio::DeepImage BuildDeepImage(const int total_pixel_samples) const;
 
     // Builds a flat RGBA buffer suitable for export as a compositing-friendly EXR.
     // Colors are premultiplied; alpha reflects average coverage per pixel.
