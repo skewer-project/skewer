@@ -32,7 +32,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
         if (thread_count == 0) thread_count = 4;  // Fallback
     }
 
-    std::clog << "[Session] Rendering with " << thread_count << " threads...\n";
+    std::cout << "[Session] Rendering with " << thread_count << " threads...\n";
 
     // Atomic counter for scanline work-stealing
     std::atomic<int> next_scanline(0);
@@ -40,7 +40,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
     auto bar = bk::ProgressBar(&scanlines_completed, {
                                                          .total = height,
-                                                         .message = "Rendering",
                                                          .speed = 0.2,
                                                          .speed_unit = "scanlines/s",
                                                          .style = bk::ProgressBarStyle::Rich,

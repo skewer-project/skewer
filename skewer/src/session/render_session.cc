@@ -88,8 +88,6 @@ void RenderSession::Render() {
     std::cout << "[Session] Starting Render...\n";
 
     integrator_->Render(*scene_, *camera_, film_.get(), options_.integrator_config);
-
-    std::cout << "[Session] Render Complete.\n";
 }
 
 /**
