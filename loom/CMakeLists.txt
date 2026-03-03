@@ -7,14 +7,33 @@ project(deep_compositor_demo VERSION 1.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#     add_compile_options(-Wall -Wextra -Wpedantic) 
+#     message(STATUS "Clang detected: Strict mode and Werror enabled.")
+# endif()
+
+
+find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+if(CLANG_TIDY_EXE)
+    # Adding 'modernize-concat-nested-namespaces' is great for C++20!
+    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=-*,bugprone-*,readability-*,modernize-*,portability-*;--header-filter=src/.*;--warnings-as-errors=-*")
+endif()
+
 include(CTest)
 cmake_policy(SET CMP0135 NEW)
 
+
+# Meant to disable native optimizations for older macbooks
+set(SKEWER_BUILD_NATIVE_OPTIMIZATIONS OFF CACHE BOOL "" FORCE)
+
+# Needs to be changed to not pull entire skewer renderer in. 
 if(NOT TARGET exrio::exrio)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio/CMakeLists.txt")
         add_subdirectory(
             "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio"
             "${CMAKE_CURRENT_BINARY_DIR}/exrio"
+            SYSTEM
         )
     else()
         find_package(exrio REQUIRED CONFIG)
@@ -28,17 +47,18 @@ add_library(loom_compositor STATIC
     src/deep_volume.cc
 )
 target_include_directories(loom_compositor PUBLIC ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(loom_compositor PUBLIC exrio::exrio)
-target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic)
+target_link_libraries(loom_compositor PUBLIC SYSTEM exrio::exrio)
+target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter) 
 
 # Main executable
 add_executable(deep_compositor src/main.cc)
 target_link_libraries(deep_compositor PRIVATE loom_compositor)
+target_compile_options(deep_compositor PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
 
 # Create output directory
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
 
-target_compile_options(deep_compositor PRIVATE -Wall -Wextra -Wpedantic)
+
 
 if(BUILD_TESTING)
     include(FetchContent)

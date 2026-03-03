@@ -1,6 +1,5 @@
 #include "deep_compositor.h"
 
-#include <ImfDeepScanLineInputFile.h>  // OpenEXR
 #include <OpenEXR/ImfChannelList.h>
 #include <OpenEXR/ImfDeepFrameBuffer.h>
 #include <OpenEXR/ImfDeepScanLineInputFile.h>

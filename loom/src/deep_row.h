@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ImfDeepFrameBuffer.h>  // OpenEXR
 
 #include <atomic>
 #include <condition_variable>
