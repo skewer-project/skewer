@@ -28,8 +28,8 @@ target_include_directories(exrio
 
 target_link_libraries(exrio
     PUBLIC
-        OpenEXR::OpenEXR
-        Imath::Imath
+        SYSTEM OpenEXR::OpenEXR
+        SYSTEM Imath::Imath
 )
 
 if(PNG_FOUND)
@@ -37,7 +37,7 @@ if(PNG_FOUND)
     target_link_libraries(exrio PUBLIC PNG::PNG)
 endif()
 
-target_compile_options(exrio PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(exrio PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
