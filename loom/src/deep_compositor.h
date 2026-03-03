@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace deep_compositor {
+namespace exrio {
 
 /**
  * Options for the compositing operation
@@ -68,4 +68,4 @@ DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels, float mergeTh
 bool validateDimensions(const std::vector<DeepImage>& inputs);
 bool validateDimensions(const std::vector<const DeepImage*>& inputs);
 
-}  // namespace deep_compositor
+}  // namespace exrio

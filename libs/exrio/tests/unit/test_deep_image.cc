@@ -7,7 +7,7 @@
 #include "../test_helpers.h"
 #include "deep_image.h"
 
-using namespace deep_compositor;
+using namespace exrio;
 
 class DeepImageTest : public ::testing::Test {
   protected:
