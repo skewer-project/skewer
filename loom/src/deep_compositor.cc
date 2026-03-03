@@ -8,7 +8,7 @@
 
 #include "deep_volume.h"
 
-namespace deep_compositor {
+namespace exrio {
 
 bool validateDimensions(const std::vector<DeepImage>& inputs) {
     if (inputs.empty()) {
@@ -139,4 +139,4 @@ DeepImage deepMerge(const std::vector<const DeepImage*>& inputs, const Composito
     return result;
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio

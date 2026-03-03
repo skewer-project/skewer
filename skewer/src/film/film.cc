@@ -77,7 +77,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     }
 }
 
-deep_compositor::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
+exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     // Pass 1: Count samples per pixel
     std::vector<unsigned int> counts(width_ * height_, 0);
 
@@ -94,7 +94,7 @@ deep_compositor::DeepImage Film::BuildDeepImage(const int total_pixel_samples) c
     }
 
     // Pass 2: Create the deep image
-    deep_compositor::DeepImage result(width_, height_);
+    exrio::DeepImage result(width_, height_);
 
     // Pass 3: Copy, Sort, and merge segments
     for (int y = 0; y < height_; ++y) {
@@ -133,10 +133,10 @@ deep_compositor::DeepImage Film::BuildDeepImage(const int total_pixel_samples) c
             segments = MergeDeepSegments(segments, total_pixel_samples);
 
             // Convert to deep_compositor::DeepSample and add to result
-            deep_compositor::DeepPixel& pixel = result.pixel(x, y);
+            exrio::DeepPixel& pixel = result.pixel(x, y);
             for (const DeepSample& seg : segments) {
-                pixel.addSample(deep_compositor::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g,
-                                                            seg.b, seg.alpha));
+                pixel.addSample(
+                    exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
             }
         }
     }
@@ -232,7 +232,7 @@ void Film::WriteImage(const std::string& filename) const {
         }
     }
 
-    deep_compositor::writePNG(rgba, width_, height_, filename);
+    exrio::writePNG(rgba, width_, height_, filename);
     std::cout << "Wrote image to " << filename << "\n";
 }
 

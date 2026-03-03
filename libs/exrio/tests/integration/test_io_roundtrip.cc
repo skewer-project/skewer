@@ -10,7 +10,7 @@
 #include "deep_reader.h"
 #include "deep_writer.h"
 
-using namespace deep_compositor;
+using namespace exrio;
 namespace fs = std::filesystem;
 
 // ============================================================================
