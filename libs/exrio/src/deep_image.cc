@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-namespace deep_compositor {
+namespace exrio {
 
 // ============================================================================
 // DeepPixel Implementation
@@ -219,4 +219,4 @@ void DeepImage::clear() {
     }
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio

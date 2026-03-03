@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <fstream>
 
-namespace deep_compositor {
+namespace exrio {
 
 bool g_verbose = false;
 
@@ -96,4 +96,4 @@ bool fileExists(const std::string& path) {
     return f.good();
 }
 
-}  // namespace deep_compositor
+}  // namespace exrio
