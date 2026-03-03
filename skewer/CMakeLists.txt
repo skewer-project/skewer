@@ -70,7 +70,7 @@ find_package(ZLIB REQUIRED)
 
 # Create Executables
 add_executable(skewer-render apps/cli/main.cc ${SKEWER_CORE_SOURCES})
-add_executable(skewer-worker apps/worker/main.cc ${SKEWER_CORE_SOURCES})
+# add_executable(skewer-worker apps/worker/main.cc ${SKEWER_CORE_SOURCES}) # will add main.cc in another branch
 
 # Include directories tell CMake where to look for header files
 target_include_directories(skewer-render
