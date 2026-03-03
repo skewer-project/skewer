@@ -36,7 +36,6 @@ namespace deep_compositor {
 
 enum RowStates { EMPTY, LOADED, MERGED, FLATTENED, ERROR };
 
-
 std::vector<float> processAllEXR(const Options& opts, int height, int width,
                                  std::vector<std::unique_ptr<DeepInfo>>& imagesInfo) {
     // ========================================================================
