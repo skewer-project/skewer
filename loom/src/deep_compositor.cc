@@ -36,6 +36,12 @@ namespace deep_compositor {
 
 enum RowStates { EMPTY, LOADED, MERGED, FLATTENED, ERROR };
 
+void testFunction(int x) {  // <— Incorrect: Google style wants this on the same line
+    if (x > 0) {            // <— Incorrect: Missing spaces around operators
+        int y = 10;         // <— Incorrect: Extra spaces
+    }
+}
+
 std::vector<float> processAllEXR(const Options& opts, int height, int width,
                                  std::vector<std::unique_ptr<DeepInfo>>& imagesInfo) {
     // ========================================================================
