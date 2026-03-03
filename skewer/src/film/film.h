@@ -37,7 +37,7 @@ class Film {
 
     // Saves to disk (PNG, EXR)
     void WriteImage(const std::string& filename) const;
-    deep_compositor::DeepImage BuildDeepImage(const int total_pixel_samples) const;
+    exrio::DeepImage BuildDeepImage(const int total_pixel_samples) const;
 
     int width() { return width_; }
     int height() { return height_; }
