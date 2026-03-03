@@ -109,7 +109,7 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
 }  // anonymous namespace
 
 int main(int argc, char* argv[]) {
-    using namespace deep_compositor;
+    using namespace exrio;
 
     Options opts;
 
