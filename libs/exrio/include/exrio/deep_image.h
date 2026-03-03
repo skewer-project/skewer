@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace deep_compositor {
+namespace exrio {
 
 /**
  * A single deep sample containing depth and premultiplied RGBA values
@@ -214,4 +214,4 @@ class DeepImage {
     bool isValidCoord(int x, int y) const;
 };
 
-}  // namespace deep_compositor
+}  // namespace exrio
