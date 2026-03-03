@@ -199,16 +199,6 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
         if (seg.alpha > 1.0f) seg.alpha = 1.0f;
     }
 
-    static std::atomic<int> log_count{0};
-    if (log_count.fetch_add(1) % 10000 == 0) {  // Log every 10000th pixel
-        std::cout << "Merge: " << input.size() << " → " << merged.size() << " segments\n";
-        if (merged.size() > 0) {
-            std::cout << "  First segment: z=" << merged[0].z_front << " rgb=(" << merged[0].r
-                      << "," << merged[0].g << "," << merged[0].b << ")"
-                      << " alpha=" << merged[0].alpha << "\n";
-        }
-    }
-
     return merged;
 }
 

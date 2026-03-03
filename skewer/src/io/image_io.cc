@@ -12,7 +12,6 @@
 #include <half.h>
 
 #include <cassert>
-#include <iostream>
 #include <stdexcept>
 
 #include "film/image_buffer.h"
@@ -62,8 +61,6 @@ DeepImageBuffer ImageIO::LoadEXR(const std::string& filename) {
     int minY = dataWindow.min.y;
     int width = dataWindow.max.x - dataWindow.min.x + 1;
     int height = dataWindow.max.y - dataWindow.min.y + 1;
-
-    std::clog << "Loading EXR: " << filename << " (" << width << "x" << height << ")" << std::endl;
 
     // Check channels
     Imf::ChannelList channels = header.channels();
