@@ -4,7 +4,7 @@
 // 	protoc        v6.33.4
 // source: api/proto/coordinator/v1/coordinator.proto
 
-package v1
+package coordinatorv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -758,8 +758,8 @@ type RenderTask struct {
 	Height   int32  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
 	// Sample division range
 	SampleStart   int32  `protobuf:"varint,4,opt,name=sample_start,json=sampleStart,proto3" json:"sample_start,omitempty"`
-	SampleEnd     int32  `protobuf:"varint,5,opt,name=sample_end,json=sampleEnd,proto3" json:"sample_end,omitempty"`
-	OutputUri     string `protobuf:"bytes,6,opt,name=output_uri,json=outputUri,proto3" json:"output_uri,omitempty"` // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
+	SampleEnd     int32  `protobuf:"varint,5,opt,name=sample_end,json=sampleEnd,proto3" json:"sample_end,omitempty"` // End is EXCLUSIVE
+	OutputUri     string `protobuf:"bytes,6,opt,name=output_uri,json=outputUri,proto3" json:"output_uri,omitempty"`  // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1194,7 +1194,7 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\fGetJobStatus\x12-.api.proto.coordinator.v1.GetJobStatusRequest\x1a..api.proto.coordinator.v1.GetJobStatusResponse\x12d\n" +
 	"\tCancelJob\x12*.api.proto.coordinator.v1.CancelJobRequest\x1a+.api.proto.coordinator.v1.CancelJobResponse\x12h\n" +
 	"\rGetWorkStream\x12..api.proto.coordinator.v1.GetWorkStreamRequest\x1a%.api.proto.coordinator.v1.WorkPackage0\x01\x12y\n" +
-	"\x10ReportTaskResult\x121.api.proto.coordinator.v1.ReportTaskResultRequest\x1a2.api.proto.coordinator.v1.ReportTaskResultResponseB\x1cZ\x1a./api/proto/coordinator/v1b\x06proto3"
+	"\x10ReportTaskResult\x121.api.proto.coordinator.v1.ReportTaskResultRequest\x1a2.api.proto.coordinator.v1.ReportTaskResultResponseBIZGgithub.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1b\x06proto3"
 
 var (
 	file_api_proto_coordinator_v1_coordinator_proto_rawDescOnce sync.Once
