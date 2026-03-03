@@ -99,11 +99,11 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     // Pass 2: Create the deep image
     exrio::DeepImage result(width_, height_);
 
-    // Pass 3: Copy, Sort, and merge segments (with progress bar)
+    // Pass 3: Copy, Sort, and merge segments
+    std::cout << "\nBuilding deep image\n";
     std::atomic<size_t> pixels_done(0);
     size_t total_pixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
     auto bar = bk::ProgressBar(&pixels_done, {.total = total_pixels,
-                                              .message = "Building deep image",
                                               .speed = 0.2,
                                               .speed_unit = "px/s",
                                               .style = bk::ProgressBarStyle::Rich});
