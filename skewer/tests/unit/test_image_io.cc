@@ -1,3 +1,5 @@
+#include <exrio/deep_image.h>
+#include <exrio/deep_writer.h>
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -53,8 +55,22 @@ class ImageIOTest : public ::testing::Test {
 };
 
 TEST_F(ImageIOTest, SaveAndLoadEXR) {
-    // Save the buffer
-    ASSERT_NO_THROW(ImageIO::SaveEXR(*expectedBuffer, testFilename));
+    // Convert expectedBuffer to deep_compositor::DeepImage for writing
+    int w = expectedBuffer->GetWidth();
+    int h = expectedBuffer->GetHeight();
+    deep_compositor::DeepImage img(w, h);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            DeepPixelView pv = expectedBuffer->GetPixel(x, y);
+            for (size_t i = 0; i < pv.count; ++i) {
+                img.pixel(x, y).addSample(deep_compositor::DeepSample(
+                    pv[i].z_front, pv[i].z_back, pv[i].r, pv[i].g, pv[i].b, pv[i].alpha));
+            }
+        }
+    }
+
+    // Save via exrio
+    ASSERT_NO_THROW(deep_compositor::writeDeepEXR(img, testFilename));
 
     // Load it back
     DeepImageBuffer loadedBuffer = ImageIO::LoadEXR(testFilename);
