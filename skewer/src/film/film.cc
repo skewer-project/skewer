@@ -104,9 +104,9 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     size_t total_pixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
     auto bar = bk::ProgressBar(&pixels_done, {.total = total_pixels,
                                               .message = "Building deep image",
-                                              .speed = 0.0,
+                                              .speed = 0.2,
                                               .speed_unit = "px/s",
-                                              .style = bk::ProgressBarStyle::Line});
+                                              .style = bk::ProgressBarStyle::Rich});
     if (total_pixels > 0) bar->show();
 
     for (int y = 0; y < height_; ++y) {
