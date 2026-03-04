@@ -10,9 +10,9 @@ metadata:
   name: skewer-coordinator-role
   namespace: default
 rules:
-- apiGroups: ["apps"]
-  resources: ["deployments"]
-  verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -20,8 +20,8 @@ metadata:
   name: skewer-coordinator-rolebinding
   namespace: default
 subjects:
-- kind: ServiceAccount
-  name: skewer-coordinator
+  - kind: ServiceAccount
+    name: skewer-coordinator
 roleRef:
   kind: Role
   name: skewer-coordinator-role
@@ -46,12 +46,23 @@ spec:
     spec:
       serviceAccountName: skewer-coordinator
       containers:
-      - name: coordinator
-        image: skewer-coordinator:latest
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 50051
-          name: grpc
+        - name: coordinator
+          image: skewer-coordinator:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50051
+              name: grpc
+          env:
+            - name: LOCAL_STORAGE_BASE
+              value: "/data"
+          volumeMounts:
+            - name: skewer-data
+              mountPath: "/data"
+      volumes:
+        - name: skewer-data
+          hostPath:
+            path: "{{SKEWER_DATA_PATH}}"
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
@@ -62,6 +73,6 @@ spec:
   selector:
     app: skewer-coordinator
   ports:
-  - port: 50051
-    targetPort: 50051
-    name: grpc
+    - port: 50051
+      targetPort: 50051
+      name: grpc
