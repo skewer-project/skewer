@@ -317,8 +317,8 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                     next_r.vol_stack() = r.vol_stack();
 
                     // Update is_camera_path based on transmission
-                    float in_dot = Dot(r.direction(), si.n_geom);
-                    float out_dot = Dot(next_r.direction(), si.n_geom);
+                    float in_dot = Dot(r.direction(), si.n_shading);
+                    float out_dot = Dot(next_r.direction(), si.n_shading);
                     bool is_transmission = (in_dot * out_dot > 0.0f);
 
                     is_camera_path = is_camera_path && is_transmission;
