@@ -317,11 +317,11 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                     next_r.vol_stack() = r.vol_stack();
 
                     // Update is_camera_path based on transmission
-                    // Kill for dielectrics
-                    bool is_straight_cutout =
-                        (mat.IsTransparent() && mat.type != MaterialType::Dielectric);
-                    is_camera_path = is_camera_path && is_straight_cutout;
+                    float in_dot = Dot(r.direction(), si.n_geom);
+                    float out_dot = Dot(next_r.direction(), si.n_geom);
+                    bool is_transmission = (in_dot * out_dot > 0.0f);
 
+                    is_camera_path = is_camera_path && is_transmission;
                     r = next_r;
 
                     // If this bounce was sharp (Metal/Glass), next hit counts as specular
@@ -368,17 +368,31 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
     for (int i = (int)path_vertices.size() - 1; i >= 0; --i) {
         const PathVertex& v = path_vertices[i];
 
-        // 1. Rendering Equation: L_out = L_local + weight * L_incoming
+        // Rendering Equation: L_out = L_local + weight * L_incoming
         deep_L = v.local_L + (v.bsdf_weight * deep_L);
 
-        // 2. Deep EXR Commit
         if (v.is_camera_path) {
-            // Write the segment! It now perfectly contains its own emission, NEE,
-            // and all indirect GI belonging to this specific depth.
-            AddDeepSegment(result, ray, v.t_start, v.t_end, deep_L, v.alpha, ray.origin(),
+            float deep_alpha = v.alpha;
+            // FIX: If the NEXT vertex left the camera path, then THIS vertex is the
+            // deflection point (scattering event or reflection). It acts as an opaque
+            // terminator for this specific Monte Carlo sample's line of sight
+            if (i + 1 < (int)path_vertices.size() && !path_vertices[i + 1].is_camera_path) {
+                deep_alpha = 1.0f;
+            }
+
+            // FIX: Premature Termination Backstop
+            // If this is the absolute end of the traced path, but we are STILL on the
+            // camera path, it means the path was killed (RR, Max Depth) before hitting
+            // an opaque background. Seal the alpha to prevent checkerboard bleeding
+            if (i + 1 == (int)path_vertices.size()) {
+                deep_alpha = 1.0f;
+            }
+
+            // Segment with its own emission, NEE, and all indirect GI for this specific depth.
+            AddDeepSegment(result, ray, v.t_start, v.t_end, deep_L, deep_alpha, ray.origin(),
                            config.cam_w, wl);
 
-            // 3. The Deep Compositing Reset
+            // Deep Compositing Reset
             // Because the deep compositing software uses v.alpha to blend
             // whatever is behind this segment, we MUST reset the accumulator to 0.0f here.
             // Otherwise, the background light will be embedded in the foreground segment,
