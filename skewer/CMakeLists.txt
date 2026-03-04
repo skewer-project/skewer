@@ -64,10 +64,15 @@ find_package(ZLIB REQUIRED)
 
 # Create Executables
 add_executable(skewer-render apps/cli/main.cc ${SKEWER_CORE_SOURCES})
-# add_executable(skewer-worker apps/worker/main.cc ${SKEWER_CORE_SOURCES}) # will add main.cc in another branch
+add_executable(skewer-worker apps/worker/main.cc ${SKEWER_CORE_SOURCES})
 
 # Include directories tell CMake where to look for header files
 target_include_directories(skewer-render
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/external
+)
+target_include_directories(skewer-worker
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/external
@@ -84,11 +89,17 @@ target_link_libraries(skewer-render
     exrio::exrio
 )
 
+target_link_libraries(skewer-worker
+    PRIVATE
+    nlohmann_json::nlohmann_json
+    exrio::exrio
+    Imath::Imath
+    OpenEXR::OpenEXR
+    ZLIB::ZLIB
+)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(skewer-render PRIVATE -ffast-math)
-    if(SKEWER_BUILD_NATIVE_OPTIMIZATIONS)
-        target_compile_options(skewer-render PRIVATE -mcpu=native)
-    endif()
 endif()
 
 include(CheckIPOSupported)
