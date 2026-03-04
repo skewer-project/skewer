@@ -29,13 +29,19 @@ else
     echo "Minikube is already running."
 fi
 
-# Point to minikube's docker daemon
-eval $(minikube docker-env)
+# Use host docker daemon (DO NOT eval minikube docker-env here for building)
+# This uses the host machine's RAM/CPU which is much faster/stable for C++ builds.
 
-# Build the images
+# Build the images locally
 docker build -t skewer-worker:latest -f deployments/docker/Dockerfile.skewer .
-docker build -t loom-worker:latest -f deployments/docker/Dockerfile.loom .
+# docker build -t loom-worker:latest -f deployments/docker/Dockerfile.loom .
 docker build -t skewer-coordinator:latest -f deployments/docker/Dockerfile.coordinator .
+
+# Load the images into minikube
+echo "Loading images into minikube..."
+minikube image load skewer-worker:latest
+# minikube image load loom-worker:latest
+minikube image load skewer-coordinator:latest
 
 # Push the images to the registry (TODO: connect to GKE registry)
 # docker push skewer-worker:latest
