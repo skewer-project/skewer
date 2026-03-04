@@ -12,7 +12,7 @@ Film::Film(int width, int height)
     : width_(width),
       height_(height),
       pixels_(width_ * height_),
-      deep_pool_(width_ * height_ * 100 * 4) {
+      deep_pool_(width_ * height_ * 200 * 8) {
     // pixels_.resize(width_ * height_);
 
     // Pre-allocate pool based on expected usage
