@@ -21,10 +21,10 @@ set -e
 cd "$(dirname "$0")/.."
 
 # Check if minikube is running and start it if it isn't
-MINIKUBE_ACTIVE=$(minikube status | grep -c "Running")
-if [ "$MINIKUBE_ACTIVE" -eq 0 ]; then 
+if ! minikube status | grep -q "Running"; then 
     echo "Minikube is not running. Starting minikube..."
     minikube start
+    minikube addons enable metrics-server
 else
     echo "Minikube is already running."
 fi
