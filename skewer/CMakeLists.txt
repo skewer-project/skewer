@@ -41,7 +41,6 @@ endif()
 # Define Source Files
 # list every .cpp file here. no need for .h
 set(SKEWER_CORE_SOURCES
-    apps/cli/main.cc
     src/session/render_session.cc
     src/scene/scene.cc
     src/film/film.cc
