@@ -71,7 +71,7 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
         mi.wo = -r.direction();  // Points back towards the camera/previous bounce
         mi.phase_g = medium.g;
         mi.sigma_s = medium.sigma_s;
-        mi.alpha = 1.0f;  // For deep buffer: represents a hard volumetric collision
+        mi.alpha = 1.0f - tr.Average();
 
         return true;
     } else {
@@ -106,10 +106,14 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
     if (majorant <= 0.0f) return false;
     int hero = 0;  // 0 index is always hero
 
+    // Track optical depth for Deep Alpha
+    float accumulated_tau = 0.0f;
+
     while (true) {
         // Sample a distance step based on the majorant
         float xi_1 = rng.UniformFloat();
-        t -= std::log(std::max(1.0f - xi_1, kEpsilon)) / majorant;
+        float step_size = -std::log(std::max(1.0f - xi_1, kEpsilon)) / majorant;
+        t += step_size;
 
         if (t >= t_max) break;  // Exited vol if stepped out of the box or hit surface
 
@@ -118,6 +122,10 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
         // Calculate the actual Extinction coefficient here
         Spectrum sigma_t = density * (medium.sigma_a_base + medium.sigma_s_base);
         Spectrum sigma_s = density * medium.sigma_s_base;
+
+        // Accumulate optical depth (tau)
+        // approximating the integral of extinction over the distance marched.
+        accumulated_tau += sigma_t.Average() * step_size;
 
         // Probability of a REAL collision
         float p_real = sigma_t[hero] / majorant;
@@ -132,7 +140,7 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
             mi.wo = -r.direction();
             mi.phase_g = medium.g;
             mi.sigma_s = sigma_s;
-            mi.alpha = 1.0f;
+            mi.alpha = 1.0f - std::exp(-accumulated_tau);
 
             return true;
         }
