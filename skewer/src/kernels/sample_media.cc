@@ -154,10 +154,6 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
         Spectrum null_weight = (Spectrum(majorant) - sigma_t) / denom;
         beta *= null_weight;
     }
-
-    // Escaped without scattering
-    // With Delta Tracking, passing through without a collision means
-    // throughput (beta) remains exactly 1.0!
     return false;
 }
 
