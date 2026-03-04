@@ -18,6 +18,7 @@
 .zed/
 *.swp
 *.swo
+compile_commands.json
 
 # render inputs/outputs
 objects/
