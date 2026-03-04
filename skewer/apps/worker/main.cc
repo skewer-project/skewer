@@ -8,7 +8,18 @@
 #include <string>
 #include <thread>
 
-#include "api/proto/coordinator/v1/coordinator.grpc.pb.h"
+#include "proto/coordinator/v1/coordinator.grpc.pb.h"
+
+using api::proto::coordinator::v1::CoordinatorService;
+using api::proto::coordinator::v1::GetWorkStreamRequest;
+using api::proto::coordinator::v1::RenderTask;
+using api::proto::coordinator::v1::ReportTaskResultRequest;
+using api::proto::coordinator::v1::ReportTaskResultResponse;
+using api::proto::coordinator::v1::WorkPackage;
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::ClientReader;
+using grpc::Status;
 
 void RunSkewerWorker(const std::string& coordinator_addr) {
     std::string worker_id =
