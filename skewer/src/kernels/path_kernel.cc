@@ -46,6 +46,17 @@ inline void AddDeepSegment(PathSample& sample, const Ray& ray, float t_min, floa
     sample.segments.push_back({z_front, z_back, final_rgb, alpha});
 }
 
+// struct for Deferred Backwards Pass for Deep output
+// TODO: move to new file possibly
+struct PathVertex {
+    float t_start;
+    float t_end;
+    Spectrum local_L;      // Local NEE + Emission ONLY (Unattenuated)
+    Spectrum bsdf_weight;  // The local BSDF or Phase throughput (f * cos / pdf)
+    float alpha;           // Opacity of the surface or 1.0 - Tr for volumes
+    bool is_camera_path;   // Should this vertex become a deep segment?
+};
+
 /**
  * In a recursive renderer (RTIOW), light is calculated as:
  *          Color = DirectLight + Albedo × RecursiveCall()
@@ -59,6 +70,17 @@ inline void AddDeepSegment(PathSample& sample, const Ray& ray, float t_min, floa
  */
 PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
               const SampledWavelengths& wl) {
+    // disgusting temp helper
+    auto SafeSpectralDiv = [](const Spectrum& num, const Spectrum& den) -> Spectrum {
+        Spectrum result(0.0f);
+        for (int i = 0; i < kNSamples; ++i) {
+            if (den[i] > 1e-8f) {  // Protect against exact 0 and denormals
+                result[i] = num[i] / den[i];
+            }
+        }
+        return result;
+    };
+
     PathSample result;
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
@@ -67,7 +89,11 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
     float ray_t = 0.0f;           // Running parametric distance
     float segment_start = ray_t;  // Deep interval start
-    Spectrum segment_L(0.0f);
+
+    // Deferred State
+    std::vector<PathVertex> path_vertices;
+    path_vertices.reserve(config.max_depth);
+    bool is_camera_path = true;
 
     // switch to while?
     for (int depth = 0; depth < config.max_depth; ++depth) {
@@ -76,6 +102,11 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
         bool scatterSurface = scene.Intersect(r, kShadowEpsilon, kInfinity, &si);  // y it pointer?
         float t_max = scatterSurface ? si.t : kInfinity;
         bool scatterMedium = false;
+
+        // Local vertex segment tracking
+        Spectrum current_beta = beta;  // Track beta before the bounce
+        Spectrum local_vertex_L(0.0f);
+        float vertex_alpha = 1.0f;
 
         if (r.vol_stack().GetActiveMedium() != 0) {
             scatterMedium = SampleMedium(r, scene, t_max, rng, beta, mi);
@@ -111,21 +142,28 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                         Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
 
                         // Accumulate
-                        Spectrum direct_L = beta * phase_val * Tr * light_spec /
-                                            (light_pdf_w * scene.InvLightCount());
-                        segment_L += direct_L;
+                        Spectrum direct_L =
+                            phase_val * Tr * light_spec / (light_pdf_w * scene.InvLightCount());
+                        local_vertex_L += direct_L;
                     }
                 }
             }
+            vertex_alpha = mi.alpha;
 
-            /* Commit Deep Segment */
-            if (specular_bounce) {
-                AddDeepSegment(result, r, segment_start, ray_t, segment_L, 1.0f, r.origin(),
-                               config.cam_w, wl);
-            }
+            L += current_beta * local_vertex_L;  // forward beauty accumulation
+
+            PathVertex v;
+            v.t_start = segment_start;
+            v.t_end = ray_t;
+            v.local_L = local_vertex_L;
+            v.alpha = vertex_alpha;
+            v.is_camera_path = is_camera_path;
+            // We calculate weight AFTER the bounce/RR, so we just push the vertex
+            // now and update its weight at the end of the loop iteration.
+            path_vertices.push_back(v);
+
+            is_camera_path = false;  // Volumes always scatter, leaving camera path
             segment_start = ray_t;
-            L += segment_L;
-            segment_L = Spectrum(0.0f);
 
             /* 3. Sample Phase Function for Indirect Bounce */
             Vec3 next_wi;
@@ -183,7 +221,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             if (mat.IsEmissive()) {
                 emission = CurveToSpectrum(mat.emission, wl);
                 if (specular_bounce) {
-                    segment_L += beta * emission;
+                    local_vertex_L += emission;
                 }
             }
 
@@ -233,22 +271,27 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                         // Weight = 1.0 / (N_lights * PDF_w)
                         // L += beta * f * Le * cos_surf * Weight
                         Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
-                        Spectrum direct_L = beta * f_val * Tr * light_spec * cos_surf /
+                        Spectrum direct_L = f_val * Tr * light_spec * cos_surf /
                                             (light_pdf_w * scene.InvLightCount());
                         // interval_L += T * L_scatter;
                         direct_L *= opacity;
-                        segment_L += direct_L;
+                        local_vertex_L += direct_L;
                     }
                 }
             }
+            vertex_alpha = alpha;
 
-            if (specular_bounce) {
-                AddDeepSegment(result, r, segment_start, ray_t, segment_L, 1.0f, r.origin(),
-                               config.cam_w, wl);
-            }
+            L += current_beta * local_vertex_L;
+
+            PathVertex v;
+            v.t_start = segment_start;
+            v.t_end = ray_t;
+            v.local_L = local_vertex_L;
+            v.alpha = vertex_alpha;
+            v.is_camera_path = is_camera_path;
+            path_vertices.push_back(v);
+
             segment_start = ray_t;
-            L += segment_L;
-            segment_L = Spectrum(0.0f);
 
             /* Indirect bounce case */
             Vec3 wi;
@@ -272,6 +315,12 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                     beta *= weight;
                     Ray next_r(si.point + (wi * kShadowEpsilon), wi);
                     next_r.vol_stack() = r.vol_stack();
+
+                    // Update is_camera_path based on transmission
+                    float dir_dot = Dot(r.direction(), next_r.direction());
+                    bool is_transmission = (mat.type == MaterialType::Dielectric && dir_dot > 0.0f);
+                    is_camera_path = is_camera_path && is_transmission;
+
                     r = next_r;
 
                     // If this bounce was sharp (Metal/Glass), next hit counts as specular
@@ -284,12 +333,16 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
         } else if (!scatterSurface) {
             // Environment Segment
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
-            segment_L += env_L * beta;
-            if (specular_bounce) {
-                AddDeepSegment(result, r, segment_start, kFarClip, segment_L, 1.0f, r.origin(),
-                               config.cam_w, wl);
-            }
-            L += segment_L;
+
+            PathVertex v;
+            v.t_start = segment_start;
+            v.t_end = kFarClip;
+            v.local_L = env_L;
+            v.alpha = 1.0f;
+            v.is_camera_path = is_camera_path;
+            path_vertices.push_back(v);
+
+            L += env_L * current_beta;
             break;
         }
 
@@ -300,6 +353,36 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             float p = std::min(0.95f, max_beta);
             if (rng.UniformFloat() > p) break;
             beta = beta * (1.0f / p);
+        }
+
+        if (!path_vertices.empty()) {
+            // SafeSpectralDiv cleanly extracts the (f * cos / pdf * RR) weight
+            path_vertices.back().bsdf_weight = SafeSpectralDiv(beta, current_beta);
+        }
+    }
+
+    Spectrum deep_L(0.0f);
+
+    // Iterate backwards from the end of the path to the camera
+    for (int i = (int)path_vertices.size() - 1; i >= 0; --i) {
+        const PathVertex& v = path_vertices[i];
+
+        // 1. Rendering Equation: L_out = L_local + weight * L_incoming
+        deep_L = v.local_L + (v.bsdf_weight * deep_L);
+
+        // 2. Deep EXR Commit
+        if (v.is_camera_path) {
+            // Write the segment! It now perfectly contains its own emission, NEE,
+            // and all indirect GI belonging to this specific depth.
+            AddDeepSegment(result, ray, v.t_start, v.t_end, deep_L, v.alpha, ray.origin(),
+                           config.cam_w, wl);
+
+            // 3. The Deep Compositing Reset
+            // Because the deep compositing software uses v.alpha to blend
+            // whatever is behind this segment, we MUST reset the accumulator to 0.0f here.
+            // Otherwise, the background light will be embedded in the foreground segment,
+            // and Nuke will composite the background over itself twice.
+            deep_L = Spectrum(0.0f);
         }
     }
 
