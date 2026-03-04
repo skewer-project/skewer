@@ -76,7 +76,6 @@ target_include_directories(skewer-worker
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/external
-        ${CMAKE_BINARY_DIR}
 )
 
 set_source_files_properties(src/io/scene_loader.cc PROPERTIES
@@ -94,17 +93,13 @@ target_link_libraries(skewer-worker
     PRIVATE
     nlohmann_json::nlohmann_json
     exrio::exrio
+    Imath::Imath
+    OpenEXR::OpenEXR
     ZLIB::ZLIB
-    coordinator_proto
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(skewer-render PRIVATE -ffast-math)
-    target_compile_options(skewer-worker PRIVATE -ffast-math)
-    if(SKEWER_BUILD_NATIVE_OPTIMIZATIONS)
-        target_compile_options(skewer-render PRIVATE -mcpu=native)
-        target_compile_options(skewer-worker PRIVATE -mcpu=native)
-    endif()
 endif()
 
 include(CheckIPOSupported)
