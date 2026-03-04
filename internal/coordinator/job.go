@@ -99,8 +99,8 @@ func (cj *CompositeJob) Progress() float32 {
 	}
 	return float32(cj.CompletedFrames) / float32(cj.TotalFrames)
 }
-func (rj *CompositeJob) GetOriginalReq() *pb.SubmitJobRequest {
-	return rj.OriginalReq
+func (cj *CompositeJob) GetOriginalReq() *pb.SubmitJobRequest {
+	return cj.OriginalReq
 }
 
 // ===================== //
@@ -133,8 +133,10 @@ func (jt *JobTracker) AddJob(job Job) error {
 	jt.mu.Lock()
 	defer jt.mu.Unlock()
 
-	if _, exists := jt.activeJobs[job.ID()]; exists {
-		return fmt.Errorf("[ERROR] Adding job that already exists with ID %s.", job.ID())
+	if jt.activeJobs == nil || jt.pendingDeps == nil || jt.graph.nodes == nil {
+		return fmt.Errorf("[ERROR]: Job Tracker dependencies are unitialized")
+	} else if _, exists := jt.activeJobs[job.ID()]; exists {
+		return fmt.Errorf("[ERROR]: Adding job that already exists wi th ID %s.", job.ID())
 	} else {
 		jobDeps := job.GetDependencies()
 
@@ -180,7 +182,7 @@ func (jt *JobTracker) CancelJob(jobID string) error {
 
 	job, exists := jt.activeJobs[jobID]
 	if !exists {
-		return fmt.Errorf("[ERROR] Job with ID %s not found.", jobID)
+		return fmt.Errorf("[ERROR]: Job with ID %s not found.", jobID)
 	}
 
 	// Mark job as FAILED for now in JobTracker (maybe we can add JOB_STATUS_CANCELLED)
