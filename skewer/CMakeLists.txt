@@ -93,8 +93,7 @@ target_link_libraries(skewer-render
 target_link_libraries(skewer-worker
     PRIVATE
     nlohmann_json::nlohmann_json
-    Imath::Imath
-    OpenEXR::OpenEXR
+    exrio::exrio
     ZLIB::ZLIB
     coordinator_proto
 )
