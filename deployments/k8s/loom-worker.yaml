@@ -29,6 +29,8 @@ spec:
         - name: gcp-credentials
           mountPath: "/etc/secrets"
           readOnly: true
+        - name: skewer-data
+          mountPath: "/data"
         resources:
           requests:
             cpu: "500m"
@@ -40,4 +42,8 @@ spec:
       - name: gcp-credentials
         secret:
           secretName: skewer-gcp-creds
-          optional: false
+          optional: true
+      - name: skewer-data
+        hostPath:
+          path: "{{SKEWER_DATA_PATH}}"
+          type: DirectoryOrCreate
