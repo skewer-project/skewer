@@ -51,10 +51,10 @@ inline void AddDeepSegment(PathSample& sample, const Ray& ray, float t_min, floa
 struct PathVertex {
     float t_start;
     float t_end;
-    Spectrum local_L;      // Local NEE + Emission ONLY (Unattenuated)
-    Spectrum bsdf_weight;  // The local BSDF or Phase throughput (f * cos / pdf)
-    float alpha;           // Opacity of the surface or 1.0 - Tr for volumes
-    bool is_camera_path;   // Should this vertex become a deep segment?
+    Spectrum local_L;                       // Local NEE + Emission ONLY (Unattenuated)
+    Spectrum bsdf_weight = Spectrum(1.0f);  // The local BSDF or Phase throughput (f * cos / pdf)
+    float alpha;                            // Opacity of the surface or 1.0 - Tr for volumes
+    bool is_camera_path;                    // Should this vertex become a deep segment?
 };
 
 /**
@@ -213,7 +213,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             // Lazy Evaluation
             Spectrum opacity(1.0f);
             float alpha = 1.0f;
-            if (mat.IsTransparent()) {
+            if (mat.IsTransparent() && mat.type != MaterialType::Dielectric) {
                 opacity = CurveToSpectrum(mat.opacity, wl);
                 alpha = opacity.Average();
             }
@@ -317,9 +317,10 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                     next_r.vol_stack() = r.vol_stack();
 
                     // Update is_camera_path based on transmission
-                    float dir_dot = Dot(r.direction(), next_r.direction());
-                    bool is_transmission = (mat.type == MaterialType::Dielectric && dir_dot > 0.0f);
-                    is_camera_path = is_camera_path && is_transmission;
+                    // Kill for dielectrics
+                    bool is_straight_cutout =
+                        (mat.IsTransparent() && mat.type != MaterialType::Dielectric);
+                    is_camera_path = is_camera_path && is_straight_cutout;
 
                     r = next_r;
 
