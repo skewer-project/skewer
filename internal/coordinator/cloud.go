@@ -84,111 +84,115 @@ func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, workerCount int) e
 	log.Printf("[CLOUD]: Ensuring capacity: configuring %d workers...", workerCount)
 
 	deploymentsClient := c.k8sClient.AppsV1().Deployments("default")
-	deploymentName := "skewer-worker"
 
-	// Look up the existing deployment
-	deployment, err := deploymentsClient.Get(ctx, deploymentName, metav1.GetOptions{})
+	// Manage both skewer-worker and loom-worker
+	workerTypes := []string{"skewer-worker", "loom-worker"}
 
-	replicas := int32(workerCount)
+	for _, deploymentName := range workerTypes {
+		// Look up the existing deployment
+		deployment, err := deploymentsClient.Get(ctx, deploymentName, metav1.GetOptions{})
 
-	// Define volumes and mounts dynamically based on whether we are local or in the cloud.
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-	var envVars []corev1.EnvVar
+		replicas := int32(workerCount)
 
-	envVars = append(envVars, corev1.EnvVar{
-		Name:  "COORDINATOR_ADDRESS",
-		Value: "skewer-coordinator.default.svc.cluster.local:50051",
-	})
+		// Define volumes and mounts dynamically based on whether we are local or in the cloud.
+		var volumes []corev1.Volume
+		var volumeMounts []corev1.VolumeMount
+		var envVars []corev1.EnvVar
 
-	if c.credentialsFile == "" {
-		// LOCAL MODE: Mount a local hostPath directory to /data
-		volumes = append(volumes, corev1.Volume{
-			Name: "skewer-data",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/mnt/skewer-data",
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "skewer-data",
-			MountPath: "/data",
-		})
-	} else {
-		// CLOUD MODE: Mount the secret to /etc/secrets
-		volumes = append(volumes, corev1.Volume{
-			Name: "gcp-credentials",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: "skewer-gcp-creds",
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "gcp-credentials",
-			MountPath: "/etc/secrets",
-			ReadOnly:  true,
-		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  "GOOGLE_APPLICATION_CREDENTIALS",
-			Value: "/etc/secrets/credentials.json",
+			Name:  "COORDINATOR_ADDRESS",
+			Value: "skewer-coordinator.default.svc.cluster.local:50051",
 		})
-	}
 
-	if k8serrors.IsNotFound(err) {
-		// Create a new Deployment if it doesn't exist
-		newDeployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: deploymentName,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": "skewer-worker",
+		if c.credentialsFile == "" {
+			// LOCAL MODE: Mount a local hostPath directory to /data
+			volumes = append(volumes, corev1.Volume{
+				Name: "skewer-data",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/mnt/skewer-data",
 					},
 				},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": "skewer-worker",
+			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "skewer-data",
+				MountPath: "/data",
+			})
+		} else {
+			// CLOUD MODE: Mount the secret to /etc/secrets
+			volumes = append(volumes, corev1.Volume{
+				Name: "gcp-credentials",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: "skewer-gcp-creds",
+					},
+				},
+			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "gcp-credentials",
+				MountPath: "/etc/secrets",
+				ReadOnly:  true,
+			})
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  "GOOGLE_APPLICATION_CREDENTIALS",
+				Value: "/etc/secrets/credentials.json",
+			})
+		}
+
+		if k8serrors.IsNotFound(err) {
+			// Create a new Deployment if it doesn't exist
+			newDeployment := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: deploymentName,
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: &replicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": deploymentName,
 						},
 					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:            "worker",
-								Image:           "skewer-worker:latest", // Updated to match local naming scheme
-								ImagePullPolicy: corev1.PullIfNotPresent,
-								Env:             envVars,
-								VolumeMounts:    volumeMounts,
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"app": deploymentName,
 							},
 						},
-						Volumes: volumes,
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:            "worker",
+									Image:           deploymentName + ":latest",
+									ImagePullPolicy: corev1.PullIfNotPresent,
+									Env:             envVars,
+									VolumeMounts:    volumeMounts,
+								},
+							},
+							Volumes: volumes,
+						},
 					},
 				},
-			},
-		}
-
-		_, err = deploymentsClient.Create(ctx, newDeployment, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("[ERROR]: Failed to create deployment: %w", err)
-		}
-		log.Printf("[CLOUD]: Created new deployment %s with %d replicas.", deploymentName, workerCount)
-	} else if err != nil {
-		return fmt.Errorf("[ERROR]: Failed to get deployment: %w", err)
-	} else {
-		// Update existing Deployment
-		if *deployment.Spec.Replicas != replicas {
-			deployment.Spec.Replicas = &replicas
-			_, err = deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{})
-			if err != nil {
-				return fmt.Errorf("[ERROR]: Failed to update deployment replicas: %w", err)
 			}
-			log.Printf("[CLOUD]: Updated deployment %s to %d replicas.", deploymentName, workerCount)
+
+			_, err = deploymentsClient.Create(ctx, newDeployment, metav1.CreateOptions{})
+			if err != nil {
+				return fmt.Errorf("[ERROR]: Failed to create deployment %s: %w", deploymentName, err)
+			}
+			log.Printf("[CLOUD]: Created new deployment %s with %d replicas.", deploymentName, workerCount)
+		} else if err != nil {
+			return fmt.Errorf("[ERROR]: Failed to get deployment %s: %w", deploymentName, err)
 		} else {
-			log.Printf("[CLOUD]: Deployment %s already at %d replicas. No change needed.", deploymentName, workerCount)
+			// Update existing Deployment
+			if *deployment.Spec.Replicas != replicas {
+				deployment.Spec.Replicas = &replicas
+				_, err = deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{})
+				if err != nil {
+					return fmt.Errorf("[ERROR]: Failed to update deployment %s replicas: %w", deploymentName, err)
+				}
+				log.Printf("[CLOUD]: Updated deployment %s to %d replicas.", deploymentName, workerCount)
+			} else {
+				log.Printf("[CLOUD]: Deployment %s already at %d replicas. No change needed.", deploymentName, workerCount)
+			}
 		}
 	}
 
