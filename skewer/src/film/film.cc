@@ -72,7 +72,11 @@ bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
 
     // Standard error of the mean: sqrt(var / n)
     float noise = std::sqrt(var_lum / n);
-    float relative_noise = noise / std::max(mean_lum, 1e-6f);
+
+    // Clamp mean luminance floor to 0.5 (same approach as Cycles) so that
+    // dark/shadow pixels use an absolute threshold instead of blowing up
+    // the relative noise to unreachable values.
+    float relative_noise = noise / std::max(mean_lum, 0.5f);
 
     return relative_noise < noise_threshold;
 }
