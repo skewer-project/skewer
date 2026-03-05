@@ -4,10 +4,13 @@
 
 #include <atomic>
 
+#include "barkeep.h"
 #include "core/constants.h"
 #include "integrators/path_sample.h"
 
 namespace skwr {
+
+namespace bk = barkeep;
 
 Film::Film(int width, int height)
     : width_(width),
@@ -98,9 +101,21 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     exrio::DeepImage result(width_, height_);
 
     // Pass 3: Copy, Sort, and merge segments
+    std::cout << "\nBuilding deep image\n";
+    std::atomic<size_t> pixels_done(0);
+    size_t total_pixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
+    auto bar = bk::ProgressBar(&pixels_done, {.total = total_pixels,
+                                              .speed = 0.2,
+                                              .speed_unit = "px/s",
+                                              .style = bk::ProgressBarStyle::Rich});
+    if (total_pixels > 0) bar->show();
+
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (counts[y * width_ + x] == 0) continue;
+            if (counts[y * width_ + x] == 0) {
+                ++pixels_done;
+                continue;
+            }
 
             // Collect samples for this pixel
             std::vector<DeepSample> segments;
@@ -139,8 +154,11 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                 pixel.addSample(
                     exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
             }
+            ++pixels_done;
         }
     }
+
+    if (total_pixels > 0) bar->done();
 
     return result;
 }
@@ -198,16 +216,6 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
         // Safety clamp (though mathematically it shouldn't exceed 1.0 if samples <= total)
         if (seg.alpha > 1.0f) seg.alpha = 1.0f;
-    }
-
-    static std::atomic<int> log_count{0};
-    if (log_count.fetch_add(1) % 10000 == 0) {  // Log every 10000th pixel
-        std::cout << "Merge: " << input.size() << " → " << merged.size() << " segments\n";
-        if (merged.size() > 0) {
-            std::cout << "  First segment: z=" << merged[0].z_front << " rgb=(" << merged[0].r
-                      << "," << merged[0].g << "," << merged[0].b << ")"
-                      << " alpha=" << merged[0].alpha << "\n";
-        }
     }
 
     return merged;
