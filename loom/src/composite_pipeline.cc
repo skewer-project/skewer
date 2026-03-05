@@ -12,9 +12,11 @@ std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFile
     log("Loading inputs...");
     Timer loadTimer;
 
+    // Reserve space for all images upfront to avoid reallocations
     std::vector<DeepImage> images;
     images.reserve(inputFiles.size());
 
+    // Load each image and add it to the vector
     for (size_t i = 0; i < inputFiles.size(); ++i) {
         const std::string& filename = inputFiles[i];
 
@@ -25,6 +27,7 @@ std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFile
                 throw std::runtime_error("File is not a deep EXR: " + filename);
             }
 
+            // Load the image and add it to the vector while also logging stats
             DeepImage img = loadDeepEXR(filename);
 
             std::string stats = "    " + std::to_string(img.width()) + "x" + std::to_string(img.height()) + ", " +
@@ -32,6 +35,7 @@ std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFile
                                 std::to_string(img.averageSamplesPerPixel()).substr(0, 4) + " samples/pixel)";
             logVerbose(stats);
 
+            // Check for dimension mismatches
             if (!images.empty()) {
                 if (img.width() != images[0].width() || img.height() != images[0].height()) {
                     throw std::runtime_error("Image dimensions mismatch: " + filename);
@@ -49,7 +53,9 @@ std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFile
     return images;
 }
 
+// Flatten the deep image into a standard 2D image.
 std::vector<float> FlattenPhase(const DeepImage& mergedImage) {
+    // Basically a wrapper to also encapsulate logging
     log("\nFlattening...");
     Timer flattenTimer;
 
@@ -59,6 +65,7 @@ std::vector<float> FlattenPhase(const DeepImage& mergedImage) {
     return flatRgba;
 }
 
+// Write the results back to disk using exrio's write functions.
 void WriteOutputsPhase(const DeepImage& mergedImage,
                        const std::vector<float>& flatRgba,
                        const std::string& outputPrefix,
@@ -68,6 +75,7 @@ void WriteOutputsPhase(const DeepImage& mergedImage,
     log("\nWriting outputs...");
     Timer writeTimer;
 
+    // Use exrio's write functions to write the outputs (deep or flat)
     try {
         if (deepOutput) {
             std::string deepPath = outputPrefix + "_merged.exr";
