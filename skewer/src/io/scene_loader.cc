@@ -371,8 +371,8 @@ static SceneConfig ParseConfig(const json& j) {
         }
 
         // Accept both "max_samples" and legacy "samples_per_pixel"
-        opts.integrator_config.max_samples = GetOr(r, "max_samples",
-                                                    GetOr(r, "samples_per_pixel", 200));
+        opts.integrator_config.max_samples =
+            GetOr(r, "max_samples", GetOr(r, "samples_per_pixel", 200));
         opts.integrator_config.max_depth = GetOr(r, "max_depth", 50);
         opts.integrator_config.num_threads = GetOr(r, "threads", 0);
         opts.integrator_config.enable_deep = GetOr(r, "enable_deep", false);

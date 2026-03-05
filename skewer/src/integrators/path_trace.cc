@@ -57,8 +57,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     const int min_s = config.min_samples;
     const int step = config.adaptive_step;
     std::atomic<long long> total_samples_rendered(0);
-    const long long max_possible_samples =
-        (long long)width * height * config.max_samples;
+    const long long max_possible_samples = (long long)width * height * config.max_samples;
 
     // Worker function — each thread grabs tiles dynamically
     auto render_worker = [&]() {
@@ -110,7 +109,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                         }
                     }
                     tile_samples += config.max_samples;
-                    next_pixel:;
+                next_pixel:;
                 }
             }
 
@@ -138,8 +137,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
         long long rendered = total_samples_rendered.load();
         double pct_saved = 100.0 * (1.0 - (double)rendered / max_possible_samples);
         std::cout << "[Adaptive] " << rendered << " / " << max_possible_samples
-                  << " samples rendered (" << std::fixed << std::setprecision(1)
-                  << pct_saved << "% saved)\n";
+                  << " samples rendered (" << std::fixed << std::setprecision(1) << pct_saved
+                  << "% saved)\n";
     }
 }
 

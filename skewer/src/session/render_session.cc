@@ -72,13 +72,11 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
 
     const auto& ic = options_.integrator_config;
     std::cout << "[Session] Ready: " << options_.image_config.width << "x"
-              << options_.image_config.height
-              << " | Max Samples: " << ic.max_samples
+              << options_.image_config.height << " | Max Samples: " << ic.max_samples
               << " | Max Depth: " << ic.max_depth << "\n";
     if (ic.noise_threshold > 0.0f) {
         std::cout << "[Session] Adaptive: threshold=" << ic.noise_threshold
-                  << ", min=" << ic.min_samples
-                  << ", step=" << ic.adaptive_step << "\n";
+                  << ", min=" << ic.min_samples << ", step=" << ic.adaptive_step << "\n";
     }
 }
 
@@ -104,8 +102,7 @@ void RenderSession::Save() const {
         film_->WriteImage(options_.image_config.outfile);
 
         if (options_.integrator_config.enable_deep) {
-            exrio::DeepImage img =
-                film_->BuildDeepImage(options_.integrator_config.max_samples);
+            exrio::DeepImage img = film_->BuildDeepImage(options_.integrator_config.max_samples);
             exrio::writeDeepEXR(img, options_.image_config.exrfile);
             std::cout << "Wrote deep image to " << options_.image_config.exrfile << "\n";
         }
