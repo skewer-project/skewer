@@ -24,6 +24,7 @@ endif()
 # Loom compositor logic (composition/merging) sits here.
 add_library(loom_compositor STATIC
     src/deep_compositor.cc
+    src/composite_pipeline.cc
     src/deep_volume.cc
 )
 target_include_directories(loom_compositor PUBLIC ${PROJECT_SOURCE_DIR}/src)
