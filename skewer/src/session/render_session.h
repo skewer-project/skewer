@@ -38,6 +38,9 @@ class RenderSession {
     // OUTPUT: Write the rendered image to disk
     void Save() const;
 
+    RenderOptions& Options() { return options_; }
+    const RenderOptions& Options() const { return options_; }
+
   private:
     // The 'World' (Geometry, Lights, Accelerators)
     std::unique_ptr<Scene> scene_;
