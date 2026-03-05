@@ -250,7 +250,7 @@ int main(int argc, char* argv[]) {
             std::string pngPath = opts.outputPrefix + ".png";
 
             if (exrio::hasPNGSupport()) {
-                exrio::writePNG(finalImage,  width, height, pngPath);
+                exrio::writePNG(finalImage, width, height, pngPath);
                 log("  Wrote: " + pngPath);
             } else {
                 log("  Skipped PNG (libpng not available)");
