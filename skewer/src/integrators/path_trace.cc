@@ -57,7 +57,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     const int min_s = config.min_samples;
     const int step = config.adaptive_step;
     std::atomic<long long> total_samples_rendered(0);
-    const long long max_possible_samples = (long long)width * height * config.max_samples;
 
     // Worker function — each thread grabs tiles dynamically
     auto render_worker = [&]() {
@@ -77,34 +76,40 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             for (int y = y0; y < y1; ++y) {
                 for (int x = x0; x < x1; ++x) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
+                    const int max_s = config.max_samples;
 
-                    for (int s = 0; s < config.max_samples; ++s) {
-                        float u = (float(x) + rng.UniformFloat()) / width;
-                        float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                    if (is_adaptive) {
+                        // Countdown avoids modulo (integer division) on the hotpath.
+                        int next_check = min_s;
+                        for (int s = 0; s < max_s; ++s) {
+                            float u = (float(x) + rng.UniformFloat()) / width;
+                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                            Ray r = cam.GetRay(u, v);
+                            PathSample result = Li(r, scene, rng, config, wl);
+                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                        SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
-
-                        Ray r = cam.GetRay(u, v);
-
-                        PathSample result = Li(r, scene, rng, config, wl);
-
-                        RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
-
-                        if (is_adaptive) {
                             film->AddAdaptiveSample(x, y, pixel_color, result.alpha, 1.0f);
-
                             if (config.enable_deep) film->AddDeepSample(x, y, result);
 
-                            // Check convergence periodically after min_samples
-                            if (s + 1 >= min_s && ((s + 1 - min_s) % step == 0)) {
+                            if (s + 1 == next_check) {
                                 if (film->IsPixelConverged(x, y, config.noise_threshold)) {
                                     tile_samples += s + 1;
                                     goto next_pixel;
                                 }
+                                next_check += step;
                             }
-                        } else {
-                            film->AddSample(x, y, pixel_color, result.alpha, 1.0f);
+                        }
+                    } else {
+                        for (int s = 0; s < max_s; ++s) {
+                            float u = (float(x) + rng.UniformFloat()) / width;
+                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                            Ray r = cam.GetRay(u, v);
+                            PathSample result = Li(r, scene, rng, config, wl);
+                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
+                            film->AddSample(x, y, pixel_color, result.alpha, 1.0f);
                             if (config.enable_deep) film->AddDeepSample(x, y, result);
                         }
                     }
@@ -132,14 +137,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     }
 
     bar->done();
-
-    if (is_adaptive) {
-        long long rendered = total_samples_rendered.load();
-        double pct_saved = 100.0 * (1.0 - (double)rendered / max_possible_samples);
-        std::cout << "[Adaptive] " << rendered << " / " << max_possible_samples
-                  << " samples rendered (" << std::fixed << std::setprecision(1) << pct_saved
-                  << "% saved)\n";
-    }
 }
 
 }  // namespace skwr
