@@ -16,6 +16,7 @@ var (
 	coordinatorAddr string
 	sceneURI        string
 	jobName         string
+	outputURI       string
 )
 
 var submitCmd = &cobra.Command{
@@ -41,7 +42,7 @@ var submitCmd = &cobra.Command{
 					SceneUri:        sceneURI,
 					TotalSamples:    1024,
 					SampleDivision:  4,
-					OutputUriPrefix: "gs://skewer-renders/" + jobName + "/",
+					OutputUriPrefix: outputURI,
 				},
 			},
 		}
@@ -58,7 +59,8 @@ func init() {
 	rootCmd.AddCommand(submitCmd)
 
 	submitCmd.Flags().StringVarP(&coordinatorAddr, "coordinator", "c", "localhost:50051", "Address of the Skewer Coordinator")
-	submitCmd.Flags().StringVarP(&sceneURI, "scene", "s", "", "URI of the scene file to render (e.g., gs://bucket/scene.json)")
+	submitCmd.Flags().StringVarP(&sceneURI, "scene", "s", "", "URI of the scene file to render (can be local path or gs://)")
 	submitCmd.Flags().StringVarP(&jobName, "name", "n", "skewer-job", "Name of the job")
+	submitCmd.Flags().StringVarP(&outputURI, "output", "o", "/data/renders/", "Output URI prefix (can be local path or gs://)")
 	submitCmd.MarkFlagRequired("scene")
 }
