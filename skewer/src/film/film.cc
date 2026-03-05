@@ -81,9 +81,7 @@ bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
     return relative_noise < noise_threshold;
 }
 
-int Film::GetPixelSampleCount(int x, int y) const {
-    return GetPixel(x, y).sample_count;
-}
+int Film::GetPixelSampleCount(int x, int y) const { return GetPixel(x, y).sample_count; }
 
 void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;

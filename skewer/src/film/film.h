@@ -21,9 +21,9 @@ struct Pixel {
     std::atomic<int> deep_head{-1};  // Head of linked list
 
     // Adaptive sampling state
-    RGB color_sq_sum = RGB(0.0f);    // Sum of squared per-sample RGB (for variance)
-    int sample_count = 0;            // Actual samples taken
-    bool converged = false;          // Convergence flag
+    RGB color_sq_sum = RGB(0.0f);  // Sum of squared per-sample RGB (for variance)
+    int sample_count = 0;          // Actual samples taken
+    bool converged = false;        // Convergence flag
 };
 
 struct DeepSegmentNode {
