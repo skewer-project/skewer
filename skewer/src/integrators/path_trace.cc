@@ -39,18 +39,18 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     int tiles_y = (height + tile_size - 1) / tile_size;
     int total_tiles = tiles_x * tiles_y;
 
-    std::cout << "[Session] Rendering with " << thread_count << " threads, "
-              << tile_size << "x" << tile_size << " tiles (" << total_tiles << " total)...\n";
+    std::cout << "[Session] Rendering with " << thread_count << " threads, " << tile_size << "x"
+              << tile_size << " tiles (" << total_tiles << " total)...\n";
 
     std::atomic<int> next_tile(0);
     std::atomic<int> tiles_completed(0);
 
     auto bar = bk::ProgressBar(&tiles_completed, {
-                                                      .total = total_tiles,
-                                                      .speed = 0.2,
-                                                      .speed_unit = "tiles/s",
-                                                      .style = bk::ProgressBarStyle::Rich,
-                                                  });
+                                                     .total = total_tiles,
+                                                     .speed = 0.2,
+                                                     .speed_unit = "tiles/s",
+                                                     .style = bk::ProgressBarStyle::Rich,
+                                                 });
 
     // Worker function — each thread grabs tiles dynamically
     auto render_worker = [&]() {
