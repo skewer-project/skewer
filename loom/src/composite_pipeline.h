@@ -10,10 +10,13 @@ namespace exrio {
 // Throws std::runtime_error on failure.
 std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFiles);
 
-// Phase 2: Flatten the deep image into a standard 2D image.
+// Phase 2: Merge the deep images into a single image.
+// See deepMerge() in deep_compositor.cc
+
+// Phase 3: Flatten the deep image into a standard 2D image.
 std::vector<float> FlattenPhase(const DeepImage& mergedImage);
 
-// Phase 3: Write the results back to disk.
+// Phase 4: Write the results back to disk.
 // Throws std::runtime_error on failure.
 void WriteOutputsPhase(const DeepImage& mergedImage,
                        const std::vector<float>& flatRgba,
