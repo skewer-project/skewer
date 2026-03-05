@@ -65,10 +65,14 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                     PathSample result = Li(r, scene, rng, config, wl);
 
-                    RGB pixel_color = SpectrumToRGB(result.L, wl);
+                    // Premultiply by alpha: pixels with alpha=0 (transparent
+                    // background, no visible geometry hit) contribute zero to
+                    // color_sum, so the PPM and any flat buffer show them as
+                    // black rather than the invisible geometry's shading.
+                    RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
                     float weight = 1.0f;
-                    film->AddSample(x, y, pixel_color, weight);
+                    film->AddSample(x, y, pixel_color, result.alpha, weight);
 
                     if (config.enable_deep) film->AddDeepSample(x, y, result);
                 }

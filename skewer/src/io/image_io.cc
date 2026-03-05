@@ -5,8 +5,10 @@
 #include <ImfDeepFrameBuffer.h>
 #include <ImfDeepScanLineInputFile.h>
 #include <ImfDeepScanLineOutputFile.h>
+#include <ImfFrameBuffer.h>
 #include <ImfHeader.h>
 #include <ImfMultiPartInputFile.h>
+#include <ImfOutputFile.h>
 #include <ImfPartType.h>
 #include <ImfPixelType.h>
 #include <half.h>
