@@ -7,7 +7,11 @@
 #include <string>
 #include <thread>
 
+#include "composite_pipeline.h"
+#include "deep_compositor.h"
+#include "exrio/deep_image.h"
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
+#include "proto/coordinator/v1/coordinator.pb.h"
 
 // TODO: Include necessary Loom engine headers
 // #include <loom/engine/loom_session.h>
@@ -24,18 +28,21 @@ using grpc::ClientContext;
 using grpc::ClientReader;
 using grpc::Status;
 
+// Starts the loom worker loop.
 void RunLoomWorker(const std::string& coordinator_addr) {
     std::string worker_id =
         "loom-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()); // epoch time is fine for now
 
     std::cout << "[Loom] Starting worker loop, ID: " << worker_id << "\n";
     std::cout << "[Loom] Coordinator Address: " << coordinator_addr << "\n";
 
+    // Open a channel to the coordinator
     std::shared_ptr<Channel> channel =
         grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
     std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
 
+    // Main registration loop with coordiantor
     while (true) {
         ClientContext context;
         GetWorkStreamRequest request;
@@ -44,12 +51,14 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
         std::unique_ptr<ClientReader<WorkPackage>> stream(stub->GetWorkStream(&context, request));
 
+        // Loop to read work packages from the coordinator
         WorkPackage package;
         while (stream->Read(&package)) {
             bool success = true;
             std::string error_message = "";
             std::string output_uri = "";
 
+            // NOTE: FUNCTIONALLY, a MergeTask is the same as a CompositeTask but they serve different purposes semantically
             try {
                 if (package.has_merge_task()) {
                     const MergeTask& task = package.merge_task();
@@ -58,7 +67,37 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                               << package.frame_id() << "\n";
 
                     // TODO: Pass partial deep EXRs to loom engine and merge
-                    std::cout << "[Loom] -> Engine Merge execution placeholder completed.\n";
+                    // Load Phase
+                    std::vector<std::string> inputPartialFiles(
+                        task.partial_deep_exr_uris().begin(),
+                        task.partial_deep_exr_uris().end()
+                    );
+                    std::vector<exrio::DeepImage> images = exrio::LoadImagesPhase(inputPartialFiles);
+
+                    // Merge Phase
+                    float taskMergeThreshold = 0.001F; // TODO: include mergeThreshold in MergeTask protobuf
+                    exrio::CompositorOptions compOpts;
+                    compOpts.mergeThreshold = taskMergeThreshold;
+                    compOpts.enableMerging = (taskMergeThreshold > 0.0f);
+
+                    exrio::CompositorStats stats;
+                    exrio::DeepImage merged = deepMerge(images, compOpts, &stats);
+
+                    // Flatten Phase (should be more configurable)
+                    // TODO: add output type to protobuf. For now assume pngOutput is always desired
+                    bool isDeepOutput = false;
+                    bool isFlatOutput = false;
+                    bool isPngOutput = true;
+                    std::vector<float> flatRgba;
+
+                    flatRgba = FlattenPhase(merged);
+
+                    // Write Phase
+                    WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput, isFlatOutput, isPngOutput);
+
+                    // TODO: Consider logging to kubectl logs
+
+                    std::cout << "[Loom] -> Engine Merge execution completed.\n";
 
                 } else if (package.has_composite_task()) {
                     const CompositeTask& task = package.composite_task();
@@ -66,8 +105,37 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     std::cout << "[Loom] Starting CompositeTask: " << package.task_id()
                               << " for frame " << package.frame_id() << "\n";
 
-                    // TODO: Pass layer EXRs to loom engine and composite
-                    std::cout << "[Loom] -> Engine Composite execution placeholder completed.\n";
+                    // TODO: Pass partial deep EXRs to loom engine and merge
+                    // Load Phase
+                    std::vector<std::string> inputPartialFiles(
+                        task.layer_uris().begin(),
+                        task.layer_uris().end()
+                    );
+                    std::vector<exrio::DeepImage> images = exrio::LoadImagesPhase(inputPartialFiles);
+
+                    // Merge Phase
+                    float taskMergeThreshold = 0.001F; // TODO: include mergeThreshold in MergeTask protobuf
+                    exrio::CompositorOptions compOpts;
+                    compOpts.mergeThreshold = taskMergeThreshold;
+                    compOpts.enableMerging = (taskMergeThreshold > 0.0f);
+
+                    exrio::CompositorStats stats;
+                    exrio::DeepImage merged = deepMerge(images, compOpts, &stats);
+
+                    // Flatten Phase (should be more configurable)
+                    // TODO: add output type to protobuf. For now assume pngOutput is always desired
+                    bool isDeepOutput = false;
+                    bool isFlatOutput = false;
+                    bool isPngOutput = true;
+                    std::vector<float> flatRgba;
+
+                    flatRgba = FlattenPhase(merged);
+
+                    // Write Phase
+                    WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput, isFlatOutput, isPngOutput);
+
+                    // TODO: Consider logging to kubectl logs
+                    std::cout << "[Loom] -> Engine Composite execution completed.\n";
 
                 } else {
                     std::cerr << "[Loom] Error: Received unsupported task type. Ignoring.\n";
