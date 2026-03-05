@@ -12,7 +12,7 @@ Film::Film(int width, int height)
     : width_(width),
       height_(height),
       pixels_(width_ * height_),
-      deep_pool_(width_ * height_ * 200 * 8) {
+      deep_pool_(width_ * height_ * 100 * 30) {
     // pixels_.resize(width_ * height_);
 
     // Pre-allocate pool based on expected usage
@@ -46,7 +46,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
         const DeepSegment& seg = path_sample.segments[i];
 
         // Skip empty/invalid segments
-        if (seg.z_front >= seg.z_back && seg.z_back != kFarClip) continue;
+        if (seg.z_front > seg.z_back && seg.z_back != kFarClip) continue;
         if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
 
         // Allocate node from pool
@@ -156,11 +156,13 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
         if (next.alpha <= 0.0f) continue;
 
         // ANCHORED EPSILON: A 1% to 2% depth tolerance is standard for deep EXRs
-        float depth_epsilon = std::max(0.01f, std::abs(current.z_front) * 0.015f);
+        float depth_epsilon = std::max(0.01f, std::abs(current.z_back) * 0.015f);
 
-        bool same_front = (std::abs(next.z_front - current.z_front) < depth_epsilon);
+        bool overlaps_or_close = (next.z_front <= current.z_back + depth_epsilon);
 
-        if (same_front) {
+        // bool same_front = (std::abs(next.z_front - current.z_front) < depth_epsilon);
+
+        if (overlaps_or_close) {
             current.r += next.r;
             current.g += next.g;
             current.b += next.b;
@@ -176,16 +178,38 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
     merged.push_back(current);
 
-    float norm = 1.0f / total_pixel_samples;
+    float active_paths = total_pixel_samples;
 
     for (auto& seg : merged) {
-        seg.r *= norm;
-        seg.g *= norm;
-        seg.b *= norm;
-        seg.alpha *= norm;
+        // Because every terminated path gave alpha=1.0,
+        // the sum of alphas is exactly the number of paths that stopped here.
+        float paths_in_bucket = seg.alpha;
 
-        // Safety clamp (though mathematically it shouldn't exceed 1.0 if samples <= total)
-        if (seg.alpha > 1.0f) seg.alpha = 1.0f;
+        if (active_paths <= 0.0001f) {
+            seg.r = 0;
+            seg.g = 0;
+            seg.b = 0;
+            seg.alpha = 0;
+            continue;
+        }
+
+        // The true Deep EXR opacity is the fraction of *surviving* paths that stopped here
+        float true_opacity = std::min(1.0f, paths_in_bucket / active_paths);
+
+        // OpenEXR requires "associated" (pre-multiplied) colors.
+        // We divide out the paths in this bucket to get the raw un-occluded color,
+        // then multiply by the true_opacity.
+        if (paths_in_bucket > 0.0f) {
+            float rgb_norm = true_opacity / paths_in_bucket;
+            seg.r *= rgb_norm;
+            seg.g *= rgb_norm;
+            seg.b *= rgb_norm;
+        }
+
+        seg.alpha = true_opacity;
+
+        // Subtract the paths that stopped here from the active pool
+        active_paths -= paths_in_bucket;
     }
 
     static std::atomic<int> log_count{0};
