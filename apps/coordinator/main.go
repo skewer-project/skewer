@@ -35,7 +35,14 @@ func main() {
 		log.Fatalf("[ERROR] Failed to initialize Cloud Manager: %v", err)
 	}
 
-	myServer := coordinator.NewServer(scheduler, cloudManager, tracker) // Logical server
+	// Get local storage base path or use /data if it doesn't exist
+	localStorageBase := os.Getenv("LOCAL_STORAGE_BASE")
+	if localStorageBase == "" && os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
+		localStorageBase = "/data"
+		log.Printf("[SERVER]: No storage credentials found. Defaulting to local storage at: %s", localStorageBase)
+	}
+
+	myServer := coordinator.NewServer(scheduler, cloudManager, tracker, localStorageBase) // Logical server
 
 	// Register logical server with gRPC engine
 	pb.RegisterCoordinatorServiceServer(grpcServer, myServer)
