@@ -55,6 +55,7 @@ struct PathVertex {
     Spectrum bsdf_weight = Spectrum(1.0f);  // The local BSDF or Phase throughput (f * cos / pdf)
     float alpha;                            // Opacity of the surface or 1.0 - Tr for volumes
     bool is_camera_path;                    // Should this vertex become a deep segment?
+    bool is_volume_scatter = false;
 };
 
 /**
@@ -158,6 +159,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             v.local_L = local_vertex_L;
             v.alpha = vertex_alpha;
             v.is_camera_path = is_camera_path;
+            v.is_volume_scatter = true;
             // We calculate weight AFTER the bounce/RR, so we just push the vertex
             // now and update its weight at the end of the loop iteration.
             path_vertices.push_back(v);
@@ -284,7 +286,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             L += current_beta * local_vertex_L;
 
             PathVertex v;
-            v.t_start = segment_start;
+            v.t_start = ray_t;
             v.t_end = ray_t;
             v.local_L = local_vertex_L;
             v.alpha = vertex_alpha;
@@ -336,7 +338,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
 
             PathVertex v;
-            v.t_start = segment_start;
+            v.t_start = kFarClip;
             v.t_end = kFarClip;
             v.local_L = env_L;
             v.alpha = 1.0f;
@@ -385,7 +387,9 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             // camera path, it means the path was killed (RR, Max Depth) before hitting
             // an opaque background. Seal the alpha to prevent checkerboard bleeding
             if (i + 1 == (int)path_vertices.size()) {
-                deep_alpha = 1.0f;
+                if (!v.is_volume_scatter) {
+                    deep_alpha = 1.0f;
+                }
             }
 
             // Segment with its own emission, NEE, and all indirect GI for this specific depth.
