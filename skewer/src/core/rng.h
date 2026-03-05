@@ -16,7 +16,7 @@ class RNG {
 
     // Deterministic Constructor:
     // sequence_index: Ideally the Pixel Index (y * width + x)
-    // offset: Ideally the Sample Index (0 to samples_per_pixel)
+    // offset: Ideally the Sample Index (0 to max_samples)
     RNG(uint64_t sequence_index, uint64_t offset) {
         state_ = 0u;
         inc_ = (sequence_index << 1u) | 1u;
