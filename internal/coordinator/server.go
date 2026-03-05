@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
@@ -14,17 +16,24 @@ import (
 // Server implements the gRPC CoordinatorService
 type Server struct {
 	pb.UnimplementedCoordinatorServiceServer
-	scheduler *Scheduler
-	manager   CloudManager
-	tracker   *JobTracker
+	scheduler        *Scheduler
+	manager          CloudManager
+	tracker          *JobTracker
+	localStorageBase string
 }
 
-func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) *Server {
-	return &Server{
-		scheduler: scheduler,
-		manager:   manager,
-		tracker:   tracker,
+func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, localStorageBase string) *Server {
+	s := &Server{
+		scheduler:        scheduler,
+		manager:          manager,
+		tracker:          tracker,
+		localStorageBase: localStorageBase,
 	}
+
+	// Start a background loop to manage worker capacity
+	go s.runCapacityManager(context.Background())
+
+	return s
 }
 
 // ================= //
@@ -283,13 +292,59 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 // STUBBED HELPERS
 // =====================================================================
 
+func (s *Server) runCapacityManager(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// Logic: 1 worker for every 10 tasks, min 1 if queue > 0, max 20
+			qLen := s.scheduler.GetQueueLength()
+			targetReplicas := 0
+			if qLen > 0 {
+				targetReplicas = min((qLen/10)+1, 20) // Arbitrary max of 20 workers
+			}
+
+			// In Local Mode, let's just use 1 worker if there is any work
+			if s.localStorageBase != "" && qLen > 0 {
+				targetReplicas = 1
+			}
+
+			if err := s.manager.EnsureCapacity(ctx, targetReplicas); err != nil {
+				log.Printf("[SERVER]: Failed to ensure capacity: %v", err)
+			}
+		}
+	}
+}
+
+func (s *Server) translateLocalPath(uri string) string {
+	if s.localStorageBase == "" {
+		return uri
+	}
+	if trimmed, hasPrefix := strings.CutPrefix(uri, "gs://"); hasPrefix {
+		// Replace gs://bucket/path with /data/bucket/path
+		parts := strings.SplitN(trimmed, "/", 2)
+		if len(parts) == 1 {
+			return filepath.Join(s.localStorageBase, parts[0])
+		}
+		return filepath.Join(s.localStorageBase, parts[0], parts[1])
+	}
+	return uri
+}
+
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
 	numSamplesPerWorker := job.GetTotalSamples() / job.GetSampleDivision()
 	extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
 
+	outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
+	sceneUri := s.translateLocalPath(job.GetSceneUri())
+
 	for frameID := range req.NumFrames {
 		// Replace #### with padded frame ID if it exists in the scene URI
-		frameSceneUri := strings.ReplaceAll(job.GetSceneUri(), "####", fmt.Sprintf("%04d", frameID+1))
+		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
 
 		var sampleStart int32 = 0
 		var outputUris []string
@@ -304,7 +359,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			}
 
 			// Safe URI joining with net/url
-			outputUri, err := url.JoinPath(job.GetOutputUriPrefix(), uriSuffix)
+			outputUri, err := url.JoinPath(outputUriPrefix, uriSuffix)
 			if err != nil {
 				return err
 			}
@@ -327,7 +382,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 		}
 
 		// Create the Merge task
-		mergeUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%04d.exr", frameID+1))
+		mergeUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 		if err != nil {
 			return err
 		}
@@ -365,6 +420,8 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {
 
+	outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
+
 	for frameID := range req.NumFrames {
 
 		// gs://bucket/renders/smoke
@@ -374,7 +431,8 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		frameLayerUris := make([]string, len(originalPrefixes))
 
 		for idx, uriPrefix := range originalPrefixes {
-			fullLayerUri, err := url.JoinPath(uriPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
+			translatedPrefix := s.translateLocalPath(uriPrefix)
+			fullLayerUri, err := url.JoinPath(translatedPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 			if err != nil {
 				return err
 			}
@@ -382,7 +440,7 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		}
 
 		// Finally safely join path
-		finalOutputUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%04d.exr", frameID+1))
+		finalOutputUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 		if err != nil {
 			return err
 		}
