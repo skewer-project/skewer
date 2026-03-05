@@ -1,4 +1,5 @@
 #include <grpcpp/grpcpp.h>
+#include "session/render_options.h"
 #include "session/render_session.h"
 
 #include <chrono>
@@ -22,6 +23,7 @@ using grpc::ClientReader;
 using grpc::Status;
 
 void RunSkewerWorker(const std::string& coordinator_addr) {
+    // Generate a unique worker ID with epoch (may change in the future)
     std::string worker_id =
         "skewer-worker-" +
         std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
@@ -29,16 +31,19 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
     std::cout << "[SKEWER]: Starting worker loop, ID: " << worker_id << "\n";
     std::cout << "[SKEWER]: Coordinator Address: " << coordinator_addr << "\n";
 
+    // Open a gRPC channel to the coordinator
     std::shared_ptr<Channel> channel =
         grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
     std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
 
+    // Main GetWorkStream loop
     while (true) {
         ClientContext context;
         GetWorkStreamRequest request;
         request.set_worker_id(worker_id);
-        request.add_capabilities("skewer");
+        request.add_capabilities("skewer"); // may add more capabilities later
 
+        // Actually get the stream work package
         std::unique_ptr<ClientReader<WorkPackage>> stream(stub->GetWorkStream(&context, request));
 
         WorkPackage package;
@@ -48,6 +53,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 continue;
             }
 
+            // Extract the render task from the work package
             const RenderTask& task = package.render_task();
             std::cout << "[SKEWER]: Starting RenderTask: " << package.task_id() << " for frame "
                       << package.frame_id() << "\n";
@@ -57,15 +63,20 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
             std::string error_message = "";
 
             try {
-                // Initialize engine and render
+                // Initialize engine and RENDER HERE
                 skwr::RenderSession session;
 
-                // Note: The actual implementation will need to fetch the scene and adapt
-                // RenderSession session.LoadSceneFromFile(task.scene_uri(), 0);
-                // session.RenderChunk(task.sample_start(), task.sample_end());
-                // session.Save(task.output_uri());
+                // Adapt integrator config to sample range
+                session.LoadSceneFromFile(task.scene_uri(), 0);
+                session.Options().integrator_config.start_sample = task.sample_start();
+                session.Options().integrator_config.samples_per_pixel = task.sample_end() - task.sample_start();
+                session.Options().image_config.outfile = task.output_uri();
 
-                std::cout << "[SKEWER]: Engine execution placeholder completed.\n";
+                // Now render the task
+                session.Render();
+                session.Save();
+
+                // std::cout << "[SKEWER]: Engine execution placeholder completed.\n";
 
             } catch (const std::exception& e) {
                 success = false;
