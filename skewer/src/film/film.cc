@@ -20,7 +20,7 @@ Film::Film(int width, int height)
     // pixels_.resize(width_ * height_);
 
     // Pre-allocate pool based on expected usage
-    // Estimate: width * height * samples_per_pixel * avg_segments_per_path
+    // Estimate: width * height * max_samples * avg_segments_per_path
     // Example: 1920x1080 * 16spp * 8 segments = ~265M nodes
     // might want to make this configurable
     // deep_pool_.resize(width_ * height_ * 16 * 4);
@@ -37,6 +37,48 @@ void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     p.color_sum += L * weight;
     p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
+}
+
+void Film::AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+
+    Pixel& p = GetPixel(x, y);
+    p.color_sum += L * weight;
+    p.alpha_sum += alpha * weight;
+    p.weight_sum += weight;
+    p.color_sq_sum += L * L * weight;
+    p.sample_count++;
+}
+
+bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
+    const Pixel& p = GetPixel(x, y);
+    if (p.converged) return true;
+    if (p.sample_count < 2) return false;
+
+    float n = p.weight_sum;
+    if (n <= 0.0f) return false;
+
+    // Mean per channel
+    RGB mean = p.color_sum / n;
+    // Variance = E[X²] - E[X]²
+    RGB mean_sq = p.color_sq_sum / n;
+    float var_r = std::max(0.0f, mean_sq.r() - mean.r() * mean.r());
+    float var_g = std::max(0.0f, mean_sq.g() - mean.g() * mean.g());
+    float var_b = std::max(0.0f, mean_sq.b() - mean.b() * mean.b());
+
+    // Luminance-weighted noise estimate
+    float mean_lum = 0.2126f * mean.r() + 0.7152f * mean.g() + 0.0722f * mean.b();
+    float var_lum = 0.2126f * var_r + 0.7152f * var_g + 0.0722f * var_b;
+
+    // Standard error of the mean: sqrt(var / n)
+    float noise = std::sqrt(var_lum / n);
+    float relative_noise = noise / std::max(mean_lum, 1e-6f);
+
+    return relative_noise < noise_threshold;
+}
+
+int Film::GetPixelSampleCount(int x, int y) const {
+    return GetPixel(x, y).sample_count;
 }
 
 void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
