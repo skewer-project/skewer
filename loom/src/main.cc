@@ -126,14 +126,14 @@ int main(int argc, char* argv[]) {
     // Set verbose mode
     setVerbose(opts.verbose);
 
-    log("Deep Compositor v" + std::string(VERSION));
+    log("Loom v" + std::string(VERSION));
 
     Timer totalTimer;
 
     // ========================================================================
     // Load Phase
     // ========================================================================
-    log("Loading inputs...");
+    logVerbose("Loading inputs...");
     Timer loadTimer;
 
     std::vector<DeepImage> images;
@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
     // ========================================================================
     // Merge Phase
     // ========================================================================
-    log("\nMerging...");
+    logVerbose("Merging...");
 
     CompositorOptions compOpts;
     compOpts.mergeThreshold = opts.mergeThreshold;
@@ -196,10 +196,10 @@ int main(int argc, char* argv[]) {
 
     DeepImage merged = deepMerge(images, compOpts, &stats);
 
-    log("  Combined: " + formatNumber(stats.totalOutputSamples) + " total samples");
-    log("  Depth range: " + std::to_string(stats.minDepth) + " to " +
-        std::to_string(stats.maxDepth));
-    log("  Merge time: " + std::to_string(static_cast<int>(stats.mergeTimeMs)) + " ms");
+    logVerbose("  Combined: " + formatNumber(stats.totalOutputSamples) + " total samples");
+    logVerbose("  Depth range: " + std::to_string(stats.minDepth) + " to " +
+               std::to_string(stats.maxDepth));
+    logVerbose("  Merge time: " + std::to_string(static_cast<int>(stats.mergeTimeMs)) + " ms");
 
     // ========================================================================
     // Flatten Phase
@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
     std::vector<float> flatRgba;
 
     if (opts.flatOutput || opts.pngOutput) {
-        log("\nFlattening...");
+        logVerbose("Flattening...");
         Timer flattenTimer;
 
         flatRgba = flattenImage(merged);
@@ -218,7 +218,7 @@ int main(int argc, char* argv[]) {
     // ========================================================================
     // Write Phase
     // ========================================================================
-    log("\nWriting outputs...");
+    log("Writing outputs...");
     Timer writeTimer;
 
     try {
@@ -258,7 +258,7 @@ int main(int argc, char* argv[]) {
     // ========================================================================
     // Summary
     // ========================================================================
-    log("\nDone! Total time: " + totalTimer.elapsedString());
+    logVerbose("Done! Total time: " + totalTimer.elapsedString());
 
     return 0;
 }
