@@ -1,7 +1,6 @@
 #include <exrio/deep_image.h>
 #include <exrio/deep_reader.h>
 #include <exrio/deep_writer.h>
-#include <exrio/utils.h>
 
 #include <cstring>
 #include <iostream>
@@ -9,21 +8,25 @@
 #include <vector>
 
 #include "deep_compositor.h"
+#include "deep_info.h"
+#include "deep_options.h"
+#include "utils.h"
 
-namespace {
+namespace deep_compositor {
 
 const char* VERSION = "1.0";
 
-struct Options {
-    std::vector<std::string> inputFiles;
-    std::string outputPrefix;
-    bool deepOutput = false;
-    bool flatOutput = true;
-    bool pngOutput = true;
-    bool verbose = false;
-    float mergeThreshold = 0.001f;
-    bool showHelp = false;
-};
+bool isFloat(const std::string& s) {
+    std::istringstream iss(s);
+    float f;
+    // Try to read a float, check if successful and no non-whitespace characters remain
+    if (!(iss >> f)) {
+        return false;  // Conversion failed
+    }
+    // Check if there are any non-whitespace characters left in the stream
+    // Use std::ws to consume any trailing whitespace
+    return (iss >> std::ws).eof();
+}
 
 void printUsage(const char* programName) {
     std::cout << "Deep Image Compositor v" << VERSION << "\n\n"
@@ -40,10 +43,10 @@ void printUsage(const char* programName) {
               << "  --help, -h           Show this help message\n\n"
               << "Example:\n"
               << "  " << programName << " --deep-output --verbose \\\n"
-              << "      demo/inputs/nebula_red.exr \\\n"
-              << "      demo/inputs/nebula_green.exr \\\n"
-              << "      demo/inputs/backdrop.exr \\\n"
+              << "      test_data/ground_plane.exr \\\n"
               << "      output/result\n\n"
+              << "      test_data/sphere_front.exr \\\n"
+              << "      test_data/sphere_back.exr \\\n"
               << "Outputs:\n"
               << "  <output_prefix>_merged.exr  (deep EXR, if --deep-output)\n"
               << "  <output_prefix>_flat.exr    (standard EXR)\n"
@@ -73,6 +76,8 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
             opts.pngOutput = true;
         } else if (arg == "--no-png-output") {
             opts.pngOutput = false;
+        } else if (arg == "--mod-offset") {
+            opts.modOffset = true;
         } else if (arg == "--merge-threshold") {
             if (i + 1 >= argc) {
                 std::cerr << "Error: --merge-threshold requires a value\n";
@@ -84,14 +89,43 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
                 std::cerr << "Error: Invalid merge threshold value\n";
                 return false;
             }
-        } else if (arg[0] == '-') {
+        } else if (arg[0] == '-' and !isFloat(arg)) {
             std::cerr << "Error: Unknown option: " << arg << "\n";
             return false;
         } else {
             // Positional argument (input file or output prefix)
-            opts.inputFiles.push_back(arg);
+
+            if (opts.modOffset && isFloat(arg)) {
+                if (opts.inputFiles.size() != opts.inputZOffsets.size() + 1) {
+                    std::cerr << "Error: Mismatched position of Z offset value\n";
+                    return false;
+                }
+                try {
+                    float offset = std::stof(arg);
+                    opts.inputZOffsets.push_back(offset);
+                    continue;  // Don't treat this as an input file
+                } catch (...) {
+                    std::cerr << "Error: Invalid Z offset value: " << arg << "\n";
+                    return false;
+                }
+            } else {
+                if (opts.modOffset && (opts.inputFiles.size() == opts.inputZOffsets.size() + 1)) {
+                    opts.inputZOffsets.push_back(0);  // Default offset for this file
+                }
+                opts.inputFiles.push_back(
+                    arg);  // Could be input file or output prefix, we'll determine later
+            }
         }
     }
+    if (opts.modOffset && (opts.inputFiles.size() != opts.inputZOffsets.size())) {
+        opts.inputZOffsets.push_back(0);  // Default offset for last file if not provided
+    }
+    // std::cerr << "There are " << opts.inputFiles.size() << " input files and " <<
+    // opts.inputZOffsets.size() << " Z offsets\n";
+
+    // for (size_t i = 0; i < opts.inputZOffsets.size(); ++i) {
+    //     std::cerr << "Z Offset " << i << ": " << opts.inputZOffsets[i] << "\n";
+    // }
 
     // Need at least one input and one output prefix
     if (opts.inputFiles.size() < 2) {
@@ -105,11 +139,11 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
 
     return true;
 }
-
-}  // anonymous namespace
+}  // namespace deep_compositor
+   // anonymous namespace
 
 int main(int argc, char* argv[]) {
-    using namespace exrio;
+    using namespace deep_compositor;
 
     Options opts;
 
@@ -130,134 +164,110 @@ int main(int argc, char* argv[]) {
 
     Timer totalTimer;
 
-    // ========================================================================
-    // Load Phase
-    // ========================================================================
     log("Loading inputs...");
     Timer loadTimer;
+    //
+    for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
+        const std::string& filename = opts.inputFiles[i];
+        if (!exrio::isDeepEXR(filename)) {
+            logError("File is not a deep EXR: " + filename);
+            return 1;
+        }
+    }
 
-    std::vector<DeepImage> images;
-    images.reserve(opts.inputFiles.size());
+    std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
 
     for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
         const std::string& filename = opts.inputFiles[i];
 
         logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.inputFiles.size()) +
                    "] " + filename);
-
+        printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.inputFiles.size(), filename.c_str());
         try {
             // Check if it's a deep EXR
-            if (!isDeepEXR(filename)) {
+            if (!exrio::isDeepEXR(filename)) {
                 logError("File is not a deep EXR: " + filename);
                 return 1;
             }
 
-            DeepImage img = loadDeepEXR(filename);
-
+            auto img = std::make_unique<DeepInfo>(filename);
             // Log statistics
             std::string stats =
-                "    " + std::to_string(img.width()) + "x" + std::to_string(img.height()) + ", " +
-                formatNumber(img.totalSampleCount()) + " total samples (avg " +
-                std::to_string(img.averageSamplesPerPixel()).substr(0, 4) + " samples/pixel)";
+                "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
             logVerbose(stats);
-
-            // Validate dimensions match
-            if (!images.empty()) {
-                if (img.width() != images[0].width() || img.height() != images[0].height()) {
+            if (!imagesInfo.empty()) {
+                if (img->width() != imagesInfo[0]->width() ||
+                    img->height() != imagesInfo[0]->height()) {
                     logError("Image dimensions mismatch: " + filename);
-                    logError("  Expected: " + std::to_string(images[0].width()) + "x" +
-                             std::to_string(images[0].height()));
-                    logError("  Got: " + std::to_string(img.width()) + "x" +
-                             std::to_string(img.height()));
+                    logError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
+                             std::to_string(imagesInfo[0]->height()));
+                    logError("  Got: " + std::to_string(img->width()) + "x" +
+                             std::to_string(img->height()));
                     return 1;
                 }
             }
 
-            images.push_back(std::move(img));
+            imagesInfo.push_back(std::move(img));
 
-        } catch (const DeepReaderException& e) {
+        } catch (const exrio::DeepReaderException& e) {
             logError("Failed to load " + filename + ": " + e.what());
+            return 1;
+        } catch (const std::exception& e) {
+            logError("Unexpected error loading " + filename + ": " + e.what());
+            return 1;
+        }
+        if (!exrio::isDeepEXR(filename)) {
+            logError("File is not a deep EXR: " + filename);
             return 1;
         }
     }
+    int height = imagesInfo[0]->height();
+    int width = imagesInfo[0]->width();
 
-    logVerbose("  Load time: " + loadTimer.elapsedString());
+    log("Starting processing...");
+    std::vector<float> finalImage = processAllEXR(opts, height, width, imagesInfo);
 
-    // ========================================================================
-    // Merge Phase
-    // ========================================================================
-    log("\nMerging...");
-
-    CompositorOptions compOpts;
-    compOpts.mergeThreshold = opts.mergeThreshold;
-    compOpts.enableMerging = (opts.mergeThreshold > 0.0f);
-
-    CompositorStats stats;
-
-    DeepImage merged = deepMerge(images, compOpts, &stats);
-
-    log("  Combined: " + formatNumber(stats.totalOutputSamples) + " total samples");
-    log("  Depth range: " + std::to_string(stats.minDepth) + " to " +
-        std::to_string(stats.maxDepth));
-    log("  Merge time: " + std::to_string(static_cast<int>(stats.mergeTimeMs)) + " ms");
-
-    // ========================================================================
-    // Flatten Phase
-    // ========================================================================
-    std::vector<float> flatRgba;
-
-    if (opts.flatOutput || opts.pngOutput) {
-        log("\nFlattening...");
-        Timer flattenTimer;
-
-        flatRgba = flattenImage(merged);
-
-        logVerbose("  Flatten time: " + flattenTimer.elapsedString());
-    }
-
-    // ========================================================================
-    // Write Phase
-    // ========================================================================
     log("\nWriting outputs...");
     Timer writeTimer;
 
     try {
-        // Write deep output if requested
-        if (opts.deepOutput) {
-            std::string deepPath = opts.outputPrefix + "_merged.exr";
-            writeDeepEXR(merged, deepPath);
-            log("  Wrote: " + deepPath);
-        }
+        // // Write deep output if requested
+        // if (opts.deepOutput) {
+        //     std::string deepPath = opts.outputPrefix + "_merged.exr";
+        //     writeDeepEXR(merged, deepPath);
+        //     log("  Wrote: " + deepPath);
+        // }
 
-        // Write flat EXR if requested
-        if (opts.flatOutput) {
-            std::string flatPath = opts.outputPrefix + "_flat.exr";
-            writeFlatEXR(flatRgba, merged.width(), merged.height(), flatPath);
-            log("  Wrote: " + flatPath);
-        }
+        // // Write flat EXR if requested
+        // if (opts.flatOutput) {
+        //     std::string flatPath = opts.outputPrefix + "_flat.exr";
+        //     writeFlatEXR(flatRgba, merged.width(), merged.height(), flatPath);
+        //     log("  Wrote: " + flatPath);
+        // }
 
         // Write PNG if requested
         if (opts.pngOutput) {
             std::string pngPath = opts.outputPrefix + ".png";
 
-            if (hasPNGSupport()) {
-                writePNG(flatRgba, merged.width(), merged.height(), pngPath);
+            if (exrio::hasPNGSupport()) {
+                exrio::writePNG(finalImage, width, height, pngPath);
                 log("  Wrote: " + pngPath);
             } else {
                 log("  Skipped PNG (libpng not available)");
             }
         }
 
-    } catch (const DeepWriterException& e) {
+    } catch (const exrio::DeepReaderException& e) {
         logError("Failed to write output: " + std::string(e.what()));
         return 1;
     }
 
-    logVerbose("  Write time: " + writeTimer.elapsedString());
+    // logVerbose("  Write time: " + writeTimer.elapsedString());
 
     // ========================================================================
     // Summary
     // ========================================================================
+
     log("\nDone! Total time: " + totalTimer.elapsedString());
 
     return 0;

@@ -2,9 +2,13 @@
 
 #include <exrio/deep_image.h>
 
+#include <memory>
 #include <vector>
 
-namespace exrio {
+#include "deep_info.h"
+#include "deep_options.h"
+
+namespace deep_compositor {
 
 /**
  * Options for the compositing operation
@@ -39,16 +43,20 @@ struct CompositorStats {
  * @return Merged deep image
  * @throws std::runtime_error if inputs have mismatched dimensions
  */
-DeepImage deepMerge(const std::vector<DeepImage>& inputs,
-                    const CompositorOptions& options = CompositorOptions(),
-                    CompositorStats* stats = nullptr);
 
-/**
- * Deep merge (pointer version for large images)
- */
-DeepImage deepMerge(const std::vector<const DeepImage*>& inputs,
-                    const CompositorOptions& options = CompositorOptions(),
-                    CompositorStats* stats = nullptr);
+std::vector<float> processAllEXR(const Options& opts, int height, int width,
+                                 std::vector<std::unique_ptr<DeepInfo>>& imagesInfo);
+
+// DeepImage deepMerge(const std::vector<DeepImage>& inputs,
+//                     const CompositorOptions& options = CompositorOptions(),
+//                     CompositorStats* stats = nullptr, const std::vector<float>& zOffsets = {});
+
+// /**
+//  * Deep merge (pointer version for large images)
+//  */
+// DeepImage deepMerge(const std::vector<const DeepImage*>& inputs,
+//                     const CompositorOptions& options = CompositorOptions(),
+//                     CompositorStats* stats = nullptr, const std::vector<float>& zOffsets = {});
 
 /**
  * Merge samples from multiple deep pixels into one
@@ -57,7 +65,8 @@ DeepImage deepMerge(const std::vector<const DeepImage*>& inputs,
  * @param mergeThreshold Epsilon for merging nearby samples
  * @return Merged deep pixel with sorted samples
  */
-DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels, float mergeThreshold = 0.001f);
+// DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels, float mergeThreshold =
+// 0.001f);
 
 /**
  * Validate that all images have compatible dimensions
@@ -65,7 +74,7 @@ DeepPixel mergePixels(const std::vector<const DeepPixel*>& pixels, float mergeTh
  * @param inputs Vector of images to validate
  * @return true if all dimensions match
  */
-bool validateDimensions(const std::vector<DeepImage>& inputs);
-bool validateDimensions(const std::vector<const DeepImage*>& inputs);
+// bool validateDimensions(const std::vector<DeepImage>& inputs);
+// bool validateDimensions(const std::vector<const DeepImage*>& inputs);
 
-}  // namespace exrio
+}  // namespace deep_compositor
