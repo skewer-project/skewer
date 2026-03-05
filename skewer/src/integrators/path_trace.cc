@@ -1,6 +1,7 @@
 #include "integrators/path_trace.h"
 
 #include <atomic>
+#include <iomanip>
 #include <thread>
 #include <vector>
 
@@ -52,6 +53,13 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                                                      .style = bk::ProgressBarStyle::Rich,
                                                  });
 
+    const bool is_adaptive = config.noise_threshold > 0.0f;
+    const int min_s = config.min_samples;
+    const int step = config.adaptive_step;
+    std::atomic<long long> total_samples_rendered(0);
+    const long long max_possible_samples =
+        (long long)width * height * config.max_samples;
+
     // Worker function — each thread grabs tiles dynamically
     auto render_worker = [&]() {
         while (true) {
@@ -65,10 +73,13 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             int x1 = std::min(x0 + tile_size, width);
             int y1 = std::min(y0 + tile_size, height);
 
+            long long tile_samples = 0;
+
             for (int y = y0; y < y1; ++y) {
                 for (int x = x0; x < x1; ++x) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
-                    for (int s = 0; s < config.samples_per_pixel; ++s) {
+
+                    for (int s = 0; s < config.max_samples; ++s) {
                         float u = (float(x) + rng.UniformFloat()) / width;
                         float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
 
@@ -80,14 +91,30 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                         RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                        float weight = 1.0f;
-                        film->AddSample(x, y, pixel_color, result.alpha, weight);
+                        if (is_adaptive) {
+                            film->AddAdaptiveSample(x, y, pixel_color, result.alpha, 1.0f);
 
-                        if (config.enable_deep) film->AddDeepSample(x, y, result);
+                            if (config.enable_deep) film->AddDeepSample(x, y, result);
+
+                            // Check convergence periodically after min_samples
+                            if (s + 1 >= min_s && ((s + 1 - min_s) % step == 0)) {
+                                if (film->IsPixelConverged(x, y, config.noise_threshold)) {
+                                    tile_samples += s + 1;
+                                    goto next_pixel;
+                                }
+                            }
+                        } else {
+                            film->AddSample(x, y, pixel_color, result.alpha, 1.0f);
+
+                            if (config.enable_deep) film->AddDeepSample(x, y, result);
+                        }
                     }
+                    tile_samples += config.max_samples;
+                    next_pixel:;
                 }
             }
 
+            total_samples_rendered.fetch_add(tile_samples);
             tiles_completed.fetch_add(1);
         }
     };
@@ -106,6 +133,14 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     }
 
     bar->done();
+
+    if (is_adaptive) {
+        long long rendered = total_samples_rendered.load();
+        double pct_saved = 100.0 * (1.0 - (double)rendered / max_possible_samples);
+        std::cout << "[Adaptive] " << rendered << " / " << max_possible_samples
+                  << " samples rendered (" << std::fixed << std::setprecision(1)
+                  << pct_saved << "% saved)\n";
+    }
 }
 
 }  // namespace skwr
