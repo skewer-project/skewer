@@ -3,7 +3,9 @@
 
 #include <exrio/deep_image.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <vector>
@@ -14,16 +16,13 @@
 
 namespace skwr {
 
+// keep hot accumulation fields first and then cold deep_head last.
 struct Pixel {
-    RGB color_sum = RGB(0.0f);       // Accumulated Radiance (premultiplied by alpha)
-    float alpha_sum = 0.0f;          // Accumulated coverage
-    float weight_sum = 0.0f;         // Total weight (filter weight * count)
-    std::atomic<int> deep_head{-1};  // Head of linked list
-
-    // Adaptive sampling state
-    RGB color_sq_sum = RGB(0.0f);  // Sum of squared per-sample RGB (for variance)
-    int sample_count = 0;          // Actual samples taken
-    bool converged = false;        // Convergence flag
+    RGB color_sum = RGB(0.0f);
+    float alpha_sum = 0.0f;
+    float weight_sum = 0.0f;
+    RGB color_sq_sum = RGB(0.0f);
+    std::atomic<int> deep_head{-1};
 };
 
 struct DeepSegmentNode {
@@ -40,11 +39,12 @@ class Film {
 
     // alpha is the flat-pass coverage for this sample (0=transparent, 1=opaque).
     void AddSample(int x, int y, const RGB& L, float alpha, float weight = 1.0f);
-    // Same as AddSample but also tracks squared color for variance estimation.
-    void AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight = 1.0f);
-    // Returns true if the pixel's estimated noise is below the threshold.
+
+    // accumulates both moments for variance tracking.
+    void AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight);
+
+    // convergence check, should called every adaptive_step samples.
     bool IsPixelConverged(int x, int y, float noise_threshold) const;
-    int GetPixelSampleCount(int x, int y) const;
 
     void AddDeepSample(int x, int y, const PathSample& path_sample);
 
