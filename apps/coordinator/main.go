@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 
 	"google.golang.org/grpc"
 
@@ -23,7 +24,7 @@ func main() {
 
 	// Create dependencies
 	// TODO: Make these configurable and make arguments for skewer and loom queue sizes separate
-	scheduler := coordinator.NewScheduler(10000) // The max queue size for both task queues.
+	scheduler := coordinator.NewScheduler(4) // The max queue size for both task queues.
 	tracker := coordinator.NewJobTracker()
 
 	ctx := context.Background()
