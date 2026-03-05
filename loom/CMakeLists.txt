@@ -14,11 +14,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # endif()
 
 
-find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
-if(CLANG_TIDY_EXE)
-    # Adding 'modernize-concat-nested-namespaces' is great for C++20!
-    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=-*,bugprone-*,readability-*,modernize-*,portability-*;--header-filter=src/.*;--warnings-as-errors=-*")
-endif()
+# find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+# if(CLANG_TIDY_EXE)
+#     # Adding 'modernize-concat-nested-namespaces' is great for C++20!
+#     set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=-*,bugprone-*,readability-*,modernize-*,portability-*;--header-filter=src/.*;--warnings-as-errors=-*")
+# endif()
 
 include(CTest)
 cmake_policy(SET CMP0135 NEW)
