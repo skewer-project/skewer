@@ -72,7 +72,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
         float vertex_alpha = 1.0f;
 
         if (r.vol_stack().GetActiveMedium() != 0) {
-            scatterMedium = SampleMedium(r, scene, t_max, rng, beta, mi);
+            scatterMedium = SampleMedium(r, scene, t_max, rng, beta, &mi);
         }
         // vol dispatch, sample medium with t_surface as upper bound
         if (scatterMedium) {

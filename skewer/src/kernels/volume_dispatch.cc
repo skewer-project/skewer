@@ -14,7 +14,7 @@ namespace skwr {
 
 /* Volume Dispatcher - returns true if scattering event occurs, false if hit surface */
 bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spectrum& beta,
-                  MediumInteraction& mi) {
+                  MediumInteraction* mi) {
     uint16_t active_id = ray.vol_stack().GetActiveMedium();
 
     if (active_id == 0 || active_id == kVacuumMediumId) return false;
