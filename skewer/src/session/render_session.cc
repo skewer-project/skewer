@@ -15,6 +15,7 @@
 #include "integrators/path_trace.h"
 #include "io/image_io.h"
 #include "io/scene_loader.h"
+#include "materials/material.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
@@ -68,23 +69,28 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     //     Sphere{Point3(0.0f, -3.5f, -10.0f), 1.5f, kNullMaterialId, fog_id, kVacuumMediumId, 2});
 
     // 1. Define the Heterogeneous Grid (A Soft Cloud)
-    GridMedium cloud;
-    // Set AABB exactly bounding our sphere at center (0, -3.5, -10) with radius 1.5
-    cloud.bbox = BoundBox(Vec3(-1.5f, -5.0f, -11.5f), Vec3(1.5f, -2.0f, -8.5f));
+    // GridMedium cloud;
+    // // Set AABB exactly bounding our sphere at center (0, -3.5, -10) with radius 1.5
+    // // cloud.bbox = BoundBox(Vec3(-1.5f, -5.0f, -11.5f), Vec3(1.5f, -2.0f, -8.5f));
+    // cloud.bbox = BoundBox(Vec3(-2.0f, 0.5f, -1.5f), Vec3(1.0f, 3.5f, 1.5f));
 
-    cloud.sigma_a_base = Spectrum(0.0f);
-    cloud.sigma_s_base = Spectrum(10.0f);  // High base scattering to make the core thick
-    cloud.g = 0.0f;                        // Isotropic scattering
+    // cloud.sigma_a_base = Spectrum(0.0f);
+    // cloud.sigma_s_base = Spectrum(10.0f);  // High base scattering to make the core thick
+    // cloud.g = 0.0f;                        // Isotropic scattering
 
-    // CRITICAL: Our GetDensity function returns a maximum of 1.0 at the center.
-    cloud.max_density = 1.0f;
+    // // CRITICAL: Our GetDensity function returns a maximum of 1.0 at the center.
+    // cloud.max_density = 1.0f;
 
-    // 2. Register it
-    uint16_t cloud_id = scene_->AddGridMedium(cloud);
+    // // 2. Register it
+    // uint16_t cloud_id = scene_->AddGridMedium(cloud);
 
-    // 4. Create the bounding Sphere
-    scene_->AddSphere(
-        Sphere{Point3(0.0f, -3.5f, -10.0f), 1.5f, kNullMaterialId, cloud_id, kVacuumMediumId, 1});
+    // // 4. Create the bounding Sphere
+    // // scene_->AddSphere(
+    // //     Sphere{Point3(0.0f, -3.5f, -10.0f), 1.5f, kNullMaterialId, cloud_id, kVacuumMediumId,
+    // //     1});
+    // scene_->AddSphere(
+    //     Sphere{Point3(-0.5f, 2.0f, 0.0f), 1.5f, kNullMaterialId, cloud_id, kVacuumMediumId, 1});
+    // X, Z, Y
 
     // 2. Build BVH acceleration structure
     scene_->Build();
