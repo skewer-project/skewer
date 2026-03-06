@@ -384,6 +384,7 @@ static SceneConfig ParseConfig(const json& j) {
         opts.integrator_config.noise_threshold = GetOr(r, "noise_threshold", 0.0f);
         opts.integrator_config.min_samples = GetOr(r, "min_samples", 1);
         opts.integrator_config.adaptive_step = GetOr(r, "adaptive_step", 16);
+        opts.integrator_config.save_sample_map = GetOr(r, "save_sample_map", false);
 
         // Image config (nested)
         if (r.contains("image")) {
