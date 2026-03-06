@@ -18,7 +18,7 @@ struct DirectLightSample {
 
 inline bool GenerateLightSample(const Vec3& origin, const Scene& scene, RNG& rng,
                                 const SampledWavelengths& wl, DirectLightSample* out_sample) {
-    if (!scene.Lights().empty()) return false;
+    if (scene.Lights().empty()) return false;
 
     int light_index = int(rng.UniformFloat() * scene.Lights().size());
     const AreaLight& light = scene.Lights()[light_index];
