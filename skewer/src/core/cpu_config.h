@@ -23,6 +23,6 @@ constexpr uint8_t kMaxMediumStack = 4;
  * Opaque ID for a vacuum/empty space
  */
 constexpr uint16_t kVacuumMediumId = 0xFFFF;
-constexpr uint16_t kNullMaterialId = 0xFFFF;  // For semantic difference
+constexpr uint32_t kNullMaterialId = 0xFFFFFFFF;
 
 #endif  // SKWR_CORE_CPU_CONFIG_H_

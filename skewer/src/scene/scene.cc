@@ -53,6 +53,7 @@ void Scene::Build() {
             t.material_id = mesh_ref.material_id;
             t.interior_medium = kVacuumMediumId;
             t.exterior_medium = kVacuumMediumId;
+            t.priority = 0;
             t.needs_tangent_frame = mat.HasNormalMap();
 
             if (!mesh_ref.n.empty()) {
