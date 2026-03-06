@@ -17,7 +17,7 @@ Spectrum EvaluateVisibility(const Scene& scene, Ray& shadow_ray, float max_dist,
 
     while (true) {
         SurfaceInteraction shadow_si;
-        if (scene.Intersect(shadow_ray, kShadowEpsilon, remaining_dist - kShadowEpsilon,
+        if (scene.Intersect(shadow_ray, kShadowEpsilon, remaining_dist - 2.0f * kShadowEpsilon,
                             &shadow_si)) {
             // Accumulate volume transmittance through the current medium up to the hit
             Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t);
