@@ -1,9 +1,6 @@
 #include "film/image_buffer.h"
 
 #include <cassert>
-#include <fstream>
-#include <iostream>
-#include <ostream>
 
 #include "core/color/color.h"
 
@@ -18,36 +15,33 @@ void ImageBuffer::SetPixel(int x, int y, const RGB& color) {
     pixels_[y * width_ + x] = color;
 }
 
-// For debug and testing purposes, we can keep this PPM writer but
-// ultimately we should move this to a separate src/io/image_io.h or something
-void ImageBuffer::WritePPM(const std::string& filename) const {
-    std::ofstream out(filename);
-    if (!out) {
-        std::cerr << "Error: Could not open " << filename << " for writing.\n";
-        return;
-    }
+// ---------------------------------------------------------------------------
+// FlatImageBuffer
+// ---------------------------------------------------------------------------
 
-    // PPM Header: P3 = ASCII RGB, then width, height, max_val
-    out << "P3\n" << width_ << " " << height_ << "\n255\n";
+FlatImageBuffer::FlatImageBuffer(int width, int height)
+    : width_(width),
+      height_(height),
+      pixels_(static_cast<size_t>(width) * height),
+      alpha_(static_cast<size_t>(width) * height, 1.0f) {}
 
-    for (const auto& pixel : pixels_) {
-        RGB color = pixel;
-        // auto lineartogamma = [](float x) { return (x > 0) ? std::sqrt(x) : 0; };
-        // color[0] = lineartogamma(color[0]);
-        // color[1] = lineartogamma(color[1]);
-        // color[2] = lineartogamma(color[2]);
-        // color.Clamp(0.0f, 1.0f);
-        RGB final_color = Tonemap(color);
-        // Convert float (0.0-1.0) to int (0-255)
-        int ir = static_cast<int>(255.999 * final_color.r());
-        int ig = static_cast<int>(255.999 * final_color.g());
-        int ib = static_cast<int>(255.999 * final_color.b());
+FlatImageBuffer::FlatImageBuffer(int width, int height, std::vector<RGB> pixels)
+    : width_(width),
+      height_(height),
+      pixels_(std::move(pixels)),
+      alpha_(static_cast<size_t>(width) * height, 1.0f) {}
 
-        out << ir << " " << ig << " " << ib << "\n";
-    }
+void FlatImageBuffer::SetPixel(int x, int y, const RGB& s) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    pixels_[static_cast<size_t>(y) * width_ + x] = s;
+    // alpha_ stays at its current value (1.0 unless previously set)
+}
 
-    out.close();
-    std::cout << "Wrote image to " << filename << "\n";
+void FlatImageBuffer::SetPixel(int x, int y, const RGB& s, float alpha) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    size_t idx = static_cast<size_t>(y) * width_ + x;
+    pixels_[idx] = s;
+    alpha_[idx] = alpha;
 }
 
 /*
