@@ -5,6 +5,7 @@
 
 #include "core/color.h"
 #include "core/spectrum.h"
+#include "film/deep_segment_pool.h"
 
 namespace skwr {
 
