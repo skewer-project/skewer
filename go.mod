@@ -1,6 +1,6 @@
 module github.com/skewer-project/skewer
 
-go 1.25.7
+go 1.25.0
 
 require (
 	cloud.google.com/go/storage v1.60.0
