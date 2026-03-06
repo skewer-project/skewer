@@ -20,11 +20,20 @@ type Server struct {
 }
 
 func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) *Server {
-	return &Server{
+	s := &Server{
 		scheduler: scheduler,
 		manager:   manager,
 		tracker:   tracker,
 	}
+
+	// Set the terminal failure callback
+	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
+		log.Printf("[SERVER] Task %s for job %s failed permanently. Failing job.", task.ID, task.JobID)
+		s.tracker.CancelJob(task.JobID)
+		s.scheduler.PurgeJobTasks(task.JobID)
+	}
+
+	return s
 }
 
 // ================= //
@@ -341,7 +350,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 		var sampleStart int32 = 0
 		var outputUris []string
-		for chunk := range numSamplesPerWorker {
+		for chunk := int32(0); chunk < job.GetSampleDivision(); chunk++ {
 			uriSuffix := fmt.Sprintf("frame-%d-chunk-%d", frameID, chunk)
 
 			// Add in remainder
