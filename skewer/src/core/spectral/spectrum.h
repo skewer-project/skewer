@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "core/cpu_config.h"
+#include "core/math/constants.h"
 
 namespace skwr {
 
@@ -128,6 +129,17 @@ template <int NSamples>
 inline SpectralPacket<NSamples> operator/(SpectralPacket<NSamples> s, float a) {
     return s /= a;
 }
+
+template <int NSamples>
+inline SpectralPacket<NSamples> operator/(SpectralPacket<NSamples> s, SpectralPacket<NSamples> c) {
+    SpectralPacket<NSamples> result(0.0f);
+    for (int i = 0; i < NSamples; ++i) {
+        if (c[i] > kZeroEpsilon) {  // Protect against exact 0 and denormals
+            result[i] = s[i] / c[i];
+        }
+    }
+    return result;
+};
 
 template <int N>
 struct WavelengthPacket {

@@ -20,6 +20,7 @@ static constexpr float kOneMinusEpsilon = 0x1.fffffep-1;
 constexpr float kEpsilon = std::numeric_limits<float>::epsilon();
 constexpr float kShadowEpsilon = 0.001f;
 constexpr float kBoundEpsilon = 0.0001f;
+constexpr float kZeroEpsilon = 1e-8f;
 constexpr float kFarClip = 1e10f;
 
 inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
