@@ -30,6 +30,7 @@ void Scene::Build() {
             light.primitive_index = i;
             light.emission = mat.emission;
             lights_.push_back(light);
+            spheres_[i].light_index = static_cast<int32_t>(lights_.size() - 1);
         }
     }
 
@@ -87,6 +88,7 @@ void Scene::Build() {
             light.primitive_index = i;
             light.emission = mat.emission;
             lights_.push_back(light);
+            triangles_[i].light_index = static_cast<int32_t>(lights_.size() - 1);
         }
     }
     inv_light_count_ = 1.0f / lights_.size();
