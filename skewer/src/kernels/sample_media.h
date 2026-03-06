@@ -12,9 +12,9 @@ class Ray;
 class RNG;
 
 bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_max, RNG& rng,
-                       Spectrum& beta, MediumInteraction& mi);
+                       Spectrum& beta, MediumInteraction* mi);
 bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                Spectrum& beta, MediumInteraction& mi);
+                Spectrum& beta, MediumInteraction* mi);
 
 }  // namespace skwr
 

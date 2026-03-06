@@ -28,7 +28,7 @@ namespace skwr {
  *      t = −ln(1 − ξ) / σ_t
  */
 bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_max, RNG& rng,
-                       Spectrum& beta, MediumInteraction& mi) {
+                       Spectrum& beta, MediumInteraction* mi) {
     Spectrum sigma_t = medium.Extinction();  // sigma_a + sigma_s
 
     // Sampling a color channel to find t
@@ -66,12 +66,12 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
     if (scattered) {
         beta *= (tr * medium.sigma_s) / pdf;
 
-        mi.t = t;
-        mi.point = r.at(t);
-        mi.wo = -r.direction();  // Points back towards the camera/previous bounce
-        mi.phase_g = medium.g;
-        mi.sigma_s = medium.sigma_s;
-        mi.alpha = 1.0f - tr.Average();
+        mi->t = t;
+        mi->point = r.at(t);
+        mi->wo = -r.direction();  // Points back towards the camera/previous bounce
+        mi->phase_g = medium.g;
+        mi->sigma_s = medium.sigma_s;
+        mi->alpha = 1.0f - tr.Average();
 
         return true;
     } else {
@@ -89,7 +89,7 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
  * corresponding to the reduced density
  */
 bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                Spectrum& beta, MediumInteraction& mi) {
+                Spectrum& beta, MediumInteraction* mi) {
     float t_min_box = 0.0f;
     float t_max_box = kInfinity;
     if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
@@ -135,12 +135,12 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
             // Divide the entire spectrum by the HERO's extinction
             beta *= (sigma_s / sigma_t[hero]);
 
-            mi.t = t;
-            mi.point = r.at(t);
-            mi.wo = -r.direction();
-            mi.phase_g = medium.g;
-            mi.sigma_s = sigma_s;
-            mi.alpha = 1.0f - std::exp(-accumulated_tau);
+            mi->t = t;
+            mi->point = r.at(t);
+            mi->wo = -r.direction();
+            mi->phase_g = medium.g;
+            mi->sigma_s = sigma_s;
+            mi->alpha = 1.0f - std::exp(-accumulated_tau);
 
             return true;
         }
