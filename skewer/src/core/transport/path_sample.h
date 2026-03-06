@@ -3,17 +3,10 @@
 
 #include <vector>
 
-#include "core/color/color.h"
 #include "core/spectral/spectrum.h"
+#include "core/transport/deep_segment.h"
 
 namespace skwr {
-
-struct DeepSegment {
-    float z_front;
-    float z_back;
-    RGB L;  // radiance; integrated over segment
-    float alpha;
-};
 
 struct PathSample {
     Spectrum L;   // "Flat" beauty pass (premultiplied radiance)
