@@ -44,7 +44,17 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
     Ray r = ray;
     bool specular_bounce = true;
 
-    // Deep Info
+    // Deep / alpha tracking
+    //
+    // camera_visible: a material with visible=true was hit within the first
+    //   visibility_depth bounces.  Governs result.alpha and whether a deep
+    //   segment is emitted. When transparent_background=false this is unused
+    //   (all geometry counts).
+    //
+    // valid_deep_hit: a surface that should contribute depth info was hit.
+    //   In transparent mode this is gated on visibility so invisible geometry
+    //   does not lock in a depth that the camera should never see.
+    bool camera_visible = false;
     bool valid_deep_hit = false;
     Point3 deep_hit_point = r.at(kFarClip);
     Vec3 deep_origin = r.origin();
@@ -55,9 +65,14 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
     for (int depth = 0; depth < config.max_depth; ++depth) {
         SurfaceInteraction si;
         if (!scene.Intersect(r, kShadowEpsilon, kInfinity, &si)) {
-            // Environment Segment
-            Spectrum env_L = beta * Spectrum(0.0f);
-            L += env_L;
+            // Primary-ray miss: no geometry hit.
+            // In transparent-background mode the environment contributes nothing
+            // (alpha stays 0 so compositors see through to layers behind).
+            // In opaque mode, treat it as a black environment (alpha = 1).
+            if (!config.transparent_background) {
+                Spectrum env_L = beta * Spectrum(0.0f);
+                L += env_L;
+            }
             break;
         }
 
@@ -66,6 +81,21 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
         // AddSegment(result, t_prev, si.t, Spectrum(0.0f), 0.0f);
 
         const Material& mat = scene.GetMaterial(si.material_id);
+
+        // --- Visibility window check ---
+        // Update camera_visible if this bounce is within the window AND the
+        // surface is marked visible.  This is the only place camera_visible
+        // is ever set; everything else just reads it.
+        if (!camera_visible && mat.visible && depth < config.visibility_depth) {
+            camera_visible = true;
+        }
+
+        // A surface "counts for depth" in transparent mode only when it is
+        // visible (or we are not in transparent mode at all).  This prevents
+        // invisible walls from locking the deep hit-point before the visible
+        // sphere is encountered.
+        const bool counts_for_depth = !config.transparent_background || mat.visible;
+
         ShadingData sd = ResolveShadingData(mat, si, scene);
         // Lazy Evaluation
         Spectrum opacity(1.0f);
@@ -79,18 +109,20 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             emission = CurveToSpectrum(mat.emission, wl);
             if (specular_bounce) {
                 L += beta * emission;
-                deep_hit_point = si.point;  // Record actual emissive surface depth
-                valid_deep_hit = true;
+                if (counts_for_depth) {
+                    deep_hit_point = si.point;
+                    valid_deep_hit = true;
+                }
             }
         }
 
-        // Record if it's the first deep hit
-        if (!valid_deep_hit) {
-            // For simplicity, just have all hits update the depth
-            // and we rely on the loop finishing to define the color.
+        // Roll the deep hit-point forward to the current surface while we
+        // have not yet committed.  Only update for surfaces that count for
+        // depth (visible ones in transparent mode; any in opaque mode).
+        if (!valid_deep_hit && counts_for_depth) {
             deep_hit_point = si.point;
-            // For volumetrics, we RAY MARCH here from r.origin to si.point
-            // and AddSegment() continuously.
+            // For volumetrics, we would RAY MARCH here from r.origin to
+            // si.point and AddSegment() continuously.
         }
 
         // /* Handle transparency - straight-through transmission */
@@ -154,7 +186,7 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
             if (pdf > 0) {
                 float refract = Dot(wi, si.n_geom);
 
-                if (!valid_deep_hit) {
+                if (!valid_deep_hit && counts_for_depth) {
                     if (!(refract < 0.0f)) {
                         valid_deep_hit = true;  // it's a reflection
                     }
@@ -193,15 +225,27 @@ inline PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const Integra
     }
 
     RGB final_rgb = SpectrumToRGB(L, wl);
-    if (valid_deep_hit) {
+
+    // In transparent mode a pixel is "covered" only when a visible object was
+    // hit within the visibility_depth window.  In opaque mode every geometry
+    // hit counts (backward-compatible).
+    const bool covered =
+        config.transparent_background ? camera_visible : (valid_deep_hit || camera_visible);
+    result.alpha = covered ? 1.0f : (config.transparent_background ? 0.0f : 1.0f);
+
+    // Deep segment: emit when we have a committed depth AND the pixel is covered.
+    // In opaque mode the far-clip fallback ensures even pure misses are represented.
+    if (valid_deep_hit && covered) {
         Vec3 to_hit = deep_hit_point - deep_origin;
         float z_depth = Dot(to_hit, config.cam_w);
-        // Ensure we don't get negative depth behind camera
         if (z_depth < 0.0f) z_depth = 0.0f;
         AddSegment(result, z_depth, z_depth + kShadowEpsilon, final_rgb, deep_hit_alpha);
-    } else {
+    } else if (!config.transparent_background) {
+        // Opaque mode: solid far-clip sample so the deep pixel is always covered.
         AddSegment(result, kFarClip, kFarClip + 1000.0f, final_rgb, deep_hit_alpha);
     }
+    // transparent + !covered → no segments → compositor sees fully transparent pixel.
+
     result.L = L;
     return result;
 }
