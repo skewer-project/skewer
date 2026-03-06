@@ -8,9 +8,11 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "core/color.h"
+#include "film/deep_segment_pool.h"
 #include "film/image_buffer.h"
 #include "integrators/path_sample.h"
 
@@ -23,14 +25,6 @@ struct Pixel {
     float weight_sum = 0.0f;
     RGB color_sq_sum = RGB(0.0f);
     std::atomic<int> deep_head{-1};
-};
-
-struct DeepSegmentNode {
-    float z_front;
-    float z_back;
-    RGB L;
-    float alpha;
-    int next;
 };
 
 class Film {
@@ -71,8 +65,7 @@ class Film {
 
     int width_, height_;
     std::vector<Pixel> pixels_;
-    std::vector<DeepSegmentNode> deep_pool_;
-    std::atomic<size_t> pool_cursor_{0};
+    DeepSegmentPool deep_pool_;
 };
 
 }  // namespace skwr
