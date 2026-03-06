@@ -6,12 +6,14 @@ enable_testing()
 # Locate source files (excluding main.cc)
 set(TEST_SOURCES
     ../src/film/image_buffer.cc
+    ../src/film/film.cc
     ../src/io/image_io.cc
 )
 
 # Create the test executable
 add_executable(unit_tests
     unit/test_image_io.cc
+    unit/test_film_alpha.cc
     ${TEST_SOURCES}
 )
 
@@ -27,9 +29,7 @@ target_link_libraries(unit_tests
     PRIVATE
     GTest::gtest_main
     nlohmann_json::nlohmann_json
-    Imath::Imath
-    OpenEXR::OpenEXR
-    ZLIB::ZLIB
+    exrio::exrio
 )
 
 # Auto-discover tests
