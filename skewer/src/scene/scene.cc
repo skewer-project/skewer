@@ -34,6 +34,7 @@ void Scene::Build() {
         }
     }
 
+    // TODO: Update triangle creation with in/out medium setting
     // Bake one Triangle per mesh face, capturing final vertex positions,
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {

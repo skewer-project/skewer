@@ -7,6 +7,7 @@
 #include "core/math/vec3.h"
 #include "core/ray.h"
 #include "core/sampling/rng.h"
+#include "core/sampling/sampling.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
 #include "core/transport/deep_path_recorder.h"
@@ -20,6 +21,7 @@
 #include "materials/bsdf.h"
 #include "materials/material.h"
 #include "materials/texture_lookup.h"
+#include "scene/light.h"
 #include "scene/scene.h"
 #include "scene/skybox.h"
 #include "session/render_options.h"
@@ -58,6 +60,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
     DeepPathRecorder dpr(config.max_depth);  // Deferred State tracker
 
     bool is_camera_path = true;
+    float prev_scatter_pdf = 1.0f;  // pdf of previous bounce (for directional MIS)
 
     for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
         SurfaceInteraction si;
@@ -88,8 +91,10 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
                 if (Tr.MaxComponentValue() > 0.0f) {
                     // Evaluate Phase & Transmittance
-                    float phase_val = EvalHG(mi.phase_g, mi.wo, dls.wi);
-                    Spectrum direct_L = phase_val * Tr * dls.emission / dls.pdf;
+                    float phase_pdf = EvalHG(mi.phase_g, mi.wo, dls.wi);
+                    float mis_weight = PowerHeuristic(dls.pdf, phase_pdf);
+
+                    Spectrum direct_L = mis_weight * phase_pdf * Tr * dls.emission / dls.pdf;
                     local_vertex_L += direct_L;
                 }
             }
@@ -153,6 +158,19 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                 emission = CurveToSpectrum(mat.emission, wl);
                 if (specular_bounce) {
                     local_vertex_L += emission;
+                } else if (si.light_index != -1) {
+                    // Calculate the PDF that NEE would have generated to hit this exact spot
+                    float pdf_a = LightPdfA(scene, si.light_index);
+                    float dist_sq = si.t * si.t;
+                    float cos_light =
+                        std::fmax(0.0f, Dot(-r.direction(), si.n_shading));  // n_geom?
+                    float pdf_w = (pdf_a * dist_sq) / cos_light;
+                    pdf_w *= scene.InvLightCount();
+
+                    float mis_weight = PowerHeuristic(prev_scatter_pdf, pdf_w);
+                    local_vertex_L += emission * mis_weight;
+                } else {
+                    local_vertex_L += emission;
                 }
             }
 
@@ -214,6 +232,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                         weight *= alpha;  // Absorb based on opacity
                     }
 
+                    prev_scatter_pdf = pdf;
                     beta *= weight;
                     Ray next_r(si.point + (wi * kShadowEpsilon), wi);
                     next_r.vol_stack() = r.vol_stack();
