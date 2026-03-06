@@ -88,8 +88,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
     Ray r = ray;
     bool specular_bounce = true;
 
-    float ray_t = 0.0f;           // Running parametric distance
-    float segment_start = ray_t;  // Deep interval start
+    float ray_t = 0.0f;  // Running parametric distance
 
     // Deferred State
     std::vector<PathVertex> path_vertices;
@@ -154,7 +153,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             L += current_beta * local_vertex_L;  // forward beauty accumulation
 
             PathVertex v;
-            v.t_start = segment_start;
+            v.t_start = ray_t;
             v.t_end = ray_t;
             v.local_L = local_vertex_L;
             v.alpha = vertex_alpha;
@@ -165,7 +164,6 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             path_vertices.push_back(v);
 
             is_camera_path = false;  // Volumes always scatter, leaving camera path
-            segment_start = ray_t;
 
             /* 3. Sample Phase Function for Indirect Bounce */
             Vec3 next_wi;
@@ -292,8 +290,6 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             v.alpha = vertex_alpha;
             v.is_camera_path = is_camera_path;
             path_vertices.push_back(v);
-
-            segment_start = ray_t;
 
             /* Indirect bounce case */
             Vec3 wi;
