@@ -90,7 +90,7 @@ func (s *Server) GetJobStatus(ctx context.Context, req *pb.GetJobStatusRequest) 
 	if err != nil {
 		// NOTE: the way i have errMessage and err here is a bit weird. may want to change.
 		return &pb.GetJobStatusResponse{
-			JobStatus:       0,
+			JobStatus:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
 			ProgressPercent: 0,
 			ErrorMessage:    status.Errorf(codes.NotFound, err.Error(), req.GetJobId()).Error(),
 		}, err
