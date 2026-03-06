@@ -33,7 +33,6 @@ bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spe
 
         case static_cast<int>(MediumType::Grid):
             return SampleGrid(scene.grid_media()[index], ray, t_max, rng, beta, mi);
-            return false;
 
         default:
             return false;  // Fallback
