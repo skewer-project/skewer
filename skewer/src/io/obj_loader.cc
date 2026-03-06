@@ -42,16 +42,11 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
                             const std::string& base_path) {
     Material mat{};
 
-    std::clog << "  Material: \"" << mtl.name << "\"" << " Kd=(" << mtl.diffuse[0] << ", "
-              << mtl.diffuse[1] << ", " << mtl.diffuse[2] << ") Pm=" << mtl.metallic
-              << " Pr=" << mtl.roughness << " d=" << mtl.dissolve << " Ni=" << mtl.ior << std::endl;
-
     // 1. PBR METALLIC
     if (mtl.metallic >= 0.5f) {
         mat.type = MaterialType::Metal;
         mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
         mat.roughness = std::max(0.0f, std::min(1.0f, mtl.roughness * 0.5f));
-        std::clog << "    -> Metal (PBR)" << std::endl;
         mat.albedo_tex = LoadMtlTexture(mtl.diffuse_texname, base_path, scene);
         mat.roughness_tex = LoadMtlTexture(mtl.roughness_texname, base_path, scene);
         {
@@ -69,7 +64,6 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
         mat.albedo = RGBToCurve(RGB(1.0f, 1.0f, 1.0f));
         mat.roughness = 0.0f;
         mat.ior = (mtl.ior > 1.0f) ? mtl.ior : 1.5f;
-        std::clog << "    -> Dielectric (ior=" << mat.ior << ")" << std::endl;
         return mat;
     }
 
@@ -80,7 +74,6 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
         mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
         float fuzz = 1.0f - std::min(1.0f, mtl.shininess / 1000.0f);
         mat.roughness = std::max(0.0f, std::min(0.5f, fuzz));
-        std::clog << "    -> Metal (specular)" << std::endl;
         mat.albedo_tex = LoadMtlTexture(mtl.diffuse_texname, base_path, scene);
         {
             const std::string& n =
@@ -98,9 +91,6 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
     // If diffuse is near-zero, use a default gray
     if (mtl.diffuse[0] + mtl.diffuse[1] + mtl.diffuse[2] < 0.001f) {
         mat.albedo = RGBToCurve(RGB(0.5f, 0.5f, 0.5f));
-        std::clog << "    -> Lambertian (default gray)" << std::endl;
-    } else {
-        std::clog << "    -> Lambertian" << std::endl;
     }
 
     // Load texture maps.
@@ -128,8 +118,6 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
     if (last_slash != std::string::npos) {
         base_path = filename.substr(0, last_slash);
     }
-
-    std::clog << "[OBJ] Loading: " << filename << std::endl;
 
     bool success =
         tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str(),
@@ -164,14 +152,7 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
         float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
         final_scale = Vec3(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
 
-        std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
-        std::clog << "[OBJ] Center: (" << bbox_center << ")" << std::endl;
-        std::clog << "[OBJ] Auto-fit scale: " << normalize << ", final scale: (" << final_scale
-                  << ")" << std::endl;
     } else {
-        std::clog << "[OBJ] Bounding box: (" << bbox_min << ") - (" << bbox_max << ")" << std::endl;
-        std::clog << "[OBJ] Auto-fit disabled, using raw scale: (" << final_scale << ")"
-                  << std::endl;
     }
 
     // Convert OBJ materials -> v2 Material IDs
@@ -179,7 +160,6 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
     std::vector<uint32_t> material_id_map;
     material_id_map.reserve(materials.size());
 
-    std::clog << "[OBJ] Converting " << materials.size() << " materials" << std::endl;
     for (const auto& mtl : materials) {
         Material converted = ConvertObjMaterial(mtl, scene, base_path);
         material_id_map.push_back(scene.AddMaterial(converted));
@@ -202,8 +182,6 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
     // Process each shape.
     // Since v2 Mesh has a single material_id, we group faces by material
     // within each shape and create one Mesh per (shape, material) group.
-    uint32_t total_triangles = 0;
-
     for (const auto& shape : shapes) {
         // Group face indices by material ID
         // Key: OBJ material index (-1 for no material)
@@ -318,14 +296,9 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
             if (!mesh.uv.empty() && mesh.uv.size() != mesh.p.size()) {
                 mesh.uv.clear();
             }
-
-            total_triangles += static_cast<uint32_t>(mesh.indices.size() / 3);
             scene.AddMesh(std::move(mesh));
         }
     }
-
-    std::clog << "[OBJ] Loaded " << shapes.size() << " shapes, " << total_triangles
-              << " triangles, " << materials.size() << " materials" << std::endl;
 
     return true;
 }

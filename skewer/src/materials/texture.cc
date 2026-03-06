@@ -25,7 +25,6 @@ bool ImageTexture::Load(const std::string& filepath) {
     }
     data.assign(raw, raw + width * height * 3);
     stbi_image_free(raw);
-    std::clog << "[Texture] Loaded: " << filepath << " (" << width << "x" << height << ")\n";
     return true;
 }
 
