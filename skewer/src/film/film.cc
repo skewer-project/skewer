@@ -249,6 +249,40 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
     return merged;
 }
 
+void Film::WriteSampleMap(const std::string& filename, int max_samples) const {
+    std::vector<float> rgba(static_cast<size_t>(width_) * height_ * 4);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const Pixel& p = GetPixel(x, y);
+            float t = (max_samples > 0) ? std::min(p.weight_sum / max_samples, 1.0f) : 0.0f;
+
+            // Blue (0,0,1) → Green (0,1,0) → Red (1,0,0)
+            float r, g, b;
+            if (t < 0.5f) {
+                float s = t * 2.0f;
+                r = 0.0f;
+                g = s;
+                b = 1.0f - s;
+            } else {
+                float s = (t - 0.5f) * 2.0f;
+                r = s;
+                g = 1.0f - s;
+                b = 0.0f;
+            }
+
+            size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
+            rgba[idx + 0] = r;
+            rgba[idx + 1] = g;
+            rgba[idx + 2] = b;
+            rgba[idx + 3] = 1.0f;
+        }
+    }
+
+    exrio::writePNG(rgba, width_, height_, filename);
+    std::cout << "Wrote sample map to " << filename << "\n";
+}
+
 void Film::WriteImage(const std::string& filename) const {
     std::vector<float> rgba(static_cast<size_t>(width_) * height_ * 4);
 
