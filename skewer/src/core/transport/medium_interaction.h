@@ -1,5 +1,5 @@
-#ifndef SKWR_CORE_SAMPLING_MEDIUM_INTERACTION_H_
-#define SKWR_CORE_SAMPLING_MEDIUM_INTERACTION_H_
+#ifndef SKWR_CORE_TRANSPORT_MEDIUM_INTERACTION_H_
+#define SKWR_CORE_TRANSPORT_MEDIUM_INTERACTION_H_
 
 #include "core/math/vec3.h"
 #include "core/spectral/spectrum.h"
@@ -27,4 +27,4 @@ struct MediumInteraction {
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_SAMPLING_MEDIUM_INTERACTION_H_
+#endif  // SKWR_CORE_TRANSPORT_MEDIUM_INTERACTION_H_

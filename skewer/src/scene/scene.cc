@@ -5,7 +5,7 @@
 #include "accelerators/bvh.h"
 #include "core/cpu_config.h"
 #include "core/math/vec3.h"
-#include "core/sampling/surface_interaction.h"
+#include "core/transport/surface_interaction.h"
 #include "geometry/intersect_sphere.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
