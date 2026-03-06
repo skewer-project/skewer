@@ -79,8 +79,6 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
         beta *= tr / pdf;
         return false;
     }
-
-    return true;
 }
 
 /**
