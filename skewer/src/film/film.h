@@ -50,6 +50,10 @@ class Film {
 
     // Saves to disk (PNG, EXR)
     void WriteImage(const std::string& filename) const;
+
+    // Debug: writes a heatmap PNG showing sample count per pixel.
+    // Pixels are colored blue (few samples) to red (max_samples).
+    void WriteSampleMap(const std::string& filename, int max_samples) const;
     exrio::DeepImage BuildDeepImage(const int total_pixel_samples) const;
 
     // Builds a flat RGBA buffer suitable for export as a compositing-friendly EXR.

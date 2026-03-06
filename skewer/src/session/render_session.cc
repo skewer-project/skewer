@@ -101,6 +101,16 @@ void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
 
+        if (options_.integrator_config.save_sample_map) {
+            // Insert "_samples" before the file extension
+            std::string out = options_.image_config.outfile;
+            auto dot = out.rfind('.');
+            std::string map_file = (dot != std::string::npos)
+                                       ? out.substr(0, dot) + "_samples" + out.substr(dot)
+                                       : out + "_samples.png";
+            film_->WriteSampleMap(map_file, options_.integrator_config.max_samples);
+        }
+
         if (options_.integrator_config.enable_deep) {
             exrio::DeepImage img = film_->BuildDeepImage(options_.integrator_config.max_samples);
             exrio::writeDeepEXR(img, options_.image_config.exrfile);
