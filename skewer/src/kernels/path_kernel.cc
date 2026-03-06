@@ -2,7 +2,6 @@
 
 #include <cstdlib>
 
-#include "core/color/color.h"
 #include "core/cpu_config.h"
 #include "core/math/constants.h"
 #include "core/math/vec3.h"
@@ -10,6 +9,7 @@
 #include "core/sampling/rng.h"
 #include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
+#include "core/transport/deep_path_recorder.h"
 #include "core/transport/medium_interaction.h"
 #include "core/transport/path_sample.h"
 #include "core/transport/surface_interaction.h"
@@ -25,39 +25,6 @@
 
 namespace skwr {
 
-inline float CameraDepth(const Ray& ray, float t, const Vec3& cam_origin, const Vec3& cam_forward) {
-    Vec3 o = ray.origin() - cam_origin;
-    return Dot(o, cam_forward) + t * Dot(ray.direction(), cam_forward);
-}
-
-inline void AddDeepSegment(PathSample& sample, const Ray& ray, float t_min, float t_max,
-                           const Spectrum& L, float alpha, const Vec3& cam_origin,
-                           const Vec3& cam_forward, const SampledWavelengths& wl) {
-    float z_front = CameraDepth(ray, t_min, cam_origin, cam_forward);
-
-    float z_back = CameraDepth(ray, t_max, cam_origin, cam_forward);
-
-    if (z_back < 0.0f) return;
-
-    if (z_front < 0.0f) z_front = 0.0f;
-
-    RGB final_rgb = SpectrumToRGB(L, wl);
-
-    sample.segments.push_back({z_front, z_back, final_rgb, alpha});
-}
-
-// struct for Deferred Backwards Pass for Deep output
-// TODO: move to new file possibly
-struct PathVertex {
-    float t_start;
-    float t_end;
-    Spectrum local_L;                       // Local NEE + Emission ONLY (Unattenuated)
-    Spectrum bsdf_weight = Spectrum(1.0f);  // The local BSDF or Phase throughput (f * cos / pdf)
-    float alpha;                            // Opacity of the surface or 1.0 - Tr for volumes
-    bool is_camera_path;                    // Should this vertex become a deep segment?
-    bool is_volume_scatter = false;
-};
-
 /**
  * In a recursive renderer (RTIOW), light is calculated as:
  *          Color = DirectLight + Albedo × RecursiveCall()
@@ -71,17 +38,6 @@ struct PathVertex {
  */
 PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
               const SampledWavelengths& wl) {
-    // disgusting temp helper
-    auto SafeSpectralDiv = [](const Spectrum& num, const Spectrum& den) -> Spectrum {
-        Spectrum result(0.0f);
-        for (int i = 0; i < kNSamples; ++i) {
-            if (den[i] > 1e-8f) {  // Protect against exact 0 and denormals
-                result[i] = num[i] / den[i];
-            }
-        }
-        return result;
-    };
-
     PathSample result;
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
@@ -90,9 +46,8 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
     float ray_t = 0.0f;  // Running parametric distance
 
-    // Deferred State
-    std::vector<PathVertex> path_vertices;
-    path_vertices.reserve(config.max_depth);
+    DeepPathRecorder dpr(config.max_depth);  // Deferred State tracker
+
     bool is_camera_path = true;
 
     // switch to while?
@@ -152,17 +107,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
             L += current_beta * local_vertex_L;  // forward beauty accumulation
 
-            PathVertex v;
-            v.t_start = ray_t;
-            v.t_end = ray_t;
-            v.local_L = local_vertex_L;
-            v.alpha = vertex_alpha;
-            v.is_camera_path = is_camera_path;
-            v.is_volume_scatter = true;
-            // We calculate weight AFTER the bounce/RR, so we just push the vertex
-            // now and update its weight at the end of the loop iteration.
-            path_vertices.push_back(v);
-
+            dpr.AppendVertex(ray_t, ray_t, local_vertex_L, vertex_alpha, is_camera_path, true);
             is_camera_path = false;  // Volumes always scatter, leaving camera path
 
             /* 3. Sample Phase Function for Indirect Bounce */
@@ -283,13 +228,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
             L += current_beta * local_vertex_L;
 
-            PathVertex v;
-            v.t_start = ray_t;
-            v.t_end = ray_t;
-            v.local_L = local_vertex_L;
-            v.alpha = vertex_alpha;
-            v.is_camera_path = is_camera_path;
-            path_vertices.push_back(v);
+            dpr.AppendVertex(ray_t, ray_t, local_vertex_L, vertex_alpha, is_camera_path, false);
 
             /* Indirect bounce case */
             Vec3 wi;
@@ -333,13 +272,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             // Environment Segment
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
 
-            PathVertex v;
-            v.t_start = kFarClip;
-            v.t_end = kFarClip;
-            v.local_L = env_L;
-            v.alpha = 1.0f;
-            v.is_camera_path = is_camera_path;
-            path_vertices.push_back(v);
+            dpr.AppendVertex(kFarClip, kFarClip, env_L, 1.0f, is_camera_path, false);
 
             L += env_L * current_beta;
             break;
@@ -354,53 +287,10 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             beta = beta * (1.0f / p);
         }
 
-        if (!path_vertices.empty()) {
-            // SafeSpectralDiv cleanly extracts the (f * cos / pdf * RR) weight
-            path_vertices.back().bsdf_weight = SafeSpectralDiv(beta, current_beta);
-        }
+        dpr.UpdateBSDFWeight(beta, current_beta);
     }
 
-    Spectrum deep_L(0.0f);
-
-    // Iterate backwards from the end of the path to the camera
-    for (int i = (int)path_vertices.size() - 1; i >= 0; --i) {
-        const PathVertex& v = path_vertices[i];
-
-        // Rendering Equation: L_out = L_local + weight * L_incoming
-        deep_L = v.local_L + (v.bsdf_weight * deep_L);
-
-        if (v.is_camera_path) {
-            float deep_alpha = v.alpha;
-            // FIX: If the NEXT vertex left the camera path, then THIS vertex is the
-            // deflection point (scattering event or reflection). It acts as an opaque
-            // terminator for this specific Monte Carlo sample's line of sight
-            if (i + 1 < (int)path_vertices.size() && !path_vertices[i + 1].is_camera_path) {
-                deep_alpha = 1.0f;
-            }
-
-            // FIX: Premature Termination Backstop
-            // If this is the absolute end of the traced path, but we are STILL on the
-            // camera path, it means the path was killed (RR, Max Depth) before hitting
-            // an opaque background. Seal the alpha to prevent checkerboard bleeding
-            if (i + 1 == (int)path_vertices.size()) {
-                if (!v.is_volume_scatter) {
-                    deep_alpha = 1.0f;
-                }
-            }
-
-            // Segment with its own emission, NEE, and all indirect GI for this specific depth.
-            AddDeepSegment(result, ray, v.t_start, v.t_end, deep_L, deep_alpha, ray.origin(),
-                           config.cam_w, wl);
-
-            // Deep Compositing Reset
-            // Because the deep compositing software uses v.alpha to blend
-            // whatever is behind this segment, we MUST reset the accumulator to 0.0f here.
-            // Otherwise, the background light will be embedded in the foreground segment,
-            // and Nuke will composite the background over itself twice.
-            deep_L = Spectrum(0.0f);
-        }
-    }
-
+    dpr.ResolveToDeep(result, ray, config.cam_w, wl);
     result.L = L;
     result.alpha = 1.0f;  // TODO: alpha accumulation in loop
     return result;
