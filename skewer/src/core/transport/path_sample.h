@@ -1,5 +1,5 @@
-#ifndef SKWR_SAMPLING_PATH_SAMPLE_H_
-#define SKWR_SAMPLING_PATH_SAMPLE_H_
+#ifndef SKWR_CORE_TRANSPORT_PATH_SAMPLE_H_
+#define SKWR_CORE_TRANSPORT_PATH_SAMPLE_H_
 
 #include <vector>
 
@@ -26,4 +26,4 @@ struct PathSample {
 
 }  // namespace skwr
 
-#endif  // SKWR_SAMPLING_PATH_SAMPLE_H_
+#endif  // SKWR_CORE_TRANSPORT_PATH_SAMPLE_H_

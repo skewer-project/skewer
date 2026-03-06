@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "core/ray.h"
-#include "core/sampling/surface_interaction.h"
+#include "core/transport/surface_interaction.h"
 #include "geometry/boundbox.h"
 #include "geometry/triangle.h"
 

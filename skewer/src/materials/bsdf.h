@@ -3,8 +3,8 @@
 
 #include "core/math/vec3.h"
 #include "core/sampling/rng.h"
-#include "core/sampling/surface_interaction.h"
 #include "core/spectral/spectrum.h"
+#include "core/transport/surface_interaction.h"
 #include "materials/material.h"
 #include "materials/texture_lookup.h"
 

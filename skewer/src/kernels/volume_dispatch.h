@@ -1,8 +1,8 @@
 #ifndef SKWR_KERNELS_VOLUME_DISPATCH_H_
 #define SKWR_KERNELS_VOLUME_DISPATCH_H_
 
-#include "core/sampling/medium_interaction.h"
 #include "core/spectral/spectrum.h"
+#include "core/transport/medium_interaction.h"
 
 namespace skwr {
 

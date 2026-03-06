@@ -6,7 +6,7 @@
 
 #include "barkeep.h"
 #include "core/math/constants.h"
-#include "core/sampling/path_sample.h"
+#include "core/transport/path_sample.h"
 #include "film/image_buffer.h"
 
 namespace skwr {

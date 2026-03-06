@@ -2,9 +2,9 @@
 #define SKWR_MATERIALS_TEXTURE_LOOKUP_H_
 
 #include "core/math/vec3.h"
-#include "core/sampling/surface_interaction.h"
 #include "core/spectral/spectral_curve.h"
 #include "core/spectral/spectral_utils.h"
+#include "core/transport/surface_interaction.h"
 #include "materials/material.h"
 #include "materials/texture.h"
 #include "scene/scene.h"

@@ -3,9 +3,9 @@
 #include <cstdint>
 
 #include "core/ray.h"
-#include "core/sampling/medium_interaction.h"
 #include "core/sampling/rng.h"
 #include "core/spectral/spectrum.h"
+#include "core/transport/medium_interaction.h"
 #include "kernels/sample_media.h"
 #include "media/mediums.h"
 #include "scene/scene.h"
