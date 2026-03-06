@@ -99,7 +99,7 @@ class BoundBox {
         t_min = std::max(t_min, std::min(t0, t1));
         t_max = std::min(t_max, std::max(t0, t1));
 
-        // Y Ayis
+        // Y Axis
         t0 = (min_.y() - orig.y()) * inv_d.y();
         t1 = (max_.y() - orig.y()) * inv_d.y();
         t_min = std::max(t_min, std::min(t0, t1));

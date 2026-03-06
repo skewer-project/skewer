@@ -62,9 +62,9 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
     for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
         SurfaceInteraction si;
         MediumInteraction mi;
-        bool scatterSurface = scene.Intersect(r, kShadowEpsilon, kInfinity, &si);
-        float t_max = scatterSurface ? si.t : kInfinity;
-        bool scatterMedium = false;
+        bool scatter_surface = scene.Intersect(r, kShadowEpsilon, kInfinity, &si);
+        float t_max = scatter_surface ? si.t : kInfinity;
+        bool scatter_medium = false;
 
         // Local vertex segment tracking
         Spectrum current_beta = beta;  // Track beta before the bounce
@@ -72,10 +72,10 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
         float vertex_alpha = 1.0f;
 
         if (r.vol_stack().GetActiveMedium() != 0) {
-            scatterMedium = SampleMedium(r, scene, t_max, rng, beta, &mi);
+            scatter_medium = SampleMedium(r, scene, t_max, rng, beta, &mi);
         }
         // vol dispatch, sample medium with t_surface as upper bound
-        if (scatterMedium) {
+        if (scatter_medium) {
             ray_t += mi.t;
 
             /* Volume Next Event Estimation (Direct Lighting) */
@@ -112,7 +112,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             next_r.vol_stack() = r.vol_stack();
             r = next_r;
             specular_bounce = false;
-        } else if (scatterSurface) {
+        } else if (scatter_surface) {
             ray_t += si.t;
 
             // TRANSPORT POLICY (Medium Transitions)
@@ -233,7 +233,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             } else {
                 break;
             }
-        } else if (!scatterSurface) {
+        } else if (!scatter_surface) {
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
             dpr.AppendVertex(kFarClip, kFarClip, env_L, 1.0f, is_camera_path, false);
             L += env_L * current_beta;
