@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -28,6 +29,8 @@ func main() {
 	tracker := coordinator.NewJobTracker()
 
 	ctx := context.Background()
+
+	scheduler.StartSweeper(ctx, time.Hour, time.Minute)
 
 	// Create Cloud Manager (passing an empty string for local testing if credentials aren't explicitly provided yet)
 	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")

@@ -32,7 +32,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
         if (thread_count == 0) thread_count = 4;  // Fallback
     }
 
-    std::clog << "[Session] Rendering with " << thread_count << " threads...\n";
+    std::cout << "[Session] Rendering with " << thread_count << " threads...\n";
 
     // Atomic counter for scanline work-stealing
     std::atomic<int> next_scanline(0);
@@ -40,10 +40,9 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
     auto bar = bk::ProgressBar(&scanlines_completed, {
                                                          .total = height,
-                                                         .message = "Rendering",
-                                                         .speed = 0.0,
+                                                         .speed = 0.2,
                                                          .speed_unit = "scanlines/s",
-                                                         .style = bk::ProgressBarStyle::Line,
+                                                         .style = bk::ProgressBarStyle::Rich,
                                                      });
 
     // Worker function - each thread grabs scanlines dynamically
@@ -52,7 +51,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             int y = next_scanline.fetch_add(1);
             if (y >= height) break;
 
-            std::clog.flush();
             for (int x = 0; x < width; ++x) {
                 RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
                 for (int s = 0; s < config.samples_per_pixel; ++s) {
@@ -65,10 +63,14 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                     PathSample result = Li(r, scene, rng, config, wl);
 
-                    RGB pixel_color = SpectrumToRGB(result.L, wl);
+                    // Premultiply by alpha: pixels with alpha=0 (transparent
+                    // background, no visible geometry hit) contribute zero to
+                    // color_sum, so the PPM and any flat buffer show them as
+                    // black rather than the invisible geometry's shading.
+                    RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
                     float weight = 1.0f;
-                    film->AddSample(x, y, pixel_color, weight);
+                    film->AddSample(x, y, pixel_color, result.alpha, weight);
 
                     if (config.enable_deep) film->AddDeepSample(x, y, result);
                 }
@@ -92,8 +94,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     }
 
     bar->done();
-
-    std::clog << "\n";
 }
 
 }  // namespace skwr
