@@ -1,5 +1,5 @@
-#ifndef IMAGE_IO_H
-#define IMAGE_IO_H
+#ifndef SKWR_IO_IMAGE_IO_H
+#define SKWR_IO_IMAGE_IO_H
 
 #include <string>
 
@@ -18,4 +18,4 @@ class ImageIO {
 
 }  // namespace skwr
 
-#endif
+#endif  // SKWR_IO_IMAGE_IO_H_

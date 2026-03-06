@@ -8,14 +8,15 @@
 #include <string>
 #include <vector>
 
+#include "core/math/transform.h"
+#include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
 #include "core/spectral/spectral_utils.h"
-#include "core/transform.h"
-#include "core/vec3.h"
 #include "geometry/sphere.h"
 #include "io/obj_loader.h"
 #include "materials/material.h"
 #include "materials/texture.h"
+#include "media/mediums.h"
 #include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
@@ -184,7 +185,8 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scen
     Vec3 center = ParseVec3(obj.at("center"));
     float radius = obj.at("radius").get<float>();
 
-    scene.AddSphere(Sphere{center, radius, mat_id});
+    scene.AddSphere(Sphere{center, radius, mat_id, static_cast<uint16_t>(MediumType::Vacuum),
+                           static_cast<uint16_t>(MediumType::Vacuum), 1});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {

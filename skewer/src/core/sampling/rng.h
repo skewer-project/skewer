@@ -1,10 +1,10 @@
-#ifndef SKWR_CORE_RNG_H_
-#define SKWR_CORE_RNG_H_
+#ifndef SKWR_CORE_SAMPLING_RNG_H_
+#define SKWR_CORE_SAMPLING_RNG_H_
 
 #include <algorithm>
 #include <cstdint>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
 
 namespace skwr {
 
@@ -34,6 +34,19 @@ class RNG {
         return (xorshifted >> rot) | (xorshifted << ((~rot + 1u) & 31));
     }
 
+    uint32_t UniformUInt32(uint32_t bound) {
+        // PCG recommended bounded RNG
+        uint32_t threshold = -bound % bound;
+
+        while (true) {
+            uint32_t r = UniformUInt32();
+            if (r >= threshold) return r % bound;
+        }
+    }
+
+    // Returns int in [0, bound). Bound can't be 0!!
+    int UniformInt(int bound) { return int(UniformUInt32(uint32_t(bound))); }
+
     // Returns float in [0, 1)
     float UniformFloat() {
         // High-performance float conversion
@@ -50,4 +63,4 @@ class RNG {
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_RNG_H_
+#endif  // SKWR_CORE_SAMPLING_RNG_H_

@@ -1,9 +1,9 @@
 #ifndef SKWR_SCENE_LIGHT_H_
 #define SKWR_SCENE_LIGHT_H_
 
-#include "core/rng.h"
+#include "core/math/vec3.h"
+#include "core/sampling/rng.h"
 #include "core/spectral/spectral_curve.h"
-#include "core/vec3.h"
 
 namespace skwr {
 

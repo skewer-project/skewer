@@ -1,13 +1,13 @@
 #include "integrators/normals.h"
 
-#include "core/color.h"
-#include "core/constants.h"
+#include "core/color/color.h"
+#include "core/math/constants.h"
+#include "core/math/vec3.h"
 #include "core/ray.h"
-#include "core/vec3.h"
+#include "core/transport/surface_interaction.h"
 #include "film/film.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
-#include "scene/surface_interaction.h"
 #include "session/render_options.h"
 
 namespace skwr {

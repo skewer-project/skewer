@@ -1,19 +1,12 @@
-#ifndef SKWR_INTEGRATORS_PATH_SAMPLE_H_
-#define SKWR_INTEGRATORS_PATH_SAMPLE_H_
+#ifndef SKWR_CORE_TRANSPORT_PATH_SAMPLE_H_
+#define SKWR_CORE_TRANSPORT_PATH_SAMPLE_H_
 
 #include <vector>
 
-#include "core/color.h"
-#include "core/spectrum.h"
+#include "core/spectral/spectrum.h"
+#include "core/transport/deep_segment.h"
 
 namespace skwr {
-
-struct DeepSegment {
-    float z_front;
-    float z_back;
-    RGB L;  // radiance; integrated over segment
-    float alpha;
-};
 
 struct PathSample {
     Spectrum L;   // "Flat" beauty pass (premultiplied radiance)
@@ -26,4 +19,4 @@ struct PathSample {
 
 }  // namespace skwr
 
-#endif  // SKWR_INTEGRATORS_PATH_SAMPLE_H_
+#endif  // SKWR_CORE_TRANSPORT_PATH_SAMPLE_H_

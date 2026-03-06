@@ -5,8 +5,9 @@
 #include <atomic>
 
 #include "barkeep.h"
-#include "core/constants.h"
-#include "integrators/path_sample.h"
+#include "core/math/constants.h"
+#include "core/transport/path_sample.h"
+#include "film/image_buffer.h"
 
 namespace skwr {
 
@@ -16,7 +17,7 @@ Film::Film(int width, int height)
     : width_(width),
       height_(height),
       pixels_(width_ * height_),
-      deep_pool_(width_ * height_ * 100 * 4) {
+      deep_pool_(width_ * height_ * 100 * 30) {
     // pixels_.resize(width_ * height_);
 
     // Pre-allocate pool based on expected usage
@@ -51,7 +52,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
         const DeepSegment& seg = path_sample.segments[i];
 
         // Skip empty/invalid segments
-        if (seg.z_front >= seg.z_back && seg.z_back != kFarClip) continue;
+        if (seg.z_front > seg.z_back && seg.z_back != kFarClip) continue;
         if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
 
         // Allocate node from pool
@@ -172,50 +173,68 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
     merged.reserve(input.size() / 4);  // estimate
 
     DeepSample current = input[0];
-    // Track the previous sample's depth for consecutive-gap detection.
-    // Comparing against the previous sample (rather than the cluster start)
-    // correctly handles gradual depth changes across curved surfaces.
-    float prev_z_front = current.z_front;
-    float prev_z_back = current.z_back;
 
     for (size_t i = 1; i < input.size(); ++i) {
         const DeepSample& next = input[i];
         if (next.alpha <= 0.0f) continue;
 
-        // Depth-relative tolerance: accounts for sub-pixel depth variation
-        // caused by surface curvature, ray jittering, and anti-aliasing.
-        // At depth 10 → epsilon ≈ 0.01, at depth 100 → epsilon ≈ 0.1
-        float depth_epsilon = std::max(1e-2f, std::abs(prev_z_front) * 1e-3f);
+        // epsilon for grouping merge bins
+        float depth_epsilon = std::max(0.01f, std::abs(current.z_front) * 0.015f);
 
-        bool same_depth = (std::abs(next.z_front - prev_z_front) < depth_epsilon) &&
-                          (std::abs(next.z_back - prev_z_back) < depth_epsilon);
+        bool same_front = (std::abs(next.z_front - current.z_front) <= depth_epsilon);
 
-        if (same_depth) {
+        // Never merge a hard surface with a volume
+        bool compatible_alpha = (current.alpha > 0.99f) == (next.alpha > 0.99f);
+
+        if (same_front && compatible_alpha) {
             current.r += next.r;
             current.g += next.g;
             current.b += next.b;
             current.alpha += next.alpha;
+
+            // Grow the tail to merge the furthest stochastic scatter distance in this bucket
+            current.z_back =
+                (current.z_back + next.z_back) * 0.5f;  // average to prevent stretching
         } else {
             merged.push_back(current);
             current = next;
         }
-
-        prev_z_front = next.z_front;
-        prev_z_back = next.z_back;
     }
 
     merged.push_back(current);
 
-    float norm = 1.0f / total_pixel_samples;
+    float active_paths = total_pixel_samples;
 
     for (auto& seg : merged) {
-        seg.r *= norm;
-        seg.g *= norm;
-        seg.b *= norm;
-        seg.alpha *= norm;
+        // Because every terminated path gave alpha=1.0,
+        // the sum of alphas is exactly the number of paths that stopped here.
+        float paths_in_bucket = seg.alpha;
 
-        // Safety clamp (though mathematically it shouldn't exceed 1.0 if samples <= total)
-        if (seg.alpha > 1.0f) seg.alpha = 1.0f;
+        if (active_paths <= 0.0001f) {
+            seg.r = 0;
+            seg.g = 0;
+            seg.b = 0;
+            seg.alpha = 0;
+            continue;
+        }
+
+        // The true Deep EXR opacity is the fraction of *surviving* paths that stopped here
+        float true_opacity = std::min(1.0f, paths_in_bucket / active_paths);
+
+        // OpenEXR requires "associated" (pre-multiplied) colors.
+        // We divide out the paths in this bucket to get the raw un-occluded color,
+        // then multiply by the true_opacity.
+        if (paths_in_bucket > 0.0f) {
+            float rgb_norm = true_opacity / paths_in_bucket;
+            seg.r *= rgb_norm;
+            seg.g *= rgb_norm;
+            seg.b *= rgb_norm;
+        }
+
+        seg.alpha = true_opacity;
+
+        // Subtract the paths that stopped here from the active pool
+        active_paths -= paths_in_bucket;
     }
 
     return merged;
