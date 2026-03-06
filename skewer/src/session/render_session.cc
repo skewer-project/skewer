@@ -137,8 +137,6 @@ void RenderSession::Render() {
     std::cout << "[Session] Starting Render...\n";
 
     integrator_->Render(*scene_, *camera_, film_.get(), options_.integrator_config);
-
-    std::cout << "[Session] Render Complete.\n";
 }
 
 /**
@@ -152,6 +150,7 @@ void RenderSession::Save() const {
             exrio::DeepImage img =
                 film_->BuildDeepImage(options_.integrator_config.samples_per_pixel);
             exrio::writeDeepEXR(img, options_.image_config.exrfile);
+            std::cout << "Wrote deep image to " << options_.image_config.exrfile << "\n";
         }
     }
 }
