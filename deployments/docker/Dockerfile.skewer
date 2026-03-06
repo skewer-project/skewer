@@ -45,5 +45,11 @@ RUN apt-get update && apt-get install -y \
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/build/release/skewer/skewer-worker /usr/local/bin/skewer-worker
 
+# Create a dedicated, non-root system user and group
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# Switch to the new user
+USER appuser
+
 # Run the worker natively
 ENTRYPOINT ["/usr/local/bin/skewer-worker"]

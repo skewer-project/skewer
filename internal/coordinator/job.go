@@ -136,9 +136,16 @@ func (jt *JobTracker) AddJob(job Job) error {
 	if jt.activeJobs == nil || jt.pendingDeps == nil || jt.graph.nodes == nil {
 		return fmt.Errorf("[ERROR]: Job Tracker dependencies are unitialized")
 	} else if _, exists := jt.activeJobs[job.ID()]; exists {
-		return fmt.Errorf("[ERROR]: Adding job that already exists wi th ID %s.", job.ID())
+		return fmt.Errorf("[ERROR]: Adding job that already exists with ID %s.", job.ID())
 	} else {
 		jobDeps := job.GetDependencies()
+
+		// If any dependency is not found, return an error
+		for _, depID := range jobDeps {
+			if _, exists := jt.activeJobs[depID]; !exists {
+				return fmt.Errorf("[ERROR]: Job with ID %s has dependencies that don't exist. Please add dependent jobs before.", job.ID())
+			}
+		}
 
 		jt.activeJobs[job.ID()] = job // ALWAYS add it to active jobs!
 
