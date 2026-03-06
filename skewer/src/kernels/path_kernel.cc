@@ -13,6 +13,7 @@
 #include "core/transport/medium_interaction.h"
 #include "core/transport/path_sample.h"
 #include "core/transport/surface_interaction.h"
+#include "kernels/utils/direct_lighting.h"
 #include "kernels/utils/visibility.h"
 #include "kernels/utils/volume_tracking.h"
 #include "kernels/volume_dispatch.h"
@@ -71,38 +72,21 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             ray_t += mi.t;
 
             /* Volume Next Event Estimation (Direct Lighting) */
-            if (!scene.Lights().empty()) {
-                int light_index = int(rng.UniformFloat() * scene.Lights().size());
-                const AreaLight& light = scene.Lights()[light_index];
-                LightSample ls = SampleLight(scene, light, rng);
-
-                Vec3 to_light = ls.p - mi.point;
-                float dist_sq = to_light.LengthSquared();
-                float dist = std::sqrt(dist_sq);
-                Vec3 wi_light = to_light / dist;
-
-                // Setup shadow ray
-                Ray shadow_ray(mi.point, wi_light);
+            DirectLightSample dls;
+            if (GenerateLightSample(mi.point, scene, rng, wl, &dls)) {
+                Ray shadow_ray(mi.point, dls.wi);
                 shadow_ray.vol_stack() = r.vol_stack();
 
-                Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dist, rng, wl);
+                Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
 
                 if (Tr.MaxComponentValue() > 0.0f) {
-                    float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
-                    if (cos_light > 0) {
-                        float light_pdf_w = ls.pdf * dist_sq / cos_light;
-
-                        // Evaluate Phase & Transmittance
-                        float phase_val = EvalHG(mi.phase_g, mi.wo, wi_light);
-                        Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
-
-                        // Accumulate
-                        Spectrum direct_L =
-                            phase_val * Tr * light_spec / (light_pdf_w * scene.InvLightCount());
-                        local_vertex_L += direct_L;
-                    }
+                    // Evaluate Phase & Transmittance
+                    float phase_val = EvalHG(mi.phase_g, mi.wo, dls.wi);
+                    Spectrum direct_L = phase_val * Tr * dls.emission / dls.pdf;
+                    local_vertex_L += direct_L;
                 }
             }
+
             vertex_alpha = mi.alpha;
 
             L += current_beta * local_vertex_L;  // forward beauty accumulation
@@ -121,7 +105,6 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             next_r.vol_stack() = r.vol_stack();
             r = next_r;
             specular_bounce = false;
-
         } else if (scatterSurface) {
             ray_t += si.t;
 
@@ -185,40 +168,25 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             // }
 
             /* Next Event Estimation */
-            if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric &&
-                !scene.Lights().empty()) {
-                int light_index = int(rng.UniformFloat() * scene.Lights().size());
-                const AreaLight& light = scene.Lights()[light_index];
-                LightSample ls = SampleLight(scene, light, rng);
+            if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric) {
+                DirectLightSample dls;
+                if (GenerateLightSample(si.point + (si.n_geom * kShadowEpsilon), scene, rng, wl,
+                                        &dls)) {
+                    Ray shadow_ray(si.point + (dls.wi * kShadowEpsilon), dls.wi);
+                    shadow_ray.vol_stack() = r.vol_stack();
 
-                // Shadow Ray setup
-                Vec3 to_light = ls.p - si.point;
-                float dist_sq = to_light.LengthSquared();
-                float dist = std::sqrt(dist_sq);
-                Vec3 wi_light = to_light / dist;
+                    Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
 
-                Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
-                shadow_ray.vol_stack() = r.vol_stack();
-
-                Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dist, rng, wl);
-
-                if (Tr.MaxComponentValue() > 0.0f) {
-                    float cos_light = std::fmax(0.0f, Dot(-wi_light, ls.n));
-                    // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
-                    if (cos_light > 0) {
-                        float light_pdf_w = ls.pdf * dist_sq / cos_light;
-
+                    if (Tr.MaxComponentValue() > 0.0f) {
+                        // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
                         // BSDF Evaluation
-                        float cos_surf = std::fmax(0.0f, Dot(wi_light, sd.n_shading));
-                        Spectrum f_val = EvalBSDF(mat, sd, si.wo, wi_light, wl);
+                        float cos_surf = std::fmax(0.0f, Dot(dls.wi, sd.n_shading));
+                        Spectrum f_val = EvalBSDF(mat, sd, si.wo, dls.wi, wl);
 
                         // Accumulate
                         // Weight = 1.0 / (N_lights * PDF_w)
                         // L += beta * f * Le * cos_surf * Weight
-                        Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
-                        Spectrum direct_L = f_val * Tr * light_spec * cos_surf /
-                                            (light_pdf_w * scene.InvLightCount());
-                        // interval_L += T * L_scatter;
+                        Spectrum direct_L = f_val * Tr * dls.emission * cos_surf / dls.pdf;
                         direct_L *= opacity;
                         local_vertex_L += direct_L;
                     }
