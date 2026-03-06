@@ -1,5 +1,8 @@
 #include "session/render_session.h"
 
+#include <exrio/deep_image.h>
+#include <exrio/deep_writer.h>
+
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -144,10 +147,11 @@ void RenderSession::Render() {
 void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
+
         if (options_.integrator_config.enable_deep) {
-            std::unique_ptr<DeepImageBuffer> buf =
-                film_->CreateDeepBuffer(options_.integrator_config.samples_per_pixel);
-            ImageIO::SaveEXR(*buf, options_.image_config.exrfile);
+            exrio::DeepImage img =
+                film_->BuildDeepImage(options_.integrator_config.samples_per_pixel);
+            exrio::writeDeepEXR(img, options_.image_config.exrfile);
         }
     }
 }

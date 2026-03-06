@@ -1,5 +1,7 @@
 #include "film/film.h"
 
+#include <exrio/deep_writer.h>
+
 #include <atomic>
 
 #include "core/math/constants.h"
@@ -22,7 +24,7 @@ Film::Film(int width, int height)
     // deep_pool_.resize(width_ * height_ * 16 * 4);
 }
 
-void Film::AddSample(int x, int y, const RGB& L, float weight) {
+void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
 
     Pixel& p = GetPixel(x, y);
@@ -31,6 +33,7 @@ void Film::AddSample(int x, int y, const RGB& L, float weight) {
     // For true safety, you might want to use atomics or accept some race conditions
     // In practice, the races are benign (slightly wrong accumulated values)
     p.color_sum += L * weight;
+    p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
 }
 
@@ -76,10 +79,9 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     }
 }
 
-std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer(const int total_pixel_samples) const {
+exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     // Pass 1: Count samples per pixel
-    Imf::Array2D<unsigned int> counts(height_, width_);
-    size_t total_segments = 0;
+    std::vector<unsigned int> counts(width_ * height_, 0);
 
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
@@ -89,22 +91,21 @@ std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer(const int total_pixel_sa
                 count++;
                 head = deep_pool_[head].next;
             }
-            counts[y][x] = count;
-            total_segments += count;
+            counts[y * width_ + x] = count;
         }
     }
 
-    // Pass 2: Create the buffer (Allocates the flat memory)
-    auto buffer = std::make_unique<DeepImageBuffer>(width_, height_, total_segments, counts);
+    // Pass 2: Create the deep image
+    exrio::DeepImage result(width_, height_);
 
     // Pass 3: Copy, Sort, and merge segments
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (counts[y][x] == 0) continue;
+            if (counts[y * width_ + x] == 0) continue;
 
             // Collect samples for this pixel
             std::vector<DeepSample> segments;
-            segments.reserve(counts[y][x]);
+            segments.reserve(counts[y * width_ + x]);
 
             int head = GetPixel(x, y).deep_head.load(std::memory_order_acquire);
             while (head != -1) {
@@ -133,12 +134,16 @@ std::unique_ptr<DeepImageBuffer> Film::CreateDeepBuffer(const int total_pixel_sa
 
             segments = MergeDeepSegments(segments, total_pixel_samples);
 
-            // Write to your buffer
-            buffer->SetPixel(x, y, segments);
+            // Convert to deep_compositor::DeepSample and add to result
+            exrio::DeepPixel& pixel = result.pixel(x, y);
+            for (const DeepSample& seg : segments) {
+                pixel.addSample(
+                    exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
+            }
         }
     }
 
-    return buffer;
+    return result;
 }
 
 // Helper: Merge overlapping/adjacent segments
@@ -228,25 +233,53 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 }
 
 void Film::WriteImage(const std::string& filename) const {
-    // Create a TEMPORARY buffer just for this export
-    ImageBuffer temp_buffer(width_, height_);
+    std::vector<float> rgba(static_cast<size_t>(width_) * height_ * 4);
 
-    // Bake the data (Convert Accumulator -> Output Format)
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
 
-            RGB final_color(0, 0, 0);
+            RGB color(0, 0, 0);
+            float alpha = 0.0f;
             if (p.weight_sum > 0) {
-                final_color = p.color_sum / p.weight_sum;
+                color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
             }
 
-            temp_buffer.SetPixel(x, y, final_color);
+            size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
+            rgba[idx + 0] = color.r();
+            rgba[idx + 1] = color.g();
+            rgba[idx + 2] = color.b();
+            rgba[idx + 3] = alpha;
         }
     }
 
-    // Save to disk
-    temp_buffer.WritePPM(filename);
+    exrio::writePNG(rgba, width_, height_, filename);
+    std::cout << "Wrote image to " << filename << "\n";
+}
+
+std::unique_ptr<FlatImageBuffer> Film::CreateFlatBuffer() const {
+    auto buf = std::make_unique<FlatImageBuffer>(width_, height_);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const Pixel& p = GetPixel(x, y);
+
+            RGB color(0.0f);
+            float alpha = 0.0f;
+
+            if (p.weight_sum > 0) {
+                // color_sum is already premultiplied (misses contribute 0 to both),
+                // so dividing by weight gives premultiplied average.
+                color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
+            }
+
+            buf->SetPixel(x, y, color, alpha);
+        }
+    }
+
+    return buf;
 }
 
 }  // namespace skwr

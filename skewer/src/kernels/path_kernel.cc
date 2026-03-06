@@ -402,6 +402,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
     }
 
     result.L = L;
+    result.alpha = 1.0f;  // TODO: alpha accumulation in loop
     return result;
 }
 

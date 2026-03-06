@@ -130,6 +130,7 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
         // Optional emission and opacity (apply to any material type)
         mat.emission = RGBToCurve(GetRGBOr(m, "emission", RGB(0.0f)));
         mat.opacity = RGBToCurve(GetRGBOr(m, "opacity", RGB(1.0f)));
+        mat.visible = GetOr(m, "visible", true);
 
         // Optional texture maps (paths resolved relative to scene file directory)
         mat.albedo_tex = LoadSceneTexture(m, "albedo_texture", scene_dir, scene);
@@ -165,8 +166,26 @@ static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int 
     return it->second;
 }
 
+// Returns the material ID for an object, applying any object-level "visible"
+// override.  When the object's visibility differs from the base material's,
+// a one-off clone is registered in the scene so other objects sharing that
+// material are not affected.
+static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap& mat_map,
+                                             Scene& scene, int obj_index) {
+    uint32_t mat_id = LookupMaterial(obj, mat_map, obj_index);
+    if (!obj.contains("visible")) return mat_id;
+
+    bool want_visible = obj["visible"].get<bool>();
+    // Copy before potentially invalidating the reference via AddMaterial.
+    Material cloned = scene.GetMaterial(mat_id);
+    if (cloned.visible == want_visible) return mat_id;
+
+    cloned.visible = want_visible;
+    return scene.AddMaterial(cloned);
+}
+
 static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterial(obj, mat_map, index);
+    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
     Vec3 center = ParseVec3(obj.at("center"));
     float radius = obj.at("radius").get<float>();
 
@@ -176,7 +195,7 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scen
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterial(obj, mat_map, index);
+    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
 
     const auto& verts = obj.at("vertices");
     if (!verts.is_array() || verts.size() != 4) {
@@ -244,9 +263,9 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
                                  ": failed to load OBJ file '" + filepath + "'");
     }
 
-    // Override material if specified
+    // Override material if specified (also applies object-level visible override)
     if (obj.contains("material") && !obj["material"].is_null()) {
-        uint32_t mat_id = LookupMaterial(obj, mat_map, index);
+        uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             scene.GetMutableMesh(static_cast<uint32_t>(i)).material_id = mat_id;
         }
@@ -325,7 +344,7 @@ static SceneConfig ParseConfig(const json& j) {
     opts.integrator_config.enable_deep = false;
     opts.image_config.width = 800;
     opts.image_config.height = 450;
-    opts.image_config.outfile = "output.ppm";
+    opts.image_config.outfile = "output.png";
     opts.image_config.exrfile = "output.exr";
 
     if (j.contains("render")) {
@@ -345,13 +364,15 @@ static SceneConfig ParseConfig(const json& j) {
         opts.integrator_config.max_depth = GetOr(r, "max_depth", 50);
         opts.integrator_config.num_threads = GetOr(r, "threads", 0);
         opts.integrator_config.enable_deep = GetOr(r, "enable_deep", false);
+        opts.integrator_config.transparent_background = GetOr(r, "transparent_background", false);
+        opts.integrator_config.visibility_depth = GetOr(r, "visibility_depth", 1);
 
         // Image config (nested)
         if (r.contains("image")) {
             const auto& img = r["image"];
             opts.image_config.width = GetOr(img, "width", 800);
             opts.image_config.height = GetOr(img, "height", 450);
-            opts.image_config.outfile = GetOr<std::string>(img, "outfile", "output.ppm");
+            opts.image_config.outfile = GetOr<std::string>(img, "outfile", "output.png");
             opts.image_config.exrfile = GetOr<std::string>(img, "exrfile", "output.exr");
         }
     }
