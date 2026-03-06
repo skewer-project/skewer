@@ -6,9 +6,9 @@
 #include "core/cpu_config.h"
 #include "core/math/constants.h"
 #include "core/ray.h"
-#include "core/sampling/medium_interaction.h"
 #include "core/sampling/rng.h"
 #include "core/spectral/spectrum.h"
+#include "core/transport/medium_interaction.h"
 #include "geometry/boundbox.h"
 #include "media/mediums.h"
 

@@ -5,7 +5,7 @@
 
 #include "core/math/vec3.h"
 #include "core/ray.h"
-#include "core/sampling/surface_interaction.h"
+#include "core/transport/surface_interaction.h"
 #include "geometry/triangle.h"
 
 namespace skwr {

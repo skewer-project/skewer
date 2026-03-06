@@ -1,8 +1,8 @@
 #ifndef SKWR_KERNELS_PATH_KERNEL_H_
 #define SKWR_KERNELS_PATH_KERNEL_H_
 
-#include "core/sampling/path_sample.h"
 #include "core/spectral/spectrum.h"
+#include "core/transport/path_sample.h"
 
 namespace skwr {
 
