@@ -155,21 +155,23 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
         const DeepSample& next = input[i];
         if (next.alpha <= 0.0f) continue;
 
-        // ANCHORED EPSILON: A 1% to 2% depth tolerance is standard for deep EXRs
-        float depth_epsilon = std::max(0.01f, std::abs(current.z_back) * 0.015f);
+        // epsilon for grouping merge bins
+        float depth_epsilon = std::max(0.01f, std::abs(current.z_front) * 0.015f);
 
-        bool overlaps_or_close = (next.z_front <= current.z_back + depth_epsilon);
+        bool same_front = (std::abs(next.z_front - current.z_front) <= depth_epsilon);
 
-        // bool same_front = (std::abs(next.z_front - current.z_front) < depth_epsilon);
+        // Never merge a hard surface with a volume
+        bool compatible_alpha = (current.alpha > 0.99f) == (next.alpha > 0.99f);
 
-        if (overlaps_or_close) {
+        if (same_front && compatible_alpha) {
             current.r += next.r;
             current.g += next.g;
             current.b += next.b;
             current.alpha += next.alpha;
 
             // Grow the tail to merge the furthest stochastic scatter distance in this bucket
-            current.z_back = std::max(current.z_back, next.z_back);
+            current.z_back =
+                (current.z_back + next.z_back) * 0.5f;  // average to prevent stretching
         } else {
             merged.push_back(current);
             current = next;
