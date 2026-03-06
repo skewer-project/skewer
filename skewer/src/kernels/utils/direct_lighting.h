@@ -29,9 +29,11 @@ inline bool GenerateLightSample(const Vec3& origin, const Scene& scene, RNG& rng
     out_sample->dist = std::sqrt(dist_sq);
     out_sample->wi = to_light / out_sample->dist;
 
+    // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
     float cos_light = std::fmax(0.0f, Dot(-out_sample->wi, ls.n));
     float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
+    // Weight = 1.0 / (N_lights * PDF_w)
     out_sample->pdf = light_pdf_w * scene.InvLightCount();
     out_sample->emission = CurveToSpectrum(ls.emission, wl);
 

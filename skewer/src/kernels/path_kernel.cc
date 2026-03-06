@@ -27,15 +27,23 @@
 namespace skwr {
 
 /**
- * In a recursive renderer (RTIOW), light is calculated as:
- *          Color = DirectLight + Albedo × RecursiveCall()
- * In our iterative renderer, we keep a running variable called Throughput (β or beta).
- * It represents "what fraction of light from the next bounce will actually make it back to the
- * camera?" AKA the fraction of light that survives up to this point (from the camera)
- * Start: β = 1.0 (White)
- * Bounce 1 (Red Wall): β = 1.0 × 0.5(Red) = 0.5
- * Bounce 2 (Grey Floor): β = 0.5 × 0.5(Grey) = 0.25
- * Hit Light (Intensity 10): FinalColor += β × 10 = 2.5
+ * Iterative path tracer:
+ * |- For depth:
+ *      |- Check closest surface
+ *      |- Check volume with surface hit as t_max
+ *
+ *      |- If volume scatter:
+ *          |- NEE
+ *          |- Append PathVertex
+ *
+ *      |- If surface scatter:
+ *          |- Check transport/shading for medium boundaries
+ *          |- Emissive check
+ *          |- NEE
+ *          |- BSDF
+ *      |- Else: environment sample
+ *
+ * |- Deferred Deep Output pass
  */
 PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
               const SampledWavelengths& wl) {
@@ -51,11 +59,10 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
     bool is_camera_path = true;
 
-    // switch to while?
-    for (int depth = 0; depth < config.max_depth; ++depth) {
+    for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
         SurfaceInteraction si;
         MediumInteraction mi;
-        bool scatterSurface = scene.Intersect(r, kShadowEpsilon, kInfinity, &si);  // y it pointer?
+        bool scatterSurface = scene.Intersect(r, kShadowEpsilon, kInfinity, &si);
         float t_max = scatterSurface ? si.t : kInfinity;
         bool scatterMedium = false;
 
@@ -94,7 +101,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             dpr.AppendVertex(ray_t, ray_t, local_vertex_L, vertex_alpha, is_camera_path, true);
             is_camera_path = false;  // Volumes always scatter, leaving camera path
 
-            /* 3. Sample Phase Function for Indirect Bounce */
+            /* Sample Phase Function for Indirect Bounce */
             Vec3 next_wi;
             SampleHG(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(), next_wi);
 
@@ -108,26 +115,20 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
         } else if (scatterSurface) {
             ray_t += si.t;
 
-            // ==========================================
             // TRANSPORT POLICY (Medium Transitions)
-            // ==========================================
             if (si.interior_medium != si.exterior_medium) {
                 float cos = Dot(r.direction(), si.n_geom);
-                if (cos < 0.0f) {
-                    // Entering the interior medium
+                if (cos < 0.0f) {  // Entering the interior medium
                     if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
                         r.vol_stack().Push(si.interior_medium, si.priority);
                     }
-                } else {
-                    // Exiting the interior medium
+                } else {  // Exiting the interior medium
                     if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
                         r.vol_stack().Pop(si.interior_medium);
                     }
                 }
             }
-            // ==========================================
             // SHADING POLICY (Opacity & BSDF)
-            // ==========================================
             if (si.material_id == kNullMaterialId) {
                 Ray next_ray(si.point + (r.direction() * kShadowEpsilon), r.direction());
                 next_ray.vol_stack() = r.vol_stack();
@@ -138,6 +139,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
             const Material& mat = scene.GetMaterial(si.material_id);
             ShadingData sd = ResolveShadingData(mat, si, scene);
+
             // Lazy Evaluation
             Spectrum opacity(1.0f);
             float alpha = 1.0f;
@@ -145,6 +147,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                 opacity = CurveToSpectrum(mat.opacity, wl);
                 alpha = opacity.Average();
             }
+
             Spectrum emission(0.0f);
             if (mat.IsEmissive()) {
                 emission = CurveToSpectrum(mat.emission, wl);
@@ -178,24 +181,18 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                     Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
 
                     if (Tr.MaxComponentValue() > 0.0f) {
-                        // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
-                        // BSDF Evaluation
                         float cos_surf = std::fmax(0.0f, Dot(dls.wi, sd.n_shading));
                         Spectrum f_val = EvalBSDF(mat, sd, si.wo, dls.wi, wl);
 
-                        // Accumulate
-                        // Weight = 1.0 / (N_lights * PDF_w)
-                        // L += beta * f * Le * cos_surf * Weight
                         Spectrum direct_L = f_val * Tr * dls.emission * cos_surf / dls.pdf;
                         direct_L *= opacity;
                         local_vertex_L += direct_L;
                     }
                 }
             }
+
             vertex_alpha = alpha;
-
             L += current_beta * local_vertex_L;
-
             dpr.AppendVertex(ray_t, ray_t, local_vertex_L, vertex_alpha, is_camera_path, false);
 
             /* Indirect bounce case */
@@ -237,11 +234,8 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                 break;
             }
         } else if (!scatterSurface) {
-            // Environment Segment
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
-
             dpr.AppendVertex(kFarClip, kFarClip, env_L, 1.0f, is_camera_path, false);
-
             L += env_L * current_beta;
             break;
         }
