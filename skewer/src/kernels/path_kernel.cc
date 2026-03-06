@@ -366,113 +366,114 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 //     }
 // }
 
-/* Next Event Estimation */
-if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric &&
-    !scene.Lights().empty()) {
-    int light_index = int(rng.UniformFloat() * scene.Lights().size());
-    const AreaLight& light = scene.Lights()[light_index];
-    LightSample ls = SampleLight(scene, light, rng);
+// /* Next Event Estimation */
+// if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric &&
+//     !scene.Lights().empty()) {
+//     int light_index = int(rng.UniformFloat() * scene.Lights().size());
+//     const AreaLight& light = scene.Lights()[light_index];
+//     LightSample ls = SampleLight(scene, light, rng);
 
-    // Shadow Ray setup
-    Vec3 to_light = ls.p - si.point;
-    float dist_sq = to_light.LengthSquared();
-    float dist = std::sqrt(dist_sq);
-    Vec3 wi_light = to_light / dist;
+//     // Shadow Ray setup
+//     Vec3 to_light = ls.p - si.point;
+//     float dist_sq = to_light.LengthSquared();
+//     float dist = std::sqrt(dist_sq);
+//     Vec3 wi_light = to_light / dist;
 
-    Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
-    SurfaceInteraction shadow_si;  // dummy
-    if (!scene.Intersect(shadow_ray, 0.f, dist - 2.0f * kShadowEpsilon, &shadow_si)) {
-        float cos_light = std::abs(Dot(-wi_light, ls.n));
-        // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
-        if (cos_light > 0) {
-            float light_pdf_w = ls.pdf * dist_sq / cos_light;
+//     Ray shadow_ray(si.point + (wi_light * kShadowEpsilon), wi_light);
+//     SurfaceInteraction shadow_si;  // dummy
+//     if (!scene.Intersect(shadow_ray, 0.f, dist - 2.0f * kShadowEpsilon, &shadow_si)) {
+//         float cos_light = std::abs(Dot(-wi_light, ls.n));
+//         // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
+//         if (cos_light > 0) {
+//             float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
-            // BSDF Evaluation
-            float cos_surf = std::fmax(0.0f, Dot(wi_light, sd.n_shading));
-            Spectrum f_val = EvalBSDF(mat, sd, si.wo, wi_light, wl);
+//             // BSDF Evaluation
+//             float cos_surf = std::fmax(0.0f, Dot(wi_light, sd.n_shading));
+//             Spectrum f_val = EvalBSDF(mat, sd, si.wo, wi_light, wl);
 
-            // Accumulate
-            // Weight = 1.0 / (N_lights * PDF_w)
-            // L += beta * f * Le * cos_surf * Weight
-            Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
-            Spectrum direct_L =
-                beta * f_val * light_spec * cos_surf / (light_pdf_w * scene.InvLightCount());
-            direct_L *= opacity;
-            L += direct_L;
-        }
-    }
-}
+//             // Accumulate
+//             // Weight = 1.0 / (N_lights * PDF_w)
+//             // L += beta * f * Le * cos_surf * Weight
+//             Spectrum light_spec = CurveToSpectrum(ls.emission, wl);
+//             Spectrum direct_L =
+//                 beta * f_val * light_spec * cos_surf / (light_pdf_w * scene.InvLightCount());
+//             direct_L *= opacity;
+//             L += direct_L;
+//         }
+//     }
+// }
 
-/* Indirect bounce case */
-Vec3 wi;
-float pdf;
-Spectrum f;
+// /* Indirect bounce case */
+// Vec3 wi;
+// float pdf;
+// Spectrum f;
 
-/* BSDF check */
-if (SampleBSDF(mat, sd, r, si, rng, wl, wi, pdf, f)) {
-    if (pdf > 0) {
-        float refract = Dot(wi, si.n_geom);
+// /* BSDF check */
+// if (SampleBSDF(mat, sd, r, si, rng, wl, wi, pdf, f)) {
+//     if (pdf > 0) {
+//         float refract = Dot(wi, si.n_geom);
 
-        if (!valid_deep_hit && counts_for_depth) {
-            if (!(refract < 0.0f)) {
-                valid_deep_hit = true;  // it's a reflection
-            }
-        }
+//         if (!valid_deep_hit && counts_for_depth) {
+//             if (!(refract < 0.0f)) {
+//                 valid_deep_hit = true;  // it's a reflection
+//             }
+//         }
 
-        float cos_theta = std::abs(refract);
-        Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
+//         float cos_theta = std::abs(refract);
+//         Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
 
-        // Modulate throughput by opacity for non-specular bounces
-        // For Dielectrics/Metals, opacity is typically 1.0
-        // For transparent diffuse, we need to account for absorption
-        if (mat.type == MaterialType::Lambertian) {
-            weight *= alpha;  // Absorb based on opacity
-        }
+//         // Modulate throughput by opacity for non-specular bounces
+//         // For Dielectrics/Metals, opacity is typically 1.0
+//         // For transparent diffuse, we need to account for absorption
+//         if (mat.type == MaterialType::Lambertian) {
+//             weight *= alpha;  // Absorb based on opacity
+//         }
 
-        beta *= weight;
-        r = Ray(si.point + (wi * kShadowEpsilon), wi);
+//         beta *= weight;
+//         r = Ray(si.point + (wi * kShadowEpsilon), wi);
 
-        // If this bounce was sharp (Metal/Glass), next hit counts as specular
-        specular_bounce = (mat.type == MaterialType::Metal || mat.type == MaterialType::Dielectric);
-    }
-} else {
-    // Absorbed (black body)
-    break;
-}
+//         // If this bounce was sharp (Metal/Glass), next hit counts as specular
+//         specular_bounce = (mat.type == MaterialType::Metal || mat.type ==
+//         MaterialType::Dielectric);
+//     }
+// } else {
+//     // Absorbed (black body)
+//     break;
+// }
 
-// Russian Roulette
-if (depth > 3) {
-    float max_beta = beta.MaxComponentValue();
-    if (max_beta < 0.001f) break;
-    float p = std::min(0.95f, max_beta);
-    if (rng.UniformFloat() > p) break;
-    beta = beta * (1.0f / p);
-}
-}
+// // Russian Roulette
+// if (depth > 3) {
+//     float max_beta = beta.MaxComponentValue();
+//     if (max_beta < 0.001f) break;
+//     float p = std::min(0.95f, max_beta);
+//     if (rng.UniformFloat() > p) break;
+//     beta = beta * (1.0f / p);
+// }
+// }
 
-RGB final_rgb = SpectrumToRGB(L, wl);
+// RGB final_rgb = SpectrumToRGB(L, wl);
 
-// In transparent mode a pixel is "covered" only when a visible object was
-// hit within the visibility_depth window.  In opaque mode every geometry
-// hit counts (backward-compatible).
-const bool covered =
-    config.transparent_background ? camera_visible : (valid_deep_hit || camera_visible);
-result.alpha = covered ? 1.0f : (config.transparent_background ? 0.0f : 1.0f);
+// // In transparent mode a pixel is "covered" only when a visible object was
+// // hit within the visibility_depth window.  In opaque mode every geometry
+// // hit counts (backward-compatible).
+// const bool covered =
+//     config.transparent_background ? camera_visible : (valid_deep_hit || camera_visible);
+// result.alpha = covered ? 1.0f : (config.transparent_background ? 0.0f : 1.0f);
 
-// Deep segment: emit when we have a committed depth AND the pixel is covered.
-// In opaque mode the far-clip fallback ensures even pure misses are represented.
-if (valid_deep_hit && covered) {
-    Vec3 to_hit = deep_hit_point - deep_origin;
-    float z_depth = Dot(to_hit, config.cam_w);
-    if (z_depth < 0.0f) z_depth = 0.0f;
-    AddSegment(result, z_depth, z_depth + kShadowEpsilon, final_rgb, deep_hit_alpha);
-} else if (!config.transparent_background) {
-    // Opaque mode: solid far-clip sample so the deep pixel is always covered.
-    AddSegment(result, kFarClip, kFarClip + 1000.0f, final_rgb, deep_hit_alpha);
-}
-// transparent + !covered → no segments → compositor sees fully transparent pixel.
+// // Deep segment: emit when we have a committed depth AND the pixel is covered.
+// // In opaque mode the far-clip fallback ensures even pure misses are represented.
+// if (valid_deep_hit && covered) {
+//     Vec3 to_hit = deep_hit_point - deep_origin;
+//     float z_depth = Dot(to_hit, config.cam_w);
+//     if (z_depth < 0.0f) z_depth = 0.0f;
+//     AddSegment(result, z_depth, z_depth + kShadowEpsilon, final_rgb, deep_hit_alpha);
+// } else if (!config.transparent_background) {
+//     // Opaque mode: solid far-clip sample so the deep pixel is always covered.
+//     AddSegment(result, kFarClip, kFarClip + 1000.0f, final_rgb, deep_hit_alpha);
+// }
+// // transparent + !covered → no segments → compositor sees fully transparent pixel.
 
-result.L = L;
-return result;
-}
-*/
+// result.L = L;
+// return result;
+// }
+// */
