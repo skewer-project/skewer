@@ -1,0 +1,42 @@
+# Stage 1: Build the Go Coordinator
+FROM golang:1.25.0-alpine AS builder
+
+# Install required build tools (if any CGO/SSL needed)
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /app
+
+# Create a non-root user in the builder stage
+RUN adduser -D -g '' appuser
+
+# Copy module files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy application source code
+COPY . .
+
+# Build the binary with optimizations (static linking)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/coordinator ./apps/coordinator
+
+# Stage 2: Create a minimal runner image
+FROM scratch
+
+# Import certs & timezone data from builder
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+
+# Copy compiled binary
+COPY --from=builder /go/bin/coordinator /bin/coordinator
+
+# Import the user and group files from the builder
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
+
+# Switch to the non-root user
+USER appuser
+
+# Set the port the coordinator listens on
+EXPOSE 50051
+
+ENTRYPOINT ["/bin/coordinator"]

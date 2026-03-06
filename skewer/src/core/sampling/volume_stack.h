@@ -5,7 +5,7 @@
 
 #include "core/cpu_config.h"
 
-namespace {
+namespace skwr {
 
 /**
  * A Priority Set
@@ -72,6 +72,6 @@ class VolumeStack {
     uint8_t count_;
 };
 
-}  // namespace
+}  // namespace skwr
 
 #endif  // SKWR_CORE_SAMPLING_VOLUME_STACK_H_

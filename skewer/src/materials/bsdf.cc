@@ -215,7 +215,7 @@ bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceI
     if (rng.UniformFloat() < pr) {
         // Reflection
         // Geometry is same for all wavelengths (Angle In = Angle Out) so we dont kill
-        wi = Reflect(-si.wo, n_oriented);  // n_orientedm n_geom yield same result for reflection
+        wi = Reflect(-si.wo, n_oriented);  // n_oriented and n_geom yield same result for reflection
         pdf = pr;
 
         // Return BSDF: F / cosTheta (Cosine will be cancelled out in the integrator)

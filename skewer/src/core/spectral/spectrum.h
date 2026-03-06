@@ -139,7 +139,7 @@ inline SpectralPacket<NSamples> operator/(SpectralPacket<NSamples> s, SpectralPa
         }
     }
     return result;
-};
+}
 
 template <int N>
 struct WavelengthPacket {
