@@ -4,10 +4,13 @@
 
 #include <atomic>
 
+#include "barkeep.h"
 #include "core/constants.h"
 #include "integrators/path_sample.h"
 
 namespace skwr {
+
+namespace bk = barkeep;
 
 Film::Film(int width, int height)
     : width_(width),
@@ -23,7 +26,7 @@ Film::Film(int width, int height)
     // deep_pool_.resize(width_ * height_ * 16 * 4);
 }
 
-void Film::AddSample(int x, int y, const RGB& L, float weight) {
+void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
 
     Pixel& p = GetPixel(x, y);
@@ -32,6 +35,7 @@ void Film::AddSample(int x, int y, const RGB& L, float weight) {
     // For true safety, you might want to use atomics or accept some race conditions
     // In practice, the races are benign (slightly wrong accumulated values)
     p.color_sum += L * weight;
+    p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
 }
 
@@ -97,9 +101,21 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     exrio::DeepImage result(width_, height_);
 
     // Pass 3: Copy, Sort, and merge segments
+    std::cout << "\nBuilding deep image\n";
+    std::atomic<size_t> pixels_done(0);
+    size_t total_pixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
+    auto bar = bk::ProgressBar(&pixels_done, {.total = total_pixels,
+                                              .speed = 0.2,
+                                              .speed_unit = "px/s",
+                                              .style = bk::ProgressBarStyle::Rich});
+    if (total_pixels > 0) bar->show();
+
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (counts[y * width_ + x] == 0) continue;
+            if (counts[y * width_ + x] == 0) {
+                ++pixels_done;
+                continue;
+            }
 
             // Collect samples for this pixel
             std::vector<DeepSample> segments;
@@ -138,8 +154,11 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                 pixel.addSample(
                     exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
             }
+            ++pixels_done;
         }
     }
+
+    if (total_pixels > 0) bar->done();
 
     return result;
 }
@@ -199,16 +218,6 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
         if (seg.alpha > 1.0f) seg.alpha = 1.0f;
     }
 
-    static std::atomic<int> log_count{0};
-    if (log_count.fetch_add(1) % 10000 == 0) {  // Log every 10000th pixel
-        std::cout << "Merge: " << input.size() << " → " << merged.size() << " segments\n";
-        if (merged.size() > 0) {
-            std::cout << "  First segment: z=" << merged[0].z_front << " rgb=(" << merged[0].r
-                      << "," << merged[0].g << "," << merged[0].b << ")"
-                      << " alpha=" << merged[0].alpha << "\n";
-        }
-    }
-
     return merged;
 }
 
@@ -220,20 +229,46 @@ void Film::WriteImage(const std::string& filename) const {
             const Pixel& p = GetPixel(x, y);
 
             RGB color(0, 0, 0);
+            float alpha = 0.0f;
             if (p.weight_sum > 0) {
                 color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
             }
 
             size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
             rgba[idx + 0] = color.r();
             rgba[idx + 1] = color.g();
             rgba[idx + 2] = color.b();
-            rgba[idx + 3] = 1.0f;
+            rgba[idx + 3] = alpha;
         }
     }
 
     exrio::writePNG(rgba, width_, height_, filename);
     std::cout << "Wrote image to " << filename << "\n";
+}
+
+std::unique_ptr<FlatImageBuffer> Film::CreateFlatBuffer() const {
+    auto buf = std::make_unique<FlatImageBuffer>(width_, height_);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const Pixel& p = GetPixel(x, y);
+
+            RGB color(0.0f);
+            float alpha = 0.0f;
+
+            if (p.weight_sum > 0) {
+                // color_sum is already premultiplied (misses contribute 0 to both),
+                // so dividing by weight gives premultiplied average.
+                color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
+            }
+
+            buf->SetPixel(x, y, color, alpha);
+        }
+    }
+
+    return buf;
 }
 
 }  // namespace skwr

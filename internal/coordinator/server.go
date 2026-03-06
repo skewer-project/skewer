@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Server implements the gRPC CoordinatorService
@@ -32,6 +34,13 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, 
 
 	// Start a background loop to manage worker capacity
 	go s.runCapacityManager(context.Background())
+
+	// Set the terminal failure callback
+	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
+		log.Printf("[SERVER] Task %s for job %s failed permanently. Failing job.", task.ID, task.JobID)
+		s.tracker.CancelJob(task.JobID)
+		s.scheduler.PurgeJobTasks(task.JobID)
+	}
 
 	return s
 }
@@ -57,7 +66,7 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 			JobID:          jobID,
 			Dependencies:   req.DependsOn,
 			Status:         pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
-			TotalTasks:     req.NumFrames * jobTypes.RenderJob.SampleDivision,
+			TotalTasks:     req.NumFrames*jobTypes.RenderJob.SampleDivision + req.NumFrames, // Render tasks + Merge tasks
 			SampleDivision: jobTypes.RenderJob.SampleDivision,
 			OriginalReq:    req,
 		}
@@ -101,7 +110,13 @@ func (s *Server) GetJobStatus(ctx context.Context, req *pb.GetJobStatusRequest) 
 	job, err := s.tracker.GetJob(req.JobId)
 	errResponse := ""
 	if err != nil {
-		errResponse = err.Error()
+		// NOTE: the way i have errMessage and err here is a bit weird. may want to change.
+		return &pb.GetJobStatusResponse{
+			JobStatus:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
+			ProgressPercent: 0,
+			ErrorMessage:    status.Errorf(codes.NotFound, err.Error(), req.GetJobId()).Error(),
+		}, err
+
 	}
 
 	// Return response. Interface handles progress automatically
@@ -178,7 +193,11 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 		case *pb.CompositeTask:
 			workPackage.Payload = &pb.WorkPackage_CompositeTask{CompositeTask: t}
 		default:
-			log.Printf("[ERROR]: Unknown task payload type for task %s", task.ID)
+			log.Printf("[ERROR]: Unknown task payload type for task %s. Marking task complete to avoid leak", task.ID)
+
+			// Marking task as complete so it doesn't get stuck or reassigned infinitely
+			s.scheduler.MarkTaskComplete(task.ID)
+
 			continue
 		}
 
@@ -202,26 +221,35 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 	log.Printf("[COORDINATOR]: Task %s completed by worker %s: success=%v", taskID, req.WorkerId, req.Success)
 
 	// Tell the scheduler the worker is officially done with it (stops the Sweeper timeout)
-	task, exists := s.scheduler.MarkTaskComplete(taskID)
+	task, exists := s.scheduler.Task(taskID)
+	if !exists {
+		log.Printf("[ERROR]: Task %s not found in active tasks", taskID)
+		return &pb.ReportTaskResultResponse{Acknowledged: false}, fmt.Errorf("[ERROR]: Task %s not found in active tasks", taskID)
+	}
 
 	if !req.Success {
 		// Handle failure. Requeue the task, or increment a failure counter
 		// in the JobTracker and fail the whole job if it exceeds max retries.
-		if exists {
-			task.Retries++
-			if task.Retries > 3 {
-				log.Printf("[COORDINATOR]: Task %s failed too many times. Failing Job %s", taskID, jobID)
-				s.tracker.activeJobs[jobID].SetStatus(pb.GetJobStatusResponse_JOB_STATUS_FAILED)
-				s.scheduler.PurgeJobTasks(jobID) // Stop other tasks for this job
-			} else {
-				s.scheduler.RequeueTask(taskID)
+		task.Retries++
+		if task.Retries > 3 {
+			log.Printf("[COORDINATOR]: Task %s failed too many times. Failing Job %s", taskID, jobID)
+
+			// Mark the job as failed
+			err := s.tracker.CancelJob(jobID)
+			if err != nil {
+				log.Printf("[ERROR]: Failed to retrieve job %s to mark as failed (%v)", jobID, err)
+				return &pb.ReportTaskResultResponse{Acknowledged: false}, err
 			}
+
+			s.scheduler.PurgeJobTasks(jobID) // Stop other tasks for this job
 		} else {
-			// fmt.Errorf("[ERROR]: Task %s not found in active tasks", taskID)
-			return &pb.ReportTaskResultResponse{Acknowledged: false}, nil
+			s.scheduler.RequeueTask(taskID) // Requeue and try again otherwise
 		}
+
 		return &pb.ReportTaskResultResponse{Acknowledged: true}, nil
 	}
+
+	s.scheduler.MarkTaskComplete(taskID)
 
 	// Update completed Tasks for the job
 	job, err := s.tracker.GetJob(task.JobID)
@@ -242,9 +270,9 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 		frameState := jobType.Frames[task.FrameID]
 		frameState.CompletedChunks++
 
-		// Check if frame is complete
+		// Check if frame is complete to queue in a MergeTask
 		if frameState.CompletedChunks == frameState.TotalChunks {
-			log.Printf("[COORDINATOR]: Frame %s for job %s is fully rendered! Queuing MergeTask.", task.FrameID, jobID)
+			log.Printf("[COORDINATOR]: Frame %s for job %s is fully rendered. Queuing MergeTask.", task.FrameID, jobID)
 
 			// NOW we hand it to the scheduler
 			s.scheduler.EnqueueTask(frameState.PendingMerge, jobID, task.FrameID)
@@ -336,19 +364,56 @@ func (s *Server) translateLocalPath(uri string) string {
 }
 
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
-	numSamplesPerWorker := job.GetTotalSamples() / job.GetSampleDivision()
-	extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
+	sampleDivision := job.GetSampleDivision()
+	if sampleDivision <= 0 {
+		return fmt.Errorf("[ERROR: Invalid sample_division %d: must be > 0", sampleDivision)
+	}
 
-	outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
-	sceneUri := s.translateLocalPath(job.GetSceneUri())
+	for frameID := int32(0); frameID < req.GetNumFrames(); frameID++ {
+		numSamplesPerWorker := job.GetTotalSamples() / job.GetSampleDivision()
+		extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
 
-	for frameID := range req.NumFrames {
+		outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
+		sceneUri := s.translateLocalPath(job.GetSceneUri())
+
+		// Create the Merge task uri
+		mergeUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
+		if err != nil {
+			return err
+		}
+
+		// DON'T enqueue MergeTask. Store it in memory instead and wait until all chunks are completed
+		genericJob, err := s.tracker.GetJob(jobID)
+		if err != nil {
+			return err
+		}
+		renderJob := genericJob.(*RenderJob)
+
+		// While this is technically safe because the tasks haven't been queued yet, it's probably better
+		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
+		// at that exact millisecond
+		renderJob.mu.Lock()
+		if renderJob.Frames == nil {
+			renderJob.Frames = make(map[string]*FrameState)
+		}
+
+		renderJob.Frames[fmt.Sprint(frameID)] = &FrameState{
+			CompletedChunks: 0,
+			TotalChunks:     renderJob.SampleDivision,
+			PendingMerge: &pb.MergeTask{
+				OutputUri: mergeUri,
+				// NOTE: We append the PartialDeepExrUris as we generate them below
+			},
+		}
+		renderJob.mu.Unlock()
+
+		// for frameID := range req.NumFrames {
 		// Replace #### with padded frame ID if it exists in the scene URI
 		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
 
 		var sampleStart int32 = 0
 		var outputUris []string
-		for chunk := range numSamplesPerWorker {
+		for chunk := int32(0); chunk < job.GetSampleDivision(); chunk++ {
 			uriSuffix := fmt.Sprintf("frame-%04d-chunk-%d.exr", frameID+1, chunk)
 
 			// Add in remainder
@@ -376,42 +441,18 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 				OutputUri: outputUri,
 			}
-			s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID))
+			if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
+				return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
+			}
 
 			sampleStart = sampleEnd
 		}
-
-		// Create the Merge task
-		mergeUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
-		if err != nil {
-			return err
-		}
-
-		mergeTask := &pb.MergeTask{
-			PartialDeepExrUris: outputUris,
-			OutputUri:          mergeUri,
-		}
-
-		// DON'T enqueue MergeTask. Store it in memory instead and wait until all chunks are completed
-		genericJob, err := s.tracker.GetJob(req.GetJobId())
-		if err != nil {
-			return err
-		}
-		renderJob := genericJob.(*RenderJob)
 
 		// While this is technically safe because the tasks haven't been queued yet, it's probably better
 		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
 		// at that exact millisecond
 		renderJob.mu.Lock()
-		if renderJob.Frames == nil {
-			renderJob.Frames = make(map[string]*FrameState)
-		}
-
-		renderJob.Frames[fmt.Sprint(frameID)] = &FrameState{
-			CompletedChunks: 0,
-			TotalChunks:     renderJob.SampleDivision,
-			PendingMerge:    mergeTask,
-		}
+		renderJob.Frames[fmt.Sprint(frameID)].PendingMerge.PartialDeepExrUris = outputUris
 		renderJob.mu.Unlock()
 	}
 
@@ -422,7 +463,7 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 
 	outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
 
-	for frameID := range req.NumFrames {
+	for frameID := 0; frameID < int(req.GetNumFrames()); frameID++ {
 
 		// gs://bucket/renders/smoke
 		originalPrefixes := job.GetLayerUriPrefixes()

@@ -26,6 +26,8 @@ type Scheduler struct {
 	skewerQueue chan *Task       // Only for Render Tasks (thread safe)
 	loomQueue   chan *Task       // Only for Merge/Composite Tasks (thread safe)
 	activeTasks map[string]*Task // Tasks currently being worked on
+
+	OnTaskFailedPermanently func(task *Task) // Callback when a task is lost
 }
 
 func NewScheduler(maxQueueSize int) *Scheduler {
@@ -37,7 +39,7 @@ func NewScheduler(maxQueueSize int) *Scheduler {
 }
 
 // EnqueueTask adds a new task to the queue
-func (s *Scheduler) EnqueueTask(payload interface{}, jobID string, frameID string) (string, error) {
+func (s *Scheduler) EnqueueTask(payload any, jobID string, frameID string) (string, error) {
 	taskID := uuid.New().String()
 	task := &Task{
 		ID:        taskID,
@@ -50,19 +52,13 @@ func (s *Scheduler) EnqueueTask(payload interface{}, jobID string, frameID strin
 	// Figure out which queue to put it in, and do it atomically
 	switch payload.(type) {
 	case *pb.RenderTask:
-		select {
-		case s.skewerQueue <- task:
-			return taskID, nil
-		default:
-			return "", fmt.Errorf("[Error] Skewer queue is at capacity")
-		}
+		s.skewerQueue <- task
+		return taskID, nil
+
 	case *pb.MergeTask, *pb.CompositeTask:
-		select {
-		case s.loomQueue <- task:
-			return taskID, nil
-		default:
-			return "", fmt.Errorf("[Error] Loom queue is at capacity")
-		}
+		s.loomQueue <- task
+		return taskID, nil
+
 	default:
 		return "", fmt.Errorf("[Error] Unknown task payload type")
 	}
@@ -124,12 +120,19 @@ func (s *Scheduler) GetNextTask(ctx context.Context, capabilities []string) (*Ta
 	}
 }
 
+// Returns task pointer with given ID from activeTasks
+func (s *Scheduler) Task(taskID string) (*Task, bool) {
+	task, exists := s.activeTasks[taskID]
+
+	return task, exists
+}
+
 // Safely removes and returns the task
 func (s *Scheduler) popActiveTask(taskID string) (*Task, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	task, exists := s.activeTasks[taskID]
+	task, exists := s.Task(taskID)
 	if exists {
 		delete(s.activeTasks, taskID)
 	}
@@ -141,6 +144,16 @@ func (s *Scheduler) RequeueTask(taskID string) {
 
 	if exists {
 		task.CreatedAt = time.Now()
+		task.Retries++
+
+		if task.Retries > 3 {
+			fmt.Printf("[SCHEDULER] Task %s failed %d times. Dropping it permanently.\n", task.ID, task.Retries)
+
+			if s.OnTaskFailedPermanently != nil {
+				s.OnTaskFailedPermanently(task)
+			}
+			return
+		}
 
 		// Push it back onto the correct queue in a goroutine
 		go func(t *Task) {
@@ -148,21 +161,13 @@ func (s *Scheduler) RequeueTask(taskID string) {
 
 			// Route to Skewer Queue
 			case *pb.RenderTask:
-				select {
-				case s.skewerQueue <- t:
-					fmt.Printf("[SCHEDULER] Requeued Skewer task %s\n", t.ID)
-				default:
-					fmt.Printf("[SCHEDULER] Skewer queue is full. Lost task %s\n", t.ID)
-				}
+				s.skewerQueue <- t
+				fmt.Printf("[SCHEDULER] Requeued Skewer task %s\n", t.ID)
 
 			// Route to Loom Queue
 			case *pb.MergeTask, *pb.CompositeTask:
-				select {
-				case s.loomQueue <- t:
-					fmt.Printf("[SCHEDULER] Requeued Loom task %s\n", t.ID)
-				default:
-					fmt.Printf("[SCHEDULER] Loom queue is full. Lost task %s\n", t.ID)
-				}
+				s.loomQueue <- t
+				fmt.Printf("[SCHEDULER] Requeued Loom task %s\n", t.ID)
 			}
 		}(task)
 	}
@@ -218,6 +223,10 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 
 		if task.Retries > 3 {
 			fmt.Printf("[SCHEDULER] Task %s failed %d times. Dropping it permanently.\n", task.ID, task.Retries)
+
+			if s.OnTaskFailedPermanently != nil {
+				s.OnTaskFailedPermanently(task)
+			}
 			continue
 		}
 
@@ -226,20 +235,12 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 		switch task.Payload.(type) {
 
 		case *pb.RenderTask:
-			select {
-			case s.skewerQueue <- task:
-				fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", task.ID, task.Retries)
-			default:
-				fmt.Printf("[SCHEDULER] Skewer queue is full! Lost timed-out task %s\n", task.ID)
-			}
+			s.skewerQueue <- task
+			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", task.ID, task.Retries)
 
 		case *pb.MergeTask, *pb.CompositeTask:
-			select {
-			case s.loomQueue <- task:
-				fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", task.ID, task.Retries)
-			default:
-				fmt.Printf("[SCHEDULER] Loom queue is full! Lost timed-out task %s\n", task.ID)
-			}
+			s.loomQueue <- task
+			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", task.ID, task.Retries)
 		}
 	}
 }
@@ -248,10 +249,47 @@ func (s *Scheduler) PurgeJobTasks(jobID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Purge all active tasks
 	for taskID, task := range s.activeTasks {
 		if task.JobID == jobID {
 			delete(s.activeTasks, taskID)
 		}
 	}
+
+	// Helper to filter tasks for a given job ID out of a queue channel.
+	filterQueue := func(ch chan *Task, jobID string) {
+
+		// Iterate to current length of ch
+		for i := 0; i < len(ch); i++ {
+			select {
+			case task := <-ch:
+				if task == nil {
+					// Keep in case it's being used as sentinel or signal
+					ch <- task
+					continue
+				}
+				if task.JobID == jobID {
+					// Drop task for job and don't reenqueue
+					continue
+				}
+
+				// Reenqueue any other tasks
+				ch <- task
+
+			default:
+				// Queue is empty
+				return
+			}
+		}
+	}
+
+	// Use helper function to purge
+	if s.skewerQueue != nil {
+		filterQueue(s.skewerQueue, jobID)
+	}
+	if s.loomQueue != nil {
+		filterQueue(s.loomQueue, jobID)
+	}
+
 	return nil
 }
