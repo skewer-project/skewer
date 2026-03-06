@@ -352,7 +352,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
              // si.point and AddSegment() continuously.
          }
 
-         // /* Handle transparency - straight-through transmission */
+         //  Handle transparency - straight-through transmission */
 // if (mat.IsTransparent()) {
 //     // For non-refractive transparent surfaces (like foliage, smoke, etc.)
 //     // This is separate from Dielectric refraction
