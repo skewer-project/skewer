@@ -37,7 +37,7 @@ func NewScheduler(maxQueueSize int) *Scheduler {
 }
 
 // EnqueueTask adds a new task to the queue
-func (s *Scheduler) EnqueueTask(payload interface{}, jobID string, frameID string) (string, error) {
+func (s *Scheduler) EnqueueTask(payload any, jobID string, frameID string) (string, error) {
 	taskID := uuid.New().String()
 	task := &Task{
 		ID:        taskID,
@@ -124,12 +124,19 @@ func (s *Scheduler) GetNextTask(ctx context.Context, capabilities []string) (*Ta
 	}
 }
 
+// Returns task pointer with given ID from activeTasks
+func (s *Scheduler) Task(taskID string) (*Task, bool) {
+	task, exists := s.activeTasks[taskID]
+
+	return task, exists
+}
+
 // Safely removes and returns the task
 func (s *Scheduler) popActiveTask(taskID string) (*Task, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	task, exists := s.activeTasks[taskID]
+	task, exists := s.Task(taskID)
 	if exists {
 		delete(s.activeTasks, taskID)
 	}
@@ -248,10 +255,47 @@ func (s *Scheduler) PurgeJobTasks(jobID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Purge all active tasks
 	for taskID, task := range s.activeTasks {
 		if task.JobID == jobID {
 			delete(s.activeTasks, taskID)
 		}
 	}
+
+	// Helper to filter tasks for a given job ID out of a queue channel.
+	filterQueue := func(ch chan *Task, jobID string) {
+
+		// Iterate to current length of ch
+		for i := 0; i < len(ch); i++ {
+			select {
+			case task := <-ch:
+				if task == nil {
+					// Keep in case it's being used as sentinel or signal
+					ch <- task
+					continue
+				}
+				if task.JobID == jobID {
+					// Drop task for job and don't reenqueue
+					continue
+				}
+
+				// Reenqueue any other tasks
+				ch <- task
+
+			default:
+				// Queue is empty
+				return
+			}
+		}
+	}
+
+	// Use helper function to purge
+	if s.skewerQueue != nil {
+		filterQueue(s.skewerQueue, jobID)
+	}
+	if s.loomQueue != nil {
+		filterQueue(s.loomQueue, jobID)
+	}
+
 	return nil
 }

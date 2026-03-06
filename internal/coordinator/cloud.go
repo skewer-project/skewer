@@ -31,7 +31,7 @@ type K8sCloudManager struct {
 
 // NewK8sCloudManager initializes a new CloudManager using Kubernetes and GCP.
 // It detects whether it is running inside a cluster (GKE) or outside (Minikube).
-// It also takes a path to a user-provided GCP Service Account JSON key string.
+// It also takes a path to a user-provided GCP Service Account JSON key file.
 func NewK8sCloudManager(ctx context.Context, credentialsFile string) (*K8sCloudManager, error) {
 	var config *rest.Config
 	var err error
