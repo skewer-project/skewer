@@ -191,7 +191,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             /* Next Event Estimation */
             if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric) {
                 DirectLightSample dls;
-                if (GenerateLightSample(si.point + (si.n_geom * kShadowEpsilon), scene, rng, wl,
+                if (GenerateLightSample(si.point + (si.n_shading * kShadowEpsilon), scene, rng, wl,
                                         &dls)) {
                     Ray shadow_ray(si.point + (dls.wi * kShadowEpsilon), dls.wi);
                     shadow_ray.vol_stack() = r.vol_stack();
