@@ -112,7 +112,7 @@ void RenderSession::Save() const {
         }
 
         if (options_.integrator_config.enable_deep) {
-            exrio::DeepImage img = film_->BuildDeepImage(options_.integrator_config.max_samples);
+            exrio::DeepImage img = film_->BuildDeepImage();
             exrio::writeDeepEXR(img, options_.image_config.exrfile);
             std::cout << "Wrote deep image to " << options_.image_config.exrfile << "\n";
         }

@@ -27,19 +27,23 @@ void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     p.color_sum += L * weight;
     p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
+    ++p.sample_count;
 }
 
 void Film::AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+
     Pixel& p = pixels_[y * width_ + x];
     p.color_sum += L * weight;
     p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
+    ++p.sample_count;
     p.color_sq_sum += L * L * weight;
 }
 
 bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
     const Pixel& p = pixels_[y * width_ + x];
-    float n = p.weight_sum;
+    float n = static_cast<float>(p.sample_count);
     if (n < 2.0f) return false;
 
     RGB mean = p.color_sum / n;
@@ -95,7 +99,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     }
 }
 
-exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
+exrio::DeepImage Film::BuildDeepImage() const {
     // Pass 1: Count samples per pixel
     std::vector<unsigned int> counts(width_ * height_, 0);
 
@@ -160,7 +164,7 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                           return a.z_front < b.z_front;
                       });
 
-            segments = MergeDeepSegments(segments, total_pixel_samples);
+            segments = MergeDeepSegments(segments, GetPixel(x, y).sample_count);
 
             // Convert to deep_compositor::DeepSample and add to result
             exrio::DeepPixel& pixel = result.pixel(x, y);
@@ -179,7 +183,7 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
 
 // Helper: Merge overlapping/adjacent segments
 std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
-                                                const int total_pixel_samples) const {
+                                                int pixel_sample_count) const {
     if (input.empty()) return input;
 
     std::vector<DeepSample> merged;
@@ -220,7 +224,7 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
     merged.push_back(current);
 
-    float norm = 1.0f / total_pixel_samples;
+    float norm = 1.0f / std::max(pixel_sample_count, 1);
 
     for (auto& seg : merged) {
         seg.r *= norm;
@@ -241,7 +245,9 @@ void Film::WriteSampleMap(const std::string& filename, int max_samples) const {
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
-            float t = (max_samples > 0) ? std::min(p.weight_sum / max_samples, 1.0f) : 0.0f;
+            float t = (max_samples > 0)
+                          ? std::min(static_cast<float>(p.sample_count) / max_samples, 1.0f)
+                          : 0.0f;
 
             // Blue (0,0,1) → Green (0,1,0) → Red (1,0,0)
             float r, g, b;
