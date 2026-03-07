@@ -70,10 +70,14 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     // Negate it so cam_w points forward for correct depth projection.
     options_.integrator_config.cam_w = -camera_->GetW();
 
+    const auto& ic = options_.integrator_config;
     std::cout << "[Session] Ready: " << options_.image_config.width << "x"
-              << options_.image_config.height
-              << " | Samples: " << options_.integrator_config.samples_per_pixel
-              << " | Max Depth: " << options_.integrator_config.max_depth << "\n";
+              << options_.image_config.height << " | Max Samples: " << ic.max_samples
+              << " | Max Depth: " << ic.max_depth << "\n";
+    if (ic.noise_threshold > 0.0f) {
+        std::cout << "[Session] Adaptive: threshold=" << ic.noise_threshold
+                  << ", min=" << ic.min_samples << ", step=" << ic.adaptive_step << "\n";
+    }
 }
 
 /**
@@ -97,9 +101,18 @@ void RenderSession::Save() const {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
 
+        if (options_.integrator_config.save_sample_map) {
+            // Insert "_samples" before the file extension
+            std::string out = options_.image_config.outfile;
+            auto dot = out.rfind('.');
+            std::string map_file = (dot != std::string::npos)
+                                       ? out.substr(0, dot) + "_samples" + out.substr(dot)
+                                       : out + "_samples.png";
+            film_->WriteSampleMap(map_file, options_.integrator_config.max_samples);
+        }
+
         if (options_.integrator_config.enable_deep) {
-            exrio::DeepImage img =
-                film_->BuildDeepImage(options_.integrator_config.samples_per_pixel);
+            exrio::DeepImage img = film_->BuildDeepImage();
             exrio::writeDeepEXR(img, options_.image_config.exrfile);
             std::cout << "Wrote deep image to " << options_.image_config.exrfile << "\n";
         }
