@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     libopenexr-dev \
     libimath-dev \
     zlib1g-dev \
+    libpng-dev \
     python3-dev \
     libgrpc++-dev \
     protobuf-compiler-grpc \
@@ -38,6 +39,7 @@ RUN apt-get update && apt-get install -y \
     libimath-3-1-29 \
     libopenexr-3-1-30 \
     zlib1g \
+    libpng16-16t64 \
     libgrpc++1.51t64 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*

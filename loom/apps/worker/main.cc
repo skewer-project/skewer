@@ -72,6 +72,12 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                         task.partial_deep_exr_uris().begin(),
                         task.partial_deep_exr_uris().end()
                     );
+                    
+                    std::cout << "[Loom] -> Merge Inputs (" << inputPartialFiles.size() << " files):\n";
+                    for (const auto& uri : inputPartialFiles) {
+                        std::cout << "  - " << uri << "\n";
+                    }
+
                     std::vector<exrio::DeepImage> images = exrio::LoadImagesPhase(inputPartialFiles);
 
                     // Merge Phase
@@ -84,16 +90,18 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     exrio::DeepImage merged = deepMerge(images, compOpts, &stats);
 
                     // Flatten Phase (should be more configurable)
-                    // TODO: add output type to protobuf. For now assume pngOutput is always desired
-                    bool isDeepOutput = false;
-                    bool isFlatOutput = false;
-                    bool isPngOutput = true;
+                    bool isDeepOutput = output_uri.ends_with(".exr"); // TODO: should check if user specifically wants deep vs flat
+                    bool isFlatOutput = false; 
+                    bool isPngOutput = output_uri.ends_with(".png");
                     std::vector<float> flatRgba;
 
-                    flatRgba = FlattenPhase(merged);
+                    if (isPngOutput || isFlatOutput) {
+                        flatRgba = exrio::FlattenPhase(merged);
+                    }
 
                     // Write Phase
-                    WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput, isFlatOutput, isPngOutput);
+                    std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
+                    exrio::WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput, isFlatOutput, isPngOutput);
 
                     // TODO: Consider logging to kubectl logs
 
@@ -111,6 +119,12 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                         task.layer_uris().begin(),
                         task.layer_uris().end()
                     );
+
+                    std::cout << "[Loom] -> Composite Inputs (" << inputPartialFiles.size() << " files):\n";
+                    for (const auto& uri : inputPartialFiles) {
+                        std::cout << "  - " << uri << "\n";
+                    }
+
                     std::vector<exrio::DeepImage> images = exrio::LoadImagesPhase(inputPartialFiles);
 
                     // Merge Phase
@@ -123,16 +137,18 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     exrio::DeepImage merged = deepMerge(images, compOpts, &stats);
 
                     // Flatten Phase (should be more configurable)
-                    // TODO: add output type to protobuf. For now assume pngOutput is always desired
-                    bool isDeepOutput = false;
-                    bool isFlatOutput = false;
-                    bool isPngOutput = true;
+                    bool isDeepOutput = output_uri.ends_with(".exr"); // TODO: should check if user specifically wants deep vs flat
+                    bool isFlatOutput = false; 
+                    bool isPngOutput = output_uri.ends_with(".png");
                     std::vector<float> flatRgba;
 
-                    flatRgba = FlattenPhase(merged);
+                    if (isPngOutput || isFlatOutput) {
+                        flatRgba = exrio::FlattenPhase(merged);
+                    }
 
                     // Write Phase
-                    WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput, isFlatOutput, isPngOutput);
+                    std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
+                    exrio::WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput, isFlatOutput, isPngOutput);
 
                     // TODO: Consider logging to kubectl logs
                     std::cout << "[Loom] -> Engine Composite execution completed.\n";
@@ -158,9 +174,9 @@ void RunLoomWorker(const std::string& coordinator_addr) {
             report_req.set_output_uri(output_uri);
 
             ReportTaskResultResponse report_res;
-            Status status = stub->ReportTaskResult(&report_context, report_req, &report_res);
-            if (!status.ok()) {
-                std::cerr << "[Loom] Failed to report task result: " << status.error_message()
+            Status report_status = stub->ReportTaskResult(&report_context, report_req, &report_res);
+            if (!report_status.ok()) {
+                std::cerr << "[Loom] Failed to report task result: " << report_status.error_message()
                           << "\n";
             } else {
                 std::cout << "[Loom] Task " << package.task_id()
@@ -168,8 +184,9 @@ void RunLoomWorker(const std::string& coordinator_addr) {
             }
         }
 
-        std::cerr << "[Loom] Stream disconnected. Reconnecting in 5 seconds...\n";
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        // After stream closes, we loop back and try to get a new stream immediately.
+        // We only sleep if it was a real error or if there's no work.
+        // The Coordinator now closes the stream after 1 task to ensure fair distribution.
     }
 }
 
