@@ -18,6 +18,11 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Get the status of a submitted job",
 	Run: func(cmd *cobra.Command, args []string) {
+		// Automate port-forwarding if needed
+		if err := ensureConnection(coordinatorAddr); err != nil {
+			log.Fatalf("Error establishing connection: %v", err)
+		}
+
 		conn, err := grpc.NewClient(coordinatorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("Did not connect: %v", err)
@@ -38,7 +43,7 @@ var statusCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Job Status: %s\n", r.GetJobStatus().String())
-		fmt.Printf("Progress: %.1f%%\n", r.GetProgressPercent()*100)
+		fmt.Printf("Progress: %.1f%%\n", r.GetProgressPercent())
 		if r.GetErrorMessage() != "" {
 			fmt.Printf("Error: %s\n", r.GetErrorMessage())
 		}
@@ -48,7 +53,6 @@ var statusCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(statusCmd)
 
-	statusCmd.Flags().StringVarP(&coordinatorAddr, "coordinator", "c", "localhost:50051", "Address of the Skewer Coordinator")
 	statusCmd.Flags().StringVarP(&statusJobID, "job", "j", "", "The UUID of the job to check")
 	statusCmd.MarkFlagRequired("job")
 }
