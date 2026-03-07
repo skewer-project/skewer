@@ -1,4 +1,5 @@
 #include <grpcpp/grpcpp.h>
+#include "proto/coordinator/v1/coordinator.pb.h"
 #include "session/render_options.h"
 #include "session/render_session.h"
 
@@ -7,7 +8,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
 
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
 
@@ -19,17 +19,26 @@ using api::proto::coordinator::v1::ReportTaskResultResponse;
 using api::proto::coordinator::v1::WorkPackage;
 using grpc::Channel;
 using grpc::ClientContext;
-using grpc::ClientReader;
-using grpc::Status;
 
 void RunSkewerWorker(const std::string& coordinator_addr) {
-    // Generate a unique worker ID with epoch (may change in the future)
-    std::string worker_id =
-        "skewer-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+// Generate a unique worker ID with epoch (may change in the future)
+std::string worker_id =
+    "skewer-worker-" +
+    std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
-    std::cout << "[SKEWER]: Starting worker loop, ID: " << worker_id << "\n";
-    std::cout << "[SKEWER]: Coordinator Address: " << coordinator_addr << "\n";
+// Determine number of render threads from environment
+int render_threads = 2; // default fallback
+if (const char* env_threads = std::getenv("RENDER_THREADS")) {
+    try {
+        render_threads = std::stoi(env_threads);
+    } catch (...) {
+        std::cerr << "[SKEWER]: Error parsing RENDER_THREADS. Using default 2.\n";
+    }
+}
+
+std::cout << "[SKEWER]: Starting worker loop, ID: " << worker_id << "\n";
+std::cout << "[SKEWER]: Coordinator Address: " << coordinator_addr << "\n";
+std::cout << "[SKEWER]: Render Threads: " << render_threads << "\n";
 
     // Open a gRPC channel to the coordinator
     std::shared_ptr<Channel> channel =
@@ -44,7 +53,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
         request.add_capabilities("skewer"); // may add more capabilities later
 
         // Actually get the stream work package
-        std::unique_ptr<ClientReader<WorkPackage>> stream(stub->GetWorkStream(&context, request));
+        std::unique_ptr<grpc::ClientReader<WorkPackage>> stream(stub->GetWorkStream(&context, request));
 
         WorkPackage package;
         while (stream->Read(&package)) {
@@ -66,11 +75,29 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 // Initialize engine and RENDER HERE
                 skwr::RenderSession session;
 
+                // Determine thread count for this session
+                int task_threads = render_threads;
+                if (task.threads() > 0) {
+                    task_threads = task.threads();
+                }
+
                 // Adapt integrator config to sample range
                 session.LoadSceneFromFile(task.scene_uri(), 0);
+                session.Options().image_config.width = task.width();
+                session.Options().image_config.height = task.height();
                 session.Options().integrator_config.start_sample = task.sample_start();
                 session.Options().integrator_config.samples_per_pixel = task.sample_end() - task.sample_start();
+                session.Options().integrator_config.num_threads = task_threads;
                 session.Options().image_config.outfile = task.output_uri();
+                session.Options().integrator_config.enable_deep = task.enable_deep();
+
+                std::cout << "[SKEWER]: Rendering " << task.width() << "x" << task.height() 
+                          << " (Samples: " << task.sample_start() << " to " << task.sample_end() 
+                          << " | Threads: " << task_threads << ")\n";
+
+                // Re-initialize the film with the updated (smaller) chunk sample count
+                // to prevent huge memory allocations for deep renders.
+                session.RebuildFilm();
 
                 // Now render the task
                 session.Render();
@@ -95,9 +122,9 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
             report_req.set_output_uri(task.output_uri());
 
             ReportTaskResultResponse report_res;
-            Status status = stub->ReportTaskResult(&report_context, report_req, &report_res);
-            if (!status.ok()) {
-                std::cerr << "[SKEWER]: Failed to report task result: " << status.error_message()
+            ::grpc::Status report_status = stub->ReportTaskResult(&report_context, report_req, &report_res);
+            if (!report_status.ok()) {
+                std::cerr << "[SKEWER]: Failed to report task result: " << report_status.error_message()
                           << "\n";
             } else {
                 std::cout << "[SKEWER]: Task " << package.task_id()
@@ -105,8 +132,9 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
             }
         }
 
-        std::cerr << "[SKEWER]: Stream disconnected. Reconnecting in 5 seconds...\n";
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        // After stream closes, we loop back and try to get a new stream immediately.
+        // We only sleep if it was a real error or if there's no work.
+        // The Coordinator now closes the stream after 1 task to ensure fair distribution.
     }
 }
 

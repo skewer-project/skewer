@@ -76,6 +76,10 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
               << " | Max Depth: " << options_.integrator_config.max_depth << "\n";
 }
 
+void RenderSession::RebuildFilm() {
+    film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
+}
+
 /**
  * Call integrator render loop
  */
@@ -95,13 +99,22 @@ void RenderSession::Render() {
  */
 void RenderSession::Save() const {
     if (film_) {
-        film_->WriteImage(options_.image_config.outfile);
-
         if (options_.integrator_config.enable_deep) {
             exrio::DeepImage img =
                 film_->BuildDeepImage(options_.integrator_config.samples_per_pixel);
-            exrio::writeDeepEXR(img, options_.image_config.exrfile);
-            std::cout << "Wrote deep image to " << options_.image_config.exrfile << "\n";
+
+            // If outfile is .exr, use it for the deep image (common in distributed rendering)
+            if (options_.image_config.outfile.ends_with(".exr")) {
+                exrio::writeDeepEXR(img, options_.image_config.outfile);
+                std::cout << "Wrote deep image to " << options_.image_config.outfile << "\n";
+            } else {
+                // Otherwise write preview image to outfile and deep image to exrfile
+                film_->WriteImage(options_.image_config.outfile);
+                exrio::writeDeepEXR(img, options_.image_config.exrfile);
+                std::cout << "Wrote deep image to " << options_.image_config.exrfile << "\n";
+            }
+        } else {
+            film_->WriteImage(options_.image_config.outfile);
         }
     }
 }
