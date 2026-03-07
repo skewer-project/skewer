@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "deep_compositor.h"
 #include "composite_pipeline.h"
+#include "deep_compositor.h"
 
 namespace {
 
@@ -143,7 +143,8 @@ int main(int argc, char* argv[]) {
         DeepImage merged = deepMerge(images, compOpts, &stats);
 
         log("  Combined: " + formatNumber(stats.totalOutputSamples) + " total samples");
-        log("  Depth range: " + std::to_string(stats.minDepth) + " to " + std::to_string(stats.maxDepth));
+        log("  Depth range: " + std::to_string(stats.minDepth) + " to " +
+            std::to_string(stats.maxDepth));
         log("  Merge time: " + std::to_string(static_cast<int>(stats.mergeTimeMs)) + " ms");
 
         // Phase 3: Flatten
@@ -153,7 +154,8 @@ int main(int argc, char* argv[]) {
         }
 
         // Phase 4: Write
-        WriteOutputsPhase(merged, flatRgba, opts.outputPrefix, opts.deepOutput, opts.flatOutput, opts.pngOutput);
+        WriteOutputsPhase(merged, flatRgba, opts.outputPrefix, opts.deepOutput, opts.flatOutput,
+                          opts.pngOutput);
 
     } catch (const std::exception& e) {
         logError("Pipeline failed: " + std::string(e.what()));
