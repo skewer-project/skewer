@@ -24,12 +24,13 @@ struct DeepSegmentNode {
 // Thread-safe: atomic cursor for fast-path allocation, mutex only when growing.
 class DeepSegmentPool {
   public:
-    static constexpr size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28 MB)
+    static constexpr size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28-32 MB)
 
-    DeepSegmentPool() = default;
-    explicit DeepSegmentPool(size_t initial_chunks);
+    DeepSegmentPool();
+    explicit DeepSegmentPool(size_t max_chunks);
 
     // Allocate a node and return its logical index. Thread-safe.
+    // Returns (size_t)-1 if allocation failed (pool full).
     size_t Allocate();
 
     DeepSegmentNode& operator[](size_t index);
@@ -41,6 +42,7 @@ class DeepSegmentPool {
     void GrowToFit(size_t chunk_index);
 
     std::vector<std::unique_ptr<DeepSegmentNode[]>> chunks_;
+    size_t max_chunks_;
     std::atomic<size_t> cursor_{0};
     mutable std::mutex grow_mutex_;
 };
