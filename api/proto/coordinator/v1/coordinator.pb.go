@@ -217,6 +217,8 @@ type RenderJob struct {
 	TotalSamples    int32                  `protobuf:"varint,2,opt,name=total_samples,json=totalSamples,proto3" json:"total_samples,omitempty"`           // number of rays shot per pixel e.g., 1024
 	SampleDivision  int32                  `protobuf:"varint,3,opt,name=sample_division,json=sampleDivision,proto3" json:"sample_division,omitempty"`     // e.g., 4 (spawns 4 tasks of 256 samples per frame)
 	OutputUriPrefix string                 `protobuf:"bytes,4,opt,name=output_uri_prefix,json=outputUriPrefix,proto3" json:"output_uri_prefix,omitempty"` // gs://bucket/renders/smoke/
+	EnableDeep      bool                   `protobuf:"varint,5,opt,name=enable_deep,json=enableDeep,proto3" json:"enable_deep,omitempty"`
+	Threads         int32                  `protobuf:"varint,6,opt,name=threads,proto3" json:"threads,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -277,6 +279,20 @@ func (x *RenderJob) GetOutputUriPrefix() string {
 		return x.OutputUriPrefix
 	}
 	return ""
+}
+
+func (x *RenderJob) GetEnableDeep() bool {
+	if x != nil {
+		return x.EnableDeep
+	}
+	return false
+}
+
+func (x *RenderJob) GetThreads() int32 {
+	if x != nil {
+		return x.Threads
+	}
+	return 0
 }
 
 type CompositeJob struct {
@@ -760,6 +776,8 @@ type RenderTask struct {
 	SampleStart   int32  `protobuf:"varint,4,opt,name=sample_start,json=sampleStart,proto3" json:"sample_start,omitempty"`
 	SampleEnd     int32  `protobuf:"varint,5,opt,name=sample_end,json=sampleEnd,proto3" json:"sample_end,omitempty"` // End is EXCLUSIVE
 	OutputUri     string `protobuf:"bytes,6,opt,name=output_uri,json=outputUri,proto3" json:"output_uri,omitempty"`  // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
+	EnableDeep    bool   `protobuf:"varint,7,opt,name=enable_deep,json=enableDeep,proto3" json:"enable_deep,omitempty"`
+	Threads       int32  `protobuf:"varint,8,opt,name=threads,proto3" json:"threads,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -834,6 +852,20 @@ func (x *RenderTask) GetOutputUri() string {
 		return x.OutputUri
 	}
 	return ""
+}
+
+func (x *RenderTask) GetEnableDeep() bool {
+	if x != nil {
+		return x.EnableDeep
+	}
+	return false
+}
+
+func (x *RenderTask) GetThreads() int32 {
+	if x != nil {
+		return x.Threads
+	}
+	return 0
 }
 
 type MergeTask struct {
@@ -1115,12 +1147,15 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"render_job\x18\a \x01(\v2#.api.proto.coordinator.v1.RenderJobH\x00R\trenderJob\x12M\n" +
 	"\rcomposite_job\x18\b \x01(\v2&.api.proto.coordinator.v1.CompositeJobH\x00R\fcompositeJobB\n" +
 	"\n" +
-	"\bjob_type\"\xa2\x01\n" +
+	"\bjob_type\"\xdd\x01\n" +
 	"\tRenderJob\x12\x1b\n" +
 	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12#\n" +
 	"\rtotal_samples\x18\x02 \x01(\x05R\ftotalSamples\x12'\n" +
 	"\x0fsample_division\x18\x03 \x01(\x05R\x0esampleDivision\x12*\n" +
-	"\x11output_uri_prefix\x18\x04 \x01(\tR\x0foutputUriPrefix\"h\n" +
+	"\x11output_uri_prefix\x18\x04 \x01(\tR\x0foutputUriPrefix\x12\x1f\n" +
+	"\venable_deep\x18\x05 \x01(\bR\n" +
+	"enableDeep\x12\x18\n" +
+	"\athreads\x18\x06 \x01(\x05R\athreads\"h\n" +
 	"\fCompositeJob\x12,\n" +
 	"\x12layer_uri_prefixes\x18\x01 \x03(\tR\x10layerUriPrefixes\x12*\n" +
 	"\x11output_uri_prefix\x18\x02 \x01(\tR\x0foutputUriPrefix\"*\n" +
@@ -1156,7 +1191,7 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
 	"merge_task\x18\x05 \x01(\v2#.api.proto.coordinator.v1.MergeTaskH\x00R\tmergeTask\x12P\n" +
 	"\x0ecomposite_task\x18\x06 \x01(\v2'.api.proto.coordinator.v1.CompositeTaskH\x00R\rcompositeTaskB\t\n" +
-	"\apayload\"\xb8\x01\n" +
+	"\apayload\"\xf3\x01\n" +
 	"\n" +
 	"RenderTask\x12\x1b\n" +
 	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12\x14\n" +
@@ -1166,7 +1201,10 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
 	"sample_end\x18\x05 \x01(\x05R\tsampleEnd\x12\x1d\n" +
 	"\n" +
-	"output_uri\x18\x06 \x01(\tR\toutputUri\"]\n" +
+	"output_uri\x18\x06 \x01(\tR\toutputUri\x12\x1f\n" +
+	"\venable_deep\x18\a \x01(\bR\n" +
+	"enableDeep\x12\x18\n" +
+	"\athreads\x18\b \x01(\x05R\athreads\"]\n" +
 	"\tMergeTask\x121\n" +
 	"\x15partial_deep_exr_uris\x18\x01 \x03(\tR\x12partialDeepExrUris\x12\x1d\n" +
 	"\n" +
