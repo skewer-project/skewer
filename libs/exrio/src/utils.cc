@@ -1,6 +1,7 @@
 #include <exrio/utils.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 
 namespace exrio {
@@ -89,6 +90,19 @@ std::string getDirectory(const std::string& path) {
         return ".";
     }
     return path.substr(0, pos);
+}
+
+void ensureDirectoryExists(const std::string& filepath) {
+    std::string dir = getDirectory(filepath);
+    if (dir == "." || dir.empty()) {
+        return;
+    }
+
+    try {
+        std::filesystem::create_directories(dir);
+    } catch (const std::exception& e) {
+        logError("Failed to create directory " + dir + ": " + e.what());
+    }
 }
 
 bool fileExists(const std::string& path) {

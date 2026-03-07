@@ -80,9 +80,14 @@ std::string formatBytes(size_t bytes);
 std::string getFilename(const std::string& path);
 
 /**
- * Get the directory from a path
+ * Get directory part of a path
  */
 std::string getDirectory(const std::string& path);
+
+/**
+ * Ensure the parent directory of a file exists, creating it if necessary.
+ */
+void ensureDirectoryExists(const std::string& filepath);
 
 /**
  * Check if a file exists
