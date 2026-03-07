@@ -22,8 +22,8 @@ struct IntegratorConfig {
     // Adaptive sampling: when noise_threshold > 0, pixels that converge
     // below the threshold stop early. When 0, all pixels render to max_samples.
     float noise_threshold = 0.0f;
-    int min_samples = 1;     // Minimum samples before convergence checks
-    int adaptive_step = 16;    // Samples between convergence checks
+    int min_samples = 1;           // Minimum samples before convergence checks
+    int adaptive_step = 16;        // Samples between convergence checks
     bool save_sample_map = false;  // Debug: write per-pixel sample count heatmap
     bool enable_deep = false;
     // When true, primary rays that miss all geometry produce alpha=0 instead of
