@@ -1,7 +1,4 @@
 #include <grpcpp/grpcpp.h>
-#include "proto/coordinator/v1/coordinator.pb.h"
-#include "session/render_options.h"
-#include "session/render_session.h"
 
 #include <chrono>
 #include <cstdlib>
@@ -10,6 +7,9 @@
 #include <string>
 
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
+#include "proto/coordinator/v1/coordinator.pb.h"
+#include "session/render_options.h"
+#include "session/render_session.h"
 
 using api::proto::coordinator::v1::CoordinatorService;
 using api::proto::coordinator::v1::GetWorkStreamRequest;
@@ -21,24 +21,24 @@ using grpc::Channel;
 using grpc::ClientContext;
 
 void RunSkewerWorker(const std::string& coordinator_addr) {
-// Generate a unique worker ID with epoch (may change in the future)
-std::string worker_id =
-    "skewer-worker-" +
-    std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+    // Generate a unique worker ID with epoch (may change in the future)
+    std::string worker_id =
+        "skewer-worker-" +
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
-// Determine number of render threads from environment
-int render_threads = 2; // default fallback
-if (const char* env_threads = std::getenv("RENDER_THREADS")) {
-    try {
-        render_threads = std::stoi(env_threads);
-    } catch (...) {
-        std::cerr << "[SKEWER]: Error parsing RENDER_THREADS. Using default 2.\n";
+    // Determine number of render threads from environment
+    int render_threads = 2;  // default fallback
+    if (const char* env_threads = std::getenv("RENDER_THREADS")) {
+        try {
+            render_threads = std::stoi(env_threads);
+        } catch (...) {
+            std::cerr << "[SKEWER]: Error parsing RENDER_THREADS. Using default 2.\n";
+        }
     }
-}
 
-std::cout << "[SKEWER]: Starting worker loop, ID: " << worker_id << "\n";
-std::cout << "[SKEWER]: Coordinator Address: " << coordinator_addr << "\n";
-std::cout << "[SKEWER]: Render Threads: " << render_threads << "\n";
+    std::cout << "[SKEWER]: Starting worker loop, ID: " << worker_id << "\n";
+    std::cout << "[SKEWER]: Coordinator Address: " << coordinator_addr << "\n";
+    std::cout << "[SKEWER]: Render Threads: " << render_threads << "\n";
 
     // Open a gRPC channel to the coordinator
     std::shared_ptr<Channel> channel =
@@ -50,10 +50,11 @@ std::cout << "[SKEWER]: Render Threads: " << render_threads << "\n";
         ClientContext context;
         GetWorkStreamRequest request;
         request.set_worker_id(worker_id);
-        request.add_capabilities("skewer"); // may add more capabilities later
+        request.add_capabilities("skewer");  // may add more capabilities later
 
         // Actually get the stream work package
-        std::unique_ptr<grpc::ClientReader<WorkPackage>> stream(stub->GetWorkStream(&context, request));
+        std::unique_ptr<grpc::ClientReader<WorkPackage>> stream(
+            stub->GetWorkStream(&context, request));
 
         WorkPackage package;
         while (stream->Read(&package)) {
@@ -86,13 +87,14 @@ std::cout << "[SKEWER]: Render Threads: " << render_threads << "\n";
                 session.Options().image_config.width = task.width();
                 session.Options().image_config.height = task.height();
                 session.Options().integrator_config.start_sample = task.sample_start();
-                session.Options().integrator_config.samples_per_pixel = task.sample_end() - task.sample_start();
+                session.Options().integrator_config.samples_per_pixel =
+                    task.sample_end() - task.sample_start();
                 session.Options().integrator_config.num_threads = task_threads;
                 session.Options().image_config.outfile = task.output_uri();
                 session.Options().integrator_config.enable_deep = task.enable_deep();
 
-                std::cout << "[SKEWER]: Rendering " << task.width() << "x" << task.height() 
-                          << " (Samples: " << task.sample_start() << " to " << task.sample_end() 
+                std::cout << "[SKEWER]: Rendering " << task.width() << "x" << task.height()
+                          << " (Samples: " << task.sample_start() << " to " << task.sample_end()
                           << " | Threads: " << task_threads << ")\n";
 
                 // Re-initialize the film with the updated (smaller) chunk sample count
@@ -122,10 +124,11 @@ std::cout << "[SKEWER]: Render Threads: " << render_threads << "\n";
             report_req.set_output_uri(task.output_uri());
 
             ReportTaskResultResponse report_res;
-            ::grpc::Status report_status = stub->ReportTaskResult(&report_context, report_req, &report_res);
+            ::grpc::Status report_status =
+                stub->ReportTaskResult(&report_context, report_req, &report_res);
             if (!report_status.ok()) {
-                std::cerr << "[SKEWER]: Failed to report task result: " << report_status.error_message()
-                          << "\n";
+                std::cerr << "[SKEWER]: Failed to report task result: "
+                          << report_status.error_message() << "\n";
             } else {
                 std::cout << "[SKEWER]: Task " << package.task_id()
                           << " result reported successfully.\n";
