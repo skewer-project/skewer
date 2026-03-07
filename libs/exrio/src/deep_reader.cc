@@ -21,7 +21,8 @@ bool isDeepEXR(const std::string& filename) {
         if (!f) return false;
         char magic[4];
         f.read(magic, 4);
-        if (magic[0] != 0x76 || magic[1] != 0x2f || magic[2] != 0x31 || magic[3] != 0x01) return false;
+        if (magic[0] != 0x76 || magic[1] != 0x2f || magic[2] != 0x31 || magic[3] != 0x01)
+            return false;
         f.close();
 
         // Try opening as a deep scanline file
