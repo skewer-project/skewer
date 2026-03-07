@@ -6,6 +6,7 @@
 
 #include "barkeep.h"
 #include "core/constants.h"
+#include "film/deep_segment_pool.h"
 #include "integrators/path_sample.h"
 
 namespace skwr {
@@ -13,18 +14,7 @@ namespace skwr {
 namespace bk = barkeep;
 
 Film::Film(int width, int height)
-    : width_(width),
-      height_(height),
-      pixels_(width_ * height_),
-      deep_pool_(width_ * height_ * 100 * 4) {
-    // pixels_.resize(width_ * height_);
-
-    // Pre-allocate pool based on expected usage
-    // Estimate: width * height * samples_per_pixel * avg_segments_per_path
-    // Example: 1920x1080 * 16spp * 8 segments = ~265M nodes
-    // might want to make this configurable
-    // deep_pool_.resize(width_ * height_ * 16 * 4);
-}
+    : width_(width), height_(height), pixels_(width_ * height_), deep_pool_(1) {}
 
 void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
@@ -37,6 +27,39 @@ void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     p.color_sum += L * weight;
     p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
+    ++p.sample_count;
+}
+
+void Film::AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight) {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+
+    Pixel& p = pixels_[y * width_ + x];
+    p.color_sum += L * weight;
+    p.alpha_sum += alpha * weight;
+    p.weight_sum += weight;
+    ++p.sample_count;
+    p.color_sq_sum += L * L * weight;
+}
+
+bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
+    const Pixel& p = pixels_[y * width_ + x];
+    float n = static_cast<float>(p.sample_count);
+    if (n < 2.0f) return false;
+
+    RGB mean = p.color_sum / n;
+    RGB mean_sq = p.color_sq_sum / n;
+    float var_r = std::max(0.0f, mean_sq.r() - mean.r() * mean.r());
+    float var_g = std::max(0.0f, mean_sq.g() - mean.g() * mean.g());
+    float var_b = std::max(0.0f, mean_sq.b() - mean.b() * mean.b());
+
+    float mean_lum = 0.2126f * mean.r() + 0.7152f * mean.g() + 0.0722f * mean.b();
+    float var_lum =
+        (0.2126f * 0.2126f) * var_r + (0.7152f * 0.7152f) * var_g + (0.0722f * 0.0722f) * var_b;
+
+    // Clamp luminance floor to 0.5 (Cycles approach) so dark pixels
+    // use an absolute threshold instead of blowing up relative noise.
+    float noise = std::sqrt(var_lum / n);
+    return noise / std::max(mean_lum, 0.5f) < noise_threshold;
 }
 
 void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
@@ -54,13 +77,8 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
         if (seg.z_front >= seg.z_back && seg.z_back != kFarClip) continue;
         if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
 
-        // Allocate node from pool
-        size_t node_index = pool_cursor_.fetch_add(1, std::memory_order_relaxed);
-        if (node_index >= deep_pool_.size()) {
-            // could dynamically grow this later
-            std::cerr << "Warning: Deep pool exhausted at pixel (" << x << "," << y << ")\n";
-            return;
-        }
+        // Allocate node from pool (grows automatically)
+        size_t node_index = deep_pool_.Allocate();
 
         // Fill node
         DeepSegmentNode& node = deep_pool_[node_index];
@@ -81,7 +99,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     }
 }
 
-exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
+exrio::DeepImage Film::BuildDeepImage() const {
     // Pass 1: Count samples per pixel
     std::vector<unsigned int> counts(width_ * height_, 0);
 
@@ -146,7 +164,7 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                           return a.z_front < b.z_front;
                       });
 
-            segments = MergeDeepSegments(segments, total_pixel_samples);
+            segments = MergeDeepSegments(segments, GetPixel(x, y).sample_count);
 
             // Convert to deep_compositor::DeepSample and add to result
             exrio::DeepPixel& pixel = result.pixel(x, y);
@@ -165,7 +183,7 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
 
 // Helper: Merge overlapping/adjacent segments
 std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
-                                                const int total_pixel_samples) const {
+                                                int pixel_sample_count) const {
     if (input.empty()) return input;
 
     std::vector<DeepSample> merged;
@@ -206,7 +224,7 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
     merged.push_back(current);
 
-    float norm = 1.0f / total_pixel_samples;
+    float norm = 1.0f / std::max(pixel_sample_count, 1);
 
     for (auto& seg : merged) {
         seg.r *= norm;
@@ -219,6 +237,42 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
     }
 
     return merged;
+}
+
+void Film::WriteSampleMap(const std::string& filename, int max_samples) const {
+    std::vector<float> rgba(static_cast<size_t>(width_) * height_ * 4);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const Pixel& p = GetPixel(x, y);
+            float t = (max_samples > 0)
+                          ? std::min(static_cast<float>(p.sample_count) / max_samples, 1.0f)
+                          : 0.0f;
+
+            // Blue (0,0,1) → Green (0,1,0) → Red (1,0,0)
+            float r, g, b;
+            if (t < 0.5f) {
+                float s = t * 2.0f;
+                r = 0.0f;
+                g = s;
+                b = 1.0f - s;
+            } else {
+                float s = (t - 0.5f) * 2.0f;
+                r = s;
+                g = 1.0f - s;
+                b = 0.0f;
+            }
+
+            size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
+            rgba[idx + 0] = r;
+            rgba[idx + 1] = g;
+            rgba[idx + 2] = b;
+            rgba[idx + 3] = 1.0f;
+        }
+    }
+
+    exrio::writePNG(rgba, width_, height_, filename);
+    std::cout << "Wrote sample map to " << filename << "\n";
 }
 
 void Film::WriteImage(const std::string& filename) const {
