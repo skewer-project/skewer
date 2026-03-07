@@ -13,8 +13,7 @@ namespace skwr {
 
 namespace bk = barkeep;
 
-Film::Film(int width, int height)
-    : width_(width), height_(height), pixels_(width_ * height_) {}
+Film::Film(int width, int height) : width_(width), height_(height), pixels_(width_ * height_) {}
 
 void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
@@ -41,14 +40,15 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
 
         // Allocate node from pool
         size_t node_index = deep_pool_.Allocate();
-        
+
         // Safety: If pool is full, we must stop adding segments for this path
         if (node_index == static_cast<size_t>(-1)) {
             static std::atomic<bool> warned{false};
             if (!warned.exchange(true)) {
-                std::cerr << "[SKEWER] Warning: Deep segment pool hit its safety limit. Dropping samples.\n";
+                std::cerr << "[SKEWER] Warning: Deep segment pool hit its safety limit. Dropping "
+                             "samples.\n";
             }
-            break; 
+            break;
         }
 
         // Fill node
@@ -90,9 +90,9 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
 
             // Collect samples for THIS pixel only
             std::vector<DeepSample> segments;
-            
+
             // Limit per-pixel complexity to avoid massive sorting/merging costs
-            const int kMaxSegmentsPerPixel = 128; 
+            const int kMaxSegmentsPerPixel = 128;
             int count = 0;
             while (head != -1 && count < kMaxSegmentsPerPixel) {
                 const DeepSegmentNode& node = deep_pool_[head];
