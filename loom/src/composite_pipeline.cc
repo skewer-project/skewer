@@ -11,9 +11,10 @@ namespace exrio {
 
 std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFiles) {
     log("Loading " + std::to_string(inputFiles.size()) + " inputs...");
-    
+
     if (inputFiles.empty()) {
-        throw std::runtime_error("No input files provided for loading phase (PartialDeepExrUris is empty)");
+        throw std::runtime_error(
+            "No input files provided for loading phase (PartialDeepExrUris is empty)");
     }
 
     Timer loadTimer;
@@ -26,11 +27,12 @@ std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFile
     for (size_t i = 0; i < inputFiles.size(); ++i) {
         const std::string& filename = inputFiles[i];
 
-        logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(inputFiles.size()) + "] " + filename);
+        logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(inputFiles.size()) + "] " +
+                   filename);
 
         // Explicit check with a clear error message for the logs
         if (!fileExists(filename)) {
-            throw std::runtime_error("Loom cannot find input file: " + filename + 
+            throw std::runtime_error("Loom cannot find input file: " + filename +
                                      " (Check if volume mounts or path translation are correct)");
         }
 
@@ -42,9 +44,10 @@ std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFile
             // Load the image and add it to the vector while also logging stats
             DeepImage img = loadDeepEXR(filename);
 
-            std::string stats = "    " + std::to_string(img.width()) + "x" + std::to_string(img.height()) + ", " +
-                                formatNumber(img.totalSampleCount()) + " total samples (avg " +
-                                std::to_string(img.averageSamplesPerPixel()).substr(0, 4) + " samples/pixel)";
+            std::string stats =
+                "    " + std::to_string(img.width()) + "x" + std::to_string(img.height()) + ", " +
+                formatNumber(img.totalSampleCount()) + " total samples (avg " +
+                std::to_string(img.averageSamplesPerPixel()).substr(0, 4) + " samples/pixel)";
             logVerbose(stats);
 
             // Check for dimension mismatches
@@ -78,11 +81,8 @@ std::vector<float> FlattenPhase(const DeepImage& mergedImage) {
 }
 
 // Write the results back to disk using exrio's write functions.
-void WriteOutputsPhase(const DeepImage& mergedImage,
-                       const std::vector<float>& flatRgba,
-                       const std::string& outputPrefix,
-                       bool deepOutput,
-                       bool flatOutput,
+void WriteOutputsPhase(const DeepImage& mergedImage, const std::vector<float>& flatRgba,
+                       const std::string& outputPrefix, bool deepOutput, bool flatOutput,
                        bool pngOutput) {
     log("\nWriting outputs...");
     Timer writeTimer;
@@ -122,4 +122,4 @@ void WriteOutputsPhase(const DeepImage& mergedImage,
     logVerbose("  Write time: " + writeTimer.elapsedString());
 }
 
-} // namespace exrio
+}  // namespace exrio

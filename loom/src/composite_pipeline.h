@@ -1,6 +1,7 @@
 #pragma once
 
 #include <exrio/deep_image.h>
+
 #include <string>
 #include <vector>
 
@@ -18,11 +19,8 @@ std::vector<float> FlattenPhase(const DeepImage& mergedImage);
 
 // Phase 4: Write the results back to disk.
 // Throws std::runtime_error on failure.
-void WriteOutputsPhase(const DeepImage& mergedImage,
-                       const std::vector<float>& flatRgba,
-                       const std::string& outputPrefix,
-                       bool deepOutput,
-                       bool flatOutput,
+void WriteOutputsPhase(const DeepImage& mergedImage, const std::vector<float>& flatRgba,
+                       const std::string& outputPrefix, bool deepOutput, bool flatOutput,
                        bool pngOutput);
 
-} // namespace exrio
+}  // namespace exrio
