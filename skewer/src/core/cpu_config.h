@@ -9,6 +9,9 @@
  */
 constexpr int kNSamples = 4;
 
+/** Hardcap based on maximum allowed bounces (e.g., 16 or 32) */
+constexpr size_t kMaxDeepSegments = 16;
+
 /**
  * Define a maximum overlap depth. 4 is the industry standard for path tracers
  * (e.g., camera -> glass -> water -> ice). Exceeding 4 overlaps of transmissive
