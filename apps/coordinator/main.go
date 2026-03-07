@@ -25,12 +25,12 @@ func main() {
 
 	// Create dependencies
 	// TODO: Make these configurable and make arguments for skewer and loom queue sizes separate
-	scheduler := coordinator.NewScheduler(4) // The max queue size for both task queues.
+	scheduler := coordinator.NewScheduler(10000) // Increase queue size to handle large jobs without blocking
 	tracker := coordinator.NewJobTracker()
 
 	ctx := context.Background()
 
-	scheduler.StartSweeper(ctx, time.Hour, time.Minute)
+	go scheduler.StartSweeper(ctx, time.Hour, time.Minute)
 
 	// Create Cloud Manager (passing an empty string for local testing if credentials aren't explicitly provided yet)
 	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")

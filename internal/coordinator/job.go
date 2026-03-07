@@ -195,6 +195,10 @@ func (jt *JobTracker) CancelJob(jobID string) error {
 	// Mark job as FAILED for now in JobTracker (maybe we can add JOB_STATUS_CANCELLED)
 	job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_FAILED)
 
+	// Remove it from active tracking so it no longer exists
+	delete(jt.activeJobs, jobID)
+	delete(jt.pendingDeps, jobID)
+
 	// Flush any pending tasks for this job from the Scheduler queue
 	return nil
 }
