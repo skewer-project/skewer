@@ -35,6 +35,7 @@ inline bool IntersectSphere(const Ray& r, const Sphere& s, float t_min, float t_
     si->wo = -r.direction();
     si->n_geom = outward_normal;
     si->material_id = s.material_id;
+    si->light_index = s.light_index;
     si->exterior_medium = s.exterior_medium;
     si->interior_medium = s.interior_medium;
     si->priority = s.priority;

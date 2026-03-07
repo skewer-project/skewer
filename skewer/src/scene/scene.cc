@@ -30,9 +30,11 @@ void Scene::Build() {
             light.primitive_index = i;
             light.emission = mat.emission;
             lights_.push_back(light);
+            spheres_[i].light_index = static_cast<int32_t>(lights_.size() - 1);
         }
     }
 
+    // TODO: Update triangle creation with in/out medium setting
     // Bake one Triangle per mesh face, capturing final vertex positions,
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
@@ -88,6 +90,7 @@ void Scene::Build() {
             light.primitive_index = i;
             light.emission = mat.emission;
             lights_.push_back(light);
+            triangles_[i].light_index = static_cast<int32_t>(lights_.size() - 1);
         }
     }
     inv_light_count_ = 1.0f / lights_.size();

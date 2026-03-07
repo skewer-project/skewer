@@ -14,6 +14,7 @@ struct Triangle {
     Vec3 n0, n1, n2;     // Per-vertex normals (all set to geometric normal for flat meshes)
     Vec3 uv0, uv1, uv2;  // Per-vertex UVs (z unused)
     uint32_t material_id;
+    int32_t light_index = -1;
     uint16_t interior_medium;
     uint16_t exterior_medium;
     uint16_t priority;
