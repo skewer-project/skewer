@@ -28,7 +28,3 @@ images/
 # generated images
 *.exr
 *.ppm
-
-# Go Binaries
-coordinator
-*.exe

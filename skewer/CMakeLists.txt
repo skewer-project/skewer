@@ -43,6 +43,7 @@ endif()
 set(SKEWER_CORE_SOURCES
     src/session/render_session.cc
     src/scene/scene.cc
+    src/film/deep_segment_pool.cc
     src/film/film.cc
     src/film/image_buffer.cc
     src/integrators/path_trace.cc
@@ -76,6 +77,7 @@ target_include_directories(skewer-worker
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/external
+        ${CMAKE_BINARY_DIR}
 )
 
 set_source_files_properties(src/io/scene_loader.cc PROPERTIES
@@ -96,6 +98,7 @@ target_link_libraries(skewer-worker
     Imath::Imath
     OpenEXR::OpenEXR
     ZLIB::ZLIB
+    coordinator_proto
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")

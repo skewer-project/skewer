@@ -32,11 +32,17 @@ class RenderSession {
     // Optional thread_override: if > 0, overrides the thread count from JSON.
     void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
 
+    // Update the film buffer if options (like samples_per_pixel) have changed
+    void RebuildFilm();
+
     // EXECUTE: Run the integrator on the scene
     void Render();
 
     // OUTPUT: Write the rendered image to disk
     void Save() const;
+
+    RenderOptions& Options() { return options_; }
+    const RenderOptions& Options() const { return options_; }
 
   private:
     // The 'World' (Geometry, Lights, Accelerators)

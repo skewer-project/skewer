@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "composite_pipeline.h"
 #include "deep_compositor.h"
 
 namespace {
@@ -123,142 +124,44 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Set verbose mode
     setVerbose(opts.verbose);
-
-    log("Loom v" + std::string(VERSION));
+    log("Deep Compositor v" + std::string(VERSION));
 
     Timer totalTimer;
 
-    // ========================================================================
-    // Load Phase
-    // ========================================================================
-    logVerbose("Loading inputs...");
-    Timer loadTimer;
-
-    std::vector<DeepImage> images;
-    images.reserve(opts.inputFiles.size());
-
-    for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
-        const std::string& filename = opts.inputFiles[i];
-
-        logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.inputFiles.size()) +
-                   "] " + filename);
-
-        try {
-            // Check if it's a deep EXR
-            if (!isDeepEXR(filename)) {
-                logError("File is not a deep EXR: " + filename);
-                return 1;
-            }
-
-            DeepImage img = loadDeepEXR(filename);
-
-            // Log statistics
-            std::string stats =
-                "    " + std::to_string(img.width()) + "x" + std::to_string(img.height()) + ", " +
-                formatNumber(img.totalSampleCount()) + " total samples (avg " +
-                std::to_string(img.averageSamplesPerPixel()).substr(0, 4) + " samples/pixel)";
-            logVerbose(stats);
-
-            // Validate dimensions match
-            if (!images.empty()) {
-                if (img.width() != images[0].width() || img.height() != images[0].height()) {
-                    logError("Image dimensions mismatch: " + filename);
-                    logError("  Expected: " + std::to_string(images[0].width()) + "x" +
-                             std::to_string(images[0].height()));
-                    logError("  Got: " + std::to_string(img.width()) + "x" +
-                             std::to_string(img.height()));
-                    return 1;
-                }
-            }
-
-            images.push_back(std::move(img));
-
-        } catch (const DeepReaderException& e) {
-            logError("Failed to load " + filename + ": " + e.what());
-            return 1;
-        }
-    }
-
-    logVerbose("  Load time: " + loadTimer.elapsedString());
-
-    // ========================================================================
-    // Merge Phase
-    // ========================================================================
-    logVerbose("Merging...");
-
-    CompositorOptions compOpts;
-    compOpts.mergeThreshold = opts.mergeThreshold;
-    compOpts.enableMerging = (opts.mergeThreshold > 0.0f);
-
-    CompositorStats stats;
-
-    DeepImage merged = deepMerge(images, compOpts, &stats);
-
-    logVerbose("  Combined: " + formatNumber(stats.totalOutputSamples) + " total samples");
-    logVerbose("  Depth range: " + std::to_string(stats.minDepth) + " to " +
-               std::to_string(stats.maxDepth));
-    logVerbose("  Merge time: " + std::to_string(static_cast<int>(stats.mergeTimeMs)) + " ms");
-
-    // ========================================================================
-    // Flatten Phase
-    // ========================================================================
-    std::vector<float> flatRgba;
-
-    if (opts.flatOutput || opts.pngOutput) {
-        logVerbose("Flattening...");
-        Timer flattenTimer;
-
-        flatRgba = flattenImage(merged);
-
-        logVerbose("  Flatten time: " + flattenTimer.elapsedString());
-    }
-
-    // ========================================================================
-    // Write Phase
-    // ========================================================================
-    log("Writing outputs...");
-    Timer writeTimer;
-
     try {
-        // Write deep output if requested
-        if (opts.deepOutput) {
-            std::string deepPath = opts.outputPrefix + "_merged.exr";
-            writeDeepEXR(merged, deepPath);
-            log("  Wrote: " + deepPath);
+        // Phase 1: Load
+        std::vector<DeepImage> images = LoadImagesPhase(opts.inputFiles);
+
+        // Phase 2: Merge (Using your existing deep_compositor math engine!)
+        log("\nMerging...");
+        CompositorOptions compOpts;
+        compOpts.mergeThreshold = opts.mergeThreshold;
+        compOpts.enableMerging = (opts.mergeThreshold > 0.0f);
+
+        CompositorStats stats;
+        DeepImage merged = deepMerge(images, compOpts, &stats);
+
+        log("  Combined: " + formatNumber(stats.totalOutputSamples) + " total samples");
+        log("  Depth range: " + std::to_string(stats.minDepth) + " to " +
+            std::to_string(stats.maxDepth));
+        log("  Merge time: " + std::to_string(static_cast<int>(stats.mergeTimeMs)) + " ms");
+
+        // Phase 3: Flatten
+        std::vector<float> flatRgba;
+        if (opts.flatOutput || opts.pngOutput) {
+            flatRgba = FlattenPhase(merged);
         }
 
-        // Write flat EXR if requested
-        if (opts.flatOutput) {
-            std::string flatPath = opts.outputPrefix + "_flat.exr";
-            writeFlatEXR(flatRgba, merged.width(), merged.height(), flatPath);
-            log("  Wrote: " + flatPath);
-        }
+        // Phase 4: Write
+        WriteOutputsPhase(merged, flatRgba, opts.outputPrefix, opts.deepOutput, opts.flatOutput,
+                          opts.pngOutput);
 
-        // Write PNG if requested
-        if (opts.pngOutput) {
-            std::string pngPath = opts.outputPrefix + ".png";
-
-            if (hasPNGSupport()) {
-                writePNG(flatRgba, merged.width(), merged.height(), pngPath);
-                log("  Wrote: " + pngPath);
-            } else {
-                log("  Skipped PNG (libpng not available)");
-            }
-        }
-
-    } catch (const DeepWriterException& e) {
-        logError("Failed to write output: " + std::string(e.what()));
+    } catch (const std::exception& e) {
+        logError("Pipeline failed: " + std::string(e.what()));
         return 1;
     }
 
-    logVerbose("  Write time: " + writeTimer.elapsedString());
-
-    // ========================================================================
-    // Summary
-    // ========================================================================
-    logVerbose("Done! Total time: " + totalTimer.elapsedString());
-
+    log("\nDone! Total time: " + totalTimer.elapsedString());
     return 0;
 }
