@@ -49,6 +49,8 @@ message RenderJob {
   int32 total_samples = 2; // number of rays shot per pixel e.g., 1024
   int32 sample_division = 3; // e.g., 4 (spawns 4 tasks of 256 samples per frame)
   string output_uri_prefix = 4; // gs://bucket/renders/smoke/
+  bool enable_deep = 5;
+  int32 threads = 6;
 }
 
 message CompositeJob {
@@ -126,6 +128,8 @@ message RenderTask {
   int32 sample_end = 5; // End is EXCLUSIVE
 
   string output_uri = 6; // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
+  bool enable_deep = 7;
+  int32 threads = 8;
 }
 
 message MergeTask {
