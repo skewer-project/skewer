@@ -21,7 +21,7 @@ float LightPdfA(const Scene& scene, int light_index) {
     return 0.0f;
 }
 
-LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
+LightSample SampleLight(const Scene& scene, const AreaLight& light, int light_index, RNG& rng) {
     LightSample result;
     result.emission = light.emission;
 
@@ -32,7 +32,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
         result.p = s.center + random_point * s.radius;
         result.n = random_point;
 
-        result.pdf = LightPdfA(scene, light.primitive_index);
+        result.pdf = LightPdfA(scene, light_index);
     } else if (light.type == AreaLight::Triangle) {
         const Triangle& t = scene.Triangles()[light.primitive_index];
 
@@ -48,7 +48,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
         result.p = (1.0f - sqrt_r1) * p0 + (sqrt_r1 * (1.0f - r2)) * p1 + (sqrt_r1 * r2) * p2;
         result.n = Normalize(Cross(t.e1, t.e2));
 
-        result.pdf = LightPdfA(scene, light.primitive_index);
+        result.pdf = LightPdfA(scene, light_index);
     }
 
     return result;

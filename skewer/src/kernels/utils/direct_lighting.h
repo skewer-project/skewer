@@ -22,7 +22,7 @@ inline bool GenerateLightSample(const Vec3& origin, const Scene& scene, RNG& rng
 
     int light_index = int(rng.UniformFloat() * scene.Lights().size());
     const AreaLight& light = scene.Lights()[light_index];
-    LightSample ls = SampleLight(scene, light, rng);
+    LightSample ls = SampleLight(scene, light, light_index, rng);
 
     Vec3 to_light = ls.p - origin;
     float dist_sq = to_light.LengthSquared();
