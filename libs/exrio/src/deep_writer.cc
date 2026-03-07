@@ -77,6 +77,7 @@ std::vector<float> flattenImage(const DeepImage& img) {
 
 void writeDeepEXR(const DeepImage& img, const std::string& filename) {
     logVerbose("  Writing deep EXR: " + filename);
+    ensureDirectoryExists(filename);
 
     int width = img.width();
     int height = img.height();
@@ -222,6 +223,7 @@ void writeFlatEXR(const DeepImage& img, const std::string& filename) {
 void writeFlatEXR(const std::vector<float>& rgba, int width, int height,
                   const std::string& filename) {
     logVerbose("  Writing flat EXR: " + filename);
+    ensureDirectoryExists(filename);
 
     if (width <= 0 || height <= 0) {
         throw DeepWriterException("Invalid image dimensions");
@@ -303,6 +305,7 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
     throw DeepWriterException("PNG support not compiled in");
 #else
     logVerbose("  Writing PNG: " + filename);
+    ensureDirectoryExists(filename);
 
     if (width <= 0 || height <= 0) {
         throw DeepWriterException("Invalid image dimensions");

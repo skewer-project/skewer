@@ -8,6 +8,7 @@
 #include <exrio/deep_reader.h>
 #include <exrio/utils.h>
 
+#include <fstream>
 #include <memory>
 #include <vector>
 
@@ -15,15 +16,28 @@ namespace exrio {
 
 bool isDeepEXR(const std::string& filename) {
     try {
-        Imf::MultiPartInputFile file(filename.c_str());
-        if (file.parts() < 1) {
-            return false;
-        }
+        // First check magic number to avoid heavy parsing of non-EXR files
+        std::ifstream f(filename, std::ios::binary);
+        if (!f) return false;
+        char magic[4];
+        f.read(magic, 4);
+        if (magic[0] != 0x76 || magic[1] != 0x2f || magic[2] != 0x31 || magic[3] != 0x01) return false;
+        f.close();
 
-        const Imf::Header& header = file.header(0);
+        // Try opening as a deep scanline file
+        Imf::DeepScanLineInputFile file(filename.c_str());
+        const Imf::Header& header = file.header();
         return header.hasType() && Imf::isDeepData(header.type());
     } catch (...) {
-        return false;
+        // Fallback for multi-part deep files
+        try {
+            Imf::MultiPartInputFile file(filename.c_str());
+            if (file.parts() < 1) return false;
+            const Imf::Header& header = file.header(0);
+            return header.hasType() && Imf::isDeepData(header.type());
+        } catch (...) {
+            return false;
+        }
     }
 }
 
