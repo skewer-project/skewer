@@ -4,7 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
-#include <mutex>
+#include <shared_mutex>
 #include <vector>
 
 #include "core/color.h"
@@ -39,10 +39,12 @@ class DeepSegmentPool {
 
   private:
     void GrowToFit(size_t chunk_index);
+    DeepSegmentNode* GetChunk(size_t chunk_index);
+    const DeepSegmentNode* GetChunk(size_t chunk_index) const;
 
     std::vector<std::unique_ptr<DeepSegmentNode[]>> chunks_;
     std::atomic<size_t> cursor_{0};
-    mutable std::mutex grow_mutex_;
+    mutable std::shared_mutex chunks_mutex_;
 };
 }  // namespace skwr
 
