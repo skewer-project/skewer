@@ -34,6 +34,14 @@ target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(loom src/main.cc)
 target_link_libraries(loom PRIVATE loom_compositor)
 
+# Worker executable
+add_executable(loom-worker apps/worker/main.cc)
+target_include_directories(loom-worker PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}
+)
+target_link_libraries(loom-worker PRIVATE loom_compositor)
+
 # Create output directory
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
 

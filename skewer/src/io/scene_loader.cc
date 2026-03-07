@@ -341,6 +341,8 @@ static SceneConfig ParseConfig(const json& j) {
     config.look_at = ParseVec3(cam.at("look_at"));
     config.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
     config.vfov = GetOr(cam, "vfov", 90.0f);
+    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
+    config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
 
     // --- Render ---
     auto& opts = config.render_options;
