@@ -1,10 +1,52 @@
 package cmd
 
 import (
+	"fmt"
+	"net"
 	"os"
+	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
+
+var coordinatorAddr string
+
+func ensureConnection(addr string) error {
+	// If not localhost, don't try to port-forward
+	if !strings.HasPrefix(addr, "localhost:") && !strings.HasPrefix(addr, "127.0.0.1:") {
+		return nil
+	}
+
+	_, err := net.DialTimeout("tcp", addr, 1*time.Second)
+	if err == nil {
+		// Connection already works
+		return nil
+	}
+
+	fmt.Println("[CLI] Coordinator not reachable. Attempting to port-forward...")
+
+	// Spawn kubectl port-forward in the background
+	// We'll just run it and hope for the best, letting it stay alive
+	cmd := exec.Command("kubectl", "port-forward", "svc/skewer-coordinator", "50051:50051")
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start kubectl port-forward: %w", err)
+	}
+
+	// Wait a bit for the connection to establish
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		time.Sleep(1 * time.Second)
+		_, err := net.DialTimeout("tcp", addr, 1*time.Second)
+		if err == nil {
+			fmt.Println("[CLI] Port-forwarding successful.")
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to connect to coordinator after port-forwarding")
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -35,7 +77,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.skewer.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&coordinatorAddr, "coordinator", "c", "localhost:50051", "Address of the Skewer Coordinator")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

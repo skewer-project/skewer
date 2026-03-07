@@ -5,11 +5,17 @@
 #include <exrio/utils.h>
 
 #include <stdexcept>
+#include <string>
 
 namespace exrio {
 
 std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFiles) {
-    log("Loading inputs...");
+    log("Loading " + std::to_string(inputFiles.size()) + " inputs...");
+    
+    if (inputFiles.empty()) {
+        throw std::runtime_error("No input files provided for loading phase (PartialDeepExrUris is empty)");
+    }
+
     Timer loadTimer;
 
     // Reserve space for all images upfront to avoid reallocations
@@ -21,6 +27,12 @@ std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFile
         const std::string& filename = inputFiles[i];
 
         logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(inputFiles.size()) + "] " + filename);
+
+        // Explicit check with a clear error message for the logs
+        if (!fileExists(filename)) {
+            throw std::runtime_error("Loom cannot find input file: " + filename + 
+                                     " (Check if volume mounts or path translation are correct)");
+        }
 
         try {
             if (!isDeepEXR(filename)) {
@@ -90,7 +102,12 @@ void WriteOutputsPhase(const DeepImage& mergedImage,
         }
 
         if (pngOutput) {
-            std::string pngPath = outputPrefix + ".png";
+            std::string pngPath = outputPrefix;
+            // Ensure we have an extension if not provided
+            if (pngPath.find('.') == std::string::npos) {
+                pngPath += ".png";
+            }
+
             if (hasPNGSupport()) {
                 writePNG(flatRgba, mergedImage.width(), mergedImage.height(), pngPath);
                 log("  Wrote: " + pngPath);

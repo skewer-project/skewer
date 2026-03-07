@@ -18,6 +18,11 @@ var cancelCmd = &cobra.Command{
 	Use:   "cancel",
 	Short: "Cancel a running Skewer job",
 	Run: func(cmd *cobra.Command, args []string) {
+		// Automate port-forwarding if needed
+		if err := ensureConnection(coordinatorAddr); err != nil {
+			log.Fatalf("Error establishing connection: %v", err)
+		}
+
 		conn, err := grpc.NewClient(coordinatorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("Did not connect: %v", err)
@@ -48,7 +53,6 @@ var cancelCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(cancelCmd)
 
-	cancelCmd.Flags().StringVarP(&coordinatorAddr, "coordinator", "c", "localhost:50051", "Address of the Skewer Coordinator")
 	cancelCmd.Flags().StringVarP(&cancelJobID, "job", "j", "", "The UUID of the job to cancel")
 	cancelCmd.MarkFlagRequired("job")
 }

@@ -41,14 +41,6 @@ target_include_directories(loom-worker PRIVATE
     ${PROJECT_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}
 )
-target_link_libraries(loom-worker PRIVATE loom_compositor)
-
-# Worker executable
-add_executable(loom-worker apps/worker/main.cc)
-target_include_directories(loom-worker PRIVATE
-    ${PROJECT_SOURCE_DIR}/src
-    ${CMAKE_BINARY_DIR}
-)
 target_link_libraries(loom-worker PRIVATE loom_compositor coordinator_proto)
 
 # Create output directory

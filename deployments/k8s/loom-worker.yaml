@@ -21,7 +21,7 @@ spec:
         image: loom-worker:latest
         imagePullPolicy: IfNotPresent
         env:
-        - name: COORDINATOR_ADDRESS
+        - name: COORDINATOR_ADDR
           value: "skewer-coordinator.default.svc.cluster.local:50051"
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: "/etc/secrets/credentials.json"
@@ -33,11 +33,12 @@ spec:
           mountPath: "/data"
         resources:
           requests:
-            cpu: "500m"
-            memory: "2Gi"
+            cpu: "100m"
+            memory: "256Mi"
           limits:
-            cpu: "1000m"
+            cpu: "2000m"
             memory: "4Gi"
+
       volumes:
       - name: gcp-credentials
         secret:
