@@ -376,6 +376,7 @@ static SceneConfig ParseConfig(const json& j) {
         opts.integrator_config.enable_deep = GetOr(r, "enable_deep", false);
         opts.integrator_config.transparent_background = GetOr(r, "transparent_background", false);
         opts.integrator_config.visibility_depth = GetOr(r, "visibility_depth", 1);
+        opts.integrator_config.tile_size = GetOr(r, "tile_size", 32);
 
         // Image config (nested)
         if (r.contains("image")) {
