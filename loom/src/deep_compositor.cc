@@ -33,7 +33,10 @@ namespace deep_compositor {
 // 2. Merge samples across images based on depth proximity
 // 3. Output merged deep EXR, flattened EXR, and PNG preview
 
+const int NUM_CHANNELS = 6; 
+
 enum RowStates { EMPTY, LOADED, MERGED, FLATTENED, ERROR };
+
 
 std::vector<float> processAllEXR(const Options& opts, int height, int width,
                                  std::vector<std::unique_ptr<DeepInfo>>& imagesInfo) {
@@ -112,7 +115,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
                 // char* permanentCountPtr = (char*)row.sampleCounts.data();
                 // char* basePtr = (char*)(row.allSamples);  // Location of block of memor
 
-                size_t sampleStride = 6 * sizeof(float);
+                size_t sampleStride = NUM_CHANNELS * sizeof(float);
                 size_t xStride = 0;  // Since we're using a single contiguous block, xStride is 0
                 // size_t yStride = 0; // Since we're using a single contiguous block, yStride is 0
 
@@ -129,7 +132,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
                     zbPtrs[x] = currentPixelPtr + 5;  // Points to ZBack
 
                     // Move to the next pixel: jump by (samples in this pixel * 6 channels)
-                    currentPixelPtr += row.sampleCounts[x] * 6;
+                    currentPixelPtr += row.sampleCounts[x] * NUM_CHANNELS;
                 }
 
                 std::vector<float*> pixelPointers(width);
