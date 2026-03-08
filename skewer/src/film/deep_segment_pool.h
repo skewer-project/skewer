@@ -12,11 +12,11 @@
 namespace skwr {
 
 struct DeepSegmentNode {
+    int next;  // logical index into the chunked pool
     float z_front;
     float z_back;
-    RGB L;
     float alpha;
-    int next;  // logical index into the chunked pool
+    RGB L;
 };
 
 // Chunked pool allocator for DeepSegmentNodes.
