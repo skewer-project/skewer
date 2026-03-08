@@ -85,7 +85,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                             float u = (float(x) + rng.UniformFloat()) / width;
                             float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
                             SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
-                            Ray r = cam.GetRay(u, v);
+                            Ray r = cam.GetRay(u, v, rng);
                             PathSample result = Li(r, scene, rng, config, wl);
                             RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
@@ -105,7 +105,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                             float u = (float(x) + rng.UniformFloat()) / width;
                             float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
                             SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
-                            Ray r = cam.GetRay(u, v);
+                            Ray r = cam.GetRay(u, v, rng);
                             PathSample result = Li(r, scene, rng, config, wl);
                             RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
