@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "core/spectral/spectral_curve.h"
@@ -256,6 +257,29 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
         uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             scene.GetMutableMesh(static_cast<uint32_t>(i)).material_id = mat_id;
+        }
+    } else if (obj.contains("visible")) {
+        // No material override, but a visibility flag was set.  The OBJ may
+        // have loaded multiple sub-meshes with different materials; clone each
+        // unique material with the requested visibility.
+        bool want_visible = obj["visible"].get<bool>();
+        std::unordered_map<uint32_t, uint32_t> vis_cache;
+        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+            Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
+            uint32_t orig = mesh.material_id;
+            auto it = vis_cache.find(orig);
+            if (it != vis_cache.end()) {
+                mesh.material_id = it->second;
+            } else {
+                Material cloned = scene.GetMaterial(orig);
+                uint32_t new_id = orig;
+                if (cloned.visible != want_visible) {
+                    cloned.visible = want_visible;
+                    new_id = scene.AddMaterial(cloned);
+                }
+                vis_cache[orig] = new_id;
+                mesh.material_id = new_id;
+            }
         }
     }
 
