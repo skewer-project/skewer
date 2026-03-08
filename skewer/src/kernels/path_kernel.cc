@@ -160,7 +160,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                     local_vertex_L += emission;
                 } else if (si.light_index != -1) {
                     // Calculate the PDF that NEE would have generated to hit this exact spot
-                    float pdf_a = LightPdfA(scene, si.light_index);
+                    float pdf_a = LightPdfArea(scene, si.light_index);
                     float dist_sq = si.t * si.t;
                     float cos_light =
                         std::fmax(0.0f, Dot(-r.direction(), si.n_shading));  // n_geom?
