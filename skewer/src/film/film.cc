@@ -41,16 +41,6 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
         // Allocate node from pool
         size_t node_index = deep_pool_.Allocate();
 
-        // Safety: If pool is full, we must stop adding segments for this path
-        if (node_index == static_cast<size_t>(-1)) {
-            static std::atomic<bool> warned{false};
-            if (!warned.exchange(true)) {
-                std::cerr << "[SKEWER] Warning: Deep segment pool hit its safety limit. Dropping "
-                             "samples.\n";
-            }
-            break;
-        }
-
         // Fill node
         DeepSegmentNode& node = deep_pool_[node_index];
         node.z_front = seg.z_front;
@@ -91,10 +81,7 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
             // Collect samples for THIS pixel only
             std::vector<DeepSample> segments;
 
-            // Limit per-pixel complexity to avoid massive sorting/merging costs
-            const int kMaxSegmentsPerPixel = 128;
-            int count = 0;
-            while (head != -1 && count < kMaxSegmentsPerPixel) {
+            while (head != -1) {
                 const DeepSegmentNode& node = deep_pool_[head];
                 DeepSample ds;
                 ds.z_front = node.z_front;
@@ -105,7 +92,6 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                 ds.alpha = node.alpha;
                 segments.push_back(ds);
                 head = node.next;
-                count++;
             }
 
             // Sort by Depth (Required for OpenEXR)

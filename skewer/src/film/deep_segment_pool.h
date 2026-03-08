@@ -4,7 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
-#include <mutex>
+#include <shared_mutex>
 #include <vector>
 
 #include "core/color.h"
@@ -12,11 +12,11 @@
 namespace skwr {
 
 struct DeepSegmentNode {
+    int next;  // logical index into the chunked pool
     float z_front;
     float z_back;
-    RGB L;
     float alpha;
-    int next;  // logical index into the chunked pool
+    RGB L;
 };
 
 // Chunked pool allocator for DeepSegmentNodes.
@@ -24,13 +24,10 @@ struct DeepSegmentNode {
 // Thread-safe: atomic cursor for fast-path allocation, mutex only when growing.
 class DeepSegmentPool {
   public:
-    static constexpr size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28-32 MB)
-
-    DeepSegmentPool();
-    explicit DeepSegmentPool(size_t max_chunks);
+    DeepSegmentPool() = default;
+    explicit DeepSegmentPool(size_t initial_chunks);
 
     // Allocate a node and return its logical index. Thread-safe.
-    // Returns (size_t)-1 if allocation failed (pool full).
     size_t Allocate();
 
     DeepSegmentNode& operator[](size_t index);
@@ -40,11 +37,12 @@ class DeepSegmentPool {
 
   private:
     void GrowToFit(size_t chunk_index);
+    DeepSegmentNode* GetChunk(size_t chunk_index);
+    const DeepSegmentNode* GetChunk(size_t chunk_index) const;
 
     std::vector<std::unique_ptr<DeepSegmentNode[]>> chunks_;
-    size_t max_chunks_;
     std::atomic<size_t> cursor_{0};
-    mutable std::mutex grow_mutex_;
+    mutable std::shared_mutex chunks_mutex_;
 };
 }  // namespace skwr
 
