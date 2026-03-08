@@ -10,6 +10,7 @@
 
 #include "core/color/color.h"
 #include "core/transport/path_sample.h"
+#include "film/deep_segment_pool.h"
 #include "film/image_buffer.h"
 
 namespace skwr {
@@ -19,14 +20,6 @@ struct Pixel {
     float alpha_sum = 0.0f;          // Accumulated coverage
     float weight_sum = 0.0f;         // Total weight (filter weight * count)
     std::atomic<int> deep_head{-1};  // Head of linked list
-};
-
-struct DeepSegmentNode {
-    float z_front;
-    float z_back;
-    RGB L;
-    float alpha;
-    int next;
 };
 
 class Film {
@@ -56,8 +49,7 @@ class Film {
 
     int width_, height_;
     std::vector<Pixel> pixels_;
-    std::vector<DeepSegmentNode> deep_pool_;
-    std::atomic<size_t> pool_cursor_{0};
+    DeepSegmentPool deep_pool_;
 };
 
 }  // namespace skwr
