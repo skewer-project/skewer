@@ -166,14 +166,6 @@ int main(int argc, char* argv[]) {
 
     log("Loading inputs...");
     Timer loadTimer;
-    //
-    for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
-        const std::string& filename = opts.inputFiles[i];
-        if (!exrio::isDeepEXR(filename)) {
-            logError("File is not a deep EXR: " + filename);
-            return 1;
-        }
-    }
 
     std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
 

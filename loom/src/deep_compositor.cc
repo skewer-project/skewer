@@ -33,10 +33,9 @@ namespace deep_compositor {
 // 2. Merge samples across images based on depth proximity
 // 3. Output merged deep EXR, flattened EXR, and PNG preview
 
-const int NUM_CHANNELS = 6; 
+const int NUM_CHANNELS = 6;
 
 enum RowStates { EMPTY, LOADED, MERGED, FLATTENED, ERROR };
-
 
 std::vector<float> processAllEXR(const Options& opts, int height, int width,
                                  std::vector<std::unique_ptr<DeepInfo>>& imagesInfo) {
@@ -72,18 +71,17 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     // ========================================================================
 
     show_console_cursor(false);
-    
+
     // for (int load_y = start_row; load_y < end_row; ++load_y) {
     auto loader_worker = [&](int start_row, int end_row) {
         // printf("Loading EXR data in chunks of %d scanlines...\n", chunkSize);
         // int load_y = 0;
-        for (int load_y = start_row; load_y < end_row; load_y++)
-         {
+        for (int load_y = start_row; load_y < end_row; load_y++) {
             int slot = load_y % windowSize;
 
             // Yeild if y-windowSize hasn't been merged and written yet, meaning the merger worker
             // hasn't caught up to the loader
-            if  (load_y >= height){
+            if (load_y >= height) {
                 break;
             }
             //  Prevent processing more than 16 files
@@ -192,10 +190,10 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
         int merge_y = 0;
 
         // printf("Merging scanlines in parallel...\n");
-        for (int merge_pos = start_row; merge_pos < end_row; merge_pos++) { // Keep it as merge_pos
+        for (int merge_pos = start_row; merge_pos < end_row; merge_pos++) {  // Keep it as merge_pos
             merge_y = currentRow.fetch_add(1);  // Atomically get the next row to merge
 
-            // Failsafe as merging will be parallel. 
+            // Failsafe as merging will be parallel.
             if (merge_y >= height) {
                 break;  // No more rows to merge
             }
@@ -221,7 +219,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
             }
 
             // Safety buffer for volumetric splitting (e.g., 2x)
-            totalPossibleSamplesInRow += (maxSamplesForPixel * 1);
+            totalPossibleSamplesInRow += (maxSamplesForPixel * 2);
 
             // Now allocate the merged row once
             m_mergedBuffer[slot].allocate(width, totalPossibleSamplesInRow);
@@ -268,7 +266,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
 
         for (int write_y = start_row; write_y < end_row; write_y++) {
             // Ensure Merger has finished this row
-            if (write_y >= height){
+            if (write_y >= height) {
                 break;
             }
 
@@ -301,30 +299,29 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
         // Return the final flattened image data as a vector of floats (RGB interleaved)
     };
 
-    int n =  std::thread::hardware_concurrency(); // Can be 0
+    int n = std::thread::hardware_concurrency();  // Can be 0
     // n = 0; // For testing
 
-    if (n <= 0){
+    if (n <= 0) {
         n = 1;
     }
     // For single-threaded mode, calculate iterations needed
     int iterations = (height + windowSize - 1) / windowSize;  // Ceiling division for an extra one
 
-    
     std::vector<std::thread> threads;
 
-    // Keep this less than 3 for now as it doesn't make sense to do concurency otherwise. 
-    // Perhaps allow an option to change the windowsize 
-    if (n <= 3) { 
+    // Keep this less than 3 for now as it doesn't make sense to do concurency otherwise.
+    // Perhaps allow an option to change the windowsize
+    if (n <= 3) {
         fflush(stdout);
         // Single-threaded: run sequentially
-        for (int i = 0; i < iterations; i++){
+        for (int i = 0; i < iterations; i++) {
             int pos = windowSize * i;
             loader_worker(pos, pos + windowSize);
             merger_worker(pos, pos + windowSize);
             writer_worker(pos, pos + windowSize);
         }
-        
+
     } else {
         // Multi-threaded: run in parallel
         threads.emplace_back(loader_worker, 0, height);
