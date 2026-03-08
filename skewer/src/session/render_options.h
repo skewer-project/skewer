@@ -14,10 +14,17 @@ enum class IntegratorType {
 
 struct IntegratorConfig {
     int max_depth;
-    int samples_per_pixel;
+    int max_samples;  // Upper bound on samples per pixel
     int start_sample;
     int num_threads = 0;  // 0 = auto-detect (hardware_concurrency)
     int tile_size = 32;   // Tile dimensions for work-stealing (NxN pixels)
+
+    // Adaptive sampling: when noise_threshold > 0, pixels that converge
+    // below the threshold stop early. When 0, all pixels render to max_samples.
+    float noise_threshold = 0.0f;
+    int min_samples = 1;           // Minimum samples before convergence checks
+    int adaptive_step = 16;        // Samples between convergence checks
+    bool save_sample_map = false;  // Debug: write per-pixel sample count heatmap
     bool enable_deep = false;
     // When true, primary rays that miss all geometry produce alpha=0 instead of
     // opaque black. Enables clean layer compositing without a black background matte.
