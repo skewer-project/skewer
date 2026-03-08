@@ -1,6 +1,7 @@
 #include "integrators/path_trace.h"
 
 #include <atomic>
+#include <iomanip>
 #include <thread>
 #include <vector>
 
@@ -32,49 +33,93 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
         if (thread_count == 0) thread_count = 4;  // Fallback
     }
 
-    std::clog << "[Session] Rendering with " << thread_count << " threads...\n";
+    // Build tile list — tiles improve cache locality for BVH traversal and
+    // film writes compared to the previous scanline-based work-stealing.
+    int tile_size = config.tile_size;
+    int tiles_x = (width + tile_size - 1) / tile_size;
+    int tiles_y = (height + tile_size - 1) / tile_size;
+    int total_tiles = tiles_x * tiles_y;
 
-    // Atomic counter for scanline work-stealing
-    std::atomic<int> next_scanline(0);
-    std::atomic<int> scanlines_completed(0);
+    std::cout << "[Session] Rendering with " << thread_count << " threads, " << tile_size << "x"
+              << tile_size << " tiles (" << total_tiles << " total)...\n";
 
-    auto bar = bk::ProgressBar(&scanlines_completed, {
-                                                         .total = height,
-                                                         .message = "Rendering",
-                                                         .speed = 0.0,
-                                                         .speed_unit = "scanlines/s",
-                                                         .style = bk::ProgressBarStyle::Line,
-                                                     });
+    std::atomic<int> next_tile(0);
+    std::atomic<int> tiles_completed(0);
 
-    // Worker function - each thread grabs scanlines dynamically
-    auto render_worker = [&]() {
+    auto bar = bk::ProgressBar(&tiles_completed, {
+                                                     .total = total_tiles,
+                                                     .speed = 0.2,
+                                                     .speed_unit = "tiles/s",
+                                                     .style = bk::ProgressBarStyle::Rich,
+                                                 });
+
+    const bool is_adaptive = config.noise_threshold > 0.0f;
+    const int min_s = config.min_samples;
+    const int step = config.adaptive_step;
+    std::atomic<long long> total_samples_rendered(0);
+
+    // Worker function — each thread grabs tiles dynamically
+    auto render_thread = [&]() {
         while (true) {
-            int y = next_scanline.fetch_add(1);
-            if (y >= height) break;
+            int tile_idx = next_tile.fetch_add(1);
+            if (tile_idx >= total_tiles) break;
 
-            std::clog.flush();
-            for (int x = 0; x < width; ++x) {
-                RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
-                for (int s = 0; s < config.samples_per_pixel; ++s) {
-                    float u = (float(x) + rng.UniformFloat()) / width;
-                    float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+            int tile_col = tile_idx % tiles_x;
+            int tile_row = tile_idx / tiles_x;
+            int x0 = tile_col * tile_size;
+            int y0 = tile_row * tile_size;
+            int x1 = std::min(x0 + tile_size, width);
+            int y1 = std::min(y0 + tile_size, height);
 
-                    SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+            long long tile_samples = 0;
 
-                    Ray r = cam.GetRay(u, v);
+            for (int y = y0; y < y1; ++y) {
+                for (int x = x0; x < x1; ++x) {
+                    RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
+                    const int max_s = config.max_samples;
 
-                    PathSample result = Li(r, scene, rng, config, wl);
+                    if (is_adaptive) {
+                        // Countdown avoids modulo (integer division) on the hotpath.
+                        int next_check = min_s;
+                        for (int s = 0; s < max_s; ++s) {
+                            float u = (float(x) + rng.UniformFloat()) / width;
+                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                            Ray r = cam.GetRay(u, v, rng);
+                            PathSample result = Li(r, scene, rng, config, wl);
+                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                    RGB pixel_color = SpectrumToRGB(result.L, wl);
+                            film->AddAdaptiveSample(x, y, pixel_color, result.alpha, 1.0f);
+                            if (config.enable_deep) film->AddDeepSample(x, y, result);
 
-                    float weight = 1.0f;
-                    film->AddSample(x, y, pixel_color, weight);
+                            if (s + 1 == next_check) {
+                                if (film->IsPixelConverged(x, y, config.noise_threshold)) {
+                                    tile_samples += s + 1;
+                                    goto next_pixel;
+                                }
+                                next_check += step;
+                            }
+                        }
+                    } else {
+                        for (int s = 0; s < max_s; ++s) {
+                            float u = (float(x) + rng.UniformFloat()) / width;
+                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                            Ray r = cam.GetRay(u, v, rng);
+                            PathSample result = Li(r, scene, rng, config, wl);
+                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                    if (config.enable_deep) film->AddDeepSample(x, y, result);
+                            film->AddSample(x, y, pixel_color, result.alpha, 1.0f);
+                            if (config.enable_deep) film->AddDeepSample(x, y, result);
+                        }
+                    }
+                    tile_samples += config.max_samples;
+                next_pixel:;
                 }
             }
 
-            scanlines_completed.fetch_add(1);
+            total_samples_rendered.fetch_add(tile_samples);
+            tiles_completed.fetch_add(1);
         }
     };
 
@@ -83,7 +128,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     // Launch worker threads
     std::vector<std::thread> threads;
     for (int t = 0; t < thread_count; ++t) {
-        threads.emplace_back(render_worker);
+        threads.emplace_back(render_thread);
     }
 
     // Wait for all threads to complete
@@ -92,8 +137,6 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     }
 
     bar->done();
-
-    std::clog << "\n";
 }
 
 }  // namespace skwr

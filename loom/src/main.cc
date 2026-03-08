@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
     // Set verbose mode
     setVerbose(opts.verbose);
 
-    log("Deep Compositor v" + std::string(VERSION));
+    log("Loom v" + std::string(VERSION));
 
     Timer totalTimer;
 

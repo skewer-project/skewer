@@ -2,11 +2,11 @@
 
 #include <cstdint>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "core/spectral/spectral_curve.h"
@@ -129,6 +129,7 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
         // Optional emission and opacity (apply to any material type)
         mat.emission = RGBToCurve(GetRGBOr(m, "emission", RGB(0.0f)));
         mat.opacity = RGBToCurve(GetRGBOr(m, "opacity", RGB(1.0f)));
+        mat.visible = GetOr(m, "visible", true);
 
         // Optional texture maps (paths resolved relative to scene file directory)
         mat.albedo_tex = LoadSceneTexture(m, "albedo_texture", scene_dir, scene);
@@ -137,9 +138,6 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
 
         uint32_t id = scene.AddMaterial(mat);
         mat_map[name] = id;
-
-        std::clog << "[Scene] Material '" << name << "' -> " << type << " (id=" << id << ")"
-                  << std::endl;
     }
 
     return mat_map;
@@ -164,17 +162,34 @@ static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int 
     return it->second;
 }
 
+// Returns the material ID for an object, applying any object-level "visible"
+// override.  When the object's visibility differs from the base material's,
+// a one-off clone is registered in the scene so other objects sharing that
+// material are not affected.
+static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap& mat_map,
+                                             Scene& scene, int obj_index) {
+    uint32_t mat_id = LookupMaterial(obj, mat_map, obj_index);
+    if (!obj.contains("visible")) return mat_id;
+
+    bool want_visible = obj["visible"].get<bool>();
+    // Copy before potentially invalidating the reference via AddMaterial.
+    Material cloned = scene.GetMaterial(mat_id);
+    if (cloned.visible == want_visible) return mat_id;
+
+    cloned.visible = want_visible;
+    return scene.AddMaterial(cloned);
+}
+
 static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterial(obj, mat_map, index);
+    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
     Vec3 center = ParseVec3(obj.at("center"));
     float radius = obj.at("radius").get<float>();
 
     scene.AddSphere(Sphere{center, radius, mat_id});
-    std::clog << "[Scene] Sphere at (" << center << "), r=" << radius << std::endl;
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterial(obj, mat_map, index);
+    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
 
     const auto& verts = obj.at("vertices");
     if (!verts.is_array() || verts.size() != 4) {
@@ -190,11 +205,6 @@ static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene,
     scene.AddMesh(CreateQuad(p0, p1, p2, p3, mat_id));
 
     std::string comment = GetOr<std::string>(obj, "comment", "");
-    if (!comment.empty()) {
-        std::clog << "[Scene] Quad: " << comment << std::endl;
-    } else {
-        std::clog << "[Scene] Quad" << std::endl;
-    }
 }
 
 static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, int index,
@@ -242,11 +252,34 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
                                  ": failed to load OBJ file '" + filepath + "'");
     }
 
-    // Override material if specified
+    // Override material if specified (also applies object-level visible override)
     if (obj.contains("material") && !obj["material"].is_null()) {
-        uint32_t mat_id = LookupMaterial(obj, mat_map, index);
+        uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             scene.GetMutableMesh(static_cast<uint32_t>(i)).material_id = mat_id;
+        }
+    } else if (obj.contains("visible")) {
+        // No material override, but a visibility flag was set.  The OBJ may
+        // have loaded multiple sub-meshes with different materials; clone each
+        // unique material with the requested visibility.
+        bool want_visible = obj["visible"].get<bool>();
+        std::unordered_map<uint32_t, uint32_t> vis_cache;
+        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+            Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
+            uint32_t orig = mesh.material_id;
+            auto it = vis_cache.find(orig);
+            if (it != vis_cache.end()) {
+                mesh.material_id = it->second;
+            } else {
+                Material cloned = scene.GetMaterial(orig);
+                uint32_t new_id = orig;
+                if (cloned.visible != want_visible) {
+                    cloned.visible = want_visible;
+                    new_id = scene.AddMaterial(cloned);
+                }
+                vis_cache[orig] = new_id;
+                mesh.material_id = new_id;
+            }
         }
     }
 
@@ -265,8 +298,6 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
             }
         }
     }
-
-    std::clog << "[Scene] OBJ: " << filepath << " (auto_fit=" << auto_fit << ")" << std::endl;
 }
 
 static void ParseObjects(const json& j, const MaterialMap& mat_map, Scene& scene,
@@ -310,13 +341,15 @@ static SceneConfig ParseConfig(const json& j) {
     config.look_at = ParseVec3(cam.at("look_at"));
     config.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
     config.vfov = GetOr(cam, "vfov", 90.0f);
+    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
+    config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
 
     // --- Render ---
     auto& opts = config.render_options;
 
     // Defaults
     opts.integrator_type = IntegratorType::PathTrace;
-    opts.integrator_config.samples_per_pixel = 200;
+    opts.integrator_config.max_samples = 200;
     opts.integrator_config.start_sample = 0;
     opts.integrator_config.max_depth = 50;
     opts.integrator_config.num_threads = 0;
@@ -339,10 +372,21 @@ static SceneConfig ParseConfig(const json& j) {
             throw std::runtime_error("Unknown integrator type: " + integrator_str);
         }
 
-        opts.integrator_config.samples_per_pixel = GetOr(r, "samples_per_pixel", 200);
+        // Accept both "max_samples" and legacy "samples_per_pixel"
+        opts.integrator_config.max_samples =
+            GetOr(r, "max_samples", GetOr(r, "samples_per_pixel", 200));
         opts.integrator_config.max_depth = GetOr(r, "max_depth", 50);
         opts.integrator_config.num_threads = GetOr(r, "threads", 0);
         opts.integrator_config.enable_deep = GetOr(r, "enable_deep", false);
+        opts.integrator_config.transparent_background = GetOr(r, "transparent_background", false);
+        opts.integrator_config.visibility_depth = GetOr(r, "visibility_depth", 1);
+        opts.integrator_config.tile_size = GetOr(r, "tile_size", 32);
+
+        // Adaptive sampling
+        opts.integrator_config.noise_threshold = GetOr(r, "noise_threshold", 0.0f);
+        opts.integrator_config.min_samples = GetOr(r, "min_samples", 1);
+        opts.integrator_config.adaptive_step = GetOr(r, "adaptive_step", 16);
+        opts.integrator_config.save_sample_map = GetOr(r, "save_sample_map", false);
 
         // Image config (nested)
         if (r.contains("image")) {
@@ -362,8 +406,6 @@ static SceneConfig ParseConfig(const json& j) {
 //------------------------------------------------------------------------------
 
 SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
-    std::clog << "[Scene] Loading scene file: " << filepath << std::endl;
-
     // Open and parse JSON
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -394,7 +436,6 @@ SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
     // 3. Parse camera and render config
     SceneConfig config = ParseConfig(j);
 
-    std::clog << "[Scene] Scene loaded successfully" << std::endl;
     return config;
 }
 

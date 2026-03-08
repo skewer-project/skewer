@@ -2,7 +2,6 @@
 #define SKWR_CORE_SPECTRAL_SPECTRAL_UTILS_H_
 
 #include <algorithm>
-#include <iostream>
 #include <stdexcept>
 
 #include "core/color.h"
@@ -24,7 +23,6 @@ inline void InitSpectralModel() {
         if (!g_rgb2spec_model) {
             throw std::runtime_error("Failed to load embedded RGB2Spec model!");
         }
-        std::clog << "[Spectral] Loaded embedded RGB2Spec model successfully.\n";
     }
 }
 

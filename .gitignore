@@ -18,6 +18,7 @@
 .zed/
 *.swp
 *.swo
+compile_commands.json
 
 # render inputs/outputs
 objects/
@@ -27,3 +28,7 @@ images/
 # generated images
 *.exr
 *.ppm
+
+# Go Binaries
+coordinator
+*.exe
