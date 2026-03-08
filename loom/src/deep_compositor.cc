@@ -69,16 +69,20 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     // ========================================================================
 
     show_console_cursor(false);
-
-    auto loader_worker = [&]() {
+    
+    // for (int load_y = start_row; load_y < end_row; ++load_y) {
+    auto loader_worker = [&](int start_row, int end_row) {
         // printf("Loading EXR data in chunks of %d scanlines...\n", chunkSize);
-        int load_y = 0;
-        while (load_y < height) {
+        // int load_y = 0;
+        for (int load_y = start_row; load_y < end_row; load_y++)
+         {
             int slot = load_y % windowSize;
 
             // Yeild if y-windowSize hasn't been merged and written yet, meaning the merger worker
             // hasn't caught up to the loader
-
+            if  (load_y >= height){
+                break;
+            }
             //  Prevent processing more than 16 files
             if (load_y >= windowSize) {
                 while (rowStatus[load_y - windowSize].load() < FLATTENED) {
@@ -167,7 +171,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
             loaded_scanlines.fetch_add(1);
             // printf("(IDX: %d) Finished loading row %d ...\n", logstate.load(), load_y);
             // Increment outer loop
-            load_y++;
+            // load_y++;
 
             //
             // if (load_y % (height / 10) == 0) {
@@ -181,13 +185,14 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
 
     std::atomic<int> currentRow{0};
 
-    auto merger_worker = [&]() {
+    auto merger_worker = [&](int start_row, int end_row) {
         int merge_y = 0;
 
         // printf("Merging scanlines in parallel...\n");
-        while (merge_y < height) {
+        for (int merge_pos = start_row; merge_pos < end_row; merge_pos++) { // Keep it as merge_pos
             merge_y = currentRow.fetch_add(1);  // Atomically get the next row to merge
 
+            // Failsafe as merging will be parallel. 
             if (merge_y >= height) {
                 break;  // No more rows to merge
             }
@@ -255,11 +260,15 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     std::vector<float> finalImage(width * height * 4, 0.0f);  // RGBA output buffer
 
     printf("Making an image of size %d x %d \n", width, height);
-    auto writer_worker = [&]() {
-        int write_y = 0;
+    auto writer_worker = [&](int start_row, int end_row) {
+        // int write_y = 0;
 
-        while (write_y < height) {
+        for (int write_y = start_row; write_y < end_row; write_y++) {
             // Ensure Merger has finished this row
+            if (write_y >= height){
+                break;
+            }
+
             while (rowStatus[write_y].load() < MERGED) {
                 std::this_thread::yield();
             }
@@ -279,7 +288,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
 
             rowStatus[write_y].store(
                 FLATTENED);  // Set back to Loaded so loader can reuse the slot for the next row
-            write_y++;
+            // write_y++;
 
             if (write_y % (height / 10) == 0) {
                 writeBar.set_progress(write_y / (height / 10));
@@ -289,14 +298,38 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
         // Return the final flattened image data as a vector of floats (RGB interleaved)
     };
 
-    int n = std::thread::hardware_concurrency();
+    int n =  std::thread::hardware_concurrency(); // Can be 0
+    // n = 0; // For testing
 
-    std::vector<std::thread> threads;
-    threads.emplace_back(loader_worker);
-    for (int i = 0; i < n - 2; ++i) {
-        threads.emplace_back(merger_worker);
+    if (n <= 0){
+        n = 1;
     }
-    threads.emplace_back(writer_worker);
+    // For single-threaded mode, calculate iterations needed
+    int iterations = (height + windowSize - 1) / windowSize;  // Ceiling division for an extra one
+
+    
+    std::vector<std::thread> threads;
+
+    // Keep this less than 3 for now as it doesn't make sense to do concurency otherwise. 
+    // Perhaps allow an option to change the windowsize 
+    if (n <= 3) { 
+        fflush(stdout);
+        // Single-threaded: run sequentially
+        for (int i = 0; i < iterations; i++){
+            int pos = windowSize * i;
+            loader_worker(pos, pos + windowSize);
+            merger_worker(pos, pos + windowSize);
+            writer_worker(pos, pos + windowSize);
+        }
+        
+    } else {
+        // Multi-threaded: run in parallel
+        threads.emplace_back(loader_worker, 0, height);
+        for (int i = 0; i < n - 2; ++i) {
+            threads.emplace_back(merger_worker, 0, height);
+        }
+        threads.emplace_back(writer_worker, 0, height);
+    }
 
     // Wait for all threads to complete
     for (auto& thread : threads) {
