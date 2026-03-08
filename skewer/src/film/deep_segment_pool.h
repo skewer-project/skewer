@@ -24,8 +24,6 @@ struct DeepSegmentNode {
 // Thread-safe: atomic cursor for fast-path allocation, mutex only when growing.
 class DeepSegmentPool {
   public:
-    static constexpr size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28 MB)
-
     DeepSegmentPool() = default;
     explicit DeepSegmentPool(size_t initial_chunks);
 
