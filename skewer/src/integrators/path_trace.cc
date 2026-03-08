@@ -59,7 +59,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     std::atomic<long long> total_samples_rendered(0);
 
     // Worker function — each thread grabs tiles dynamically
-    auto render_worker = [&]() {
+    auto render_thread = [&]() {
         while (true) {
             int tile_idx = next_tile.fetch_add(1);
             if (tile_idx >= total_tiles) break;
@@ -128,7 +128,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     // Launch worker threads
     std::vector<std::thread> threads;
     for (int t = 0; t < thread_count; ++t) {
-        threads.emplace_back(render_worker);
+        threads.emplace_back(render_thread);
     }
 
     // Wait for all threads to complete
