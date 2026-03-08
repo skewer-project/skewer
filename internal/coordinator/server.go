@@ -20,11 +20,20 @@ type Server struct {
 }
 
 func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) *Server {
-	return &Server{
+	s := &Server{
 		scheduler: scheduler,
 		manager:   manager,
 		tracker:   tracker,
 	}
+
+	// Set the terminal failure callback
+	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
+		log.Printf("[SERVER] Task %s for job %s failed permanently. Failing job.", task.ID, task.JobID)
+		s.tracker.CancelJob(task.JobID)
+		s.scheduler.PurgeJobTasks(task.JobID)
+	}
+
+	return s
 }
 
 // ================= //
@@ -90,7 +99,7 @@ func (s *Server) GetJobStatus(ctx context.Context, req *pb.GetJobStatusRequest) 
 	if err != nil {
 		// NOTE: the way i have errMessage and err here is a bit weird. may want to change.
 		return &pb.GetJobStatusResponse{
-			JobStatus:       0,
+			JobStatus:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
 			ProgressPercent: 0,
 			ErrorMessage:    status.Errorf(codes.NotFound, err.Error(), req.GetJobId()).Error(),
 		}, err
@@ -341,7 +350,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 		var sampleStart int32 = 0
 		var outputUris []string
-		for chunk := range numSamplesPerWorker {
+		for chunk := int32(0); chunk < job.GetSampleDivision(); chunk++ {
 			uriSuffix := fmt.Sprintf("frame-%d-chunk-%d", frameID, chunk)
 
 			// Add in remainder
