@@ -17,7 +17,7 @@ Film::Film(int width, int height)
     : width_(width), height_(height), pixels_(width_ * height_), deep_pool_(1) {}
 
 void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_);
 
     Pixel& p = GetPixel(x, y);
 
@@ -31,7 +31,7 @@ void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
 }
 
 void Film::AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_);
 
     Pixel& p = pixels_[y * width_ + x];
     p.color_sum += L * weight;
@@ -65,7 +65,7 @@ bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
 }
 
 void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_);
     if (path_sample.segments.empty()) return;
 
     Pixel& p = GetPixel(x, y);
