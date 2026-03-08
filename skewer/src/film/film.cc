@@ -52,9 +52,11 @@ bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
     float var_g = std::max(0.0f, mean_sq.g() - mean.g() * mean.g());
     float var_b = std::max(0.0f, mean_sq.b() - mean.b() * mean.b());
 
-    float mean_lum = 0.2126f * mean.r() + 0.7152f * mean.g() + 0.0722f * mean.b();
-    float var_lum =
-        (0.2126f * 0.2126f) * var_r + (0.7152f * 0.7152f) * var_g + (0.0722f * 0.0722f) * var_b;
+    float mean_lum = Rec709::kWeightRed * mean.r() + Rec709::kWeightGreen * mean.g() +
+                     Rec709::kWeightBlue * mean.b();
+
+    float var_lum = (Rec709::kWeightRedSquared)*var_r + (Rec709::kWeightGreenSquared)*var_g +
+                    (Rec709::kWeightBlueSquared)*var_b;
 
     // Clamp luminance floor to 0.5 (Cycles approach) so dark pixels
     // use an absolute threshold instead of blowing up relative noise.
