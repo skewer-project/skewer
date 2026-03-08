@@ -1,6 +1,7 @@
 #pragma once
 #include <OpenEXR/ImfDeepFrameBuffer.h>
 #include <OpenEXR/ImfDeepScanLineInputFile.h>  // For reading deep EXR files
+#include <OpenEXR/ImfMultiPartInputFile.h>
 
 #include <algorithm>
 #include <cmath>
@@ -21,14 +22,14 @@ class DeepInfo {
         width_ = dw.max.x - dw.min.x + 1;
         height_ = dw.max.y - dw.min.y + 1;
         printf("Loaded Deep EXR: %s (%dx%d)\n", filename.c_str(), width_, height_);
-        printf("Number of parts in file: %d\n", file_.header().hasType());
+        // printf("Number of parts in file: %d\n", file_.parts());
         // We can verify if it's deep, though DeepScanLineInputFile
         // will throw an error if you point it at a non-deep file anyway.
     }
 
     int width() const { return width_; }
     int height() const { return height_; }
-    bool isDeep() const { return isDeep_; }
+    // bool isDeep() const { return isDeep_; }
 
     Imf::DeepScanLineInputFile& getFile() { return file_; }
 
@@ -88,7 +89,7 @@ class DeepInfo {
 
     Imf::DeepScanLineInputFile file_;
 
-    bool isDeep_;
+    // bool isDeep_;
     bool isValidCoord(int x, int y) const {
         return (x >= 0 && x < width_ && y >= 0 && y < height_);
     }
