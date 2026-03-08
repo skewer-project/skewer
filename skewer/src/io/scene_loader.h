@@ -27,6 +27,8 @@ struct SceneConfig {
     Vec3 look_at;
     Vec3 vup = Vec3(0.0f, 1.0f, 0.0f);
     float vfov = 90.0f;
+    float aperture_radius = 0.0f;
+    float focus_distance = 1.0f;
 };
 
 // Load a JSON scene file. Populates the Scene with geometry and materials,

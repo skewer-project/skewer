@@ -4,6 +4,7 @@
 #include "core/math/constants.h"
 #include "core/math/vec3.h"
 #include "core/ray.h"
+#include "core/sampling/rng.h"
 #include "core/transport/surface_interaction.h"
 #include "film/film.h"
 #include "scene/camera.h"
@@ -20,7 +21,8 @@ void Normals::Render(const Scene& scene, const Camera& cam, Film* film,
             // Integrator calculates normalized coords
             float u = (float)x / film->width();
             float v = (float)y / film->height();
-            Ray r = cam.GetRay(u, v);
+            RNG rng;
+            Ray r = cam.GetRay(u, v, rng);
 
             SurfaceInteraction si;
             const float t_min = kShadowEpsilon;
