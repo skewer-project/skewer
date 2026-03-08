@@ -12,11 +12,13 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <limits>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <vector>
 
+#include "barkeep.h"
 #include "deep_info.h"
 #include "deep_merger.h"
 #include "deep_row.h"
@@ -24,7 +26,7 @@
 #include "indicators.h"
 #include "utils.h"
 
-using namespace indicators;
+namespace bk = barkeep;
 
 namespace deep_compositor {
 
@@ -69,8 +71,6 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     // ========================================================================
     // Stage 1 LOAD - Load lines in chunks of 16
     // ========================================================================
-
-    show_console_cursor(false);
 
     // for (int load_y = start_row; load_y < end_row; ++load_y) {
     auto loader_worker = [&](int start_row, int end_row) {
@@ -250,14 +250,6 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     // Stage 3 Write - Save lines in chunks of 16
     // ========================================================================
 
-    BlockProgressBar writeBar{option::BarWidth{80},
-                              option::Start{"["},
-                              option::End{"]"},
-                              option::ShowPercentage{true},
-                              option::ShowElapsedTime{true},
-                              option::ShowRemainingTime{true},
-                              option::MaxProgress{10}};
-
     std::vector<float> finalImage(width * height * 4, 0.0f);  // RGBA output buffer
 
     printf("Making an image of size %d x %d \n", width, height);
@@ -292,7 +284,8 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
             // write_y++;
 
             if (write_y % (height / 10) == 0) {
-                writeBar.set_progress(write_y / (height / 10));
+                // NEEDS TO BE UPDATED TO NEW BAR
+                // writeBar.set_progress(write_y / (height / 10));
             }
         }
 
@@ -339,7 +332,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     }
 
     printf("\nPipeline complete!\n");
-    show_console_cursor(true);
+    // show_console_cursor(true);
     return finalImage;
 }
 

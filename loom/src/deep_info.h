@@ -1,7 +1,12 @@
 #pragma once
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #include <OpenEXR/ImfDeepFrameBuffer.h>
 #include <OpenEXR/ImfDeepScanLineInputFile.h>  // For reading deep EXR files
 #include <OpenEXR/ImfMultiPartInputFile.h>
+
+#pragma clang diagnostic pop
 
 #include <algorithm>
 #include <cmath>

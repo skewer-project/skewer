@@ -11,6 +11,15 @@ endif()
 
 include(CTest)
 
+# Place all runtime targets in a single bin/ inside the build tree
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+if(CMAKE_CONFIGURATION_TYPES)
+    foreach(CONFIG IN LISTS CMAKE_CONFIGURATION_TYPES)
+        string(TOUPPER "${CONFIG}" CONFIG_UPPER)
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/bin)
+    endforeach()
+endif()
+
 option(SKEWER_COMBINED_BUILD_EXRIO "Build exrio helper library" ON)
 option(SKEWER_COMBINED_BUILD_LOOM "Build loom deep compositor" ON)
 option(SKEWER_COMBINED_BUILD_SKEWER "Build skewer deep renderer" ON)
