@@ -27,7 +27,7 @@ struct LightSample {
 // Returns a random point on the surface of the light
 LightSample SampleLight(const Scene& scene, const AreaLight& light, int light_index, RNG& rng);
 
-float LightPdfA(const Scene& scene, int light_index);
+float LightPdfArea(const Scene& scene, int light_index);
 
 }  // namespace skwr
 

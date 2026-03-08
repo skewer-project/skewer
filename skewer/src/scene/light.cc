@@ -6,7 +6,7 @@
 
 namespace skwr {
 
-float LightPdfA(const Scene& scene, int light_index) {
+float LightPdfArea(const Scene& scene, int light_index) {
     const AreaLight& light = scene.Lights()[light_index];
 
     if (light.type == AreaLight::Sphere) {
@@ -32,7 +32,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, int light_in
         result.p = s.center + random_point * s.radius;
         result.n = random_point;
 
-        result.pdf = LightPdfA(scene, light_index);
+        result.pdf = LightPdfArea(scene, light_index);
     } else if (light.type == AreaLight::Triangle) {
         const Triangle& t = scene.Triangles()[light.primitive_index];
 
@@ -48,7 +48,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, int light_in
         result.p = (1.0f - sqrt_r1) * p0 + (sqrt_r1 * (1.0f - r2)) * p1 + (sqrt_r1 * r2) * p2;
         result.n = Normalize(Cross(t.e1, t.e2));
 
-        result.pdf = LightPdfA(scene, light_index);
+        result.pdf = LightPdfArea(scene, light_index);
     }
 
     return result;
