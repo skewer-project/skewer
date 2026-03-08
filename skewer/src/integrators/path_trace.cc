@@ -32,51 +32,63 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
         if (thread_count == 0) thread_count = 4;  // Fallback
     }
 
-    std::cout << "[Session] Rendering with " << thread_count << " threads...\n";
+    // Build tile list — tiles improve cache locality for BVH traversal and
+    // film writes compared to the previous scanline-based work-stealing.
+    int tile_size = config.tile_size;
+    int tiles_x = (width + tile_size - 1) / tile_size;
+    int tiles_y = (height + tile_size - 1) / tile_size;
+    int total_tiles = tiles_x * tiles_y;
 
-    // Atomic counter for scanline work-stealing
-    std::atomic<int> next_scanline(0);
-    std::atomic<int> scanlines_completed(0);
+    std::cout << "[Session] Rendering with " << thread_count << " threads, " << tile_size << "x"
+              << tile_size << " tiles (" << total_tiles << " total)...\n";
 
-    auto bar = bk::ProgressBar(&scanlines_completed, {
-                                                         .total = height,
-                                                         .speed = 0.2,
-                                                         .speed_unit = "scanlines/s",
-                                                         .style = bk::ProgressBarStyle::Rich,
-                                                     });
+    std::atomic<int> next_tile(0);
+    std::atomic<int> tiles_completed(0);
 
-    // Worker function - each thread grabs scanlines dynamically
-    auto render_worker = [&]() {
+    auto bar = bk::ProgressBar(&tiles_completed, {
+                                                     .total = total_tiles,
+                                                     .speed = 0.2,
+                                                     .speed_unit = "tiles/s",
+                                                     .style = bk::ProgressBarStyle::Rich,
+                                                 });
+
+    // Worker function — each thread grabs tiles dynamically
+    auto render_thread = [&]() {
         while (true) {
-            int y = next_scanline.fetch_add(1);
-            if (y >= height) break;
+            int tile_idx = next_tile.fetch_add(1);
+            if (tile_idx >= total_tiles) break;
 
-            for (int x = 0; x < width; ++x) {
-                RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
-                for (int s = 0; s < config.samples_per_pixel; ++s) {
-                    float u = (float(x) + rng.UniformFloat()) / width;
-                    float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+            int tile_col = tile_idx % tiles_x;
+            int tile_row = tile_idx / tiles_x;
+            int x0 = tile_col * tile_size;
+            int y0 = tile_row * tile_size;
+            int x1 = std::min(x0 + tile_size, width);
+            int y1 = std::min(y0 + tile_size, height);
 
-                    SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+            for (int y = y0; y < y1; ++y) {
+                for (int x = x0; x < x1; ++x) {
+                    RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
+                    for (int s = 0; s < config.samples_per_pixel; ++s) {
+                        float u = (float(x) + rng.UniformFloat()) / width;
+                        float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
 
-                    Ray r = cam.GetRay(u, v);
+                        SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
 
-                    PathSample result = Li(r, scene, rng, config, wl);
+                        Ray r = cam.GetRay(u, v);
 
-                    // Premultiply by alpha: pixels with alpha=0 (transparent
-                    // background, no visible geometry hit) contribute zero to
-                    // color_sum, so the PPM and any flat buffer show them as
-                    // black rather than the invisible geometry's shading.
-                    RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
+                        PathSample result = Li(r, scene, rng, config, wl);
 
-                    float weight = 1.0f;
-                    film->AddSample(x, y, pixel_color, result.alpha, weight);
+                        RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                    if (config.enable_deep) film->AddDeepSample(x, y, result);
+                        float weight = 1.0f;
+                        film->AddSample(x, y, pixel_color, result.alpha, weight);
+
+                        if (config.enable_deep) film->AddDeepSample(x, y, result);
+                    }
                 }
             }
 
-            scanlines_completed.fetch_add(1);
+            tiles_completed.fetch_add(1);
         }
     };
 
@@ -85,7 +97,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     // Launch worker threads
     std::vector<std::thread> threads;
     for (int t = 0; t < thread_count; ++t) {
-        threads.emplace_back(render_worker);
+        threads.emplace_back(render_thread);
     }
 
     // Wait for all threads to complete

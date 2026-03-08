@@ -17,6 +17,7 @@ struct IntegratorConfig {
     int samples_per_pixel;
     int start_sample;
     int num_threads = 0;  // 0 = auto-detect (hardware_concurrency)
+    int tile_size = 32;   // Tile dimensions for work-stealing (NxN pixels)
     bool enable_deep = false;
     // When true, primary rays that miss all geometry produce alpha=0 instead of
     // opaque black. Enables clean layer compositing without a black background matte.
