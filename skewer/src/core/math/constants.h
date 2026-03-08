@@ -25,6 +25,17 @@ constexpr float kFarClip = 1e10f;
 
 inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
 
+namespace Rec709 {
+constexpr float kWeightRed = 0.2126f;
+constexpr float kWeightRedSquared = kWeightRed * kWeightRed;
+
+constexpr float kWeightGreen = 0.7152f;
+constexpr float kWeightGreenSquared = kWeightGreen * kWeightGreen;
+
+constexpr float kWeightBlue = 0.0722f;
+constexpr float kWeightBlueSquared = kWeightBlue * kWeightBlue;
+}  // namespace Rec709
+
 }  // namespace skwr
 
 #endif  // SKWR_CORE_MATH_CONSTANTS_H_
