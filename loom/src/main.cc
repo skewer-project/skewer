@@ -89,7 +89,7 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
                 std::cerr << "Error: Invalid merge threshold value\n";
                 return false;
             }
-        } else if (arg[0] == '-' and !isFloat(arg)) {
+        } else if (arg[0] == '-' && !isFloat(arg)) {
             std::cerr << "Error: Unknown option: " << arg << "\n";
             return false;
         } else {
