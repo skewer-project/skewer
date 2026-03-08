@@ -4,27 +4,20 @@
 
 #include <atomic>
 
+#include "barkeep.h"
 #include "core/constants.h"
+#include "film/deep_segment_pool.h"
 #include "integrators/path_sample.h"
 
 namespace skwr {
 
+namespace bk = barkeep;
+
 Film::Film(int width, int height)
-    : width_(width),
-      height_(height),
-      pixels_(width_ * height_),
-      deep_pool_(width_ * height_ * 100 * 4) {
-    // pixels_.resize(width_ * height_);
+    : width_(width), height_(height), pixels_(width_ * height_), deep_pool_(1) {}
 
-    // Pre-allocate pool based on expected usage
-    // Estimate: width * height * samples_per_pixel * avg_segments_per_path
-    // Example: 1920x1080 * 16spp * 8 segments = ~265M nodes
-    // might want to make this configurable
-    // deep_pool_.resize(width_ * height_ * 16 * 4);
-}
-
-void Film::AddSample(int x, int y, const RGB& L, float weight) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_);
 
     Pixel& p = GetPixel(x, y);
 
@@ -32,11 +25,47 @@ void Film::AddSample(int x, int y, const RGB& L, float weight) {
     // For true safety, you might want to use atomics or accept some race conditions
     // In practice, the races are benign (slightly wrong accumulated values)
     p.color_sum += L * weight;
+    p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
+    ++p.sample_count;
+}
+
+void Film::AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight) {
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_);
+
+    Pixel& p = pixels_[y * width_ + x];
+    p.color_sum += L * weight;
+    p.alpha_sum += alpha * weight;
+    p.weight_sum += weight;
+    ++p.sample_count;
+    p.color_sq_sum += L * L * weight;
+}
+
+bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
+    const Pixel& p = pixels_[y * width_ + x];
+    float n = static_cast<float>(p.sample_count);
+    if (n < 2.0f) return false;
+
+    RGB mean = p.color_sum / n;
+    RGB mean_sq = p.color_sq_sum / n;
+    float var_r = std::max(0.0f, mean_sq.r() - mean.r() * mean.r());
+    float var_g = std::max(0.0f, mean_sq.g() - mean.g() * mean.g());
+    float var_b = std::max(0.0f, mean_sq.b() - mean.b() * mean.b());
+
+    float mean_lum = Rec709::kWeightRed * mean.r() + Rec709::kWeightGreen * mean.g() +
+                     Rec709::kWeightBlue * mean.b();
+
+    float var_lum = (Rec709::kWeightRedSquared)*var_r + (Rec709::kWeightGreenSquared)*var_g +
+                    (Rec709::kWeightBlueSquared)*var_b;
+
+    // Clamp luminance floor to 0.5 (Cycles approach) so dark pixels
+    // use an absolute threshold instead of blowing up relative noise.
+    float noise = std::sqrt(var_lum / n);
+    return noise / std::max(mean_lum, 0.5f) < noise_threshold;
 }
 
 void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+    assert(x < 0 || x >= width_ || y < 0 || y >= height_);
     if (path_sample.segments.empty()) return;
 
     Pixel& p = GetPixel(x, y);
@@ -50,13 +79,8 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
         if (seg.z_front >= seg.z_back && seg.z_back != kFarClip) continue;
         if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
 
-        // Allocate node from pool
-        size_t node_index = pool_cursor_.fetch_add(1, std::memory_order_relaxed);
-        if (node_index >= deep_pool_.size()) {
-            // could dynamically grow this later
-            std::cerr << "Warning: Deep pool exhausted at pixel (" << x << "," << y << ")\n";
-            return;
-        }
+        // Allocate node from pool (grows automatically)
+        size_t node_index = deep_pool_.Allocate();
 
         // Fill node
         DeepSegmentNode& node = deep_pool_[node_index];
@@ -77,7 +101,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     }
 }
 
-exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
+exrio::DeepImage Film::BuildDeepImage() const {
     // Pass 1: Count samples per pixel
     std::vector<unsigned int> counts(width_ * height_, 0);
 
@@ -97,9 +121,21 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
     exrio::DeepImage result(width_, height_);
 
     // Pass 3: Copy, Sort, and merge segments
+    std::cout << "\nBuilding deep image\n";
+    std::atomic<size_t> pixels_done(0);
+    size_t total_pixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
+    auto bar = bk::ProgressBar(&pixels_done, {.total = total_pixels,
+                                              .speed = 0.2,
+                                              .speed_unit = "px/s",
+                                              .style = bk::ProgressBarStyle::Rich});
+    if (total_pixels > 0) bar->show();
+
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (counts[y * width_ + x] == 0) continue;
+            if (counts[y * width_ + x] == 0) {
+                ++pixels_done;
+                continue;
+            }
 
             // Collect samples for this pixel
             std::vector<DeepSample> segments;
@@ -130,7 +166,7 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                           return a.z_front < b.z_front;
                       });
 
-            segments = MergeDeepSegments(segments, total_pixel_samples);
+            segments = MergeDeepSegments(segments, GetPixel(x, y).sample_count);
 
             // Convert to deep_compositor::DeepSample and add to result
             exrio::DeepPixel& pixel = result.pixel(x, y);
@@ -138,15 +174,18 @@ exrio::DeepImage Film::BuildDeepImage(const int total_pixel_samples) const {
                 pixel.addSample(
                     exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
             }
+            ++pixels_done;
         }
     }
+
+    if (total_pixels > 0) bar->done();
 
     return result;
 }
 
 // Helper: Merge overlapping/adjacent segments
 std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
-                                                const int total_pixel_samples) const {
+                                                int pixel_sample_count) const {
     if (input.empty()) return input;
 
     std::vector<DeepSample> merged;
@@ -187,7 +226,7 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
     merged.push_back(current);
 
-    float norm = 1.0f / total_pixel_samples;
+    float norm = 1.0f / std::max(pixel_sample_count, 1);
 
     for (auto& seg : merged) {
         seg.r *= norm;
@@ -199,17 +238,43 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
         if (seg.alpha > 1.0f) seg.alpha = 1.0f;
     }
 
-    static std::atomic<int> log_count{0};
-    if (log_count.fetch_add(1) % 10000 == 0) {  // Log every 10000th pixel
-        std::cout << "Merge: " << input.size() << " → " << merged.size() << " segments\n";
-        if (merged.size() > 0) {
-            std::cout << "  First segment: z=" << merged[0].z_front << " rgb=(" << merged[0].r
-                      << "," << merged[0].g << "," << merged[0].b << ")"
-                      << " alpha=" << merged[0].alpha << "\n";
+    return merged;
+}
+
+void Film::WriteSampleMap(const std::string& filename, int max_samples) const {
+    std::vector<float> rgba(static_cast<size_t>(width_) * height_ * 4);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const Pixel& p = GetPixel(x, y);
+            float t = (max_samples > 0)
+                          ? std::min(static_cast<float>(p.sample_count) / max_samples, 1.0f)
+                          : 0.0f;
+
+            // Blue (0,0,1) → Green (0,1,0) → Red (1,0,0)
+            float r, g, b;
+            if (t < 0.5f) {
+                float s = t * 2.0f;
+                r = 0.0f;
+                g = s;
+                b = 1.0f - s;
+            } else {
+                float s = (t - 0.5f) * 2.0f;
+                r = s;
+                g = 1.0f - s;
+                b = 0.0f;
+            }
+
+            size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
+            rgba[idx + 0] = r;
+            rgba[idx + 1] = g;
+            rgba[idx + 2] = b;
+            rgba[idx + 3] = 1.0f;
         }
     }
 
-    return merged;
+    exrio::writePNG(rgba, width_, height_, filename);
+    std::cout << "Wrote sample map to " << filename << "\n";
 }
 
 void Film::WriteImage(const std::string& filename) const {
@@ -220,20 +285,46 @@ void Film::WriteImage(const std::string& filename) const {
             const Pixel& p = GetPixel(x, y);
 
             RGB color(0, 0, 0);
+            float alpha = 0.0f;
             if (p.weight_sum > 0) {
                 color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
             }
 
             size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
             rgba[idx + 0] = color.r();
             rgba[idx + 1] = color.g();
             rgba[idx + 2] = color.b();
-            rgba[idx + 3] = 1.0f;
+            rgba[idx + 3] = alpha;
         }
     }
 
     exrio::writePNG(rgba, width_, height_, filename);
     std::cout << "Wrote image to " << filename << "\n";
+}
+
+std::unique_ptr<FlatImageBuffer> Film::CreateFlatBuffer() const {
+    auto buf = std::make_unique<FlatImageBuffer>(width_, height_);
+
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            const Pixel& p = GetPixel(x, y);
+
+            RGB color(0.0f);
+            float alpha = 0.0f;
+
+            if (p.weight_sum > 0) {
+                // color_sum is already premultiplied (misses contribute 0 to both),
+                // so dividing by weight gives premultiplied average.
+                color = p.color_sum / p.weight_sum;
+                alpha = p.alpha_sum / p.weight_sum;
+            }
+
+            buf->SetPixel(x, y, color, alpha);
+        }
+    }
+
+    return buf;
 }
 
 }  // namespace skwr
