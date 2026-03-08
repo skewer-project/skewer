@@ -53,6 +53,11 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                                                      .style = bk::ProgressBarStyle::Rich,
                                                  });
 
+    const bool is_adaptive = config.noise_threshold > 0.0f;
+    const int min_s = config.min_samples;
+    const int step = config.adaptive_step;
+    std::atomic<long long> total_samples_rendered(0);
+
     // Worker function — each thread grabs tiles dynamically
     auto render_thread = [&]() {
         while (true) {
@@ -66,35 +71,66 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             int x1 = std::min(x0 + tile_size, width);
             int y1 = std::min(y0 + tile_size, height);
 
+            long long tile_samples = 0;
+
             for (int y = y0; y < y1; ++y) {
                 for (int x = x0; x < x1; ++x) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
-                    for (int s = 0; s < config.samples_per_pixel; ++s) {
-                        float u = (float(x) + rng.UniformFloat()) / width;
-                        float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                    const int max_s = config.max_samples;
 
-                        SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                    if (is_adaptive) {
+                        // Countdown avoids modulo (integer division) on the hotpath.
+                        int next_check = min_s;
+                        for (int s = 0; s < max_s; ++s) {
+                            float u = (float(x) + rng.UniformFloat()) / width;
+                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                            Ray r = cam.GetRay(u, v, rng);
+                            uint16_t global_med = scene.GetGlobalMedium();
+                            if (global_med != 0) {
+                                // Global medium usually has priority 0 so bounded media can
+                                // override it
+                                r.vol_stack().Push(global_med, 0);
+                            }
+                            PathSample result = Li(r, scene, rng, config, wl);
+                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                        Ray r = cam.GetRay(u, v);
+                            film->AddAdaptiveSample(x, y, pixel_color, result.alpha, 1.0f);
+                            if (config.enable_deep) film->AddDeepSample(x, y, result);
 
-                        uint16_t global_med = scene.GetGlobalMedium();
-                        if (global_med != 0) {
-                            // Global medium usually has priority 0 so bounded media can override it
-                            r.vol_stack().Push(global_med, 0);
+                            if (s + 1 == next_check) {
+                                if (film->IsPixelConverged(x, y, config.noise_threshold)) {
+                                    tile_samples += s + 1;
+                                    goto next_pixel;
+                                }
+                                next_check += step;
+                            }
                         }
+                    } else {
+                        for (int s = 0; s < max_s; ++s) {
+                            float u = (float(x) + rng.UniformFloat()) / width;
+                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                            Ray r = cam.GetRay(u, v, rng);
+                            uint16_t global_med = scene.GetGlobalMedium();
+                            if (global_med != 0) {
+                                // Global medium usually has priority 0 so bounded media can
+                                // override it
+                                r.vol_stack().Push(global_med, 0);
+                            }
+                            PathSample result = Li(r, scene, rng, config, wl);
+                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                        PathSample result = Li(r, scene, rng, config, wl);
-
-                        RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
-
-                        float weight = 1.0f;
-                        film->AddSample(x, y, pixel_color, result.alpha, weight);
-
-                        if (config.enable_deep) film->AddDeepSample(x, y, result);
+                            film->AddSample(x, y, pixel_color, result.alpha, 1.0f);
+                            if (config.enable_deep) film->AddDeepSample(x, y, result);
+                        }
                     }
+                    tile_samples += config.max_samples;
+                next_pixel:;
                 }
             }
 
+            total_samples_rendered.fetch_add(tile_samples);
             tiles_completed.fetch_add(1);
         }
     };

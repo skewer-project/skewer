@@ -352,13 +352,15 @@ static SceneConfig ParseConfig(const json& j) {
     config.look_at = ParseVec3(cam.at("look_at"));
     config.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
     config.vfov = GetOr(cam, "vfov", 90.0f);
+    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
+    config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
 
     // --- Render ---
     auto& opts = config.render_options;
 
     // Defaults
     opts.integrator_type = IntegratorType::PathTrace;
-    opts.integrator_config.samples_per_pixel = 200;
+    opts.integrator_config.max_samples = 200;
     opts.integrator_config.start_sample = 0;
     opts.integrator_config.max_depth = 50;
     opts.integrator_config.num_threads = 0;
@@ -381,13 +383,21 @@ static SceneConfig ParseConfig(const json& j) {
             throw std::runtime_error("Unknown integrator type: " + integrator_str);
         }
 
-        opts.integrator_config.samples_per_pixel = GetOr(r, "samples_per_pixel", 200);
+        // Accept both "max_samples" and legacy "samples_per_pixel"
+        opts.integrator_config.max_samples =
+            GetOr(r, "max_samples", GetOr(r, "samples_per_pixel", 200));
         opts.integrator_config.max_depth = GetOr(r, "max_depth", 50);
         opts.integrator_config.num_threads = GetOr(r, "threads", 0);
         opts.integrator_config.enable_deep = GetOr(r, "enable_deep", false);
         opts.integrator_config.transparent_background = GetOr(r, "transparent_background", false);
         opts.integrator_config.visibility_depth = GetOr(r, "visibility_depth", 1);
         opts.integrator_config.tile_size = GetOr(r, "tile_size", 32);
+
+        // Adaptive sampling
+        opts.integrator_config.noise_threshold = GetOr(r, "noise_threshold", 0.0f);
+        opts.integrator_config.min_samples = GetOr(r, "min_samples", 1);
+        opts.integrator_config.adaptive_step = GetOr(r, "adaptive_step", 16);
+        opts.integrator_config.save_sample_map = GetOr(r, "save_sample_map", false);
 
         // Image config (nested)
         if (r.contains("image")) {
