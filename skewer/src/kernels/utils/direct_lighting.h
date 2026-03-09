@@ -35,7 +35,7 @@ inline bool GenerateLightSample(const Vec3& origin, const Scene& scene, RNG& rng
     if (cos_light <= 0.0f) return false;
     float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
-    // Weight = 1.0 / (N_lights * PDF_w)
+    // For weight = 1.0 / (N_lights * PDF_w) in NEE
     out_sample->pdf = light_pdf_w * scene.InvLightCount();
     out_sample->emission = CurveToSpectrum(ls.emission, wl);
 
