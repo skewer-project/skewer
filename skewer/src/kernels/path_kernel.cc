@@ -234,7 +234,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             } else {
                 break;
             }
-        } else if (!scatter_surface) {
+        } else {
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
             dpr.AppendVertex(kFarClip, kFarClip, env_L, 1.0f, is_camera_path, false);
             L += env_L * current_beta;
