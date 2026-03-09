@@ -16,20 +16,26 @@ struct DeepRow {
 
     DeepRow() = default;
 
-    DeepRow(DeepRow&& other) noexcept { *this = std::move(other); }
+    DeepRow(DeepRow&& other) noexcept
+        : all_samples(std::move(other.all_samples)),
+          width(other.width),
+          sample_counts(std::move(other.sample_counts)),
+          total_samples_in_row(other.total_samples_in_row),
+          current_capacity(other.current_capacity) {
+        // Reset the primitives in the source object
+        other.width = 0;
+        other.total_samples_in_row = 0;
+        other.current_capacity = 0;
+    }
 
     DeepRow& operator=(DeepRow&& other) noexcept {
         if (this != &other) {
-            // unique_ptr handles deleting our old memory automatically here
             all_samples = std::move(other.all_samples);
-
-            // Steal the primitive metadata
             width = other.width;
             sample_counts = std::move(other.sample_counts);
             total_samples_in_row = other.total_samples_in_row;
             current_capacity = other.current_capacity;
 
-            // Reset the 'other' object to a clean state
             other.width = 0;
             other.total_samples_in_row = 0;
             other.current_capacity = 0;
