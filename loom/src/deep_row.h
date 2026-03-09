@@ -8,100 +8,105 @@
 // A single row's worth of deep data for one file
 struct DeepRow {
     // Using the "One big block" optimization to avoid fragmentation
-    float* allSamples = nullptr;
+    std::unique_ptr<float[]> allSamples = nullptr;
     int width = 0;
     std::vector<unsigned int> sampleCounts;
     size_t totalSamplesInRow = 0;
     size_t currentCapacity = 0;
 
+    DeepRow() = default;
+
+    DeepRow(DeepRow&& other) noexcept { *this = std::move(other); }
+
+    DeepRow& operator=(DeepRow&& other) noexcept {
+        if (this != &other) {
+            // unique_ptr handles deleting our old memory automatically here
+            allSamples = std::move(other.allSamples);
+
+            // Steal the primitive metadata
+            width = other.width;
+            sampleCounts = std::move(other.sampleCounts);
+            totalSamplesInRow = other.totalSamplesInRow;
+            currentCapacity = other.currentCapacity;
+
+            // Reset the 'other' object to a clean state
+            other.width = 0;
+            other.totalSamplesInRow = 0;
+            other.currentCapacity = 0;
+        }
+        return *this;
+    }
+
     // Normal Allocate given a size
     void allocate(size_t width, int maxSamples) {
-        if (allSamples != nullptr) {
-            delete[] allSamples;  // FREE OLD ROW DATA
-            allSamples = nullptr;
-            printf("Warning: Re-allocating DeepRow for width %zu. Previous data has been freed.\n",
-                   width);
-        }
         this->width = width;
-        // ensureCapacity((size_t)maxSamples * 6);
         sampleCounts.assign(width, 0);
-        totalSamplesInRow = 0;
         totalSamplesInRow = maxSamples;
-        allSamples = new float[maxSamples * 6];  // Full Block Allocation
-        currentCapacity = maxSamples * 6;        //! MUST CHANGE THIS TO WORK WITH CAPACITY LOGIC
+
+        size_t required = static_cast<size_t>(maxSamples) * 6;
+        // make_unique handles 'new float[]' and ensures cleanup
+        allSamples = std::make_unique<float[]>(required);
+        currentCapacity = required;
     }
 
     // Allocate full block based on actual sample counts for the row
     void allocate(size_t width, const unsigned int* counts) {
-        if (allSamples != nullptr) {
-            delete[] allSamples;  // FREE OLD ROW DATA
-            allSamples = nullptr;
-            // printf("Warning: Re-allocating DeepRow for width %zu. Previous data has been
-            // freed.\n", width);
-        }
         this->width = width;
-        sampleCounts.assign(counts, counts + width);  // Copy counts into the vector
+        sampleCounts.assign(counts, counts + width);
         totalSamplesInRow = 0;
         for (auto c : sampleCounts) totalSamplesInRow += c;
 
-        // Allocate one contiguous block for all RGBAZ data in this row
-        allSamples = new float[totalSamplesInRow * 6];  // Full Block Allocation
-        currentCapacity = totalSamplesInRow * 6;
-        // printf("Allocated DeepRow: width=%zu, totalSamples=%zu, capacity=%zu\n", width,
-        // totalSamplesInRow, currentCapacity);
+        size_t required = totalSamplesInRow * 6;
+        allSamples = std::make_unique<float[]>(required);
+        currentCapacity = required;
     }
 
     // Get pointer to the nth sample of pixel x
     float* getSampleData(int x, int n) const {
-        // 1. Find the start of pixel x (same logic as getPixelData)
         size_t pixelStartOffset = 0;
-        for (int i = 0; i < x; ++i) {
-            pixelStartOffset += sampleCounts[i];
-        }
+        for (int i = 0; i < x; ++i) pixelStartOffset += sampleCounts[i];
 
-        // 2. Bounds check: ensure the nth sample actually exists for this pixel
-        if (n >= static_cast<int>(sampleCounts[x])) {
-            return nullptr;  // Or handle error: requested sample index out of range
-        }
+        if (n >= static_cast<int>(sampleCounts[x])) return nullptr;
 
-        // 3. Final Offset: (Start of Pixel + n samples) * 6 channels
         size_t finalOffset = (pixelStartOffset + n) * 6;
-
-        return allSamples + finalOffset;
+        // Use .get() to access the raw pointer inside the smart pointer
+        return allSamples.get() + finalOffset;
     }
 
     const float* getPixelData(int x) const {
         size_t offset = 0;
-        for (int i = 0; i < x; ++i) {
-            offset += sampleCounts[i];
-        }
-        // Multiply by 6 because of RGBAZ interleaving
-        return allSamples + (offset * 6);
+        for (int i = 0; i < x; ++i) offset += sampleCounts[i];
+        return allSamples.get() + (offset * 6);
     }
 
     // Non-const version for writing
     float* getPixelData(int x) {
         size_t offset = 0;
         for (int i = 0; i < x; ++i) offset += sampleCounts[i];
-        return allSamples + (offset * 6);
+        return allSamples.get() + (offset * 6);
     }
 
     unsigned int getSampleCount(int x) const { return sampleCounts[x]; }
 
     // Cleanup
     void clear() {
-        if (allSamples) delete[] allSamples;
-        allSamples = nullptr;
+        allSamples.reset();  // Safe memory delete
         sampleCounts.clear();
+        width = 0;
+        totalSamplesInRow = 0;
+        currentCapacity = 0;
     }
 
-    ~DeepRow() { clear(); }
+    DeepRow(const DeepRow&) = delete;
+
+    // DeepRow& operator=(const DeepRow& ) = delete;
+
+    ~DeepRow() = default;
 
   private:
     void ensureCapacity(size_t required) {
         if (required > currentCapacity) {
-            if (allSamples) delete[] allSamples;
-            allSamples = new float[required];
+            allSamples = std::make_unique<float[]>(required);
             currentCapacity = required;
         }
     }
