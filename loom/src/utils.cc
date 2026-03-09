@@ -7,31 +7,31 @@ namespace deep_compositor {
 
 bool g_verbose = false;
 
-void setVerbose(bool verbose) { g_verbose = verbose; }
+void SetVerbose(bool verbose) { g_verbose = verbose; }
 
-bool isVerbose() { return g_verbose; }
+bool IsVerbose() { return g_verbose; }
 
-void logVerbose(const std::string& message) {
+void LogVerbose(const std::string& message) {
     if (g_verbose) {
         std::cout << message << std::endl;
     }
 }
 
-void log(const std::string& message) { std::cout << message << std::endl; }
+void Log(const std::string& message) { std::cout << message << std::endl; }
 
-void logError(const std::string& message) { std::cerr << "Error: " << message << std::endl; }
+void LogError(const std::string& message) { std::cerr << "Error: " << message << std::endl; }
 
-Timer::Timer() { reset(); }
+Timer::Timer() { Reset(); }
 
-void Timer::reset() { start_ = std::chrono::high_resolution_clock::now(); }
+void Timer::Reset() { start_ = std::chrono::high_resolution_clock::now(); }
 
-double Timer::elapsedMs() const {
+double Timer::ElapsedMs() const {
     auto now = std::chrono::high_resolution_clock::now();
     return std::chrono::duration<double, std::milli>(now - start_).count();
 }
 
-std::string Timer::elapsedString() const {
-    double ms = elapsedMs();
+std::string Timer::ElapsedString() const {
+    double ms = ElapsedMs();
     std::ostringstream oss;
 
     if (ms < 1000.0) {
@@ -43,7 +43,7 @@ std::string Timer::elapsedString() const {
     return oss.str();
 }
 
-std::string formatNumber(size_t number) {
+std::string FormatNumber(size_t number) {
     std::string numStr = std::to_string(number);
     std::string result;
 
@@ -59,7 +59,7 @@ std::string formatNumber(size_t number) {
     return result;
 }
 
-std::string formatBytes(size_t bytes) {
+std::string FormatBytes(size_t bytes) {
     std::ostringstream oss;
 
     if (bytes < 1024) {
@@ -75,7 +75,7 @@ std::string formatBytes(size_t bytes) {
     return oss.str();
 }
 
-std::string getFilename(const std::string& path) {
+std::string GetFilename(const std::string& path) {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos) {
         return path;
@@ -83,7 +83,7 @@ std::string getFilename(const std::string& path) {
     return path.substr(pos + 1);
 }
 
-std::string getDirectory(const std::string& path) {
+std::string GetDirectory(const std::string& path) {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos) {
         return ".";
@@ -91,7 +91,7 @@ std::string getDirectory(const std::string& path) {
     return path.substr(0, pos);
 }
 
-bool fileExists(const std::string& path) {
+bool FileExists(const std::string& path) {
     std::ifstream f(path);
     return f.good();
 }

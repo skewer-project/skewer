@@ -14,21 +14,21 @@ namespace deep_compositor {
  * Options for the compositing operation
  */
 struct CompositorOptions {
-    float mergeThreshold = 0.001f;  // Epsilon for merging nearby samples
-    bool enableMerging = true;      // Whether to merge nearby samples
+    float merge_threshold = 0.001f;  // Epsilon for merging nearby samples
+    bool enable_merging = true;      // Whether to merge nearby samples
 };
 
 /**
  * Statistics from a compositing operation
  */
 struct CompositorStats {
-    size_t inputImageCount = 0;
-    size_t totalInputSamples = 0;
-    size_t totalOutputSamples = 0;
-    float minDepth = 0.0f;
-    float maxDepth = 0.0f;
-    double mergeTimeMs = 0.0;
-    double flattenTimeMs = 0.0;
+    size_t input_image_count = 0;
+    size_t total_input_samples = 0;
+    size_t total_output_samples = 0;
+    float min_depth = 0.0f;
+    float max_depth = 0.0f;
+    double merge_time_ms = 0.0;
+    double flatten_time_ms = 0.0;
 };
 
 /**
@@ -44,7 +44,7 @@ struct CompositorStats {
  * @throws std::runtime_error if inputs have mismatched dimensions
  */
 
-std::vector<float> processAllEXR(const Options& opts, int height, int width,
+std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
                                  std::vector<std::unique_ptr<DeepInfo>>& imagesInfo);
 
 // DeepImage deepMerge(const std::vector<DeepImage>& inputs,

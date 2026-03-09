@@ -38,7 +38,7 @@ void printUsage(const char* programName) {
               << "  --no-flat-output     Don't write flattened EXR\n"
               << "  --png-output         Write PNG preview (default: on)\n"
               << "  --no-png-output      Don't write PNG preview\n"
-              << "  --verbose, -v        Detailed logging\n"
+              << "  --verbose, -v        Detailed Logging\n"
               << "  --merge-threshold N  Depth epsilon for merging samples (default: 0.001)\n"
               << "  --help, -h           Show this help message\n\n"
               << "Example:\n"
@@ -62,29 +62,29 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
         std::string arg = argv[i];
 
         if (arg == "--help" || arg == "-h") {
-            opts.showHelp = true;
+            opts.show_help = true;
             return true;
         } else if (arg == "--verbose" || arg == "-v") {
             opts.verbose = true;
         } else if (arg == "--deep-output") {
-            opts.deepOutput = true;
+            opts.deep_output = true;
         } else if (arg == "--flat-output") {
-            opts.flatOutput = true;
+            opts.flat_output = true;
         } else if (arg == "--no-flat-output") {
-            opts.flatOutput = false;
+            opts.flat_output = false;
         } else if (arg == "--png-output") {
-            opts.pngOutput = true;
+            opts.png_output = true;
         } else if (arg == "--no-png-output") {
-            opts.pngOutput = false;
+            opts.png_output = false;
         } else if (arg == "--mod-offset") {
-            opts.modOffset = true;
+            opts.mod_offset = true;
         } else if (arg == "--merge-threshold") {
             if (i + 1 >= argc) {
                 std::cerr << "Error: --merge-threshold requires a value\n";
                 return false;
             }
             try {
-                opts.mergeThreshold = std::stof(argv[++i]);
+                opts.merge_threshold = std::stof(argv[++i]);
             } catch (...) {
                 std::cerr << "Error: Invalid merge threshold value\n";
                 return false;
@@ -95,30 +95,30 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
         } else {
             // Positional argument (input file or output prefix)
 
-            if (opts.modOffset && isFloat(arg)) {
-                if (opts.inputFiles.size() != opts.inputZOffsets.size() + 1) {
+            if (opts.mod_offset && isFloat(arg)) {
+                if (opts.input_files.size() != opts.input_z_offsets.size() + 1) {
                     std::cerr << "Error: Mismatched position of Z offset value\n";
                     return false;
                 }
                 try {
                     float offset = std::stof(arg);
-                    opts.inputZOffsets.push_back(offset);
+                    opts.input_z_offsets.push_back(offset);
                     continue;  // Don't treat this as an input file
                 } catch (...) {
                     std::cerr << "Error: Invalid Z offset value: " << arg << "\n";
                     return false;
                 }
             } else {
-                if (opts.modOffset && (opts.inputFiles.size() == opts.inputZOffsets.size() + 1)) {
-                    opts.inputZOffsets.push_back(0);  // Default offset for this file
+                if (opts.mod_offset && (opts.input_files.size() == opts.input_z_offsets.size() + 1)) {
+                    opts.input_z_offsets.push_back(0);  // Default offset for this file
                 }
-                opts.inputFiles.push_back(
+                opts.input_files.push_back(
                     arg);  // Could be input file or output prefix, we'll determine later
             }
         }
     }
-    if (opts.modOffset && (opts.inputFiles.size() != opts.inputZOffsets.size())) {
-        opts.inputZOffsets.push_back(0);  // Default offset for last file if not provided
+    if (opts.mod_offset && (opts.input_files.size() != opts.input_z_offsets.size())) {
+        opts.input_z_offsets.push_back(0);  // Default offset for last file if not provided
     }
     // std::cerr << "There are " << opts.inputFiles.size() << " input files and " <<
     // opts.inputZOffsets.size() << " Z offsets\n";
@@ -128,14 +128,14 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
     // }
 
     // Need at least one input and one output prefix
-    if (opts.inputFiles.size() < 2) {
+    if (opts.input_files.size() < 2) {
         std::cerr << "Error: Need at least one input file and an output prefix\n";
         return false;
     }
 
     // Last positional arg is output prefix
-    opts.outputPrefix = opts.inputFiles.back();
-    opts.inputFiles.pop_back();
+    opts.output_prefix = opts.input_files.back();
+    opts.input_files.pop_back();
 
     return true;
 }
@@ -152,33 +152,33 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (opts.showHelp) {
+    if (opts.show_help) {
         printUsage(argv[0]);
         return 0;
     }
 
     // Set verbose mode
-    setVerbose(opts.verbose);
+    SetVerbose(opts.verbose);
 
-    log("Loom v" + std::string(VERSION));
+    Log("Loom v" + std::string(VERSION));
 
     Timer totalTimer;
 
-    log("Loading inputs...");
+    Log("Loading inputs...");
     Timer loadTimer;
 
     std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
 
-    for (size_t i = 0; i < opts.inputFiles.size(); ++i) {
-        const std::string& filename = opts.inputFiles[i];
+    for (size_t i = 0; i < opts.input_files.size(); ++i) {
+        const std::string& filename = opts.input_files[i];
 
-        logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.inputFiles.size()) +
+        LogVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.input_files.size()) +
                    "] " + filename);
-        printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.inputFiles.size(), filename.c_str());
+        printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
         try {
             // Check if it's a deep EXR
             if (!exrio::isDeepEXR(filename)) {
-                logError("File is not a deep EXR: " + filename);
+                LogError("File is not a deep EXR: " + filename);
                 return 1;
             }
 
@@ -186,14 +186,14 @@ int main(int argc, char* argv[]) {
             // Log statistics
             std::string stats =
                 "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
-            logVerbose(stats);
+            LogVerbose(stats);
             if (!imagesInfo.empty()) {
                 if (img->width() != imagesInfo[0]->width() ||
                     img->height() != imagesInfo[0]->height()) {
-                    logError("Image dimensions mismatch: " + filename);
-                    logError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
+                    LogError("Image dimensions mismatch: " + filename);
+                    LogError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
                              std::to_string(imagesInfo[0]->height()));
-                    logError("  Got: " + std::to_string(img->width()) + "x" +
+                    LogError("  Got: " + std::to_string(img->width()) + "x" +
                              std::to_string(img->height()));
                     return 1;
                 }
@@ -202,24 +202,24 @@ int main(int argc, char* argv[]) {
             imagesInfo.push_back(std::move(img));
 
         } catch (const exrio::DeepReaderException& e) {
-            logError("Failed to load " + filename + ": " + e.what());
+            LogError("Failed to load " + filename + ": " + e.what());
             return 1;
         } catch (const std::exception& e) {
-            logError("Unexpected error loading " + filename + ": " + e.what());
+            LogError("Unexpected error loading " + filename + ": " + e.what());
             return 1;
         }
         if (!exrio::isDeepEXR(filename)) {
-            logError("File is not a deep EXR: " + filename);
+            LogError("File is not a deep EXR: " + filename);
             return 1;
         }
     }
     int height = imagesInfo[0]->height();
     int width = imagesInfo[0]->width();
 
-    log("Starting processing...");
-    std::vector<float> finalImage = processAllEXR(opts, height, width, imagesInfo);
+    Log("Starting processing...");
+    std::vector<float> finalImage = ProcessAllEXR(opts, height, width, imagesInfo);
 
-    log("\nWriting outputs...");
+    Log("\nWriting outputs...");
     Timer writeTimer;
 
     try {
@@ -227,40 +227,40 @@ int main(int argc, char* argv[]) {
         // if (opts.deepOutput) {
         //     std::string deepPath = opts.outputPrefix + "_merged.exr";
         //     writeDeepEXR(merged, deepPath);
-        //     log("  Wrote: " + deepPath);
+        //     Log("  Wrote: " + deepPath);
         // }
 
         // // Write flat EXR if requested
         // if (opts.flatOutput) {
         //     std::string flatPath = opts.outputPrefix + "_flat.exr";
         //     writeFlatEXR(flatRgba, merged.width(), merged.height(), flatPath);
-        //     log("  Wrote: " + flatPath);
+        //     Log("  Wrote: " + flatPath);
         // }
 
         // Write PNG if requested
-        if (opts.pngOutput) {
-            std::string pngPath = opts.outputPrefix + ".png";
+        if (opts.png_output) {
+            std::string pngPath = opts.output_prefix + ".png";
 
             if (exrio::hasPNGSupport()) {
                 exrio::writePNG(finalImage, width, height, pngPath);
-                log("  Wrote: " + pngPath);
+                Log("  Wrote: " + pngPath);
             } else {
-                log("  Skipped PNG (libpng not available)");
+                Log("  Skipped PNG (libpng not available)");
             }
         }
 
     } catch (const exrio::DeepReaderException& e) {
-        logError("Failed to write output: " + std::string(e.what()));
+        LogError("Failed to write output: " + std::string(e.what()));
         return 1;
     }
 
-    // logVerbose("  Write time: " + writeTimer.elapsedString());
+    // LogVerbose("  Write time: " + writeTimer.elapsedString());
 
     // ========================================================================
     // Summary
     // ========================================================================
 
-    log("\nDone! Total time: " + totalTimer.elapsedString());
+    Log("\nDone! Total time: " + totalTimer.ElapsedString());
 
     return 0;
 }
