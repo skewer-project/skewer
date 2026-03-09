@@ -59,18 +59,18 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
 
     // 5. Store camera parameters so RebuildFilm() can recreate the camera
     // with the correct aspect ratio if the resolution is later overridden.
-    cam_look_from_   = config.look_from;
-    cam_look_at_     = config.look_at;
-    cam_vup_         = config.vup;
-    cam_vfov_        = config.vfov;
-    cam_aperture_    = config.aperture_radius;
-    cam_focus_dist_  = config.focus_distance;
+    cam_look_from_ = config.look_from;
+    cam_look_at_ = config.look_at;
+    cam_vup_ = config.vup;
+    cam_vfov_ = config.vfov;
+    cam_aperture_ = config.aperture_radius;
+    cam_focus_dist_ = config.focus_distance;
 
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
-                                       aspect, cam_aperture_, cam_focus_dist_);
+    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
+                                       cam_aperture_, cam_focus_dist_);
 
     // 7. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
@@ -94,8 +94,8 @@ void RenderSession::RebuildFilm() {
     // the projection matches the new film dimensions.
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
-                                       aspect, cam_aperture_, cam_focus_dist_);
+    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
+                                       cam_aperture_, cam_focus_dist_);
     options_.integrator_config.cam_w = -camera_->GetW();
 
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
