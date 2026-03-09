@@ -88,7 +88,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
                 if (Tr.MaxComponentValue() > 0.0f) {
                     // Evaluate Phase & Transmittance
-                    float phase_val = EvalHG(mi.phase_g, mi.wo, dls.wi);
+                    float phase_val = EvalHenyeyGreenstein(mi.phase_g, mi.wo, dls.wi);
                     Spectrum direct_L = phase_val * Tr * dls.emission / dls.pdf;
                     local_vertex_L += direct_L;
                 }
@@ -103,7 +103,8 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
             /* Sample Phase Function for Indirect Bounce */
             Vec3 next_wi;
-            SampleHG(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(), next_wi);
+            SampleHenyeyGreenstein(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(),
+                                   next_wi);
 
             // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0
             // The sampling routine perfectly importance samples the distribution so beta is
