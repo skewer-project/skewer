@@ -469,6 +469,10 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 				OutputUri:  outputUri,
 				EnableDeep: job.GetSampleDivision() > 1 || job.GetEnableDeep(),
 				Threads:    job.GetThreads(),
+
+				NoiseThreshold: job.GetNoiseThreshold(),
+				MinSamples:     job.GetMinSamples(),
+				AdaptiveStep:   job.GetAdaptiveStep(),
 			}
 			if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
 				return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
