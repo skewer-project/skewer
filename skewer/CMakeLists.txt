@@ -61,6 +61,7 @@ endif()
 set(SKEWER_CORE_SOURCES
     src/session/render_session.cc
     src/scene/scene.cc
+    src/film/deep_segment_pool.cc
     src/film/film.cc
     src/film/image_buffer.cc
     src/integrators/path_trace.cc
