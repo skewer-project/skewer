@@ -20,16 +20,16 @@ struct RawSample {
 };
 
 // Determines if a sample is a volume or a flat plane
-inline bool isVolume(const RawSample& s) {
+inline bool IsVolume(const RawSample& s) {
     // A sample is a volume if its back depth is meaningfully greater than its front depth
     return (s.z_back - s.z) > 1e-6f;
 }
 
-inline bool isNearDepth(const RawSample& a, const RawSample& b, float epsilon) {
+inline bool IsNearDepth(const RawSample& a, const RawSample& b, float epsilon) {
     return std::abs(a.z - b.z) < epsilon && std::abs(a.z_back - b.z_back) < epsilon;
 }
 
-inline RawSample blendCoincidentSamples(const RawSample& current, const RawSample& next) {
+inline RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next) {
     RawSample blended = current;
 
     // Volumetric transmission (Beer-Lambert addition)
@@ -46,7 +46,7 @@ inline RawSample blendCoincidentSamples(const RawSample& current, const RawSampl
     return blended;
 }
 
-inline std::pair<RawSample, RawSample> splitSample(const RawSample& s, float zSplit) {
+inline std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
     RawSample front = s;
     RawSample back = s;
 
@@ -54,7 +54,7 @@ inline std::pair<RawSample, RawSample> splitSample(const RawSample& s, float zSp
     back.z = zSplit;
 
     float totalThickness = s.z_back - s.z;
-    if (totalThickness <= 0.0f) return {front, back};  // Should never happen if isVolume is checked
+    if (totalThickness <= 0.0f) return {front, back};  // Should never happen if IsVolume is checked
 
     float frontRatio = (zSplit - s.z) / totalThickness;
     float backRatio = (s.z_back - zSplit) / totalThickness;
@@ -90,7 +90,7 @@ inline std::pair<RawSample, RawSample> splitSample(const RawSample& s, float zSp
 
 // Takes raw sample data from multiple input rows for a single pixel, merges them, and writes to the
 // output row
-void sortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
+void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
                               DeepRow& outputRow) {
     // 1. Collect all raw samples into a temporary flat vector
@@ -112,7 +112,7 @@ void sortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
     }
 
     if (staging.empty()) {
-        outputRow.sampleCounts[x] = 0;
+        outputRow.sample_counts[x] = 0;
         return;
     }
 
@@ -170,7 +170,7 @@ void sortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
     // 3. Write results back to the outputRow
 
-    float* outPtr = outputRow.getPixelData(
+    float* outPtr = outputRow.GetPixelData(
         x);  //! CONSIDER RESIZING THE OUTPUT ROW HERE IF STAGING SIZE EXCEEDS CURRENT CAPACITY
 
     // Write the sorted samples back
@@ -185,10 +185,10 @@ void sortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
     }
 
     // Update the output sample count for this pixel
-    outputRow.sampleCounts[x] = static_cast<unsigned int>(staging.size());
+    outputRow.sample_counts[x] = static_cast<unsigned int>(staging.size());
 }
 
-void sortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
+void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
                                  DeepRow& outputRow) {
     // 1. Collect all raw samples into a temporary flat vector
@@ -206,7 +206,7 @@ void sortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     }
 
     if (staging.empty()) {
-        outputRow.sampleCounts[x] = 0;
+        outputRow.sample_counts[x] = 0;
         return;
     }
 
@@ -226,7 +226,7 @@ void sortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     fragments.reserve(staging.size() * 2);
 
     for (const auto& sample : staging) {
-        if (!isVolume(sample)) {
+        if (!IsVolume(sample)) {
             fragments.push_back(sample);
             continue;
         }
@@ -251,7 +251,7 @@ void sortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
             if (zCut <= remainder.z + 1e-7f || zCut >= remainder.z_back - 1e-7f) {
                 continue;
             }
-            auto [front, back] = splitSample(remainder, zCut);
+            auto [front, back] = SplitSample(remainder, zCut);
             fragments.push_back(front);
             remainder = back;
         }
@@ -271,8 +271,8 @@ void sortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
         i++;
 
         // Merge all subsequent fragments that share the exact same interval
-        while (i < fragments.size() && isNearDepth(current, fragments[i], epsilon)) {
-            current = blendCoincidentSamples(current, fragments[i]);
+        while (i < fragments.size() && IsNearDepth(current, fragments[i], epsilon)) {
+            current = BlendCoincidentSamples(current, fragments[i]);
             i++;
         }
 
@@ -280,7 +280,7 @@ void sortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     }
 
     // 6. Write results back to the outputRow
-    float* outPtr = outputRow.getPixelData(x);
+    float* outPtr = outputRow.GetPixelData(x);
     for (size_t s = 0; s < blended.size(); ++s) {
         float* dest = outPtr + (s * 6);
         dest[0] = blended[s].r;
@@ -292,5 +292,5 @@ void sortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     }
 
     // Update the output sample count for this pixel
-    outputRow.sampleCounts[x] = static_cast<unsigned int>(blended.size());
+    outputRow.sample_counts[x] = static_cast<unsigned int>(blended.size());
 }

@@ -6,15 +6,15 @@
 #include <vector>
 
 struct Options {
-    std::vector<std::string> inputFiles;
-    std::vector<float> inputZOffsets;  // Merge the two later
-    std::string outputPrefix;
-    bool deepOutput = false;
-    bool flatOutput = true;
-    bool pngOutput = true;
+    std::vector<std::string> input_files;
+    std::vector<float> input_z_offsets;
+    std::string output_prefix;
+    bool deep_output = false;
+    bool flat_output = true;
+    bool png_output = true;
     bool verbose = false;
-    float mergeThreshold = 0.001f;
-    bool showHelp = false;
-    bool modOffset = false;
-    bool enableMerging = true;  // Whether to merge nearby samples
+    float merge_threshold = 0.001f;
+    bool show_help = false;
+    bool mod_offset = false;
+    bool enable_merging = true;
 };

@@ -36,12 +36,12 @@ class DeepInfo {
     int height() const { return height_; }
     // bool isDeep() const { return isDeep_; }
 
-    Imf::DeepScanLineInputFile& getFile() { return file_; }
+    Imf::DeepScanLineInputFile& GetFile() { return file_; }
 
     // Temporary buffer for sample counts of a single row
-    const unsigned int* getSampleCountsForRow(int y) {
-        fetchSampleCounts(y);
-        return tempSampleCounts.data();  // return pointer to the start of the row's sample counts
+    const unsigned int* GetSampleCountsForRow(int y) {
+        FetchSampleCounts(y);
+        return temp_sample_counts.data();  // return pointer to the start of the row's sample counts
     }
 
     /**
@@ -57,9 +57,9 @@ class DeepInfo {
      *
 
      */
-    void fetchSampleCounts(int y) {
+    void FetchSampleCounts(int y) {
         // Resize buffer to fit one row of integers
-        tempSampleCounts.resize(width_);
+        temp_sample_counts.resize(width_);
 
         Imath::Box2i dw = file_.header().dataWindow();
         int minX = dw.min.x;
@@ -67,7 +67,7 @@ class DeepInfo {
         Imf::DeepFrameBuffer countBuffer;
         // We point to the start of our vector, but tell OpenEXR
         // that this memory represents pixel (minX, y)
-        char* base = (char*)(tempSampleCounts.data()) - (minX * sizeof(unsigned int));
+        char* base = (char*)(temp_sample_counts.data()) - (minX * sizeof(unsigned int));
         // Note: We don't subtract y because we only read one row (y, y)
 
         countBuffer.insertSampleCountSlice(Imf::Slice(Imf::UINT, base,
@@ -90,12 +90,12 @@ class DeepInfo {
     int width_;
     int height_;
 
-    std::vector<unsigned int> tempSampleCounts;
+    std::vector<unsigned int> temp_sample_counts;
 
     Imf::DeepScanLineInputFile file_;
 
     // bool isDeep_;
-    bool isValidCoord(int x, int y) const {
+    bool IsValidCoord(int x, int y) const {
         return (x >= 0 && x < width_ && y >= 0 && y < height_);
     }
 
