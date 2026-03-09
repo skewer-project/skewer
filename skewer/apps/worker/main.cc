@@ -84,14 +84,30 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
 
                 // Adapt integrator config to sample range
                 session.LoadSceneFromFile(task.scene_uri(), 0);
-                session.Options().image_config.width = task.width();
-                session.Options().image_config.height = task.height();
+                if (task.width() > 0 && task.height() > 0) {
+                    session.Options().image_config.width = task.width();
+                    session.Options().image_config.height = task.height();
+                }
                 session.Options().integrator_config.start_sample = task.sample_start();
-                session.Options().integrator_config.max_samples =
-                    task.sample_end() - task.sample_start();
+                if (task.sample_end() > task.sample_start()) {
+                    session.Options().integrator_config.max_samples =
+                        task.sample_end() - task.sample_start();
+                }
                 session.Options().integrator_config.num_threads = task_threads;
                 session.Options().image_config.outfile = task.output_uri();
+                session.Options().image_config.exrfile = task.output_uri();
                 session.Options().integrator_config.enable_deep = task.enable_deep();
+
+                // Apply adaptive sampling if the job specifies it (overrides scene JSON)
+                if (task.noise_threshold() > 0.0f) {
+                    session.Options().integrator_config.noise_threshold = task.noise_threshold();
+                }
+                if (task.min_samples() > 0) {
+                    session.Options().integrator_config.min_samples = task.min_samples();
+                }
+                if (task.adaptive_step() > 0) {
+                    session.Options().integrator_config.adaptive_step = task.adaptive_step();
+                }
 
                 std::cout << "[SKEWER]: Rendering " << task.width() << "x" << task.height()
                           << " (Samples: " << task.sample_start() << " to " << task.sample_end()
