@@ -56,6 +56,15 @@ class RenderSession {
     std::unique_ptr<Integrator> integrator_;
 
     RenderOptions options_;
+
+    // Camera parameters stored so RebuildFilm() can recreate the camera
+    // with a corrected aspect ratio when the resolution is overridden.
+    Vec3 cam_look_from_;
+    Vec3 cam_look_at_;
+    Vec3 cam_vup_;
+    float cam_vfov_ = 90.0f;
+    float cam_aperture_ = 0.0f;
+    float cam_focus_dist_ = 1.0f;
 };
 
 }  // namespace skwr
