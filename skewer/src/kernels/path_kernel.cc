@@ -109,6 +109,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             /* Sample Phase Function for Indirect Bounce */
             Vec3 next_wi;
             SampleHG(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(), next_wi);
+            prev_scatter_pdf = EvalHG(mi.phase_g, mi.wo, next_wi);
 
             // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0
             // The sampling routine perfectly importance samples the distribution so beta is
@@ -162,8 +163,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
                     // Calculate the PDF that NEE would have generated to hit this exact spot
                     float pdf_a = LightPdfArea(scene, si.light_index);
                     float dist_sq = si.t * si.t;
-                    float cos_light =
-                        std::fmax(0.0f, Dot(-r.direction(), si.n_shading));  // n_geom?
+                    float cos_light = std::fmax(0.0f, Dot(-r.direction(), si.n_geom));
                     float pdf_w = (pdf_a * dist_sq) / cos_light;
                     pdf_w *= scene.InvLightCount();
 

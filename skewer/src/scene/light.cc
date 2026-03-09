@@ -21,7 +21,8 @@ float LightPdfArea(const Scene& scene, int light_index) {
     return 0.0f;
 }
 
-LightSample SampleLight(const Scene& scene, const AreaLight& light, int light_index, RNG& rng) {
+LightSample SampleLight(const Scene& scene, int light_index, RNG& rng) {
+    const AreaLight& light = scene.Lights()[light_index];
     LightSample result;
     result.emission = light.emission;
 
