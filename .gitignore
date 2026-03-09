@@ -28,3 +28,5 @@ images/
 # generated images
 *.exr
 *.ppm
+
+.claude/
