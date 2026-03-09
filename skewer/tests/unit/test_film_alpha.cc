@@ -86,6 +86,34 @@ TEST_F(FilmAlphaTest, WeightedSamplesRespectWeight) {
     ASSERT_NE(buf, nullptr);
 }
 
+TEST_F(FilmAlphaTest, DeepImageNormalizesByActualPixelSampleCount) {
+    Film film(1, 1);
+
+    PathSample hit;
+    hit.segments.push_back({1.0f, 1.001f, RGB(0.5f, 0.25f, 0.0f), 1.0f});
+
+    // Two covered samples contribute a deep segment.
+    for (int i = 0; i < 2; ++i) {
+        film.AddAdaptiveSample(0, 0, RGB(0.5f, 0.25f, 0.0f), 1.0f, 1.0f);
+        film.AddDeepSample(0, 0, hit);
+    }
+
+    // Two transparent misses still count toward the pixel's total sample count.
+    for (int i = 0; i < 2; ++i) {
+        film.AddAdaptiveSample(0, 0, RGB(0.0f), 0.0f, 1.0f);
+    }
+
+    exrio::DeepImage image = film.BuildDeepImage();
+    const exrio::DeepPixel& pixel = image.pixel(0, 0);
+    ASSERT_EQ(pixel.sampleCount(), 1u);
+
+    const exrio::DeepSample& sample = pixel[0];
+    EXPECT_NEAR(sample.red, 0.25f, kTol);
+    EXPECT_NEAR(sample.green, 0.125f, kTol);
+    EXPECT_NEAR(sample.blue, 0.0f, kTol);
+    EXPECT_NEAR(sample.alpha, 0.5f, kTol);
+}
+
 // ============================================================================
 // PathSample default alpha
 // ============================================================================
