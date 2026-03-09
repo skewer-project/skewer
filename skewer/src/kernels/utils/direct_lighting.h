@@ -1,6 +1,8 @@
 #ifndef SKWR_KERNELS_UTILS_DIRECT_LIGHTING_H_
 #define SKWR_KERNELS_UTILS_DIRECT_LIGHTING_H_
 
+#include <cmath>
+
 #include "core/math/vec3.h"
 #include "core/sampling/rng.h"
 #include "core/spectral/spectral_utils.h"
