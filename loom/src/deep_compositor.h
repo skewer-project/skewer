@@ -21,15 +21,6 @@ struct CompositorOptions {
 /**
  * Statistics from a compositing operation
  */
-struct CompositorStats {
-    size_t input_image_count = 0;
-    size_t total_input_samples = 0;
-    size_t total_output_samples = 0;
-    float min_depth = 0.0f;
-    float max_depth = 0.0f;
-    double merge_time_ms = 0.0;
-    double flatten_time_ms = 0.0;
-};
 
 /**
  * Deep merge multiple deep images into a single deep image

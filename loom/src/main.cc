@@ -250,7 +250,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-    } catch (const exrio::DeepReaderException& e) {
+    } catch (const exrio::DeepWriterException& e) {
         LogError("Failed to write output: " + std::string(e.what()));
         return 1;
     }

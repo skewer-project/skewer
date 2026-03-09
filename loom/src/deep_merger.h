@@ -56,14 +56,14 @@ inline std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSp
     float totalThickness = s.z_back - s.z;
     if (totalThickness <= 0.0f) return {front, back};  // Should never happen if IsVolume is checked
 
-    float frontRatio = (zSplit - s.z) / totalThickness;
-    float backRatio = (s.z_back - zSplit) / totalThickness;
+    float front_ratio = (zSplit - s.z) / totalThickness;
+    float back_ratio = (s.z_back - zSplit) / totalThickness;
 
     // Calculate new alpha using exponential attenuation
     // T_front = T_total ^ (front_thickness / total_thickness)
     float T_total = std::max(0.0f, 1.0f - s.a);
-    float T_front = std::pow(T_total, frontRatio);
-    float T_back = std::pow(T_total, backRatio);
+    float T_front = std::pow(T_total, front_ratio);
+    float T_back = std::pow(T_total, back_ratio);
 
     front.a = 1.0f - T_front;
     back.a = 1.0f - T_back;
@@ -71,15 +71,15 @@ inline std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSp
     // Scale colors proportionally to the new alpha vs old alpha
     // If original alpha is 0, we avoid division by zero
     if (s.a > 1e-6f) {
-        float frontColorScale = front.a / s.a;
-        float backColorScale = back.a / s.a;
+        float front_color_scale = front.a / s.a;
+        float back_color_scale = back.a / s.a;
 
-        front.r *= frontColorScale;
-        front.g *= frontColorScale;
-        front.b *= frontColorScale;
-        back.r *= backColorScale;
-        back.g *= backColorScale;
-        back.b *= backColorScale;
+        front.r *= front_color_scale;
+        front.g *= front_color_scale;
+        front.b *= front_color_scale;
+        back.r *= back_color_scale;
+        back.g *= back_color_scale;
+        back.b *= back_color_scale;
     } else {
         front.r = front.g = front.b = 0.0f;
         back.r = back.g = back.b = 0.0f;
