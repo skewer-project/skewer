@@ -64,7 +64,11 @@ struct alignas(16) SpectralPacket {
     }
     SpectralPacket& operator/=(const SpectralPacket& s) {
         for (int i = 0; i < NSamples; ++i) {
-            values[i] /= s.values[i];
+            if (s.values[i] > kZeroEpsilon) {
+                values[i] /= s.values[i];
+            } else {
+                values[i] = 0.0f;
+            }
         }
         return *this;
     }
