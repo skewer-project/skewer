@@ -107,7 +107,7 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
 
                 size_t sampleStride = NUM_CHANNELS * sizeof(float);
                 size_t xStride = 0;  // Since we're using a single contiguous block, xStride is 0
-             
+
                 std::vector<float*> rPtrs(width), gPtrs(width), bPtrs(width), aPtrs(width),
                     zPtrs(width), zbPtrs(width);
 
@@ -151,7 +151,6 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
                 frameBuffer.insert("ZBack", Imf::DeepSlice(Imf::FLOAT, (char*)zbPtrs.data(),
                                                            xStride, 0, sampleStride));
 
-
                 file.setFrameBuffer(frameBuffer);
                 file.readPixels(load_y, load_y);
             }
@@ -160,7 +159,6 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
             // Update status after N rows
             row_status[load_y].store(LOADED);  // Update status to Loaded
             loaded_scanlines.fetch_add(1);
-
 
             //
             if (load_y % (height / 10) == 0) {
