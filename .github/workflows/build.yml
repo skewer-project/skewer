@@ -49,10 +49,10 @@ jobs:
         run: ccache -z
 
       - name: Build
-        run: cmake --build --preset ci --parallel
+        run: cmake --build --preset ci --parallel 2
 
       - name: Test
-        run: ctest --preset ci
+        run: ctest --preset ci --parallel 2
 
       - name: ccache stats
         if: always()
