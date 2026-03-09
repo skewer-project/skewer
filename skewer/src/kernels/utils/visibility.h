@@ -9,7 +9,7 @@ class Scene;
 class Ray;
 class RNG;
 
-Spectrum EvaluateVisibility(const Scene& scene, Ray& shadow_ray, float max_dist, RNG& rng,
+Spectrum EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& rng,
                             const SampledWavelengths& wl);
 
 }  // namespace skwr
