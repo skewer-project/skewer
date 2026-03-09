@@ -23,6 +23,8 @@ constexpr float kBoundEpsilon = 0.0001f;
 constexpr float kZeroEpsilon = 1e-8f;
 constexpr float kFarClip = 1e10f;
 
+constexpr float kIsotropicPhaseEpsilon = 1e-3f;
+
 inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
 
 namespace Rec709 {
