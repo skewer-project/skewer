@@ -51,6 +51,12 @@ message RenderJob {
   string output_uri_prefix = 4; // gs://bucket/renders/smoke/
   bool enable_deep = 5;
   int32 threads = 6;
+
+  // Adaptive sampling. When noise_threshold > 0, pixels that converge below
+  // the threshold stop sampling early. 0 disables adaptive sampling.
+  float noise_threshold = 7;
+  int32 min_samples = 8;    // Minimum samples before convergence check (default 0 = use scene JSON)
+  int32 adaptive_step = 9;  // Samples between convergence checks (default 0 = use scene JSON)
 }
 
 message CompositeJob {
@@ -130,6 +136,11 @@ message RenderTask {
   string output_uri = 6; // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
   bool enable_deep = 7;
   int32 threads = 8;
+
+  // Adaptive sampling (forwarded from RenderJob)
+  float noise_threshold = 9;
+  int32 min_samples = 10;
+  int32 adaptive_step = 11;
 }
 
 message MergeTask {
