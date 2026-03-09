@@ -134,6 +134,9 @@ uint32_t Scene::AddTexture(ImageTexture&& t) {
 }
 
 uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
+    if (homogeneous_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
     homogeneous_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1);
     // Pack: Type 1 (Homogeneous) + index
@@ -142,6 +145,9 @@ uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
 }
 
 uint16_t Scene::AddGridMedium(const GridMedium& m) {
+    if (grid_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
     grid_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
     // Pack: Type 2 (Grid) + index
