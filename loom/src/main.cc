@@ -109,7 +109,8 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
                     return false;
                 }
             } else {
-                if (opts.mod_offset && (opts.input_files.size() == opts.input_z_offsets.size() + 1)) {
+                if (opts.mod_offset &&
+                    (opts.input_files.size() == opts.input_z_offsets.size() + 1)) {
                     opts.input_z_offsets.push_back(0);  // Default offset for this file
                 }
                 opts.input_files.push_back(
