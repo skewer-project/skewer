@@ -26,9 +26,8 @@
 #include "indicators.h"
 #include "utils.h"
 
-namespace bk = barkeep;
-
 namespace deep_compositor {
+namespace bk = barkeep;
 
 // Main Pipeline Function
 // 1. Load deep EXR files into DeepImage objects
@@ -72,6 +71,15 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
     // Stage 1 LOAD - Load lines in chunks of 16
     // ========================================================================
 
+    // std::atomic<double> progressCounter{0.0};
+
+    // auto loadBar = bk::ProgressBar(&progressCounter, {
+    //     .total = static_cast<double>(height),
+    //     .message = "Loading EXR Rows",
+    //     .speed = 0.2,
+    //     .speed_unit = "rows/s",
+    //     .style = bk::ProgressBarStyle::Rich
+    // });
     // for (int load_y = start_row; load_y < end_row; ++load_y) {
     auto loader_worker = [&](int start_row, int end_row) {
         // printf("Loading EXR data in chunks of %d scanlines...\n", chunkSize);
@@ -120,7 +128,7 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
                 std::vector<float*> rPtrs(width), gPtrs(width), bPtrs(width), aPtrs(width),
                     zPtrs(width), zbPtrs(width);
 
-                float* currentPixelPtr = row.allSamples;
+                float* currentPixelPtr = row.allSamples.get();
                 for (int x = 0; x < width; ++x) {
                     rPtrs[x] = currentPixelPtr + 0;   // Points to R
                     gPtrs[x] = currentPixelPtr + 1;   // Points to G
@@ -175,9 +183,10 @@ std::vector<float> processAllEXR(const Options& opts, int height, int width,
             // load_y++;
 
             //
-            // if (load_y % (height / 10) == 0) {
-            //     loadBar.set_progress(load_y/ (height / 10));
-            // }
+            if (load_y % (height / 10) == 0) {
+                // loadBar.set_progress(load_y/ (height / 10));
+                // progressCounter. (1.0);
+            }
         }
     };
     // ========================================================================
