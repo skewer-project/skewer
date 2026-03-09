@@ -87,7 +87,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 session.Options().image_config.width = task.width();
                 session.Options().image_config.height = task.height();
                 session.Options().integrator_config.start_sample = task.sample_start();
-                session.Options().integrator_config.samples_per_pixel =
+                session.Options().integrator_config.max_samples =
                     task.sample_end() - task.sample_start();
                 session.Options().integrator_config.num_threads = task_threads;
                 session.Options().image_config.outfile = task.output_uri();
