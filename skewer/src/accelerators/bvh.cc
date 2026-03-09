@@ -219,13 +219,12 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
     const Vec3& inv_dir = r.inv_direction();
     const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
 
-    std::vector<uint32_t> nodes_to_visit;
-    nodes_to_visit.reserve(nodes_.size());
-    nodes_to_visit.push_back(0);
+    int nodes_to_visit[64];
+    int to_visit_offset = 0;
 
-    while (!nodes_to_visit.empty()) {
-        int current_node_idx = nodes_to_visit.back();
-        nodes_to_visit.pop_back();
+    nodes_to_visit[0] = 0;
+    while (to_visit_offset >= 0) {
+        int current_node_idx = nodes_to_visit[to_visit_offset--];
         const BVHNode& node = GetNodes()[current_node_idx];
 
         if (node.bounds.Intersect(r, t_min, closest_t)) {
@@ -240,11 +239,11 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
             } else {
                 int axis = node.bounds.LongestAxis();
                 if (dir_is_neg[axis]) {
-                    nodes_to_visit.push_back(node.left_first);
-                    nodes_to_visit.push_back(node.left_first + 1);
+                    nodes_to_visit[++to_visit_offset] = node.left_first;
+                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
                 } else {
-                    nodes_to_visit.push_back(node.left_first + 1);
-                    nodes_to_visit.push_back(node.left_first);
+                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
+                    nodes_to_visit[++to_visit_offset] = node.left_first;
                 }
             }
         }
