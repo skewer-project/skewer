@@ -21,6 +21,7 @@ void Scene::Build() {
 
     // Re-register sphere lights
     for (uint32_t i = 0; i < (uint32_t)spheres_.size(); ++i) {
+        spheres_[i].light_index = -1;
         if (spheres_[i].material_id == kNullMaterialId) continue;
 
         const Material& mat = materials_[spheres_[i].material_id];
