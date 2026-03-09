@@ -26,11 +26,13 @@ inline bool GenerateLightSample(const Vec3& origin, const Scene& scene, RNG& rng
 
     Vec3 to_light = ls.p - origin;
     float dist_sq = to_light.LengthSquared();
+    if (dist_sq <= 0.0f || ls.pdf <= 0.0f) return false;
     out_sample->dist = std::sqrt(dist_sq);
     out_sample->wi = to_light / out_sample->dist;
 
     // Area PDF -> Solid Angle PDF: PDF_w = PDF_a * dist^2 / cos_light
     float cos_light = std::fmax(0.0f, Dot(-out_sample->wi, ls.n));
+    if (cos_light <= 0.0f) return false;
     float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
     // Weight = 1.0 / (N_lights * PDF_w)
