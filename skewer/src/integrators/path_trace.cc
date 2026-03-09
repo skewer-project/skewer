@@ -81,12 +81,12 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                     if (is_adaptive) {
                         // Countdown avoids modulo (integer division) on the hotpath.
                         int next_check = min_s;
+                        uint16_t global_med = scene.GetGlobalMedium();
                         for (int s = 0; s < max_s; ++s) {
                             float u = (float(x) + rng.UniformFloat()) / width;
                             float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
                             SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
                             Ray r = cam.GetRay(u, v, rng);
-                            uint16_t global_med = scene.GetGlobalMedium();
                             if (global_med != 0) {
                                 // Global medium usually has priority 0 so bounded media can
                                 // override it
@@ -107,12 +107,12 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                             }
                         }
                     } else {
+                        uint16_t global_med = scene.GetGlobalMedium();
                         for (int s = 0; s < max_s; ++s) {
                             float u = (float(x) + rng.UniformFloat()) / width;
                             float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
                             SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
                             Ray r = cam.GetRay(u, v, rng);
-                            uint16_t global_med = scene.GetGlobalMedium();
                             if (global_med != 0) {
                                 // Global medium usually has priority 0 so bounded media can
                                 // override it
