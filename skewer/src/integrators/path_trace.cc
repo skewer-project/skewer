@@ -73,6 +73,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
             long long tile_samples = 0;
 
+            NanoVDBAccessor acc(medium.GetTree());  // or medium.tree
+
             for (int y = y0; y < y1; ++y) {
                 for (int x = x0; x < x1; ++x) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
