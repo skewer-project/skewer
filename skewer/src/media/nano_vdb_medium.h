@@ -9,6 +9,16 @@
 
 namespace skwr {
 
+/**
+ * Safe per-thread accessor lookup for cache coherence
+ * NOTE: NanoVDBAccessor must not outlive the NanoVDBMedium it was built from
+ */
+struct NanoVDBAccessor {
+    nanovdb::FloatTree::AccessorType accessor;
+
+    explicit NanoVDBAccessor(const nanovdb::FloatTree& tree) : accessor(tree.getAccessor()) {}
+};
+
 struct NanoVDBMedium {
     NanoVDBMedium(const NanoVDBMedium&) = delete;
     NanoVDBMedium& operator=(const NanoVDBMedium&) = delete;
@@ -58,16 +68,14 @@ struct NanoVDBMedium {
     }
 
     // Voxel lookup
-    float GetDensity(const Point3& p_world) const {
-        if (!grid) return 0.0f;
-
+    float GetDensity(const Point3& p_world, NanoVDBAccessor& acc) const {
         // Transform world-space ray coords into the VDB's internal 3D index space
         nanovdb::Vec3f p_index =
             grid->worldToIndexF(nanovdb::Vec3f(p_world.x(), p_world.y(), p_world.z()));
 
         // Nearest-Neighbor Voxel Lookup
         // TODO: Trilinear interpolation for smoother clouds maybe
-        float density = accessor.getValue(nanovdb::Coord::Floor(p_index));
+        float density = acc.accessor.getValue(nanovdb::Coord::Floor(p_index));
         return density * density_multiplier;
     }
 };
