@@ -19,6 +19,7 @@
 #include "materials/material.h"
 #include "materials/texture.h"
 #include "media/mediums.h"
+#include "media/nano_vdb_medium.h"
 #include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
@@ -255,8 +256,20 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, const Media
     uint16_t inside = LookupMedium(obj, media_map, "inside_medium");
     uint16_t outside = LookupMedium(obj, media_map, "outside_medium");
 
-    Vec3 center = ParseVec3(obj.at("center"));
-    float radius = obj.at("radius").get<float>();
+    Vec3 center(0.0f, 0.0f, 0.0f);
+    float radius = 1.0f;
+
+    uint16_t med_index = ExtractMediumIndex(inside);
+    MediumType med_type = ExtractMediumType(inside);
+
+    if (inside != kVacuumMediumId && med_type == MediumType::NanoVDB) {
+        const NanoVDBMedium& medium = scene.nanovdb_media()[med_index];
+        center = medium.Center();
+        radius = medium.BoundingRadius() * 1.05f;  // padding
+    } else {
+        center = ParseVec3(obj.at("center"));
+        radius = obj.at("radius").get<float>();
+    }
 
     scene.AddSphere(Sphere{center, radius, mat_id, inside, outside, 1});
 }
