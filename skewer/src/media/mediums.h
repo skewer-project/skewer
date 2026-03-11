@@ -9,7 +9,7 @@
 
 namespace skwr {
 
-enum class MediumType : uint16_t { Vacuum = 0, Homogeneous = 1, Grid = 2 };
+enum class MediumType : uint16_t { Vacuum = 0, Homogeneous = 1, Grid = 2, NanoVDB = 3 };
 
 // Bit-packing layout constants
 constexpr uint16_t kMediumTypeShift = 14;

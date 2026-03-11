@@ -12,6 +12,7 @@
 #include "geometry/triangle.h"
 #include "materials/material.h"
 #include "media/mediums.h"
+#include "media/nano_vdb_medium.h"
 
 namespace skwr {
 
@@ -144,6 +145,12 @@ uint16_t Scene::AddGridMedium(const GridMedium& m) {
     // Pack: Type 2 (Grid) + index
     return (static_cast<uint16_t>(MediumType::Grid) << kMediumTypeShift) |
            (index & kMediumIndexMask);
+}
+
+uint16_t Scene::AddNanoVDBMedium(NanoVDBMedium m) {
+    nanovdb_media_.push_back(std::move(m));
+    uint16_t index = static_cast<uint16_t>(nanovdb_media_.size() - 1);
+    return PackMediumId(MediumType::NanoVDB, index);
 }
 
 }  // namespace skwr
