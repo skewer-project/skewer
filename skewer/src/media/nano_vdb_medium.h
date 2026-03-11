@@ -1,5 +1,5 @@
-#ifndef SKWR_MEDIA_VDB_MEDIUM_H_
-#define SKWR_MEDIA_VDB_MEDIUM_H_
+#ifndef SKWR_MEDIA_NANO_VDB_MEDIUM_H_
+#define SKWR_MEDIA_NANO_VDB_MEDIUM_H_
 
 #include <nanovdb/NanoVDB.h>
 #include <nanovdb/util/IO.h>
@@ -46,4 +46,4 @@ struct NanoVDBMedium {
 
 }  // namespace skwr
 
-#endif  // SKWR_MEDIA_VDB_MEDIUM_H_
+#endif  // SKWR_MEDIA_NANO_VDB_MEDIUM_H_
