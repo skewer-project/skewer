@@ -17,7 +17,7 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
 bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
                 Spectrum& beta, MediumInteraction* mi);
 bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max, RNG& rng, Spectrum& beta,
-                   MediumInteraction* mi);
+                   MediumInteraction* mi, const SampledWavelengths& wl);
 
 }  // namespace skwr
 

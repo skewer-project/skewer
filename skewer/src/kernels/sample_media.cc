@@ -7,6 +7,7 @@
 #include "core/math/constants.h"
 #include "core/ray.h"
 #include "core/sampling/rng.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
 #include "core/transport/medium_interaction.h"
 #include "geometry/boundbox.h"
@@ -156,7 +157,7 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
 }
 
 bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                   Spectrum& beta, MediumInteraction* mi) {
+                   Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl) {
     float t_min_box = 0.0f;
     float t_max_box = kInfinity;
     if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
@@ -165,12 +166,16 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
     float t_max = std::min(t_max_surface, t_max_box);
     if (t_min >= t_max) return false;
 
-    float t = t_min;
-    float majorant =
-        medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
+    Spectrum base_sigma_a = CurveToSpectrum(medium.sigma_a_base, wl);
+    Spectrum base_sigma_s = CurveToSpectrum(medium.sigma_s_base, wl);
+    Spectrum base_sigma_t = base_sigma_a + base_sigma_s;
+
+    float majorant = medium.max_density * base_sigma_t.MaxComponentValue();
     if (majorant <= 0.0f) return false;
 
     int hero_idx = 0;
+    float t = t_min;
+    NanoVDBAccessor acc(*medium.tree);
 
     while (true) {
         float xi_1 = rng.UniformFloat();
@@ -179,9 +184,9 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
         if (t >= t_max) break;
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(r.at(t));
-        Spectrum sigma_t = density * (medium.sigma_a_base + medium.sigma_s_base);
-        Spectrum sigma_s = density * medium.sigma_s_base;
+        float density = medium.GetDensity(r.at(t), acc);
+        Spectrum sigma_t = density * base_sigma_t;
+        Spectrum sigma_s = density * base_sigma_s;
 
         float p_real = sigma_t[hero_idx] / majorant;
 
@@ -189,18 +194,19 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
             // REAL COLLISION
             beta *= (sigma_s / sigma_t[hero_idx]);
 
-            mi.t = t;
-            mi.point = r.at(t);
-            mi.wo = -r.direction();
-            mi.phase_g = medium.g;
-            mi.sigma_s = sigma_s;
-            mi.alpha = 1.0f;
+            mi->t = t;
+            mi->point = r.at(t);
+            mi->wo = -r.direction();
+            mi->phase_g = medium.g;
+            mi->sigma_s = sigma_s;
+            mi->alpha = 1.0f;
 
             return true;
         }
 
         // NULL COLLISION (With Zero-Division Guard!)
-        float denom = std::max(majorant - sigma_t[hero_idx], 1e-6f);
+        float denom =
+            std::max(majorant - sigma_t[hero_idx], 1e-6f);  // i will deal w magic num later
         Spectrum null_weight = (Spectrum(majorant) - sigma_t) / denom;
         beta *= null_weight;
     }

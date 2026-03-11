@@ -4,6 +4,7 @@
 #include "core/math/onb.h"
 #include "core/ray.h"
 #include "core/sampling/rng.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
 #include "media/mediums.h"
 #include "media/nano_vdb_medium.h"
@@ -64,7 +65,7 @@ Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_
 }
 
 Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, const Ray& shadow_ray,
-                                       float dist, RNG& rng) {
+                                       float dist, RNG& rng, const SampledWavelengths& wl) {
     float t_min_box = 0.0f;
     float t_max_box = kInfinity;
     if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
@@ -73,21 +74,24 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, const Ray& s
     float t_max = std::min(dist, t_max_box);
     if (t_min >= t_max) return Spectrum(1.0f);
 
-    float t = t_min;
-    Spectrum Tr(1.0f);
+    Spectrum base_sigma_a = CurveToSpectrum(medium.sigma_a_base, wl);
+    Spectrum base_sigma_s = CurveToSpectrum(medium.sigma_s_base, wl);
+    Spectrum base_sigma_t = base_sigma_a + base_sigma_s;
 
-    // PERFECT MAJORANT
-    float majorant =
-        medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
+    Spectrum Tr(1.0f);
+    float majorant = medium.max_density * base_sigma_t.MaxComponentValue();
     if (majorant <= 0.0f) return Tr;
+
+    float t = t_min;
+    NanoVDBAccessor acc(*medium.tree);
 
     while (true) {
         t += -std::log(std::max(1.0f - rng.UniformFloat(), kEpsilon)) / majorant;
         if (t >= t_max) break;
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(shadow_ray.at(t));
-        Spectrum sigma_t = density * (medium.sigma_a_base + medium.sigma_s_base);
+        float density = medium.GetDensity(shadow_ray.at(t), acc);
+        Spectrum sigma_t = density * base_sigma_t;
 
         Spectrum null_prob = Spectrum(1.0f) - (sigma_t / majorant);
         for (int i = 0; i < kNSamples; ++i) {
@@ -105,7 +109,8 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, const Ray& s
     return Tr;
 }
 
-Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray, float dist) {
+Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray, float dist,
+                                const SampledWavelengths& wl) {
     uint16_t active_id = shadow_ray.vol_stack().GetActiveMedium();
     if (active_id == 0 || active_id == kVacuumMediumId) return Spectrum(1.0f);  // Vacuum
 
@@ -127,7 +132,7 @@ Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_
         }
         case skwr::MediumType::NanoVDB: {
             return CalculateNanoVDBTransmittance(scene.nanovdb_media()[index], shadow_ray, dist,
-                                                 rng);
+                                                 rng, wl);
         }
         default:
             return Spectrum(1.0f);
