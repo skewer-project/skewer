@@ -37,7 +37,6 @@ struct NanoVDBMedium {
     nanovdb::GridHandle<> handle;
     const nanovdb::FloatGrid* grid = nullptr;
     const nanovdb::FloatTree* tree = nullptr;
-    nanovdb::FloatTree::AccessorType accessor;
 
     // Fast marching bounds
     BoundBox bbox;
@@ -49,7 +48,6 @@ struct NanoVDBMedium {
             if (!grid) return false;
 
             tree = &grid->tree();
-            accessor = tree->getAccessor();
 
             // Extract the exact world-space bounding box
             auto vdb_bbox = grid->worldBBox();
