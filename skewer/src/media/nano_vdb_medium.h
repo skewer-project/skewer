@@ -4,6 +4,7 @@
 #include <nanovdb/NanoVDB.h>
 #include <nanovdb/util/IO.h>
 
+#include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
 #include "geometry/boundbox.h"
 
@@ -35,6 +36,11 @@ struct NanoVDBMedium {
     // Fast marching bounds
     BoundBox bbox;
 
+    // Spatial transforms
+    float scale = 1.0f;
+    Vec3 translate = {0.0f, 0.0f, 0.0f};
+    Vec3 vdb_centroid = {0.0f, 0.0f, 0.0f};
+
     bool Load(const std::string& filepath) {
         try {
             handle = nanovdb::io::readGrid(filepath);
@@ -45,8 +51,21 @@ struct NanoVDBMedium {
 
             // Extract the exact world-space bounding box
             auto vdb_bbox = grid->worldBBox();
-            bbox = BoundBox(Vec3(vdb_bbox.min()[0], vdb_bbox.min()[1], vdb_bbox.min()[2]),
-                            Vec3(vdb_bbox.max()[0], vdb_bbox.max()[1], vdb_bbox.max()[2]));
+            BoundBox original_bbox(Vec3(vdb_bbox.min()[0], vdb_bbox.min()[1], vdb_bbox.min()[2]),
+                                   Vec3(vdb_bbox.max()[0], vdb_bbox.max()[1], vdb_bbox.max()[2]));
+
+            vdb_centroid = original_bbox.Centroid();
+
+            // 2. Map the VDB bounds to your Engine's World Space
+            Vec3 min_eng = ((original_bbox.min() - vdb_centroid) * scale) + translate;
+            Vec3 max_eng = ((original_bbox.max() - vdb_centroid) * scale) + translate;
+
+            // Ensure min/max are correctly ordered
+            bbox = BoundBox(
+                Vec3(std::min(min_eng.x(), max_eng.x()), std::min(min_eng.y(), max_eng.y()),
+                     std::min(min_eng.z(), max_eng.z())),
+                Vec3(std::max(min_eng.x(), max_eng.x()), std::max(min_eng.y(), max_eng.y()),
+                     std::max(min_eng.z(), max_eng.z())));
 
             float min_val, max_val;
             tree->extrema(min_val, max_val);
@@ -61,9 +80,16 @@ struct NanoVDBMedium {
 
     // Voxel lookup
     float GetDensity(const Point3& p_world, NanoVDBAccessor& acc) const {
+        if (!grid) return 0.0f;
+        // --- MAP: World Space -> VDB Local Space ---
+        // 1. Undo translation
+        // 2. Undo scale
+        // 3. Re-apply the original VDB centroid offset
+        Vec3 p_vdb = ((p_world - translate) * (1.0f / scale)) + vdb_centroid;
+
         // Transform world-space ray coords into the VDB's internal 3D index space
         nanovdb::Vec3f p_index =
-            grid->worldToIndexF(nanovdb::Vec3f(p_world.x(), p_world.y(), p_world.z()));
+            grid->worldToIndexF(nanovdb::Vec3f(p_vdb.x(), p_vdb.y(), p_vdb.z()));
 
         // Nearest-Neighbor Voxel Lookup
         // TODO: Trilinear interpolation for smoother clouds maybe
