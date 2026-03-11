@@ -20,12 +20,6 @@ struct NanoVDBAccessor {
 };
 
 struct NanoVDBMedium {
-    NanoVDBMedium(const NanoVDBMedium&) = delete;
-    NanoVDBMedium& operator=(const NanoVDBMedium&) = delete;
-
-    NanoVDBMedium(NanoVDBMedium&&) = default;
-    NanoVDBMedium& operator=(NanoVDBMedium&&) = default;
-
     SpectralCurve sigma_a_base;
     SpectralCurve sigma_s_base;
 
