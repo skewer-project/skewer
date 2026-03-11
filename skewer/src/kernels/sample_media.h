@@ -3,6 +3,7 @@
 
 #include "core/spectral/spectrum.h"
 #include "core/transport/medium_interaction.h"
+#include "media/nano_vdb_medium.h"
 
 namespace skwr {
 
@@ -15,6 +16,8 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
                        Spectrum& beta, MediumInteraction* mi);
 bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
                 Spectrum& beta, MediumInteraction* mi);
+bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max, RNG& rng, Spectrum& beta,
+                   MediumInteraction* mi);
 
 }  // namespace skwr
 
