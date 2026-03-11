@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/cpu_config.h"
 #include "core/math/transform.h"
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
@@ -218,6 +219,9 @@ static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int 
     }
 
     std::string mat_name = obj["material"].get<std::string>();
+
+    if (mat_name == "null" || mat_name == "none") return kNullMaterialId;
+
     auto it = mat_map.find(mat_name);
     if (it == mat_map.end()) {
         throw std::runtime_error("Object at index " + std::to_string(obj_index) +
