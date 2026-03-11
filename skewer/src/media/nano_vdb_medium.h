@@ -70,6 +70,11 @@ struct NanoVDBMedium {
         float density = acc.accessor.getValue(nanovdb::Coord::Floor(p_index));
         return density * density_multiplier;
     }
+
+    // Helpers
+    Vec3 Center() const { return bbox.Centroid(); }
+
+    float BoundingRadius() const { return 0.5f * bbox.Diagonal().Length(); }
 };
 
 }  // namespace skwr
