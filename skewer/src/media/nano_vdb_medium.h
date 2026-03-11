@@ -4,14 +4,14 @@
 #include <nanovdb/NanoVDB.h>
 #include <nanovdb/util/IO.h>
 
-#include "core/spectral/spectrum.h"
+#include "core/spectral/spectral_curve.h"
 #include "geometry/boundbox.h"
 
 namespace skwr {
 
 struct NanoVDBMedium {
-    Spectrum sigma_a_base;
-    Spectrum sigma_s_base;
+    SpectralCurve sigma_a_base;
+    SpectralCurve sigma_s_base;
 
     float g;
     float density_multiplier = 1.0f;
