@@ -155,7 +155,57 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
     return false;
 }
 
-bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max, RNG& rng, Spectrum& beta,
-                   MediumInteraction* mi) {}
+bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
+                   Spectrum& beta, MediumInteraction* mi) {
+    float t_min_box = 0.0f;
+    float t_max_box = kInfinity;
+    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
+
+    float t_min = std::max(0.0f, t_min_box);
+    float t_max = std::min(t_max_surface, t_max_box);
+    if (t_min >= t_max) return false;
+
+    float t = t_min;
+    float majorant =
+        medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
+    if (majorant <= 0.0f) return false;
+
+    int hero_idx = 0;
+
+    while (true) {
+        float xi_1 = rng.UniformFloat();
+        t -= std::log(std::max(1.0f - xi_1, kEpsilon)) / majorant;
+
+        if (t >= t_max) break;
+
+        // FETCH FROM VDB
+        float density = medium.GetDensity(r.at(t));
+        Spectrum sigma_t = density * (medium.sigma_a_base + medium.sigma_s_base);
+        Spectrum sigma_s = density * medium.sigma_s_base;
+
+        float p_real = sigma_t[hero_idx] / majorant;
+
+        if (rng.UniformFloat() < p_real) {
+            // REAL COLLISION
+            beta *= (sigma_s / sigma_t[hero_idx]);
+
+            mi.t = t;
+            mi.point = r.at(t);
+            mi.wo = -r.direction();
+            mi.phase_g = medium.g;
+            mi.sigma_s = sigma_s;
+            mi.alpha = 1.0f;
+
+            return true;
+        }
+
+        // NULL COLLISION (With Zero-Division Guard!)
+        float denom = std::max(majorant - sigma_t[hero_idx], 1e-6f);
+        Spectrum null_weight = (Spectrum(majorant) - sigma_t) / denom;
+        beta *= null_weight;
+    }
+
+    return false;
+}
 
 }  // namespace skwr
