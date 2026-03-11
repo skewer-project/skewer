@@ -6,6 +6,7 @@
 #include "core/sampling/rng.h"
 #include "core/spectral/spectrum.h"
 #include "media/mediums.h"
+#include "media/nano_vdb_medium.h"
 #include "scene/scene.h"
 
 namespace skwr {
@@ -62,6 +63,9 @@ Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_
     return Tr;
 }
 
+Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, const Ray& shadow_ray,
+                                       float dist, RNG& rng) {}
+
 Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray, float dist) {
     uint16_t active_id = shadow_ray.vol_stack().GetActiveMedium();
     if (active_id == 0 || active_id == kVacuumMediumId) return Spectrum(1.0f);  // Vacuum
@@ -81,6 +85,10 @@ Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_
         }
         case MediumType::Grid: {
             return CalculateGridTransmittance(scene.grid_media()[index], shadow_ray, dist, rng);
+        }
+        case skwr::MediumType::NanoVDB: {
+            return CalculateNanoVDBTransmittance(scene.nanovdb_media()[index], shadow_ray, dist,
+                                                 rng);
         }
         default:
             return Spectrum(1.0f);

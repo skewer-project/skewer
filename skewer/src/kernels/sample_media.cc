@@ -155,4 +155,7 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
     return false;
 }
 
+bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max, RNG& rng, Spectrum& beta,
+                   MediumInteraction* mi) {}
+
 }  // namespace skwr

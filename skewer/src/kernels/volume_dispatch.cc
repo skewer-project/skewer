@@ -34,6 +34,9 @@ bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spe
         case static_cast<int>(MediumType::Grid):
             return SampleGrid(scene.grid_media()[index], ray, t_max, rng, beta, mi);
 
+        case static_cast<int>(MediumType::NanoVDB):
+            return SampleNanoVDB(scene.nanovdb_media()[index], ray, t_max, rng, beta, mi);
+
         default:
             return false;  // Fallback
     }
