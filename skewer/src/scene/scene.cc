@@ -134,17 +134,13 @@ uint32_t Scene::AddTexture(ImageTexture&& t) {
 uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
     homogeneous_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1);
-    // Pack: Type 1 (Homogeneous) + index
-    return (static_cast<uint16_t>(MediumType::Homogeneous) << kMediumTypeShift) |
-           (index & kMediumIndexMask);
+    return PackMediumId(MediumType::Homogeneous, index);
 }
 
 uint16_t Scene::AddGridMedium(const GridMedium& m) {
     grid_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
-    // Pack: Type 2 (Grid) + index
-    return (static_cast<uint16_t>(MediumType::Grid) << kMediumTypeShift) |
-           (index & kMediumIndexMask);
+    return PackMediumId(MediumType::Grid, index);
 }
 
 uint16_t Scene::AddNanoVDBMedium(NanoVDBMedium m) {
