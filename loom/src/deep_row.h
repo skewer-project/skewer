@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_SRC_DEEP_ROW_H
+#define LOOM_SRC_DEEP_ROW_H
 
 #include <atomic>
 #include <condition_variable>
@@ -151,3 +152,5 @@ inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
         rgbaOutput[x * 4 + 3] = accA;
     }
 }
+
+#endif  // LOOM_SRC_DEEP_ROW_H

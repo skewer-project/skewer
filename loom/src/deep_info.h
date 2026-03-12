@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_SRC_DEEP_INFO_H
+#define LOOM_SRC_DEEP_INFO_H
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
@@ -104,3 +105,5 @@ class DeepInfo {
 };
 
 }  // namespace deep_compositor
+
+#endif  // LOOM_SRC_DEEP_INFO_H
