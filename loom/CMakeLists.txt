@@ -41,9 +41,10 @@ endif()
 
 # Loom compositor logic (composition/merging) sits here.
 add_library(loom_compositor STATIC
-    src/utils.cc
+    src/deep_merger.cc
     src/deep_compositor.cc
     src/deep_volume.cc
+    src/utils.cc
 )
 target_include_directories(loom_compositor PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(loom_compositor PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../skewer/external)
