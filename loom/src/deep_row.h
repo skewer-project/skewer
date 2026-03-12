@@ -113,6 +113,10 @@ struct DeepRow {
 
 // Converts a row of deep data into a flattened RGBA image row
 inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
+    size_t required = static_cast<size_t>(deepRow.width) * 4;
+    if (rgbaOutput.size() < required) {
+        rgbaOutput.resize(required);
+    }
     const float* pixel_data = deepRow.all_samples.get();
     for (int x = 0; x < deepRow.width; ++x) {
         int num_samples = deepRow.sample_counts[x];
