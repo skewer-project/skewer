@@ -150,7 +150,8 @@ void MergerWorker(int start_row, int end_row, PipelineContext& ctx) {
                 pixelDataPtrs.push_back(inputRow.GetPixelData(x));
                 pixelSampleCounts.push_back(inputRow.GetSampleCount(x));
             }
-            SortAndMergePixelsWithSplit(x, pixelDataPtrs, pixelSampleCounts, outputRow);
+            SortAndMergePixelsWithSplit(x, pixelDataPtrs, pixelSampleCounts, outputRow,
+                                        ctx.opts.merge_threshold);
         }
         ctx.row_status[merge_y].store(MERGED);
     }
