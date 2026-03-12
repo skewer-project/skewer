@@ -1,4 +1,5 @@
-#pragma once
+#ifndef EXRIO_UTILS_H
+#define EXRIO_UTILS_H
 
 #include <chrono>
 #include <iomanip>
@@ -106,3 +107,5 @@ T lerp(T a, T b, float t) {
 }
 
 }  // namespace exrio
+
+#endif  // EXRIO_UTILS_H
