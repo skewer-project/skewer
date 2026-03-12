@@ -1,9 +1,7 @@
 #ifndef LOOM_SRC_DEEP_ROW_H
 #define LOOM_SRC_DEEP_ROW_H
 
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
+#include <memory>
 #include <vector>
 
 // A single row's worth of deep data for one file
