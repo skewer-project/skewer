@@ -224,19 +224,12 @@ int main(int argc, char* argv[]) {
     Timer writeTimer;
 
     try {
-        // // Write deep output if requested
-        // if (opts.deepOutput) {
-        //     std::string deepPath = opts.outputPrefix + "_merged.exr";
-        //     writeDeepEXR(merged, deepPath);
-        //     Log("  Wrote: " + deepPath);
-        // }
-
-        // // Write flat EXR if requested
-        // if (opts.flatOutput) {
-        //     std::string flatPath = opts.outputPrefix + "_flat.exr";
-        //     writeFlatEXR(flatRgba, merged.width(), merged.height(), flatPath);
-        //     Log("  Wrote: " + flatPath);
-        // }
+        // Write flat EXR if requested
+        if (opts.flat_output) {
+            std::string flatPath = opts.output_prefix + "_flat.exr";
+            exrio::writeFlatEXR(finalImage, width, height, flatPath);
+            Log("  Wrote: " + flatPath);
+        }
 
         // Write PNG if requested
         if (opts.png_output) {
