@@ -110,42 +110,15 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
         size_t i = 0;
         while (i < staging.size()) {
             RawSample current = staging[i];
-
-            // Accumulators for averaging
-            float totalAlpha = current.a;
-            float totalR = current.r;
-            float totalG = current.g;
-            float totalB = current.b;
-            float totalZ = current.z;
-            float totalZBack = current.z_back;
-            int count = 1;
-
-            // Look ahead and merge samples within epsilon range
-
-            while (i + 1 < staging.size() && (staging[i + 1].z - current.z) < epsilon &&
-                   std::abs(staging[i + 1].z_back - current.z_back) < epsilon) {
-                i++;
-                const RawSample& next = staging[i];
-
-                totalAlpha += next.a;
-                totalR += next.r;
-                totalG += next.g;
-                totalB += next.b;
-                totalZ += next.z;
-                totalZBack += next.z_back;
-                count++;
-            }
-
-            if (count > 1) {
-                current.r = totalR / count;
-                current.g = totalG / count;
-                current.b = totalB / count;
-                current.a = std::min(1.0f, totalAlpha / count);
-                current.z = totalZ / count;
-                current.z_back = totalZBack / count;
-            }
-            merged.push_back(current);
             i++;
+
+            // Merge coincident samples using Beer-Lambert transmission blending
+            while (i < staging.size() && IsNearDepth(current, staging[i], epsilon)) {
+                current = BlendCoincidentSamples(current, staging[i]);
+                i++;
+            }
+
+            merged.push_back(current);
         }
 
         staging.swap(merged);
