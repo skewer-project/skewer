@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_SRC_DEEP_COMPOSITOR_H
+#define LOOM_SRC_DEEP_COMPOSITOR_H
 
 #include <exrio/deep_image.h>
 
@@ -69,3 +70,5 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
 // bool validateDimensions(const std::vector<const DeepImage*>& inputs);
 
 }  // namespace deep_compositor
+
+#endif  // LOOM_SRC_DEEP_COMPOSITOR_H
