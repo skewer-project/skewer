@@ -118,7 +118,7 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
             }
         }
     }
-    if (opts.mod_offset && (opts.input_files.size() != opts.input_z_offsets.size())) {
+    if (opts.mod_offset && ((opts.input_files.size() - 1) != opts.input_z_offsets.size())) {
         opts.input_z_offsets.push_back(0);  // Default offset for last file if not provided
     }
     // std::cerr << "There are " << opts.inputFiles.size() << " input files and " <<
