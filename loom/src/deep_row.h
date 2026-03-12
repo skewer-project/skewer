@@ -105,8 +105,7 @@ struct DeepRow {
     }
 
     DeepRow(const DeepRow&) = delete;
-
-    // DeepRow& operator=(const DeepRow& ) = delete;
+    DeepRow& operator=(const DeepRow&) = delete;
 
     ~DeepRow() = default;
 
