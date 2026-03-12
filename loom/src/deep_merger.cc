@@ -22,11 +22,13 @@ RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next
     float t2 = 1.0f - next.a;
     blended.a = 1.0f - (t1 * t2);
 
-    // Since they are coincident (occupying the exact same space),
-    // their premultiplied color emissions simply sum together.
-    blended.r = current.r + next.r;
-    blended.g = current.g + next.g;
-    blended.b = current.b + next.b;
+    // Uniform interspersion: scale summed premultiplied colors by
+    // alphaCombined / (alpha1 + alpha2) to avoid over-brightening.
+    float alphaSum = current.a + next.a;
+    float scale = (alphaSum > 0.0f) ? blended.a / alphaSum : 0.0f;
+    blended.r = (current.r + next.r) * scale;
+    blended.g = (current.g + next.g) * scale;
+    blended.b = (current.b + next.b) * scale;
 
     return blended;
 }
