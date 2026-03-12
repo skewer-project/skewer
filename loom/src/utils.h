@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_SRC_UTILS_H
+#define LOOM_SRC_UTILS_H
 
 #include <chrono>
 #include <iomanip>
@@ -106,3 +107,5 @@ T lerp(T a, T b, float t) {
 }
 
 }  // namespace deep_compositor
+
+#endif  // LOOM_SRC_UTILS_H

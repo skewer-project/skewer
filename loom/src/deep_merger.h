@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_SRC_DEEP_MERGER_H
+#define LOOM_SRC_DEEP_MERGER_H
 
 #include <atomic>
 #include <chrono>
@@ -294,3 +295,5 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     // Update the output sample count for this pixel
     outputRow.sample_counts[x] = static_cast<unsigned int>(blended.size());
 }
+
+#endif  // LOOM_SRC_DEEP_MERGER_H

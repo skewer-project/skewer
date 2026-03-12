@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_SRC_DEEP_OPTIONS_H
+#define LOOM_SRC_DEEP_OPTIONS_H
 
 #include <cstring>
 #include <iostream>
@@ -18,3 +19,5 @@ struct Options {
     bool mod_offset = false;
     bool enable_merging = true;
 };
+
+#endif  // LOOM_SRC_DEEP_OPTIONS_H
