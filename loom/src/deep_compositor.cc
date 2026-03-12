@@ -8,6 +8,7 @@
 #include <OpenEXR/ImfMultiPartInputFile.h>
 #include <OpenEXR/ImfPartType.h>
 #include <exrio/deep_reader.h>
+#include <exrio/deep_writer.h>
 
 #include <algorithm>
 #include <atomic>
@@ -51,6 +52,7 @@ struct PipelineContext {
     std::atomic<int>& loaded_scanlines;
     std::atomic<int>& current_row;
     std::vector<float>& final_image;
+    exrio::DeepImage* deep_image;  // nullptr if --deep-output not requested
 };
 
 void LoaderWorker(int start_row, int end_row, PipelineContext& ctx) {
@@ -170,6 +172,19 @@ void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
         int slot = write_y % ctx.window_size;
         const DeepRow& deepRow = ctx.merged_buffer[slot];
 
+        if (ctx.deep_image != nullptr) {
+            for (int x = 0; x < ctx.width; ++x) {
+                const float* pixelData = deepRow.GetPixelData(x);
+                unsigned int numSamples = deepRow.GetSampleCount(x);
+                exrio::DeepPixel& outPixel = ctx.deep_image->pixel(x, write_y);
+                for (unsigned int s = 0; s < numSamples; ++s) {
+                    const float* sp = pixelData + s * 6;
+                    // DeepRow layout: [R, G, B, A, Z, ZBack]
+                    outPixel.addSample(exrio::DeepSample(sp[4], sp[5], sp[0], sp[1], sp[2], sp[3]));
+                }
+            }
+        }
+
         std::vector<float> rowRGB(ctx.width * 4);
         FlattenRow(deepRow, rowRGB);
 
@@ -202,6 +217,11 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
     std::atomic<int> current_merge_row{0};
     std::vector<float> final_image(width * height * 4, 0.0f);
 
+    std::unique_ptr<exrio::DeepImage> deep_image;
+    if (opts.deep_output) {
+        deep_image = std::make_unique<exrio::DeepImage>(width, height);
+    }
+
     PipelineContext ctx{opts,
                         height,
                         width,
@@ -213,7 +233,8 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
                         row_status,
                         loaded_scanlines,
                         current_merge_row,
-                        final_image};
+                        final_image,
+                        deep_image.get()};
 
     int n = std::max(1, (int)std::thread::hardware_concurrency());
     // Iterative loop
@@ -242,6 +263,13 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
     }
 
     printf("\nPipeline complete!\n");
+
+    if (opts.deep_output && deep_image) {
+        std::string deepPath = opts.output_prefix + "_merged.exr";
+        exrio::writeDeepEXR(*deep_image, deepPath);
+        Log("  Wrote: " + deepPath);
+    }
+
     return final_image;
 }
 
