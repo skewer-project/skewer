@@ -12,22 +12,15 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
-#include <limits>
-#include <mutex>
-#include <stdexcept>
 #include <thread>
 #include <vector>
 
-#include "barkeep.h"
 #include "deep_info.h"
 #include "deep_merger.h"
 #include "deep_row.h"
-#include "deep_volume.h"
 #include "utils.h"
 
 namespace deep_compositor {
-namespace bk = barkeep;
 
 // Main Pipeline Function
 // 1. Load deep EXR files into DeepImage objects
@@ -143,14 +136,21 @@ void MergerWorker(int start_row, int end_row, PipelineContext& ctx) {
         // Safety buffer for volumetric splitting
         outputRow.Allocate(ctx.width, maxSamplesForPixel * 2);
 
+        // One running pointer per input file to avoid O(x) prefix-sum in GetPixelData
+        std::vector<const float*> runningPtrs(ctx.num_files);
+        for (int i = 0; i < ctx.num_files; ++i)
+            runningPtrs[i] = ctx.input_buffer[i][slot].all_samples.get();
+
         for (int x = 0; x < ctx.width; ++x) {
             std::vector<const float*> pixelDataPtrs;
             std::vector<unsigned int> pixelSampleCounts;
 
             for (int i = 0; i < ctx.num_files; ++i) {
                 DeepRow& inputRow = ctx.input_buffer[i][slot];
-                pixelDataPtrs.push_back(inputRow.GetPixelData(x));
-                pixelSampleCounts.push_back(inputRow.GetSampleCount(x));
+                unsigned int cnt = inputRow.GetSampleCount(x);
+                pixelDataPtrs.push_back(runningPtrs[i]);
+                pixelSampleCounts.push_back(cnt);
+                runningPtrs[i] += cnt * 6;
             }
             SortAndMergePixelsWithSplit(x, pixelDataPtrs, pixelSampleCounts, outputRow,
                                         ctx.opts.merge_threshold);
@@ -173,8 +173,8 @@ void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
         const DeepRow& deepRow = ctx.merged_buffer[slot];
 
         if (ctx.deep_image != nullptr) {
+            const float* pixelData = deepRow.all_samples.get();
             for (int x = 0; x < ctx.width; ++x) {
-                const float* pixelData = deepRow.GetPixelData(x);
                 unsigned int numSamples = deepRow.GetSampleCount(x);
                 exrio::DeepPixel& outPixel = ctx.deep_image->pixel(x, write_y);
                 for (unsigned int s = 0; s < numSamples; ++s) {
@@ -182,6 +182,7 @@ void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
                     // DeepRow layout: [R, G, B, A, Z, ZBack]
                     outPixel.addSample(exrio::DeepSample(sp[4], sp[5], sp[0], sp[1], sp[2], sp[3]));
                 }
+                pixelData += numSamples * 6;
             }
         }
 
