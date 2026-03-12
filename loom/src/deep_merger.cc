@@ -98,6 +98,7 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
     if (staging.empty()) {
         outputRow.sample_counts[x] = 0;
+        if (x + 1 < outputRow.width) outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x];
         return;
     }
 
@@ -144,6 +145,8 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
     // Update the output sample count for this pixel
     outputRow.sample_counts[x] = static_cast<unsigned int>(staging.size());
+    if (x + 1 < outputRow.width)
+        outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x] + staging.size();
 }
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
@@ -165,6 +168,7 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
 
     if (staging.empty()) {
         outputRow.sample_counts[x] = 0;
+        if (x + 1 < outputRow.width) outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x];
         return;
     }
 
@@ -251,4 +255,6 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
 
     // Update the output sample count for this pixel
     outputRow.sample_counts[x] = static_cast<unsigned int>(blended.size());
+    if (x + 1 < outputRow.width)
+        outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x] + blended.size();
 }

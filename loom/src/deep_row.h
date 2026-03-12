@@ -10,6 +10,7 @@ struct DeepRow {
     std::unique_ptr<float[]> all_samples = nullptr;
     int width = 0;
     std::vector<unsigned int> sample_counts;
+    std::vector<size_t> sample_offsets;  // sample_offsets[x] = sum(sample_counts[0..x-1])
     size_t total_samples_in_row = 0;
     size_t current_capacity = 0;
 
@@ -19,6 +20,7 @@ struct DeepRow {
         : all_samples(std::move(other.all_samples)),
           width(other.width),
           sample_counts(std::move(other.sample_counts)),
+          sample_offsets(std::move(other.sample_offsets)),
           total_samples_in_row(other.total_samples_in_row),
           current_capacity(other.current_capacity) {
         // Reset the primitives in the source object
@@ -32,6 +34,7 @@ struct DeepRow {
             all_samples = std::move(other.all_samples);
             width = other.width;
             sample_counts = std::move(other.sample_counts);
+            sample_offsets = std::move(other.sample_offsets);
             total_samples_in_row = other.total_samples_in_row;
             current_capacity = other.current_capacity;
 
@@ -46,6 +49,7 @@ struct DeepRow {
     void Allocate(size_t width, int max_samples) {
         this->width = width;
         sample_counts.assign(width, 0);
+        sample_offsets.assign(width, 0);  // all zero; merger updates incrementally
         total_samples_in_row = max_samples;
 
         size_t required = static_cast<size_t>(max_samples) * 6;
@@ -59,7 +63,11 @@ struct DeepRow {
         this->width = width;
         sample_counts.assign(counts, counts + width);
         total_samples_in_row = 0;
-        for (auto c : sample_counts) total_samples_in_row += c;
+        sample_offsets.resize(width);
+        for (size_t i = 0; i < width; ++i) {
+            sample_offsets[i] = total_samples_in_row;
+            total_samples_in_row += sample_counts[i];
+        }
 
         size_t required = total_samples_in_row * 6;
         all_samples = std::make_unique<float[]>(required);
@@ -68,28 +76,14 @@ struct DeepRow {
 
     // Get pointer to the nth sample of pixel x
     float* GetSampleData(int x, int n) const {
-        size_t pixel_start_offset = 0;
-        for (int i = 0; i < x; ++i) pixel_start_offset += sample_counts[i];
-
         if (n >= static_cast<int>(sample_counts[x])) return nullptr;
-
-        size_t final_offset = (pixel_start_offset + n) * 6;
-        // Use .get() to access the raw pointer inside the smart pointer
-        return all_samples.get() + final_offset;
+        return all_samples.get() + (sample_offsets[x] + n) * 6;
     }
 
-    const float* GetPixelData(int x) const {
-        size_t offset = 0;
-        for (int i = 0; i < x; ++i) offset += sample_counts[i];
-        return all_samples.get() + (offset * 6);
-    }
+    const float* GetPixelData(int x) const { return all_samples.get() + sample_offsets[x] * 6; }
 
     // Non-const version for writing
-    float* GetPixelData(int x) {
-        size_t offset = 0;
-        for (int i = 0; i < x; ++i) offset += sample_counts[i];
-        return all_samples.get() + (offset * 6);
-    }
+    float* GetPixelData(int x) { return all_samples.get() + sample_offsets[x] * 6; }
 
     unsigned int GetSampleCount(int x) const { return sample_counts[x]; }
 
@@ -97,6 +91,7 @@ struct DeepRow {
     void Clear() {
         all_samples.reset();  // Safe memory delete
         sample_counts.clear();
+        sample_offsets.clear();
         width = 0;
         total_samples_in_row = 0;
         current_capacity = 0;
@@ -118,8 +113,8 @@ struct DeepRow {
 
 // Converts a row of deep data into a flattened RGBA image row
 inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
+    const float* pixel_data = deepRow.all_samples.get();
     for (int x = 0; x < deepRow.width; ++x) {
-        const float* pixel_data = deepRow.GetPixelData(x);
         int num_samples = deepRow.sample_counts[x];
 
         float accR = 0, accG = 0, accB = 0, accA = 0;
@@ -147,6 +142,8 @@ inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
         rgbaOutput[x * 4 + 1] = accG;
         rgbaOutput[x * 4 + 2] = accB;
         rgbaOutput[x * 4 + 3] = accA;
+
+        pixel_data += num_samples * 6;
     }
 }
 
