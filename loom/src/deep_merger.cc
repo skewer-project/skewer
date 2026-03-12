@@ -75,7 +75,7 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
 
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
-                              DeepRow& outputRow) {
+                              DeepRow& outputRow, float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     // We reuse this vector across pixels to avoid re-allocation
     static thread_local std::vector<RawSample> staging;
@@ -105,7 +105,7 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
     if (!staging.empty()) {
         std::vector<RawSample> merged;
         merged.reserve(staging.size());
-        float epsilon = 0.0001f;
+        float epsilon = merge_threshold;
 
         size_t i = 0;
         while (i < staging.size()) {
@@ -146,7 +146,7 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
-                                 DeepRow& outputRow) {
+                                 DeepRow& outputRow, float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     static thread_local std::vector<RawSample> staging;
     staging.clear();
@@ -166,7 +166,7 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
         return;
     }
 
-    float epsilon = 0.0001f;
+    float epsilon = merge_threshold;
 
     // 2. Gather split points: every unique depth and depth_back
     std::set<float> splitPointSet;

@@ -29,10 +29,10 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit);
 // output row
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
-                              DeepRow& outputRow);
+                              DeepRow& outputRow, float merge_threshold);
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
-                                 DeepRow& outputRow);
+                                 DeepRow& outputRow, float merge_threshold);
 
 #endif  // LOOM_SRC_DEEP_MERGER_H
