@@ -88,11 +88,6 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                     session.Options().image_config.width = task.width();
                     session.Options().image_config.height = task.height();
                 }
-                session.Options().integrator_config.start_sample = task.sample_start();
-                if (task.sample_end() > task.sample_start()) {
-                    session.Options().integrator_config.max_samples =
-                        task.sample_end() - task.sample_start();
-                }
                 session.Options().integrator_config.num_threads = task_threads;
                 session.Options().image_config.outfile = task.output_uri();
                 session.Options().image_config.exrfile = task.output_uri();
@@ -110,12 +105,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 }
 
                 std::cout << "[SKEWER]: Rendering " << task.width() << "x" << task.height()
-                          << " (Samples: " << task.sample_start() << " to " << task.sample_end()
-                          << " | Threads: " << task_threads << ")\n";
-
-                // Re-initialize the film with the updated (smaller) chunk sample count
-                // to prevent huge memory allocations for deep renders.
-                session.RebuildFilm();
+                          << " (Threads: " << task_threads << ")\n";
 
                 // Now render the task
                 session.Render();
