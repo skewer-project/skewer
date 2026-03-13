@@ -5,6 +5,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <random>
+#include <thread>
 
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
 #include "proto/coordinator/v1/coordinator.pb.h"
@@ -21,10 +23,15 @@ using grpc::Channel;
 using grpc::ClientContext;
 
 void RunSkewerWorker(const std::string& coordinator_addr) {
-    // Generate a unique worker ID with epoch (may change in the future)
+    // Generate a unique worker ID with time epoch and mersenne twister engine
+    std::random_device rd; // workers may spawn in same millisecond so epoch alone is not enough
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(1000, 9999);
+
     std::string worker_id =
         "skewer-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) +
+        "-" + std::to_string(dis(gen));
 
     // Determine number of render threads from environment
     int render_threads = 2;  // default fallback
@@ -44,6 +51,10 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
     std::shared_ptr<Channel> channel =
         grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
     std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
+
+    // Cooldown timer before acquireing stream again on retry
+    int backoff_ms = 100;
+    const int max_backoff_ms = 30000; // 30 seconds max
 
     // Main GetWorkStream loop
     while (true) {
@@ -121,6 +132,12 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
 
             // Report the result
             ClientContext report_context;
+
+            // Fail fast if the coordinator doesn't acknowledge within 10 seconds
+            std::chrono::system_clock::time_point deadline
+                = std::chrono::system_clock::now() + std::chrono::seconds(10);
+            report_context.set_deadline(deadline);
+
             ReportTaskResultRequest report_req;
             report_req.set_task_id(package.task_id());
             report_req.set_job_id(package.job_id());
@@ -141,9 +158,22 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
             }
         }
 
-        // After stream closes, we loop back and try to get a new stream immediately.
-        // We only sleep if it was a real error or if there's no work.
-        // The Coordinator now closes the stream after 1 task to ensure fair distribution.
+        // If we get here, the stream closed (either coordinator shut it down, or a network error)
+        grpc::Status status = stream->Finish();
+        if(!status.ok()) {
+            std::cerr << "[SKEWER]: Stream failed: " << status.error_message() << ". Retrying in " << backoff_ms << "ms...\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
+
+            backoff_ms *= 2;
+            if(backoff_ms > max_backoff_ms) {
+                backoff_ms = max_backoff_ms;
+            }
+
+        } else {
+            // Stream closed normally (Coordinator intentionally hung up after assigning a task)
+            // Reset backoff and immediately reconnect to ask for more work.
+            backoff_ms = 100;
+        }
     }
 }
 
