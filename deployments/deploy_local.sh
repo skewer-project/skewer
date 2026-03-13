@@ -34,7 +34,7 @@ cleanup() {
 
     if [ "$RUNTIME" == "minikube" ]; then
         # Revert the docker environment back to your host daemon
-        eval $(minikube docker-env -u) 2>/dev/null || true
+        eval "$(minikube docker-env -u)" 2>/dev/null || true
         echo "Restored Docker daemon to host machine."
     fi
 
