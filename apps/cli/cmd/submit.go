@@ -63,7 +63,6 @@ var submitCmd = &cobra.Command{
 		defer cancel()
 
 		req := &coordinatorv1.SubmitJobRequest{
-			JobId:     "job-" + time.Now().Format("20060102150405"),
 			JobName:   jobName,
 			NumFrames: int32(numFrames),
 			Width:     int32(width),

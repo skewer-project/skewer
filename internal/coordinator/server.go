@@ -22,6 +22,7 @@ type Server struct {
 	manager          CloudManager
 	tracker          *JobTracker
 	localStorageBase string
+	cancel           context.CancelFunc
 }
 
 func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, localStorageBase string) *Server {
@@ -33,7 +34,9 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, 
 	}
 
 	// Start a background loop to manage worker capacity
-	go s.runCapacityManager(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel // cancellation context for server
+	go s.runCapacityManager(ctx)
 
 	// Set the terminal failure callback
 	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
@@ -43,6 +46,13 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, 
 	}
 
 	return s
+}
+
+// Method to gracefully stop server
+func (s *Server) Stop() {
+	if s.cancel != nil {
+		s.cancel()
+	}
 }
 
 // ================= //
