@@ -3,18 +3,20 @@
 # Default runtime
 RUNTIME="orbstack"
 REBUILD=false
+WORKERS="4" # Default to 4 local workers
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --runtime) RUNTIME="$2"; shift ;;
         --rebuild) REBUILD=true ;;
+        --workers) WORKERS="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
 
-echo "Starting deployment using runtime: ${RUNTIME}"
+echo "Starting deployment using runtime: ${RUNTIME} with ${WORKERS} max workers."
 
 # Check if images exist if rebuild is not forced
 if [ "$REBUILD" = false ]; then
@@ -68,6 +70,11 @@ elif [ "$RUNTIME" == "orbstack" ]; then
 fi
 
 if [ "$REBUILD" = true ]; then
+    # Build the local CLI
+    echo "Building local Skewer CLI..."
+    go build -o apps/cli/skewer-cli apps/cli/main.go
+    echo "CLI built at apps/cli/skewer-cli"
+
     # Build the images locally
     echo "Building Docker images..."
     docker build -t skewer-worker:latest -f deployments/docker/Dockerfile.skewer .
@@ -96,7 +103,7 @@ echo "Mapping local data directory: ${SKEWER_DATA_PATH}"
 
 # Apply the coordinator, skewer-worker, and loom-worker deployments with path injection
 # We use sed to replace the placeholder with the absolute path
-sed "s|{{SKEWER_DATA_PATH}}|${SKEWER_DATA_PATH}|g" deployments/k8s/coordinator.yaml | kubectl apply -f -
+sed -e "s|{{SKEWER_DATA_PATH}}|${SKEWER_DATA_PATH}|g" -e "s|{{MAX_WORKERS}}|${WORKERS}|g" deployments/k8s/coordinator.yaml | kubectl apply -f -
 sed "s|{{SKEWER_DATA_PATH}}|${SKEWER_DATA_PATH}|g" deployments/k8s/skewer-worker.yaml | kubectl apply -f -
 sed "s|{{SKEWER_DATA_PATH}}|${SKEWER_DATA_PATH}|g" deployments/k8s/loom-worker.yaml | kubectl apply -f -
 
