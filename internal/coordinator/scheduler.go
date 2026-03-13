@@ -55,7 +55,7 @@ func (s *Scheduler) EnqueueTask(payload any, jobID string, frameID string) (stri
 		s.skewerQueue <- task
 		return taskID, nil
 
-	case *pb.MergeTask, *pb.CompositeTask:
+	case *pb.CompositeTask:
 		s.loomQueue <- task
 		return taskID, nil
 
@@ -165,7 +165,7 @@ func (s *Scheduler) RequeueTask(taskID string) {
 				fmt.Printf("[SCHEDULER] Requeued Skewer task %s\n", t.ID)
 
 			// Route to Loom Queue
-			case *pb.MergeTask, *pb.CompositeTask:
+			case *pb.CompositeTask:
 				s.loomQueue <- t
 				fmt.Printf("[SCHEDULER] Requeued Loom task %s\n", t.ID)
 			}
@@ -209,7 +209,7 @@ func (s *Scheduler) GetActiveTaskCounts() map[string]int {
 		switch task.Payload.(type) {
 		case *pb.RenderTask:
 			counts["skewer"]++
-		case *pb.MergeTask, *pb.CompositeTask:
+		case *pb.CompositeTask:
 			counts["loom"]++
 		}
 	}
@@ -272,7 +272,7 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 			s.skewerQueue <- task
 			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", task.ID, task.Retries)
 
-		case *pb.MergeTask, *pb.CompositeTask:
+		case *pb.CompositeTask:
 			s.loomQueue <- task
 			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", task.ID, task.Retries)
 		}
