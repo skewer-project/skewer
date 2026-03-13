@@ -106,4 +106,7 @@ func init() {
 	submitCmd.Flags().IntVar(&adaptiveStep, "adaptive-step", 0, "Samples between adaptive convergence checks (0 = use scene JSON setting)")
 
 	submitCmd.MarkFlagRequired("scene")
+	if err := submitCmd.MarkFlagRequired("scene"); err != nil {
+		log.Fatalf("Failed to mark 'scene' flag as required: %v", err)
+	}
 }

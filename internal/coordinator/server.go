@@ -368,12 +368,25 @@ func (s *Server) translateLocalPath(uri string) string {
 	// If the path is already absolute and starts with the host's data path, swap it.
 	if hostDataPath != "" && filepath.IsAbs(uri) && strings.HasPrefix(uri, hostDataPath) {
 		rel, _ := filepath.Rel(hostDataPath, uri)
-		return filepath.Join(s.localStorageBase, rel)
+		// SECURITY: Clean the path and prevent traversal
+		cleanRel := filepath.Clean(rel)
+		if strings.HasPrefix(cleanRel, "..") {
+			log.Printf("[WARNING]: Path traversal attempt blocked: %s", uri)
+			return uri // Fallback or reject
+		}
+
+		return filepath.Join(s.localStorageBase, cleanRel)
 	}
 
 	// If the path is relative and starts with "data/", swap it for our storage base.
 	if trimmed, hasPrefix := strings.CutPrefix(uri, "data/"); hasPrefix {
-		return filepath.Join(s.localStorageBase, trimmed)
+		// SECURITY: Clean the path and prevent traversal
+		cleanTrimmed := filepath.Clean(trimmed)
+		if strings.HasPrefix(cleanTrimmed, "..") || strings.HasPrefix(cleanTrimmed, "/") {
+			log.Printf("[WARNING]: Path traversal attempt blocked: %s", uri)
+			return uri // Fallback or reject
+		}
+		return filepath.Join(s.localStorageBase, cleanTrimmed)
 	}
 
 	return uri
