@@ -21,12 +21,6 @@ type Job interface {
 	GetOriginalReq() *pb.SubmitJobRequest
 }
 
-type FrameState struct {
-	CompletedChunks int32
-	TotalChunks     int32
-	PendingMerge    *pb.MergeTask // Hold the task here until it's ready
-}
-
 // The Render Job
 type RenderJob struct {
 	JobID        string
@@ -36,10 +30,8 @@ type RenderJob struct {
 	// Render-specific fields
 	CompletedTasks int32
 	TotalTasks     int32
-	SampleDivision int32
 
-	Frames map[string]*FrameState
-	mu     sync.Mutex // Protects the map during concurrent worker updates
+	mu sync.Mutex // Protects the map during concurrent worker updates
 
 	OriginalReq *pb.SubmitJobRequest
 }
