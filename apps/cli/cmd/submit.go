@@ -22,7 +22,6 @@ var (
 	width          int
 	height         int
 	totalSamples   int
-	sampleDivision int
 	enableDeep     bool
 	threads        int
 	noiseThreshold float32
@@ -73,7 +72,6 @@ var submitCmd = &cobra.Command{
 				RenderJob: &coordinatorv1.RenderJob{
 					SceneUri:        sceneURI,
 					TotalSamples:    int32(totalSamples),
-					SampleDivision:  int32(sampleDivision),
 					OutputUriPrefix: outputURI,
 					EnableDeep:      enableDeep,
 					Threads:         int32(threads),
@@ -102,7 +100,6 @@ func init() {
 	submitCmd.Flags().IntVarP(&width, "width", "W", 0, "Width of the rendered image (0 = use scene JSON)")
 	submitCmd.Flags().IntVarP(&height, "height", "H", 0, "Height of the rendered image (0 = use scene JSON)")
 	submitCmd.Flags().IntVarP(&totalSamples, "samples", "S", 0, "Total samples per pixel (0 = use scene JSON)")
-	submitCmd.Flags().IntVarP(&sampleDivision, "division", "d", 4, "Number of tasks to split each frame into")
 	submitCmd.Flags().BoolVar(&enableDeep, "deep", false, "Enable deep output for the final image")
 	submitCmd.Flags().IntVarP(&threads, "threads", "t", 0, "Number of threads per worker (0 = auto)")
 	submitCmd.Flags().Float32Var(&noiseThreshold, "noise-threshold", 0.0, "Adaptive sampling noise threshold (0 = use scene JSON setting)")
