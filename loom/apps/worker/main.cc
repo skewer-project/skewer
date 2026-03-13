@@ -5,7 +5,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
@@ -19,7 +18,6 @@
 using api::proto::coordinator::v1::CompositeTask;
 using api::proto::coordinator::v1::CoordinatorService;
 using api::proto::coordinator::v1::GetWorkStreamRequest;
-using api::proto::coordinator::v1::MergeTask;
 using api::proto::coordinator::v1::ReportTaskResultRequest;
 using api::proto::coordinator::v1::ReportTaskResultResponse;
 using api::proto::coordinator::v1::WorkPackage;
@@ -59,78 +57,25 @@ void RunLoomWorker(const std::string& coordinator_addr) {
             std::string error_message = "";
             std::string output_uri = "";
 
-            // NOTE: FUNCTIONALLY, a MergeTask is the same as a CompositeTask but they serve
-            // different purposes semantically
             try {
-                if (package.has_merge_task()) {
-                    const MergeTask& task = package.merge_task();
-                    output_uri = task.output_uri();
-                    std::cout << "[Loom] Starting MergeTask: " << package.task_id() << " for frame "
-                              << package.frame_id() << "\n";
-
-                    // TODO: Pass partial deep EXRs to loom engine and merge
-                    // Load Phase
-                    std::vector<std::string> inputPartialFiles(task.partial_deep_exr_uris().begin(),
-                                                               task.partial_deep_exr_uris().end());
-
-                    std::cout << "[Loom] -> Merge Inputs (" << inputPartialFiles.size()
-                              << " files):\n";
-                    for (const auto& uri : inputPartialFiles) {
-                        std::cout << "  - " << uri << "\n";
-                    }
-
-                    std::vector<exrio::DeepImage> images =
-                        exrio::LoadImagesPhase(inputPartialFiles);
-
-                    // Merge Phase
-                    float taskMergeThreshold =
-                        0.001F;  // TODO: include mergeThreshold in MergeTask protobuf
-                    exrio::CompositorOptions compOpts;
-                    compOpts.mergeThreshold = taskMergeThreshold;
-                    compOpts.enableMerging = (taskMergeThreshold > 0.0f);
-
-                    exrio::CompositorStats stats;
-                    exrio::DeepImage merged = deepMerge(images, compOpts, &stats);
-
-                    // Flatten Phase (should be more configurable)
-                    bool isDeepOutput = output_uri.ends_with(
-                        ".exr");  // TODO: should check if user specifically wants deep vs flat
-                    bool isFlatOutput = false;
-                    bool isPngOutput = output_uri.ends_with(".png");
-                    std::vector<float> flatRgba;
-
-                    if (isPngOutput || isFlatOutput) {
-                        flatRgba = exrio::FlattenPhase(merged);
-                    }
-
-                    // Write Phase
-                    std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
-                    exrio::WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput,
-                                             isFlatOutput, isPngOutput);
-
-                    // TODO: Consider logging to kubectl logs
-
-                    std::cout << "[Loom] -> Engine Merge execution completed.\n";
-
-                } else if (package.has_composite_task()) {
+                if (package.has_composite_task()) {
                     const CompositeTask& task = package.composite_task();
                     output_uri = task.output_uri();
                     std::cout << "[Loom] Starting CompositeTask: " << package.task_id()
                               << " for frame " << package.frame_id() << "\n";
 
-                    // TODO: Pass partial deep EXRs to loom engine and merge
                     // Load Phase
-                    std::vector<std::string> inputPartialFiles(task.layer_uris().begin(),
+                    std::vector<std::string> inputLayers(task.layer_uris().begin(),
                                                                task.layer_uris().end());
 
-                    std::cout << "[Loom] -> Composite Inputs (" << inputPartialFiles.size()
+                    std::cout << "[Loom] -> Composite Inputs (" << inputLayers.size()
                               << " files):\n";
-                    for (const auto& uri : inputPartialFiles) {
+                    for (const auto& uri : inputLayers) {
                         std::cout << "  - " << uri << "\n";
                     }
 
                     std::vector<exrio::DeepImage> images =
-                        exrio::LoadImagesPhase(inputPartialFiles);
+                        exrio::LoadImagesPhase(inputLayers);
 
                     // Merge Phase
                     float taskMergeThreshold =
