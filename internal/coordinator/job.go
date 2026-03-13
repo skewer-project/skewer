@@ -190,6 +190,7 @@ func (jt *JobTracker) CancelJob(jobID string) error {
 	// Remove it from active tracking so it no longer exists
 	delete(jt.activeJobs, jobID)
 	delete(jt.pendingDeps, jobID)
+	jt.graph.RemoveNode(jobID)
 
 	// Flush any pending tasks for this job from the Scheduler queue
 	return nil
@@ -206,9 +207,11 @@ func (jt *JobTracker) UnlockDependencies(jobID string) []Job {
 		jt.pendingDeps[successorID]--
 
 		if jt.pendingDeps[successorID] == 0 {
-			job := jt.activeJobs[successorID]
-			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_QUEUED)
-			unlockedJobs = append(unlockedJobs, job)
+			job, exists := jt.activeJobs[successorID]
+			if exists { // Only unlock if the job hasn't been cancelled
+				job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_QUEUED)
+				unlockedJobs = append(unlockedJobs, job)
+			}
 		}
 	}
 
