@@ -1,4 +1,5 @@
-#pragma once
+#ifndef EXRIO_DEEP_IMAGE_H
+#define EXRIO_DEEP_IMAGE_H
 
 #include <algorithm>
 #include <cmath>
@@ -215,3 +216,5 @@ class DeepImage {
 };
 
 }  // namespace exrio
+
+#endif  // EXRIO_DEEP_IMAGE_H

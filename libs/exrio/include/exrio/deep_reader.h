@@ -1,4 +1,5 @@
-#pragma once
+#ifndef EXRIO_DEEP_READER_H
+#define EXRIO_DEEP_READER_H
 
 #include <string>
 
@@ -43,3 +44,5 @@ bool isDeepEXR(const std::string& filename);
 bool getDeepEXRInfo(const std::string& filename, int& width, int& height, bool& isDeep);
 
 }  // namespace exrio
+
+#endif  // EXRIO_DEEP_READER_H
