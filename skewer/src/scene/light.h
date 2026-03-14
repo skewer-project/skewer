@@ -1,9 +1,9 @@
 #ifndef SKWR_SCENE_LIGHT_H_
 #define SKWR_SCENE_LIGHT_H_
 
-#include "core/rng.h"
+#include "core/math/vec3.h"
+#include "core/sampling/rng.h"
 #include "core/spectral/spectral_curve.h"
-#include "core/vec3.h"
 
 namespace skwr {
 
@@ -25,7 +25,9 @@ struct LightSample {
 };
 
 // Returns a random point on the surface of the light
-LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng);
+LightSample SampleLight(const Scene& scene, int light_index, RNG& rng);
+
+float LightPdfArea(const Scene& scene, int light_index);
 
 }  // namespace skwr
 
