@@ -2,6 +2,8 @@
 
 #include <mutex>
 
+#include "core/math/constants.h"
+
 using namespace skwr;
 
 DeepSegmentPool::DeepSegmentPool(size_t initial_chunks) {

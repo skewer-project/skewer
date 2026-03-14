@@ -27,6 +27,9 @@ constexpr float kIsotropicPhaseEpsilon = 1e-3f;
 
 inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
 
+// amount of DeepSegmentNodes in one chunk in the DeepSegmentPool
+static constexpr size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28 MB)
+
 namespace Rec709 {
 constexpr float kWeightRed = 0.2126f;
 constexpr float kWeightRedSquared = kWeightRed * kWeightRed;
