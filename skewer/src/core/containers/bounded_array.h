@@ -8,11 +8,13 @@ namespace skwr {
 template <typename T, size_t MaxCapacity>
 class BoundedArray {
   public:
-    inline void push_back(const T& item) {
-        // assert(count < MaxCapacity && "Exceeded max depth capacity!");
-        if (count < MaxCapacity) {
-            data[count++] = item;
+    inline bool push_back(const T& item) {
+        // assert(count < MaxCapacity && "BoundedArray capacity exceeded");
+        if (count >= MaxCapacity) {
+            return false;
         }
+        data[count++] = item;
+        return true;
     }
 
     inline void clear() { count = 0; }
