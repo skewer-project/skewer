@@ -26,6 +26,7 @@ class CompositorIntegrationTest : public ::testing::Test {
     }
 };
 
+// Tests that deepMerge handles an empty input vector by returning an empty image
 TEST_F(CompositorIntegrationTest, EmptyInputReturnsEmptyImage) {
     std::vector<DeepImage> inputs;
     DeepImage result = deepMerge(inputs);
@@ -33,6 +34,7 @@ TEST_F(CompositorIntegrationTest, EmptyInputReturnsEmptyImage) {
     EXPECT_EQ(result.height(), 0);
 }
 
+// Tests that a single image passes through deepMerge unchanged
 TEST_F(CompositorIntegrationTest, SingleImagePassesThroughCorrectly) {
     DeepImage img = make1x1Point(1.0f, 0.8f, 0.6f, 0.4f, 0.9f);
     std::vector<DeepImage> inputs = {img};
@@ -43,6 +45,7 @@ TEST_F(CompositorIntegrationTest, SingleImagePassesThroughCorrectly) {
     EXPECT_FLOAT_EQ(result.pixel(0, 0)[0].alpha, 0.9f);
 }
 
+// Tests that deepMerge throws a runtime_error when input images have different dimensions
 TEST_F(CompositorIntegrationTest, MismatchedDimensionsThrowsRuntimeError) {
     std::vector<DeepImage> inputs;
     inputs.emplace_back(4, 4);
@@ -50,6 +53,7 @@ TEST_F(CompositorIntegrationTest, MismatchedDimensionsThrowsRuntimeError) {
     EXPECT_THROW(deepMerge(inputs), std::runtime_error);
 }
 
+// Tests that samples from multiple images are correctly sorted by depth after merging
 TEST_F(CompositorIntegrationTest, TwoImagesWithDisjointDepthsMergeInDepthOrder) {
     // Image A has sample at z=5 (far), Image B has sample at z=2 (close)
     DeepImage imgA = make1x1Point(5.0f, 0.5f, 0.5f, 0.5f, 0.7f);
@@ -63,6 +67,7 @@ TEST_F(CompositorIntegrationTest, TwoImagesWithDisjointDepthsMergeInDepthOrder) 
     EXPECT_FLOAT_EQ(px[1].depth, 5.0f);
 }
 
+// Tests that the output is always sorted by depth regardless of input order
 TEST_F(CompositorIntegrationTest, OutputIsAlwaysSorted) {
     DeepImage imgA = make1x1Point(3.0f, 0.5f, 0.5f, 0.5f, 0.6f);
     DeepImage imgB = make1x1Point(1.0f, 0.5f, 0.5f, 0.5f, 0.6f);
@@ -72,6 +77,7 @@ TEST_F(CompositorIntegrationTest, OutputIsAlwaysSorted) {
     EXPECT_TRUE(result.isValid());
 }
 
+// Tests that the final image is independent of the order in which inputs are provided
 TEST_F(CompositorIntegrationTest, ResultIsIndependentOfInputOrder) {
     DeepImage imgA = make1x1Point(1.0f, 0.8f, 0.0f, 0.0f, 0.5f);
     DeepImage imgB = make1x1Point(2.0f, 0.0f, 0.0f, 0.8f, 0.5f);
@@ -91,6 +97,7 @@ TEST_F(CompositorIntegrationTest, ResultIsIndependentOfInputOrder) {
     }
 }
 
+// Tests that the alpha channel in the flattened output is clamped to [0, 1]
 TEST_F(CompositorIntegrationTest, FlattenedOutputAlphaClampedToOne) {
     // Two fully opaque images at different depths
     DeepImage imgA = make1x1Point(1.0f, 1.0f, 0.0f, 0.0f, 1.0f);
@@ -101,6 +108,7 @@ TEST_F(CompositorIntegrationTest, FlattenedOutputAlphaClampedToOne) {
     EXPECT_LE(flat[3], 1.0f);
 }
 
+// Tests that empty pixels in all inputs produce an empty pixel in the output
 TEST_F(CompositorIntegrationTest, EmptyPixelsInAllInputsProduceEmptyOutputPixel) {
     DeepImage imgA(2, 2);
     DeepImage imgB(2, 2);
@@ -117,6 +125,7 @@ TEST_F(CompositorIntegrationTest, EmptyPixelsInAllInputsProduceEmptyOutputPixel)
 // CompositorStats tests
 // ============================================================================
 
+// Tests that CompositorStats are correctly populated with merge results
 TEST_F(CompositorIntegrationTest, StatsPopulatedCorrectly) {
     DeepImage imgA = make1x1Point(1.0f, 0.5f, 0.5f, 0.5f, 0.8f);
     DeepImage imgB = make1x1Point(2.0f, 0.5f, 0.5f, 0.5f, 0.6f);
@@ -130,6 +139,7 @@ TEST_F(CompositorIntegrationTest, StatsPopulatedCorrectly) {
     EXPECT_GT(stats.mergeTimeMs, 0.0);
 }
 
+// Tests that min and max depth are correctly reported in stats for point and volumetric samples
 TEST_F(CompositorIntegrationTest, DepthRangeCorrectlyReported) {
     DeepImage imgA = make1x1Point(1.0f, 0.5f, 0.5f, 0.5f, 0.8f);
     DeepImage imgB = make1x1Volume(3.0f, 7.0f, 0.5f, 0.5f, 0.5f, 0.6f);
@@ -142,6 +152,7 @@ TEST_F(CompositorIntegrationTest, DepthRangeCorrectlyReported) {
     EXPECT_FLOAT_EQ(stats.maxDepth, 7.0f);
 }
 
+// Tests that passing a null stats pointer does not cause a crash
 TEST_F(CompositorIntegrationTest, NullStatsPointerDoesNotCrash) {
     DeepImage img = make1x1Point(1.0f, 0.5f, 0.5f, 0.5f, 0.8f);
     std::vector<DeepImage> inputs = {img};
@@ -152,6 +163,7 @@ TEST_F(CompositorIntegrationTest, NullStatsPointerDoesNotCrash) {
 // CompositorOptions tests
 // ============================================================================
 
+// Tests that disabling merging preserves all samples without blending samples at the same depth
 TEST_F(CompositorIntegrationTest, DisablingMergingPreservesAllSamples) {
     // Two images with samples at the exact same depth
     DeepImage imgA = make1x1Point(1.0f, 0.5f, 0.5f, 0.5f, 0.5f);
@@ -165,6 +177,7 @@ TEST_F(CompositorIntegrationTest, DisablingMergingPreservesAllSamples) {
     EXPECT_EQ(result.pixel(0, 0).sampleCount(), 2u);
 }
 
+// Tests that the merge threshold controls whether nearby samples are collapsed together
 TEST_F(CompositorIntegrationTest, MergeThresholdAffectsCollapseRadius) {
     // Two samples close but outside default epsilon
     DeepImage imgA = make1x1Point(1.0f, 0.5f, 0.5f, 0.5f, 0.5f);
@@ -188,6 +201,7 @@ TEST_F(CompositorIntegrationTest, MergeThresholdAffectsCollapseRadius) {
 // Classic compositing scenario tests
 // ============================================================================
 
+// Tests that a fully opaque front object occludes a back object when flattened
 TEST_F(CompositorIntegrationTest, FrontSphereOccludesBackSphereOnFlatten) {
     // Fully opaque front (red) blocks blue behind it
     DeepImage front = make1x1Point(1.0f, 0.9f, 0.0f, 0.0f, 1.0f);
@@ -201,6 +215,7 @@ TEST_F(CompositorIntegrationTest, FrontSphereOccludesBackSphereOnFlatten) {
     EXPECT_NEAR(flat[3], 1.0f, 1e-5f);
 }
 
+// Tests that a semi-transparent front object allows some of the back object to be visible
 TEST_F(CompositorIntegrationTest, SemiTransparentFrontRevealsSomeOfBack) {
     // Semi-transparent red front, opaque blue back
     // front premul: red=0.5, alpha=0.5 (true red=1.0)
@@ -216,6 +231,7 @@ TEST_F(CompositorIntegrationTest, SemiTransparentFrontRevealsSomeOfBack) {
     EXPECT_GT(flat[0], 0.0f);
 }
 
+// Tests that the output image has the correct dimensions matching the input dimensions
 TEST_F(CompositorIntegrationTest, AllPixelsInOutputHaveCorrectDimensions) {
     int w = 16, h = 16;
     DeepImage imgA(w, h);
@@ -226,6 +242,7 @@ TEST_F(CompositorIntegrationTest, AllPixelsInOutputHaveCorrectDimensions) {
     EXPECT_EQ(result.height(), h);
 }
 
+// Tests that both the value-based and pointer-based deepMerge overloads produce identical results
 TEST_F(CompositorIntegrationTest, PointerVersionProducesSameResultAsValueVersion) {
     DeepImage imgA = make1x1Point(1.0f, 0.8f, 0.3f, 0.2f, 0.7f);
     DeepImage imgB = make1x1Point(2.0f, 0.3f, 0.7f, 0.5f, 0.5f);

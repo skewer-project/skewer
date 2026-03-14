@@ -10,10 +10,12 @@
 
 namespace skwr {
 
-Spectrum EvaluateVisibility(const Scene& scene, Ray& shadow_ray, float max_dist, RNG& rng,
+Spectrum EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& rng,
                             const SampledWavelengths& wl) {
     Spectrum Tr(1.0f);
     float remaining_dist = max_dist;
+    Ray shadow_ray = ray;
+    shadow_ray.vol_stack() = ray.vol_stack();
 
     while (true) {
         SurfaceInteraction shadow_si;
