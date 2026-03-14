@@ -42,6 +42,7 @@ struct NanoVDBMedium {
     Vec3 vdb_centroid = {0.0f, 0.0f, 0.0f};
 
     bool Load(const std::string& filepath) {
+        if (scale == 0.0f || density_multiplier < 0.0f) return false;
         try {
             handle = nanovdb::io::readGrid(filepath);
             grid = handle.grid<float>();
