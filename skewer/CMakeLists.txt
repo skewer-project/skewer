@@ -29,7 +29,7 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
 endif()
 
 # Fetch NanoVDB (Header-only library for fast volume rendering)
-if(NOT TARGET nanovdb AND NOT openvdb_POPULATED)
+if(NOT TARGET nanovdb)
     # Fetch NanoVDB
     FetchContent_Declare(
         openvdb
