@@ -6,110 +6,33 @@
 
 #include <stdexcept>
 #include <string>
+#include "deep_info.h"
+#include "utils.h"
 
 namespace exrio {
 
-std::vector<DeepImage> LoadImagesPhase(const std::vector<std::string>& inputFiles) {
-    log("Loading " + std::to_string(inputFiles.size()) + " inputs...");
-
-    if (inputFiles.empty()) {
-        throw std::runtime_error(
-            "No input files provided for loading phase (PartialDeepExrUris is empty)");
-    }
-
-    Timer loadTimer;
-
-    // Reserve space for all images upfront to avoid reallocations
-    std::vector<DeepImage> images;
-    images.reserve(inputFiles.size());
-
-    // Load each image and add it to the vector
-    for (size_t i = 0; i < inputFiles.size(); ++i) {
-        const std::string& filename = inputFiles[i];
-
-        logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(inputFiles.size()) + "] " +
-                   filename);
-
-        // Explicit check with a clear error message for the logs
-        if (!fileExists(filename)) {
-            throw std::runtime_error("Loom cannot find input file: " + filename +
-                                     " (Check if volume mounts or path translation are correct)");
-        }
-
-        try {
-            if (!isDeepEXR(filename)) {
-                throw std::runtime_error("File is not a deep EXR: " + filename);
-            }
-
-            // Load the image and add it to the vector while also logging stats
-            DeepImage img = loadDeepEXR(filename);
-
-            std::string stats =
-                "    " + std::to_string(img.width()) + "x" + std::to_string(img.height()) + ", " +
-                formatNumber(img.totalSampleCount()) + " total samples (avg " +
-                std::to_string(img.averageSamplesPerPixel()).substr(0, 4) + " samples/pixel)";
-            logVerbose(stats);
-
-            // Check for dimension mismatches
-            if (!images.empty()) {
-                if (img.width() != images[0].width() || img.height() != images[0].height()) {
-                    throw std::runtime_error("Image dimensions mismatch: " + filename);
-                }
-            }
-
-            images.push_back(std::move(img));
-
-        } catch (const DeepReaderException& e) {
-            throw std::runtime_error("Failed to load " + filename + ": " + e.what());
-        }
-    }
-
-    logVerbose("  Load time: " + loadTimer.elapsedString());
-    return images;
-}
-
-// Flatten the deep image into a standard 2D image.
-std::vector<float> FlattenPhase(const DeepImage& mergedImage) {
-    // Basically a wrapper to also encapsulate logging
-    log("\nFlattening...");
-    Timer flattenTimer;
-
-    std::vector<float> flatRgba = flattenImage(mergedImage);
-
-    logVerbose("  Flatten time: " + flattenTimer.elapsedString());
-    return flatRgba;
-}
-
 // Write the results back to disk using exrio's write functions.
-void WriteOutputsPhase(const DeepImage& mergedImage, const std::vector<float>& flatRgba,
-                       const std::string& outputPrefix, bool deepOutput, bool flatOutput,
-                       bool pngOutput) {
+void WriteFlatOutputs(const std::vector<float>& flatRgba, const std::string& outputUri,
+                    bool flatOutput, bool pngOutput, int width, int height) {
     log("\nWriting outputs...");
     Timer writeTimer;
 
     // Use exrio's write functions to write the outputs (deep or flat)
     try {
-        if (deepOutput) {
-            std::string deepPath = outputPrefix + "_merged.exr";
-            writeDeepEXR(mergedImage, deepPath);
-            log("  Wrote: " + deepPath);
-        }
-
         if (flatOutput) {
-            std::string flatPath = outputPrefix + "_flat.exr";
-            writeFlatEXR(flatRgba, mergedImage.width(), mergedImage.height(), flatPath);
-            log("  Wrote: " + flatPath);
+            writeFlatEXR(flatRgba, width, height, outputUri);
+            log("  Wrote: " + outputUri);
         }
 
         if (pngOutput) {
-            std::string pngPath = outputPrefix;
+            std::string pngPath = outputUri;
             // Ensure we have an extension if not provided
             if (pngPath.find('.') == std::string::npos) {
                 pngPath += ".png";
             }
 
             if (hasPNGSupport()) {
-                writePNG(flatRgba, mergedImage.width(), mergedImage.height(), pngPath);
+                writePNG(flatRgba, width, height, pngPath);
                 log("  Wrote: " + pngPath);
             } else {
                 log("  Skipped PNG (libpng not available)");
@@ -120,6 +43,56 @@ void WriteOutputsPhase(const DeepImage& mergedImage, const std::vector<float>& f
     }
 
     logVerbose("  Write time: " + writeTimer.elapsedString());
+}
+
+
+int SaveImageInfo(const Options& opts, std::vector<std::unique_ptr<deep_compositor::DeepInfo>>& imagesInfo) {
+    for (size_t i = 0; i < opts.input_files.size(); ++i) {
+        const std::string& filename = opts.input_files[i];
+
+        deep_compositor::LogVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.input_files.size()) +
+                   "] " + filename);
+        printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
+        try {
+            // Check if it's a deep EXR
+            if (!exrio::isDeepEXR(filename)) {
+                deep_compositor::LogError("File is not a deep EXR: " + filename);
+                return 1;
+            }
+
+            auto img = std::make_unique<deep_compositor::DeepInfo>(filename);
+            // Log statistics
+            std::string stats =
+                "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
+            deep_compositor::LogVerbose(stats);
+            if (!imagesInfo.empty()) {
+                if (img->width() != imagesInfo[0]->width() ||
+                    img->height() != imagesInfo[0]->height()) {
+                    deep_compositor::LogError("Image dimensions mismatch: " + filename);
+                    deep_compositor::LogError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
+                             std::to_string(imagesInfo[0]->height()));
+                    deep_compositor::LogError("  Got: " + std::to_string(img->width()) + "x" +
+                             std::to_string(img->height()));
+                    return 1;
+                }
+            }
+
+            imagesInfo.push_back(std::move(img));
+
+        } catch (const exrio::DeepReaderException& e) {
+            deep_compositor::LogError("Failed to load " + filename + ": " + e.what());
+            return 1;
+        } catch (const std::exception& e) {
+            deep_compositor::LogError("Unexpected error loading " + filename + ": " + e.what());
+            return 1;
+        }
+        if (!exrio::isDeepEXR(filename)) {
+            deep_compositor::LogError("File is not a deep EXR: " + filename);
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 }  // namespace exrio

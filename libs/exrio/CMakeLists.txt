@@ -37,7 +37,7 @@ if(PNG_FOUND)
     target_link_libraries(exrio PUBLIC PNG::PNG)
 endif()
 
-target_compile_options(exrio PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(exrio PRIVATE -Wall -Wextra -Werror -Wpedantic)
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 

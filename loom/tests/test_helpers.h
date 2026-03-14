@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_TESTS_TEST_HELPERS_H
+#define LOOM_TESTS_TEST_HELPERS_H
 
 #include <exrio/deep_image.h>
 
@@ -25,3 +26,5 @@ inline DeepImage makeVolumeImage1x1(float zFront, float zBack, float r, float g,
 }
 
 }  // namespace exrio
+
+#endif  // LOOM_TESTS_TEST_HELPERS_H
