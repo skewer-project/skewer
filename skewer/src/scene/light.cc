@@ -6,7 +6,23 @@
 
 namespace skwr {
 
-LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
+float LightPdfArea(const Scene& scene, int light_index) {
+    const AreaLight& light = scene.Lights()[light_index];
+
+    if (light.type == AreaLight::Sphere) {
+        const Sphere& s = scene.Spheres()[light.primitive_index];
+        float area = 4.0f * kPi * s.radius * s.radius;
+        return 1.0f / area;
+    } else if (light.type == AreaLight::Triangle) {
+        const Triangle& t = scene.Triangles()[light.primitive_index];
+        float area = 0.5f * Cross(t.e1, t.e2).Length();
+        return (area > 0.0f) ? 1.0f / area : 0.0f;
+    }
+    return 0.0f;
+}
+
+LightSample SampleLight(const Scene& scene, int light_index, RNG& rng) {
+    const AreaLight& light = scene.Lights()[light_index];
     LightSample result;
     result.emission = light.emission;
 
@@ -17,8 +33,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
         result.p = s.center + random_point * s.radius;
         result.n = random_point;
 
-        float area = 4.0f * kPi * s.radius * s.radius;
-        result.pdf = 1.0f / area;
+        result.pdf = LightPdfArea(scene, light_index);
     } else if (light.type == AreaLight::Triangle) {
         const Triangle& t = scene.Triangles()[light.primitive_index];
 
@@ -34,8 +49,7 @@ LightSample SampleLight(const Scene& scene, const AreaLight& light, RNG& rng) {
         result.p = (1.0f - sqrt_r1) * p0 + (sqrt_r1 * (1.0f - r2)) * p1 + (sqrt_r1 * r2) * p2;
         result.n = Normalize(Cross(t.e1, t.e2));
 
-        float area = 0.5f * Cross(t.e1, t.e2).Length();
-        result.pdf = (area > 0.0f) ? 1.0f / area : 0.0f;
+        result.pdf = LightPdfArea(scene, light_index);
     }
 
     return result;
