@@ -1,4 +1,5 @@
-#pragma once
+#ifndef LOOM_SRC_DEEP_VOLUME_H
+#define LOOM_SRC_DEEP_VOLUME_H
 
 #include <exrio/deep_image.h>
 
@@ -41,3 +42,5 @@ DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels,
                                 float epsilon = 0.001f);
 
 }  // namespace exrio
+
+#endif  // LOOM_SRC_DEEP_VOLUME_H

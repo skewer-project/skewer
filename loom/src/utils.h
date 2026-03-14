@@ -1,5 +1,5 @@
-#ifndef EXRIO_UTILS_H
-#define EXRIO_UTILS_H
+#ifndef LOOM_SRC_UTILS_H
+#define LOOM_SRC_UTILS_H
 
 #include <chrono>
 #include <iomanip>
@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-namespace exrio {
+namespace deep_compositor {
 
 /**
  * Global verbosity flag for logging
@@ -17,27 +17,27 @@ extern bool g_verbose;
 /**
  * Set the global verbosity level
  */
-void setVerbose(bool verbose);
+void SetVerbose(bool verbose);
 
 /**
  * Check if verbose mode is enabled
  */
-bool isVerbose();
+bool IsVerbose();
 
 /**
  * Log a message (only in verbose mode)
  */
-void logVerbose(const std::string& message);
+void LogVerbose(const std::string& message);
 
 /**
  * Log a message (always)
  */
-void log(const std::string& message);
+void Log(const std::string& message);
 
 /**
  * Log an error message
  */
-void logError(const std::string& message);
+void LogError(const std::string& message);
 
 /**
  * Simple timer class for performance measurements
@@ -49,17 +49,17 @@ class Timer {
     /**
      * Reset the timer
      */
-    void reset();
+    void Reset();
 
     /**
      * Get elapsed time in milliseconds
      */
-    double elapsedMs() const;
+    double ElapsedMs() const;
 
     /**
      * Get elapsed time as a formatted string
      */
-    std::string elapsedString() const;
+    std::string ElapsedString() const;
 
   private:
     std::chrono::high_resolution_clock::time_point start_;
@@ -68,38 +68,33 @@ class Timer {
 /**
  * Format a number with commas for readability
  */
-std::string formatNumber(size_t number);
+std::string FormatNumber(size_t number);
 
 /**
  * Format bytes as human-readable string
  */
-std::string formatBytes(size_t bytes);
+std::string FormatBytes(size_t bytes);
 
 /**
  * Get the filename from a path
  */
-std::string getFilename(const std::string& path);
+std::string GetFilename(const std::string& path);
 
 /**
- * Get directory part of a path
+ * Get the directory from a path
  */
-std::string getDirectory(const std::string& path);
-
-/**
- * Ensure the parent directory of a file exists, creating it if necessary.
- */
-void ensureDirectoryExists(const std::string& filepath);
+std::string GetDirectory(const std::string& path);
 
 /**
  * Check if a file exists
  */
-bool fileExists(const std::string& path);
+bool FileExists(const std::string& path);
 
 /**
  * Clamp a value between min and max
  */
 template <typename T>
-T clamp(T value, T minVal, T maxVal) {
+T Clamp(T value, T minVal, T maxVal) {
     return std::max(minVal, std::min(maxVal, value));
 }
 
@@ -111,6 +106,6 @@ T lerp(T a, T b, float t) {
     return a + (b - a) * t;
 }
 
-}  // namespace exrio
+}  // namespace deep_compositor
 
-#endif  // EXRIO_UTILS_H
+#endif  // LOOM_SRC_UTILS_H
