@@ -274,8 +274,10 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, const Media
         center = ParseVec3(obj.at("center"));
         radius = obj.at("radius").get<float>();
     }
+    int32_t light_index = -1;
+    uint16_t priority = 1;
 
-    scene.AddSphere(Sphere{center, radius, mat_id, inside, outside, 1});
+    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {

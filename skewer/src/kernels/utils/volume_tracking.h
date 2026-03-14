@@ -18,8 +18,8 @@ Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_
                                 const SampledWavelengths& wl);
 Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const Ray& shadow_ray,
                                        float dist, const SampledWavelengths& wl);
-float EvalHG(float g, const Vec3& wo, const Vec3& wi);
-void SampleHG(float g, const Vec3& wo, float u1, float u2, Vec3& wi);
+float EvalHenyeyGreenstein(float g, const Vec3& wo, const Vec3& wi);
+void SampleHenyeyGreenstein(float g, const Vec3& wo, float u1, float u2, Vec3& wi);
 
 }  // namespace skwr
 
