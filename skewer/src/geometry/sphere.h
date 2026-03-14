@@ -11,6 +11,7 @@ struct Sphere {
     Vec3 center;
     float radius;
     uint32_t material_id;
+    int32_t light_index = -1;
     uint16_t interior_medium;
     uint16_t exterior_medium;
     uint16_t priority;

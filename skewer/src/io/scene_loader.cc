@@ -185,9 +185,18 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scen
     uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
     Vec3 center = ParseVec3(obj.at("center"));
     float radius = obj.at("radius").get<float>();
+    uint16_t interior_medium = static_cast<uint16_t>(MediumType::Vacuum);
+    uint16_t exterior_medium = static_cast<uint16_t>(MediumType::Vacuum);
+    uint16_t priority = 0;
 
-    scene.AddSphere(Sphere{center, radius, mat_id, static_cast<uint16_t>(MediumType::Vacuum),
-                           static_cast<uint16_t>(MediumType::Vacuum), 1});
+    Sphere s;
+    s.center = center;
+    s.radius = radius;
+    s.material_id = mat_id;
+    s.interior_medium = interior_medium;
+    s.exterior_medium = exterior_medium;
+    s.priority = priority;
+    scene.AddSphere(s);
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
