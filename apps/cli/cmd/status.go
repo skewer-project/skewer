@@ -52,7 +52,9 @@ var statusCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(statusCmd)
-
 	statusCmd.Flags().StringVarP(&statusJobID, "job", "j", "", "The UUID of the job to check")
-	statusCmd.MarkFlagRequired("job")
+
+	if err := statusCmd.MarkFlagRequired("job"); err != nil {
+		log.Fatalf("Failed to mark 'job' flag as required: %v", err)
+	}
 }
