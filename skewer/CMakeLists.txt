@@ -111,6 +111,7 @@ target_link_libraries(skewer-render
     PRIVATE
     nlohmann_json::nlohmann_json
     exrio::exrio
+    nanovdb
 )
 
 target_link_libraries(skewer-worker
