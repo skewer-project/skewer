@@ -17,7 +17,7 @@ struct SurfaceInteraction {
     Vec3 wo;       // Outgoing direction (points to Camera/viewer)
     float t;       // Distance along ray
     uint32_t material_id;
-
+    int32_t light_index = -1;
     uint16_t exterior_medium;
     uint16_t interior_medium;
     uint16_t priority;

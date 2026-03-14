@@ -139,15 +139,17 @@ Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_
     }
 }
 
-float EvalHG(float g, const Vec3& wo, const Vec3& wi) {
+float EvalHenyeyGreenstein(float g, const Vec3& wo, const Vec3& wi) {
+    g = std::clamp(g, -kOneMinusEpsilon, kOneMinusEpsilon);
     float cos_theta = Dot(wo, wi);
     float denom = 1.0f + g * g + 2.0f * g * cos_theta;
     return (1.0f - g * g) / (4.0f * kPi * denom * std::sqrt(denom));
 }
 
-void SampleHG(float g, const Vec3& wo, float u1, float u2, Vec3& wi) {
+void SampleHenyeyGreenstein(float g, const Vec3& wo, float u1, float u2, Vec3& wi) {
+    g = std::clamp(g, -kOneMinusEpsilon, kOneMinusEpsilon);
     float cos_theta;
-    if (std::abs(g) < 1e-3f) {
+    if (std::abs(g) < kIsotropicPhaseEpsilon) {
         cos_theta = 1.0f - 2.0f * u1;  // Isotropic
     } else {
         float sqr_term = (1.0f - g * g) / (1.0f + g - 2.0f * g * u1);

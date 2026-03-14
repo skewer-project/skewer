@@ -22,6 +22,7 @@ void Scene::Build() {
 
     // Re-register sphere lights
     for (uint32_t i = 0; i < (uint32_t)spheres_.size(); ++i) {
+        spheres_[i].light_index = -1;
         if (spheres_[i].material_id == kNullMaterialId) continue;
 
         const Material& mat = materials_[spheres_[i].material_id];
@@ -31,14 +32,17 @@ void Scene::Build() {
             light.primitive_index = i;
             light.emission = mat.emission;
             lights_.push_back(light);
+            spheres_[i].light_index = static_cast<int32_t>(lights_.size() - 1);
         }
     }
 
+    // TODO: Update triangle creation with in/out medium setting
     // Bake one Triangle per mesh face, capturing final vertex positions,
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
         const Mesh& mesh_ref = meshes_[mesh_id];
-        const Material& mat = materials_[mesh_ref.material_id];
+        const Material* mat =
+            (mesh_ref.material_id != kNullMaterialId) ? &materials_[mesh_ref.material_id] : nullptr;
 
         for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
             uint32_t i0 = mesh_ref.indices[i];
@@ -53,7 +57,7 @@ void Scene::Build() {
             t.interior_medium = kVacuumMediumId;
             t.exterior_medium = kVacuumMediumId;
             t.priority = 0;
-            t.needs_tangent_frame = mat.HasNormalMap();
+            t.needs_tangent_frame = mat != nullptr && mat->HasNormalMap();
 
             if (!mesh_ref.n.empty()) {
                 t.n0 = mesh_ref.n[i0];
@@ -82,13 +86,16 @@ void Scene::Build() {
     }
 
     for (uint32_t i = 0; i < (uint32_t)triangles_.size(); ++i) {
-        const Material& mat = materials_[triangles_[i].material_id];
-        if (mat.IsEmissive()) {
+        const Material* mat = (triangles_[i].material_id != kNullMaterialId)
+                                  ? &materials_[triangles_[i].material_id]
+                                  : nullptr;
+        if (mat->IsEmissive()) {
             AreaLight light;
             light.type = AreaLight::Triangle;
             light.primitive_index = i;
-            light.emission = mat.emission;
+            light.emission = mat->emission;
             lights_.push_back(light);
+            triangles_[i].light_index = static_cast<int32_t>(lights_.size() - 1);
         }
     }
     inv_light_count_ = 1.0f / lights_.size();
@@ -132,12 +139,18 @@ uint32_t Scene::AddTexture(ImageTexture&& t) {
 }
 
 uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
+    if (homogeneous_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
     homogeneous_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1);
     return PackMediumId(MediumType::Homogeneous, index);
 }
 
 uint16_t Scene::AddGridMedium(const GridMedium& m) {
+    if (grid_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
     grid_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
     return PackMediumId(MediumType::Grid, index);
