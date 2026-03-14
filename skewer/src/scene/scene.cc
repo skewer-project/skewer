@@ -157,6 +157,9 @@ uint16_t Scene::AddGridMedium(const GridMedium& m) {
 }
 
 uint16_t Scene::AddNanoVDBMedium(NanoVDBMedium m) {
+    if (nanovdb_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
     nanovdb_media_.push_back(std::move(m));
     uint16_t index = static_cast<uint16_t>(nanovdb_media_.size() - 1);
     return PackMediumId(MediumType::NanoVDB, index);
