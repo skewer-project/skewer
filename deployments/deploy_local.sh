@@ -81,19 +81,20 @@ if [ "$REBUILD" = true ]; then
     docker build -t loom-worker:latest -f deployments/docker/Dockerfile.loom .
     docker build -t skewer-coordinator:latest -f deployments/docker/Dockerfile.coordinator .
 
-    # Handle image availability in the cluster
-    if [ "$RUNTIME" == "minikube" ]; then
-        echo "Loading images into minikube..."
-        minikube image load skewer-worker:latest
-        minikube image load loom-worker:latest
-        minikube image load skewer-coordinator:latest
-    elif [ "$RUNTIME" == "orbstack" ]; then
+    if [ "$RUNTIME" == "orbstack" ]; then
         # OrbStack shares the local Docker engine with Kubernetes,
         # so images are typically available immediately after build.
         echo "Images are built and available for OrbStack."
     fi
 else
     echo "Skipping image build (use --rebuild to force)."
+fi
+
+if [ "$RUNTIME" == "minikube" ]; then
+    echo "Loading images into minikube..."
+    minikube image load skewer-worker:latest
+    minikube image load loom-worker:latest
+    minikube image load skewer-coordinator:latest
 fi
 
 # Resolve the absolute path of the data directory for hostPath mounting

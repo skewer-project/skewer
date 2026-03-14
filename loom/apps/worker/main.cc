@@ -4,8 +4,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <string>
 #include <random>
+#include <string>
 #include <thread>
 
 #include "composite_pipeline.h"
@@ -31,14 +31,14 @@ using grpc::Status;
 // Starts the loom worker loop.
 void RunLoomWorker(const std::string& coordinator_addr) {
     // Generate a unique worker ID with time epoch and mersenne twister engine
-    std::random_device rd; // workers may spawn in same millisecond so epoch alone is not enough
+    std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(1000, 9999);
 
     std::string worker_id =
         "loom-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) +
-        "-" + std::to_string(dis(gen));
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + "-" +
+        std::to_string(dis(gen));
 
     std::cout << "[LOOM]: Starting worker loop, ID: " << worker_id << "\n";
     std::cout << "[LOOM]: Coordinator Address: " << coordinator_addr << "\n";
@@ -50,7 +50,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
     // Cooldown timer before acquireing stream again on retry
     int backoff_ms = 100;
-    const int max_backoff_ms = 30000; // 30 seconds max
+    const int max_backoff_ms = 30000;  // 30 seconds max
 
     // Main registration loop with coordiantor
     while (true) {
@@ -77,7 +77,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
                     // Load Phase
                     std::vector<std::string> inputLayers(task.layer_uris().begin(),
-                                                               task.layer_uris().end());
+                                                         task.layer_uris().end());
 
                     std::cout << "[LOOM]: -> Composite Inputs (" << inputLayers.size()
                               << " files):\n";
@@ -85,8 +85,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                         std::cout << "  - " << uri << "\n";
                     }
 
-                    std::vector<exrio::DeepImage> images =
-                        exrio::LoadImagesPhase(inputLayers);
+                    std::vector<exrio::DeepImage> images = exrio::LoadImagesPhase(inputLayers);
 
                     // Merge Phase
                     float taskMergeThreshold =
@@ -131,8 +130,8 @@ void RunLoomWorker(const std::string& coordinator_addr) {
             ClientContext report_context;
 
             // Fail fast if the coordinator doesn't acknowledge within 10 seconds
-            std::chrono::system_clock::time_point deadline
-                = std::chrono::system_clock::now() + std::chrono::seconds(10);
+            std::chrono::system_clock::time_point deadline =
+                std::chrono::system_clock::now() + std::chrono::seconds(10);
             report_context.set_deadline(deadline);
 
             ReportTaskResultRequest report_req;
@@ -156,12 +155,13 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
         // If we get here, the stream closed (either coordinator shut it down, or a network error)
         grpc::Status status = stream->Finish();
-        if(!status.ok()) {
-            std::cerr << "[LOOM]: Stream failed: " << status.error_message() << ". Retrying in " << backoff_ms << "ms...\n";
+        if (!status.ok()) {
+            std::cerr << "[LOOM]: Stream failed: " << status.error_message() << ". Retrying in "
+                      << backoff_ms << "ms...\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
 
             backoff_ms *= 2;
-            if(backoff_ms > max_backoff_ms) {
+            if (backoff_ms > max_backoff_ms) {
                 backoff_ms = max_backoff_ms;
             }
 
