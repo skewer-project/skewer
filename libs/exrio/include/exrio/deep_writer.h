@@ -1,4 +1,5 @@
-#pragma once
+#ifndef EXRIO_DEEP_WRITER_H
+#define EXRIO_DEEP_WRITER_H
 
 #include <array>
 #include <string>
@@ -81,3 +82,5 @@ std::array<float, 4> flattenPixel(const DeepPixel& pixel);
 std::vector<float> flattenImage(const DeepImage& img);
 
 }  // namespace exrio
+
+#endif  // EXRIO_DEEP_WRITER_H
