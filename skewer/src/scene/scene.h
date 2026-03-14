@@ -12,6 +12,7 @@
 #include "geometry/triangle.h"
 #include "materials/material.h"
 #include "materials/texture.h"
+#include "media/mediums.h"
 #include "scene/light.h"
 
 namespace skwr {
@@ -28,6 +29,10 @@ class Scene {
     uint32_t AddMaterial(const Material& m);
     uint32_t AddMesh(Mesh&& m);             // Returns mesh_id (index in the meshes_ vector)
     uint32_t AddTexture(ImageTexture&& t);  // Returns texture_id
+    uint16_t AddHomogeneousMedium(const HomogeneousMedium& m);
+    uint16_t AddGridMedium(const GridMedium& m);
+    void SetGlobalMedium(uint16_t medium_id) { global_medium_id_ = medium_id; }
+    uint16_t GetGlobalMedium() const { return global_medium_id_; }
 
     const Material& GetMaterial(uint32_t id) const { return materials_[id]; }
     const ImageTexture& GetTexture(uint32_t id) const { return textures_[id]; }
@@ -38,6 +43,8 @@ class Scene {
     const std::vector<Triangle>& Triangles() const { return triangles_; }
     const std::vector<Material>& Materials() const { return materials_; }
     const std::vector<AreaLight>& Lights() const { return lights_; }
+    const std::vector<HomogeneousMedium>& homogeneous_media() const { return homogeneous_media_; }
+    const std::vector<GridMedium>& grid_media() const { return grid_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
 
     void Build();  // Construct the BVH from the shapes list
@@ -46,7 +53,6 @@ class Scene {
     // The Integrator calls this millions of times.
     // rn loops through linearly, but when BVH is implemented, should be faster
     bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
-    bool IntersectBVH(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
 
   private:
     std::vector<Sphere> spheres_;
@@ -55,8 +61,12 @@ class Scene {
     std::vector<Mesh> meshes_;
     std::vector<Triangle> triangles_;
     std::vector<AreaLight> lights_;
+    std::vector<HomogeneousMedium> homogeneous_media_;
+    std::vector<GridMedium> grid_media_;
+    // std::vector<NanoVDBMedium> nanovdb_media_; // TODO
     BVH bvh_;
     float inv_light_count_;
+    uint16_t global_medium_id_ = 0;  // 0 represents Vacuum
 };
 
 }  // namespace skwr

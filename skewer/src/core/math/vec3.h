@@ -1,5 +1,5 @@
-#ifndef SKWR_CORE_VEC3_H_
-#define SKWR_CORE_VEC3_H_
+#ifndef SKWR_CORE_MATH_VEC3_H_
+#define SKWR_CORE_MATH_VEC3_H_
 
 #include <cmath>
 #include <iostream>
@@ -106,4 +106,4 @@ inline Vec3 Refract(const Vec3& uv, const Vec3& n, float etai_over_etat) {
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_VEC3_H_
+#endif  // SKWR_CORE_MATH_VEC3_H_

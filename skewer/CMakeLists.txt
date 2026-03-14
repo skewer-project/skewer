@@ -56,6 +56,11 @@ set(SKEWER_CORE_SOURCES
     src/materials/bsdf.cc
     src/materials/texture.cc
     src/core/spectral/rgb2spec.cc
+    src/kernels/path_kernel.cc
+    src/kernels/sample_media.cc
+    src/kernels/volume_dispatch.cc
+    src/kernels/utils/visibility.cc
+    src/kernels/utils/volume_tracking.cc
 )
 
 # Find Required Dependencies for worker binaries

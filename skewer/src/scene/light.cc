@@ -1,6 +1,6 @@
 #include "scene/light.h"
 
-#include "core/sampling.h"
+#include "core/sampling/sampling.h"
 #include "geometry/sphere.h"
 #include "scene/scene.h"
 
