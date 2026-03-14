@@ -3,14 +3,15 @@
 #include <cstdint>
 
 #include "accelerators/bvh.h"
-#include "core/vec3.h"
+#include "core/cpu_config.h"
+#include "core/math/vec3.h"
+#include "core/transport/surface_interaction.h"
 #include "geometry/intersect_sphere.h"
-#include "geometry/intersect_triangle.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
 #include "materials/material.h"
-#include "scene/surface_interaction.h"
+#include "media/mediums.h"
 
 namespace skwr {
 
@@ -20,6 +21,8 @@ void Scene::Build() {
 
     // Re-register sphere lights
     for (uint32_t i = 0; i < (uint32_t)spheres_.size(); ++i) {
+        if (spheres_[i].material_id == kNullMaterialId) continue;
+
         const Material& mat = materials_[spheres_[i].material_id];
         if (mat.IsEmissive()) {
             AreaLight light;
@@ -34,7 +37,8 @@ void Scene::Build() {
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
         const Mesh& mesh_ref = meshes_[mesh_id];
-        const Material& mat = materials_[mesh_ref.material_id];
+        const Material* mat =
+            (mesh_ref.material_id != kNullMaterialId) ? &materials_[mesh_ref.material_id] : nullptr;
 
         for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
             uint32_t i0 = mesh_ref.indices[i];
@@ -46,7 +50,10 @@ void Scene::Build() {
             t.e1 = mesh_ref.p[i1] - t.p0;
             t.e2 = mesh_ref.p[i2] - t.p0;
             t.material_id = mesh_ref.material_id;
-            t.needs_tangent_frame = mat.HasNormalMap();
+            t.interior_medium = kVacuumMediumId;
+            t.exterior_medium = kVacuumMediumId;
+            t.priority = 0;
+            t.needs_tangent_frame = mat != nullptr && mat->HasNormalMap();
 
             if (!mesh_ref.n.empty()) {
                 t.n0 = mesh_ref.n[i0];
@@ -75,12 +82,14 @@ void Scene::Build() {
     }
 
     for (uint32_t i = 0; i < (uint32_t)triangles_.size(); ++i) {
-        const Material& mat = materials_[triangles_[i].material_id];
-        if (mat.IsEmissive()) {
+        const Material* mat = (triangles_[i].material_id != kNullMaterialId)
+                                  ? &materials_[triangles_[i].material_id]
+                                  : nullptr;
+        if (mat->IsEmissive()) {
             AreaLight light;
             light.type = AreaLight::Triangle;
             light.primitive_index = i;
-            light.emission = mat.emission;
+            light.emission = mat->emission;
             lights_.push_back(light);
         }
     }
@@ -97,51 +106,10 @@ bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction
         }
     }
 
-    if (IntersectBVH(r, t_min, closest_t, si)) {
+    if (bvh_.Intersect(r, t_min, closest_t, si, Triangles())) {
         hit_anything = true;
     }
 
-    return hit_anything;
-}
-
-bool Scene::IntersectBVH(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {
-    if (bvh_.IsEmpty()) return false;
-
-    bool hit_anything = false;
-    float closest_t = t_max;
-
-    const Vec3& inv_dir = r.inv_direction();
-    const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
-
-    int nodes_to_visit[64];
-    int to_visit_offset = 0;
-
-    nodes_to_visit[0] = 0;
-    while (to_visit_offset >= 0) {
-        int current_node_idx = nodes_to_visit[to_visit_offset--];
-        const BVHNode& node = bvh_.GetNodes()[current_node_idx];
-
-        if (node.bounds.Intersect(r, t_min, closest_t)) {
-            if (node.tri_count > 0) {
-                for (uint32_t i = 0; i < node.tri_count; ++i) {
-                    const Triangle& tri = triangles_[node.left_first + i];
-                    if (IntersectTriangle(r, tri, t_min, closest_t, si)) {
-                        hit_anything = true;
-                        closest_t = si->t;
-                    }
-                }
-            } else {
-                int axis = node.bounds.LongestAxis();
-                if (dir_is_neg[axis]) {
-                    nodes_to_visit[++to_visit_offset] = node.left_first;
-                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
-                } else {
-                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
-                    nodes_to_visit[++to_visit_offset] = node.left_first;
-                }
-            }
-        }
-    }
     return hit_anything;
 }
 
@@ -163,6 +131,28 @@ uint32_t Scene::AddMesh(Mesh&& m) {
 uint32_t Scene::AddTexture(ImageTexture&& t) {
     textures_.push_back(std::move(t));
     return static_cast<uint32_t>(textures_.size() - 1);
+}
+
+uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
+    if (homogeneous_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
+    homogeneous_media_.push_back(m);
+    uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1);
+    // Pack: Type 1 (Homogeneous) + index
+    return (static_cast<uint16_t>(MediumType::Homogeneous) << kMediumTypeShift) |
+           (index & kMediumIndexMask);
+}
+
+uint16_t Scene::AddGridMedium(const GridMedium& m) {
+    if (grid_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
+    grid_media_.push_back(m);
+    uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
+    // Pack: Type 2 (Grid) + index
+    return (static_cast<uint16_t>(MediumType::Grid) << kMediumTypeShift) |
+           (index & kMediumIndexMask);
 }
 
 }  // namespace skwr

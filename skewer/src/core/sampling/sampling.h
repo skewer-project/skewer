@@ -1,9 +1,9 @@
-#ifndef SKWR_CORE_SAMPLER_H_
-#define SKWR_CORE_SAMPLER_H_
+#ifndef SKWR_CORE_SAMPLING_SAMPLING_H_
+#define SKWR_CORE_SAMPLING_SAMPLING_H_
 
-#include "core/constants.h"
-#include "core/rng.h"
-#include "core/vec3.h"
+#include "core/math/constants.h"
+#include "core/math/vec3.h"
+#include "core/sampling/rng.h"
 
 namespace skwr {
 
@@ -96,4 +96,4 @@ inline float PowerHeuristic(float pdf_f, float pdf_g) {
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_SAMPLER_H_
+#endif  // SKWR_CORE_SAMPLING_SAMPLING_H_
