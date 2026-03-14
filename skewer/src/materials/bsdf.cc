@@ -1,8 +1,8 @@
 #include "materials/bsdf.h"
 
-#include "core/constants.h"
-#include "core/onb.h"
-#include "core/sampling.h"
+#include "core/math/constants.h"
+#include "core/math/onb.h"
+#include "core/sampling/sampling.h"
 #include "core/spectral/spectral_utils.h"
 
 namespace skwr {
@@ -100,6 +100,13 @@ float PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const 
     return cosine * kInvPi;  // Cos-weighted hemisphere sampling
 }
 
+/**
+ * TODO:
+ * For SampleLambertian + SampleMetals do we want to support 2-sided opaque materials?
+ * // Ensure the shading normal faces the observer for two-sided evaluation
+ * Vec3 n_shading = Dot(si.wo, sd.n_shading) > 0.0f ? sd.n_shading : -sd.n_shading;
+ */
+
 bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
                       RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     (void)mat;
@@ -137,7 +144,12 @@ bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceIntera
     float NoI = Dot(sd.n_shading, wi);
     float NoO = Dot(sd.n_shading, wo);
 
-    if (NoI <= 0.0f || NoO <= 0.0f) return false;  // under surface = kill
+    // Physical mesh calc to prevent leaking through actual mesh
+    float NoI_geom = Dot(si.n_geom, wi);
+    float NoO_geom = Dot(si.n_geom, wo);
+
+    if (NoI <= 0.0f || NoO <= 0.0f || NoI_geom <= 0.0f || NoO_geom <= 0.0f)
+        return false;  // under surface = kill
 
     // Evaluate the GGX terms
     float D = GGX_D(sd.n_shading, h, alpha);
@@ -162,7 +174,15 @@ bool SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceIntera
 bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
                       RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) {
     (void)sd;
-    bool entering = si.front_face;
+
+    float cosThetaI = Dot(si.wo, si.n_geom);
+    bool entering = cosThetaI > 0.0f;
+    float absCosI = std::abs(cosThetaI);
+
+    // Orient the normal for physics calculations
+    // The mathematical normal must always face 'wo' to bend light correctly
+    Vec3 n_oriented = entering ? si.n_geom : -si.n_geom;
+
     bool is_dispersive = mat.dispersion > 0.0f;
 
     // Evaluating Cauchy's IOR for all wavelengths
@@ -176,9 +196,6 @@ bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceI
             ior[i] = mat.ior;
         }
     }
-
-    // Because intersector flips si.n_geom to face the ray, Dot(wo, n_geom) is always positive
-    float absCosI = std::abs(Dot(si.wo, si.n_geom));
 
     // Fresnel reflectance for all wavelengths
     Spectrum F;
@@ -198,7 +215,7 @@ bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceI
     if (rng.UniformFloat() < pr) {
         // Reflection
         // Geometry is same for all wavelengths (Angle In = Angle Out) so we dont kill
-        wi = Reflect(-si.wo, si.n_geom);
+        wi = Reflect(-si.wo, n_oriented);  // n_oriented and n_geom yield same result for reflection
         pdf = pr;
 
         // Return BSDF: F / cosTheta (Cosine will be cancelled out in the integrator)
@@ -220,7 +237,7 @@ bool SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceI
         if (sin2T >= 1.0f) return false;  // Total Internal Reflection catch-all
         float cosT = std::sqrt(1.0f - sin2T);
 
-        wi = -eta_hero * si.wo + (eta_hero * absCosI - cosT) * si.n_geom;
+        wi = -eta_hero * si.wo + (eta_hero * absCosI - cosT) * n_oriented;
         pdf = pt;
         float absCos = std::abs(Dot(wi, si.n_geom));
 
