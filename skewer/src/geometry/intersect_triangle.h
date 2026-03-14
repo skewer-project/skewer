@@ -43,8 +43,11 @@ inline bool IntersectTriangle(const Ray& r, const Triangle& tri, float t_min, fl
 
     // Barycentric interpolation of pre-baked normals.
     // For flat meshes n0==n1==n2==geometric normal, so no branch needed.
+    Vec3 geom_n = Normalize(Cross(tri.e1, tri.e2));
     float w = 1.0f - u - v;
-    si->n_geom = Normalize(w * tri.n0 + u * tri.n1 + v * tri.n2);
+    si->n_geom = geom_n;
+    si->n_shading = Normalize(w * tri.n0 + u * tri.n1 + v * tri.n2);
+    if (Dot(si->n_shading, si->n_geom) < 0.0f) si->n_shading = -si->n_shading;
     si->wo = -r.direction();
 
     // Barycentric interpolation of UV coordinates.

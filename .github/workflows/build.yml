@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 500M
@@ -52,7 +52,7 @@ jobs:
         run: cmake --build --preset ci --parallel
 
       - name: Test
-        run: ctest --preset ci
+        run: ctest --preset ci --parallel
 
       - name: ccache stats
         if: always()

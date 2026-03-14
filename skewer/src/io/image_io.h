@@ -1,5 +1,5 @@
-#ifndef SKWR_IO_IMAGE_IO_H
-#define SKWR_IO_IMAGE_IO_H
+#ifndef SKWR_IO_IMAGE_IO_H_
+#define SKWR_IO_IMAGE_IO_H_
 
 #include <string>
 

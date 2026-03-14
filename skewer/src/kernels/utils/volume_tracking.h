@@ -14,8 +14,8 @@ class RNG;
 Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_ray, float dist,
                                     RNG& rng);
 Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray, float dist);
-float EvalHG(float g, const Vec3& wo, const Vec3& wi);
-void SampleHG(float g, const Vec3& wo, float u1, float u2, Vec3& wi);
+float EvalHenyeyGreenstein(float g, const Vec3& wo, const Vec3& wi);
+void SampleHenyeyGreenstein(float g, const Vec3& wo, float u1, float u2, Vec3& wi);
 
 }  // namespace skwr
 

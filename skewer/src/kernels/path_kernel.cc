@@ -91,7 +91,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
                 if (Tr.MaxComponentValue() > 0.0f) {
                     // Evaluate Phase & Transmittance
-                    float phase_pdf = EvalHG(mi.phase_g, mi.wo, dls.wi);
+                    float phase_pdf = EvalHenyeyGreenstein(mi.phase_g, mi.wo, dls.wi);
                     float mis_weight = PowerHeuristic(dls.pdf, phase_pdf);
 
                     Spectrum direct_L = mis_weight * phase_pdf * Tr * dls.emission / dls.pdf;
@@ -108,8 +108,9 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
             /* Sample Phase Function for Indirect Bounce */
             Vec3 next_wi;
-            SampleHG(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(), next_wi);
-            prev_scatter_pdf = EvalHG(mi.phase_g, mi.wo, next_wi);
+            SampleHenyeyGreenstein(mi.phase_g, mi.wo, rng.UniformFloat(), rng.UniformFloat(),
+                                   next_wi);
+            prev_scatter_pdf = EvalHenyeyGreenstein(mi.phase_g, mi.wo, next_wi);
 
             // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0
             // The sampling routine perfectly importance samples the distribution so beta is
@@ -252,7 +253,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             } else {
                 break;
             }
-        } else if (!scatter_surface) {
+        } else {
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
             dpr.AppendVertex(kFarClip, kFarClip, env_L, 1.0f, is_camera_path, false);
             L += env_L * current_beta;

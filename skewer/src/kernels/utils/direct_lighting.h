@@ -1,6 +1,8 @@
 #ifndef SKWR_KERNELS_UTILS_DIRECT_LIGHTING_H_
 #define SKWR_KERNELS_UTILS_DIRECT_LIGHTING_H_
 
+#include <cmath>
+
 #include "core/math/vec3.h"
 #include "core/sampling/rng.h"
 #include "core/spectral/spectral_utils.h"
@@ -25,7 +27,7 @@ inline bool GenerateLightSample(const Vec3& origin, const Scene& scene, RNG& rng
 
     Vec3 to_light = ls.p - origin;
     float dist_sq = to_light.LengthSquared();
-    if (dist_sq <= 0.0f) return false;
+    if (dist_sq <= 0.0f || ls.pdf <= 0.0f) return false;
     out_sample->dist = std::sqrt(dist_sq);
     out_sample->wi = to_light / out_sample->dist;
 
@@ -34,7 +36,7 @@ inline bool GenerateLightSample(const Vec3& origin, const Scene& scene, RNG& rng
     if (cos_light <= 0.0f) return false;
     float light_pdf_w = ls.pdf * dist_sq / cos_light;
 
-    // Weight = 1.0 / (N_lights * PDF_w)
+    // For weight = 1.0 / (N_lights * PDF_w) in NEE
     out_sample->pdf = light_pdf_w * scene.InvLightCount();
     out_sample->emission = CurveToSpectrum(ls.emission, wl);
 
