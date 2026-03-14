@@ -4,8 +4,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <string>
 #include <random>
+#include <string>
 #include <thread>
 
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
@@ -24,14 +24,14 @@ using grpc::ClientContext;
 
 void RunSkewerWorker(const std::string& coordinator_addr) {
     // Generate a unique worker ID with time epoch and mersenne twister engine
-    std::random_device rd; // workers may spawn in same millisecond so epoch alone is not enough
+    std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(1000, 9999);
 
     std::string worker_id =
         "skewer-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) +
-        "-" + std::to_string(dis(gen));
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + "-" +
+        std::to_string(dis(gen));
 
     // Determine number of render threads from environment
     int render_threads = 2;  // default fallback
@@ -54,7 +54,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
 
     // Cooldown timer before acquireing stream again on retry
     int backoff_ms = 100;
-    const int max_backoff_ms = 30000; // 30 seconds max
+    const int max_backoff_ms = 30000;  // 30 seconds max
 
     // Main GetWorkStream loop
     while (true) {
@@ -134,8 +134,8 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
             ClientContext report_context;
 
             // Fail fast if the coordinator doesn't acknowledge within 10 seconds
-            std::chrono::system_clock::time_point deadline
-                = std::chrono::system_clock::now() + std::chrono::seconds(10);
+            std::chrono::system_clock::time_point deadline =
+                std::chrono::system_clock::now() + std::chrono::seconds(10);
             report_context.set_deadline(deadline);
 
             ReportTaskResultRequest report_req;
@@ -160,12 +160,13 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
 
         // If we get here, the stream closed (either coordinator shut it down, or a network error)
         grpc::Status status = stream->Finish();
-        if(!status.ok()) {
-            std::cerr << "[SKEWER]: Stream failed: " << status.error_message() << ". Retrying in " << backoff_ms << "ms...\n";
+        if (!status.ok()) {
+            std::cerr << "[SKEWER]: Stream failed: " << status.error_message() << ". Retrying in "
+                      << backoff_ms << "ms...\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
 
             backoff_ms *= 2;
-            if(backoff_ms > max_backoff_ms) {
+            if (backoff_ms > max_backoff_ms) {
                 backoff_ms = max_backoff_ms;
             }
 
