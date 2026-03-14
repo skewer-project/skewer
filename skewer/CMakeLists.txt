@@ -28,6 +28,24 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
+# Fetch NanoVDB (Header-only library for fast volume rendering)
+if(NOT TARGET nanovdb)
+    # Fetch NanoVDB
+    FetchContent_Declare(
+        openvdb
+        URL https://github.com/AcademySoftwareFoundation/openvdb/archive/refs/tags/v12.0.0.tar.gz
+    )
+
+    set(OPENVDB_BUILD_CORE OFF CACHE BOOL "" FORCE)
+    set(OPENVDB_BUILD_PYTHON_MODULE OFF CACHE BOOL "" FORCE)
+    set(OPENVDB_BUILD_BINARIES OFF CACHE BOOL "" FORCE)
+    set(OPENVDB_BUILD_UNITTESTS OFF CACHE BOOL "" FORCE)
+
+    FetchContent_MakeAvailable(openvdb)
+    add_library(nanovdb INTERFACE)
+    target_include_directories(nanovdb SYSTEM INTERFACE ${openvdb_SOURCE_DIR}/nanovdb)
+endif()
+
 if(BUILD_TESTING AND NOT TARGET GTest::gtest_main)
     FetchContent_Declare(
       googletest
@@ -93,6 +111,7 @@ target_link_libraries(skewer-render
     PRIVATE
     nlohmann_json::nlohmann_json
     exrio::exrio
+    nanovdb
 )
 
 target_link_libraries(skewer-worker
@@ -102,7 +121,11 @@ target_link_libraries(skewer-worker
     Imath::Imath
     OpenEXR::OpenEXR
     ZLIB::ZLIB
+    nanovdb
 )
+
+# Enable NanoVDB SIMD optimizations
+target_compile_definitions(skewer-worker PRIVATE NANOVDB_USE_INTRINSICS)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(skewer-render PRIVATE -ffast-math)

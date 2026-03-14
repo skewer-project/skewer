@@ -12,6 +12,7 @@
 #include "geometry/triangle.h"
 #include "materials/material.h"
 #include "media/mediums.h"
+#include "media/nano_vdb_medium.h"
 
 namespace skwr {
 
@@ -143,9 +144,7 @@ uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
     }
     homogeneous_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1);
-    // Pack: Type 1 (Homogeneous) + index
-    return (static_cast<uint16_t>(MediumType::Homogeneous) << kMediumTypeShift) |
-           (index & kMediumIndexMask);
+    return PackMediumId(MediumType::Homogeneous, index);
 }
 
 uint16_t Scene::AddGridMedium(const GridMedium& m) {
@@ -154,9 +153,16 @@ uint16_t Scene::AddGridMedium(const GridMedium& m) {
     }
     grid_media_.push_back(m);
     uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
-    // Pack: Type 2 (Grid) + index
-    return (static_cast<uint16_t>(MediumType::Grid) << kMediumTypeShift) |
-           (index & kMediumIndexMask);
+    return PackMediumId(MediumType::Grid, index);
+}
+
+uint16_t Scene::AddNanoVDBMedium(NanoVDBMedium m) {
+    if (nanovdb_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
+        return kVacuumMediumId;  // or assert / throw
+    }
+    nanovdb_media_.push_back(std::move(m));
+    uint16_t index = static_cast<uint16_t>(nanovdb_media_.size() - 1);
+    return PackMediumId(MediumType::NanoVDB, index);
 }
 
 }  // namespace skwr

@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/cpu_config.h"
 #include "core/math/transform.h"
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
@@ -18,6 +19,7 @@
 #include "materials/material.h"
 #include "materials/texture.h"
 #include "media/mediums.h"
+#include "media/nano_vdb_medium.h"
 #include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
@@ -64,6 +66,60 @@ static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_va
         return ParseRGB(j[key]);
     }
     return default_value;
+}
+
+// Media Parsing
+using MediaMap = std::map<std::string, uint16_t>;
+
+static MediaMap ParseMedia(const json& j, Scene& scene, const std::string& scene_dir) {
+    MediaMap media_map;
+
+    if (!j.contains("media")) {
+        return media_map;
+    }
+
+    const auto& media = j["media"];
+
+    for (auto it = media.begin(); it != media.end(); ++it) {
+        const std::string& name = it.key();
+        const json& m = it.value();
+
+        std::string type = m.at("type").get<std::string>();
+
+        if (type == "nanovdb") {
+            NanoVDBMedium med;
+
+            med.sigma_a_base = RGBToCurve(GetRGBOr(m, "sigma_a", RGB(0.0f)));
+            med.sigma_s_base = RGBToCurve(GetRGBOr(m, "sigma_s", RGB(0.0f)));
+
+            med.g = GetOr(m, "g", 0.0f);
+            med.density_multiplier = GetOr(m, "density_multiplier", 1.0f);
+
+            // Spatial overrides
+            med.scale = GetOr(m, "scale", 1.0f);
+            med.translate = GetVec3Or(m, "translate", Vec3(0.0f, 0.0f, 0.0f));
+
+            std::string file = m.at("file").get<std::string>();
+
+            std::string filepath;
+            if (!file.empty() && file[0] == '/') {
+                filepath = file;
+            } else {
+                filepath = scene_dir.empty() ? file : (scene_dir + "/" + file);
+            }
+
+            if (!med.Load(filepath)) {
+                throw std::runtime_error("Failed to load NanoVDB: " + filepath);
+            }
+
+            uint16_t id = scene.AddNanoVDBMedium(std::move(med));
+            media_map[name] = id;
+        } else {
+            throw std::runtime_error("Unknown medium type: " + type);
+        }
+    }
+
+    return media_map;
 }
 
 //------------------------------------------------------------------------------
@@ -148,6 +204,19 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
 // Object Parsing
 //------------------------------------------------------------------------------
 
+static uint16_t LookupMedium(const json& obj, const MediaMap& media_map, const std::string& key) {
+    if (!obj.contains(key)) return static_cast<uint16_t>(MediumType::Vacuum);
+
+    std::string name = obj[key].get<std::string>();
+
+    auto it = media_map.find(name);
+    if (it == media_map.end()) {
+        throw std::runtime_error("Unknown medium '" + name + "'");
+    }
+
+    return it->second;
+}
+
 static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int obj_index) {
     if (!obj.contains("material")) {
         throw std::runtime_error("Object at index " + std::to_string(obj_index) +
@@ -155,6 +224,9 @@ static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int 
     }
 
     std::string mat_name = obj["material"].get<std::string>();
+
+    if (mat_name == "null" || mat_name == "none") return kNullMaterialId;
+
     auto it = mat_map.find(mat_name);
     if (it == mat_map.end()) {
         throw std::runtime_error("Object at index " + std::to_string(obj_index) +
@@ -181,22 +253,31 @@ static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap&
     return scene.AddMaterial(cloned);
 }
 
-static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
+static void ParseSphere(const json& obj, const MaterialMap& mat_map, const MediaMap& media_map,
+                        Scene& scene, int index) {
     uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
-    Vec3 center = ParseVec3(obj.at("center"));
-    float radius = obj.at("radius").get<float>();
-    uint16_t interior_medium = static_cast<uint16_t>(MediumType::Vacuum);
-    uint16_t exterior_medium = static_cast<uint16_t>(MediumType::Vacuum);
-    uint16_t priority = 0;
 
-    Sphere s;
-    s.center = center;
-    s.radius = radius;
-    s.material_id = mat_id;
-    s.interior_medium = interior_medium;
-    s.exterior_medium = exterior_medium;
-    s.priority = priority;
-    scene.AddSphere(s);
+    uint16_t inside = LookupMedium(obj, media_map, "inside_medium");
+    uint16_t outside = LookupMedium(obj, media_map, "outside_medium");
+
+    Vec3 center(0.0f, 0.0f, 0.0f);
+    float radius = 1.0f;
+
+    uint16_t med_index = ExtractMediumIndex(inside);
+    MediumType med_type = ExtractMediumType(inside);
+
+    if (inside != kVacuumMediumId && med_type == MediumType::NanoVDB) {
+        const NanoVDBMedium& medium = scene.nanovdb_media()[med_index];
+        center = medium.Center();
+        radius = medium.BoundingRadius() * 1.05f;  // padding
+    } else {
+        center = ParseVec3(obj.at("center"));
+        radius = obj.at("radius").get<float>();
+    }
+    int32_t light_index = -1;
+    uint16_t priority = 1;
+
+    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
@@ -311,8 +392,8 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
     }
 }
 
-static void ParseObjects(const json& j, const MaterialMap& mat_map, Scene& scene,
-                         const std::string& scene_dir) {
+static void ParseObjects(const json& j, const MaterialMap& mat_map, const MediaMap& media_map,
+                         Scene& scene, const std::string& scene_dir) {
     if (!j.contains("objects")) {
         return;
     }
@@ -323,7 +404,7 @@ static void ParseObjects(const json& j, const MaterialMap& mat_map, Scene& scene
         std::string type = obj.at("type").get<std::string>();
 
         if (type == "sphere") {
-            ParseSphere(obj, mat_map, scene, i);
+            ParseSphere(obj, mat_map, media_map, scene, i);
         } else if (type == "quad") {
             ParseQuad(obj, mat_map, scene, i);
         } else if (type == "obj") {
@@ -441,8 +522,10 @@ SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
     // 1. Parse materials first (objects reference them by name)
     MaterialMap mat_map = ParseMaterials(j, scene, scene_dir);
 
+    MediaMap media_map = ParseMedia(j, scene, scene_dir);
+
     // 2. Parse objects (geometry)
-    ParseObjects(j, mat_map, scene, scene_dir);
+    ParseObjects(j, mat_map, media_map, scene, scene_dir);
 
     // 3. Parse camera and render config
     SceneConfig config = ParseConfig(j);
