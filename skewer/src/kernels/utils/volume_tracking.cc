@@ -18,8 +18,8 @@ namespace skwr {
  * the majorant and continuously multiplies the transmittance T_r by the probability of a
  * null collision: T_r ⋅(1 − σ_t(x)/σˉ_t)
  */
-Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_ray, float dist,
-                                    RNG& rng) {
+Spectrum CalculateGridTransmittance(const GridMedium& medium, RNG& rng, const Ray& shadow_ray,
+                                    float dist) {
     float t_min_box = 0.0f;
     float t_max_box = kInfinity;
     if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
@@ -64,8 +64,8 @@ Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_
     return Tr;
 }
 
-Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, const Ray& shadow_ray,
-                                       float dist, RNG& rng, const SampledWavelengths& wl) {
+Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const Ray& shadow_ray,
+                                       float dist, const SampledWavelengths& wl) {
     float t_min_box = 0.0f;
     float t_max_box = kInfinity;
     if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
@@ -128,11 +128,11 @@ Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_
             return tr;
         }
         case MediumType::Grid: {
-            return CalculateGridTransmittance(scene.grid_media()[index], shadow_ray, dist, rng);
+            return CalculateGridTransmittance(scene.grid_media()[index], rng, shadow_ray, dist);
         }
         case skwr::MediumType::NanoVDB: {
-            return CalculateNanoVDBTransmittance(scene.nanovdb_media()[index], shadow_ray, dist,
-                                                 rng, wl);
+            return CalculateNanoVDBTransmittance(scene.nanovdb_media()[index], rng, shadow_ray,
+                                                 dist, wl);
         }
         default:
             return Spectrum(1.0f);
