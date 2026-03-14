@@ -52,7 +52,7 @@ jobs:
         run: cmake --build --preset ci --parallel
 
       - name: Test
-        run: ctest --preset ci
+        run: ctest --preset ci --parallel
 
       - name: ccache stats
         if: always()

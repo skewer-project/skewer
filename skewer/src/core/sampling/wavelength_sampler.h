@@ -1,7 +1,7 @@
 #ifndef SKWR_CORE_SAMPLING_WAVELENGTH_SAMPLER_H_
 #define SKWR_CORE_SAMPLING_WAVELENGTH_SAMPLER_H_
 
-#include "core/spectrum.h"
+#include "core/spectral/spectrum.h"
 
 namespace skwr {
 

@@ -1,7 +1,8 @@
-#ifndef SKWR_CORE_Ray_H_
-#define SKWR_CORE_Ray_H_
+#ifndef SKWR_CORE_RAY_H_
+#define SKWR_CORE_RAY_H_
 
-#include "core/vec3.h"
+#include "core/math/vec3.h"
+#include "core/sampling/volume_stack.h"
 
 namespace skwr {
 
@@ -16,12 +17,15 @@ class Ray {
         // Precompute inverse optimization
         // IEEE 754 floating point handles 1.0/0.0 as Infinity, which works
         // correctly with the slab method intersection logic.
-        inv_dir = Vec3(1.0f / direction.x(), 1.0f / direction.y(), 1.0f / direction.z());
+        inv_dir_ = Vec3(1.0f / direction.x(), 1.0f / direction.y(), 1.0f / direction.z());
     }
 
     const Point3& origin() const { return orig_; }
+    Point3& origin() { return orig_; }
     const Vec3& direction() const { return dir_; }
-    const Vec3& inv_direction() const { return inv_dir; }
+    const Vec3& inv_direction() const { return inv_dir_; }
+    const VolumeStack& vol_stack() const { return vol_stack_; }
+    VolumeStack& vol_stack() { return vol_stack_; }
     // double time() const { return tm_; }
 
     // 3D pos (P) on Ray is function of P(t) = A + tb, A = origin, b = Ray direction
@@ -30,10 +34,11 @@ class Ray {
   private:
     Point3 orig_;
     Vec3 dir_;
-    Vec3 inv_dir;
+    Vec3 inv_dir_;
+    VolumeStack vol_stack_;  // 17 bytes. TODO: move to PathState struct when DDGeom
     // double tm_;
 };
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_Ray_H_
+#endif  // SKWR_CORE_RAY_H_
