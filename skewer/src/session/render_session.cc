@@ -3,17 +3,22 @@
 #include <exrio/deep_image.h>
 #include <exrio/deep_writer.h>
 
+#include <cstdint>
 #include <iostream>
 #include <memory>
 
+#include "core/cpu_config.h"
+#include "core/math/vec3.h"
 #include "core/spectral/spectral_utils.h"
-#include "core/vec3.h"
 #include "film/film.h"
+#include "film/image_buffer.h"
+#include "geometry/boundbox.h"
 #include "integrators/integrator.h"
 #include "integrators/normals.h"
 #include "integrators/path_trace.h"
 #include "io/image_io.h"
 #include "io/scene_loader.h"
+#include "materials/material.h"
 #include "scene/camera.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
