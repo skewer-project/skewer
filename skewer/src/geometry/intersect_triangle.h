@@ -36,6 +36,7 @@ inline bool IntersectTriangle(const Ray& r, const Triangle& tri, float t_min, fl
     si->t = t;
     si->point = r.at(t);
     si->material_id = tri.material_id;
+    si->light_index = tri.light_index;
     si->exterior_medium = tri.exterior_medium;
     si->interior_medium = tri.interior_medium;
     si->priority = tri.priority;
