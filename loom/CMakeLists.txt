@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.21)
 
 
 project(deep_compositor_demo VERSION 1.0)
@@ -43,6 +43,7 @@ endif()
 add_library(loom_compositor STATIC
     src/deep_merger.cc
     src/deep_compositor.cc
+    src/composite_pipeline.cc
     src/deep_volume.cc
     src/utils.cc
 )
@@ -61,7 +62,7 @@ target_include_directories(loom-worker PRIVATE
     ${PROJECT_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}
 )
-target_link_libraries(loom-worker PRIVATE loom_compositor)
+target_link_libraries(loom-worker PRIVATE loom_compositor coordinator_proto)
 
 # Create output directory
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)

@@ -5,26 +5,35 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // Server implements the gRPC CoordinatorService
 type Server struct {
 	pb.UnimplementedCoordinatorServiceServer
-	scheduler *Scheduler
-	manager   CloudManager
-	tracker   *JobTracker
+	scheduler        *Scheduler
+	manager          CloudManager
+	tracker          *JobTracker
+	localStorageBase string
 }
 
-func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) *Server {
+func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, localStorageBase string) *Server {
 	s := &Server{
-		scheduler: scheduler,
-		manager:   manager,
-		tracker:   tracker,
+		scheduler:        scheduler,
+		manager:          manager,
+		tracker:          tracker,
+		localStorageBase: localStorageBase,
 	}
+
+	// Start a background loop to manage worker capacity
+	go s.runCapacityManager(context.Background())
 
 	// Set the terminal failure callback
 	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
@@ -41,7 +50,11 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) 
 // ================= //
 
 func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.SubmitJobResponse, error) {
-	jobID := req.JobId // May make this a coordinator-generated ID
+	jobID := req.JobId
+	if jobID == "" {
+		jobID = uuid.New().String()
+	}
+
 	log.Printf("[COORDINATOR] Received SubmitJob request: %s", jobID)
 
 	var newJob Job
@@ -95,22 +108,17 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 func (s *Server) GetJobStatus(ctx context.Context, req *pb.GetJobStatusRequest) (*pb.GetJobStatusResponse, error) {
 	// Look up JobID in the JobTracker (if it exists)
 	job, err := s.tracker.GetJob(req.JobId)
-	errResponse := ""
 	if err != nil {
-		// NOTE: the way i have errMessage and err here is a bit weird. may want to change.
 		return &pb.GetJobStatusResponse{
-			JobStatus:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
-			ProgressPercent: 0,
-			ErrorMessage:    status.Errorf(codes.NotFound, err.Error(), req.GetJobId()).Error(),
-		}, err
-
+			JobStatus:    pb.GetJobStatusResponse_JOB_STATUS_FAILED,
+			ErrorMessage: fmt.Sprintf("Job not found: %v", err),
+		}, nil
 	}
 
 	// Return response. Interface handles progress automatically
 	return &pb.GetJobStatusResponse{
 		JobStatus:       job.GetStatus(),
 		ProgressPercent: job.Progress() * 100,
-		ErrorMessage:    errResponse,
 	}, nil
 }
 
@@ -137,68 +145,60 @@ func (s *Server) CancelJob(ctx context.Context, req *pb.CancelJobRequest) (*pb.C
 // =====================================================================
 
 // GetWorkStream - The KEY KEDA Pull Endpoint
-// Workers call this ONCE and hold the stream open to rapidly pull tasks.
+// Workers call this to pull a SINGLE task. We close the stream after one task
+// to ensure fair distribution and prevent a single worker from grabbing the entire queue.
 func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.CoordinatorService_GetWorkStreamServer) error {
 	workerID := req.WorkerId
 	capabilities := req.Capabilities
 	log.Printf("[COORDINATOR] Worker %s connected. Capabilities: %v", workerID, capabilities)
 
-	for {
-		// Block and wait for the Scheduler to hand us a task.
-		// scheduler.GetNextTask accepts `capabilities` so it only
-		// hands Loom tasks to Loom workers, and Skewer tasks to Skewer workers.
-		task, err := s.scheduler.GetNextTask(stream.Context(), capabilities)
-		if err != nil {
-			// If the context is cancelled (worker disconnected), exit cleanly
-			log.Printf("[SERVER]: Worker %s stream closed: %v", workerID, err)
-			return err
-		}
-
-		// Lazy cancellation check
-		job, err := s.tracker.GetJob(task.JobID)
-
-		// If the job is marked as FAILED, throw this task in the trash!
-		if err == nil && job.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_FAILED {
-			log.Printf("[COORDINATOR]: Skipping cancelled task %s for job %s", task.ID, task.JobID)
-			s.scheduler.MarkTaskComplete(task.ID) // Remove from active memory
-			continue                              // Loop back to the top and grab the next task
-		}
-
-		// Package task into the Protobuf format.
-		workPackage := &pb.WorkPackage{
-			JobId:   task.JobID,
-			TaskId:  task.ID,
-			FrameId: task.FrameID,
-		}
-
-		// Type-assert the payload and map it to the Protobuf 'oneof'
-		switch t := task.Payload.(type) {
-		case *pb.RenderTask:
-			workPackage.Payload = &pb.WorkPackage_RenderTask{RenderTask: t}
-		case *pb.MergeTask:
-			workPackage.Payload = &pb.WorkPackage_MergeTask{MergeTask: t}
-		case *pb.CompositeTask:
-			workPackage.Payload = &pb.WorkPackage_CompositeTask{CompositeTask: t}
-		default:
-			log.Printf("[ERROR]: Unknown task payload type for task %s. Marking task complete to avoid leak", task.ID)
-
-			// Marking task as complete so it doesn't get stuck or reassigned infinitely
-			s.scheduler.MarkTaskComplete(task.ID)
-
-			continue
-		}
-
-		// Send workPackage down the wire
-		if err := stream.Send(workPackage); err != nil {
-			log.Printf("[ERROR]: Failed to send task to worker %s: %v", workerID, err)
-			// The worker dropped offline exactly as we tried to send.
-			// Immediately requeue the task so it isn't lost.
-			s.scheduler.RequeueTask(task.ID)
-			return err
-		}
-
-		log.Printf("[COORDINATOR]: Assigned task %s to worker %s", task.ID, workerID)
+	// Block and wait for the Scheduler to hand us a task.
+	task, err := s.scheduler.GetNextTask(stream.Context(), capabilities)
+	if err != nil {
+		// If the context is cancelled (worker disconnected), exit cleanly
+		log.Printf("[SERVER]: Worker %s stream closed: %v", workerID, err)
+		return err
 	}
+
+	// Lazy cancellation check
+	job, err := s.tracker.GetJob(task.JobID)
+
+	// If the job is marked as FAILED or was deleted, throw this task in the trash!
+	if err != nil || job.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_FAILED {
+		log.Printf("[COORDINATOR]: Skipping cancelled/deleted task %s for job %s", task.ID, task.JobID)
+		s.scheduler.MarkTaskComplete(task.ID) // Remove from active memory
+		return nil                            // Close stream, worker will reconnect and try again
+	}
+
+	// Package task into the Protobuf format.
+	workPackage := &pb.WorkPackage{
+		JobId:   task.JobID,
+		TaskId:  task.ID,
+		FrameId: task.FrameID,
+	}
+
+	// Type-assert the payload and map it to the Protobuf 'oneof'
+	switch t := task.Payload.(type) {
+	case *pb.RenderTask:
+		workPackage.Payload = &pb.WorkPackage_RenderTask{RenderTask: t}
+	case *pb.MergeTask:
+		workPackage.Payload = &pb.WorkPackage_MergeTask{MergeTask: t}
+	case *pb.CompositeTask:
+		workPackage.Payload = &pb.WorkPackage_CompositeTask{CompositeTask: t}
+	default:
+		log.Printf("[ERROR]: Unknown task payload type for task %s", task.ID)
+		return nil
+	}
+
+	// Send workPackage down the wire
+	if err := stream.Send(workPackage); err != nil {
+		log.Printf("[ERROR]: Failed to send task to worker %s: %v", workerID, err)
+		s.scheduler.RequeueTask(task.ID)
+		return err
+	}
+
+	log.Printf("[COORDINATOR]: Assigned task %s to worker %s", task.ID, workerID)
+	return nil // Close the stream after one task to ensure fair distribution
 }
 
 func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultRequest) (*pb.ReportTaskResultResponse, error) {
@@ -307,6 +307,85 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 // STUBBED HELPERS
 // =====================================================================
 
+func (s *Server) runCapacityManager(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			queueLengths := s.scheduler.GetQueueLengths()
+			activeCounts := s.scheduler.GetActiveTaskCounts()
+
+			// Determine global limit (default to 1 in local mode, 20 in cloud)
+			limit := 20
+			if s.localStorageBase != "" {
+				limit = 1 // LOCAL MODE: Avoid blowing up laptop
+			}
+			if val, err := strconv.Atoi(os.Getenv("MAX_WORKERS")); err == nil {
+				limit = val
+			}
+
+			// Handle skewer-worker
+			skewerTarget := queueLengths["skewer"] + activeCounts["skewer"]
+			if skewerTarget > limit {
+				skewerTarget = limit
+			}
+			if queueLengths["skewer"] == 0 && activeCounts["skewer"] == 0 {
+				skewerTarget = 0
+			}
+			if err := s.manager.EnsureCapacity(ctx, "skewer-worker", skewerTarget); err != nil {
+				log.Printf("[SERVER]: Failed to ensure skewer capacity: %v", err)
+			}
+
+			// Handle loom-worker
+			loomTarget := queueLengths["loom"] + activeCounts["loom"]
+			if loomTarget > limit {
+				loomTarget = limit
+			}
+			if queueLengths["loom"] == 0 && activeCounts["loom"] == 0 {
+				loomTarget = 0
+			}
+			if err := s.manager.EnsureCapacity(ctx, "loom-worker", loomTarget); err != nil {
+				log.Printf("[SERVER]: Failed to ensure loom capacity: %v", err)
+			}
+		}
+	}
+}
+
+func (s *Server) translateLocalPath(uri string) string {
+	if s.localStorageBase == "" {
+		return uri
+	}
+
+	// Handle Cloud URIs (gs://)
+	if trimmed, hasPrefix := strings.CutPrefix(uri, "gs://"); hasPrefix {
+		parts := strings.SplitN(trimmed, "/", 2)
+		if len(parts) == 1 {
+			return filepath.Join(s.localStorageBase, parts[0])
+		}
+		return filepath.Join(s.localStorageBase, parts[0], parts[1])
+	}
+
+	// Handle Local Paths (Mapping host paths to container paths)
+	hostDataPath := os.Getenv("LOCAL_DATA_PATH")
+
+	// If the path is already absolute and starts with the host's data path, swap it.
+	if hostDataPath != "" && filepath.IsAbs(uri) && strings.HasPrefix(uri, hostDataPath) {
+		rel, _ := filepath.Rel(hostDataPath, uri)
+		return filepath.Join(s.localStorageBase, rel)
+	}
+
+	// If the path is relative and starts with "data/", swap it for our storage base.
+	if trimmed, hasPrefix := strings.CutPrefix(uri, "data/"); hasPrefix {
+		return filepath.Join(s.localStorageBase, trimmed)
+	}
+
+	return uri
+}
+
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
 	sampleDivision := job.GetSampleDivision()
 	if sampleDivision <= 0 {
@@ -317,8 +396,15 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 		numSamplesPerWorker := job.GetTotalSamples() / job.GetSampleDivision()
 		extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
 
+		outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
+		sceneUri := s.translateLocalPath(job.GetSceneUri())
+
 		// Create the Merge task uri
-		mergeUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
+		extension := ".exr"
+		if !job.GetEnableDeep() {
+			extension = ".png"
+		}
+		mergeUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d%s", frameID+1, extension))
 		if err != nil {
 			return err
 		}
@@ -348,10 +434,14 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 		}
 		renderJob.mu.Unlock()
 
+		// for frameID := range req.NumFrames {
+		// Replace #### with padded frame ID if it exists in the scene URI
+		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
+
 		var sampleStart int32 = 0
 		var outputUris []string
 		for chunk := int32(0); chunk < job.GetSampleDivision(); chunk++ {
-			uriSuffix := fmt.Sprintf("frame-%d-chunk-%d", frameID, chunk)
+			uriSuffix := fmt.Sprintf("frame-%04d-chunk-%d.exr", frameID+1, chunk)
 
 			// Add in remainder
 			var sampleEnd int32 = sampleStart + numSamplesPerWorker
@@ -361,7 +451,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			}
 
 			// Safe URI joining with net/url
-			outputUri, err := url.JoinPath(job.GetOutputUriPrefix(), uriSuffix)
+			outputUri, err := url.JoinPath(outputUriPrefix, uriSuffix)
 			if err != nil {
 				return err
 			}
@@ -369,14 +459,20 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			outputUris = append(outputUris, outputUri)
 
 			task := &pb.RenderTask{
-				SceneUri: job.GetSceneUri(),
+				SceneUri: frameSceneUri,
 				Width:    req.GetWidth(),
 				Height:   req.GetHeight(),
 
 				SampleStart: sampleStart,
 				SampleEnd:   sampleEnd, // End is EXCLUSIVE
 
-				OutputUri: outputUri,
+				OutputUri:  outputUri,
+				EnableDeep: job.GetSampleDivision() > 1 || job.GetEnableDeep(),
+				Threads:    job.GetThreads(),
+
+				NoiseThreshold: job.GetNoiseThreshold(),
+				MinSamples:     job.GetMinSamples(),
+				AdaptiveStep:   job.GetAdaptiveStep(),
 			}
 			if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
 				return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
@@ -385,7 +481,9 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			sampleStart = sampleEnd
 		}
 
-		// Update the pending merge task with the generated URIs
+		// While this is technically safe because the tasks haven't been queued yet, it's probably better
+		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
+		// at that exact millisecond
 		renderJob.mu.Lock()
 		renderJob.Frames[fmt.Sprint(frameID)].PendingMerge.PartialDeepExrUris = outputUris
 		renderJob.mu.Unlock()
@@ -396,6 +494,8 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {
 
+	outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
+
 	for frameID := 0; frameID < int(req.GetNumFrames()); frameID++ {
 
 		// gs://bucket/renders/smoke
@@ -405,7 +505,8 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		frameLayerUris := make([]string, len(originalPrefixes))
 
 		for idx, uriPrefix := range originalPrefixes {
-			fullLayerUri, err := url.JoinPath(uriPrefix, fmt.Sprintf("frame-%d", frameID))
+			translatedPrefix := s.translateLocalPath(uriPrefix)
+			fullLayerUri, err := url.JoinPath(translatedPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 			if err != nil {
 				return err
 			}
@@ -413,7 +514,7 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		}
 
 		// Finally safely join path
-		finalOutputUri, err := url.JoinPath(job.GetOutputUriPrefix(), fmt.Sprintf("frame-%d", frameID))
+		finalOutputUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 		if err != nil {
 			return err
 		}

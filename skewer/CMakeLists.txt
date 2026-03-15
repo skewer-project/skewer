@@ -100,6 +100,7 @@ target_include_directories(skewer-worker
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/external
+        ${CMAKE_BINARY_DIR}
 )
 
 set_source_files_properties(src/io/scene_loader.cc PROPERTIES
@@ -122,6 +123,7 @@ target_link_libraries(skewer-worker
     OpenEXR::OpenEXR
     ZLIB::ZLIB
     nanovdb
+    coordinator_proto
 )
 
 # Enable NanoVDB SIMD optimizations
