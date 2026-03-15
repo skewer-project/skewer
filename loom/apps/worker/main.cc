@@ -68,7 +68,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
                     // Load Phase
                     std::vector<std::string> inputFiles(task.layer_uris().begin(),
-                                                               task.layer_uris().end());
+                                                        task.layer_uris().end());
 
                     std::cout << "[Loom] -> Composite Inputs (" << inputFiles.size()
                               << " files):\n";
@@ -78,14 +78,14 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
                     Options opts = {
                         inputFiles,
-                        std::vector<float> {0}, // TODO: collect real input_z_offsets
-                        "", // coordinator handles output prefixing and parsing
+                        std::vector<float>{0},  // TODO: collect real input_z_offsets
+                        "",                     // coordinator handles output prefixing and parsing
                     };
 
                     // Populate image info using opts
                     std::vector<std::unique_ptr<deep_compositor::DeepInfo>> imagesInfo;
                     int success = exrio::SaveImageInfo(opts, imagesInfo);
-                    if(success == 1) {
+                    if (success == 1) {
                         std::cerr << "[Loom] Error: Failed to load worker options\n";
                         continue;
                     }
@@ -94,10 +94,11 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
 
                     // Write deep EXR (handles if deep output is wanted)
-                    std::vector<float> finalImage = deep_compositor::ProcessAllEXR(opts, task.height(), task.width(), imagesInfo);
+                    std::vector<float> finalImage = deep_compositor::ProcessAllEXR(
+                        opts, task.height(), task.width(), imagesInfo);
                     // Writes flat outputs if needed
-                    exrio::WriteFlatOutputs(finalImage, output_uri,
-                        opts.flat_output, opts.png_output, task.width(), task.height());
+                    exrio::WriteFlatOutputs(finalImage, output_uri, opts.flat_output,
+                                            opts.png_output, task.width(), task.height());
 
                     std::cout << "[Loom] -> Engine Composite execution completed.\n";
 
