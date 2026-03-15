@@ -6,6 +6,7 @@
 
 #include <stdexcept>
 #include <string>
+
 #include "deep_info.h"
 #include "utils.h"
 
@@ -13,7 +14,7 @@ namespace exrio {
 
 // Write the results back to disk using exrio's write functions.
 void WriteFlatOutputs(const std::vector<float>& flatRgba, const std::string& outputUri,
-                    bool flatOutput, bool pngOutput, int width, int height) {
+                      bool flatOutput, bool pngOutput, int width, int height) {
     log("\nWriting outputs...");
     Timer writeTimer;
 
@@ -45,13 +46,13 @@ void WriteFlatOutputs(const std::vector<float>& flatRgba, const std::string& out
     logVerbose("  Write time: " + writeTimer.elapsedString());
 }
 
-
-int SaveImageInfo(const Options& opts, std::vector<std::unique_ptr<deep_compositor::DeepInfo>>& imagesInfo) {
+int SaveImageInfo(const Options& opts,
+                  std::vector<std::unique_ptr<deep_compositor::DeepInfo>>& imagesInfo) {
     for (size_t i = 0; i < opts.input_files.size(); ++i) {
         const std::string& filename = opts.input_files[i];
 
-        deep_compositor::LogVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.input_files.size()) +
-                   "] " + filename);
+        deep_compositor::LogVerbose("  [" + std::to_string(i + 1) + "/" +
+                                    std::to_string(opts.input_files.size()) + "] " + filename);
         printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
         try {
             // Check if it's a deep EXR
@@ -69,10 +70,11 @@ int SaveImageInfo(const Options& opts, std::vector<std::unique_ptr<deep_composit
                 if (img->width() != imagesInfo[0]->width() ||
                     img->height() != imagesInfo[0]->height()) {
                     deep_compositor::LogError("Image dimensions mismatch: " + filename);
-                    deep_compositor::LogError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
-                             std::to_string(imagesInfo[0]->height()));
+                    deep_compositor::LogError(
+                        "  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
+                        std::to_string(imagesInfo[0]->height()));
                     deep_compositor::LogError("  Got: " + std::to_string(img->width()) + "x" +
-                             std::to_string(img->height()));
+                                              std::to_string(img->height()));
                     return 1;
                 }
             }
