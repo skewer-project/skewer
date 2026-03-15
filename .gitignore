@@ -29,6 +29,4 @@ images/
 *.exr
 *.ppm
 
-# Go Binaries
-coordinator
-*.exe
+.claude/

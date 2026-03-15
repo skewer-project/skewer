@@ -14,15 +14,11 @@ namespace skwr {
 
 namespace bk = barkeep;
 
-Film::Film(int width, int height)
-    : width_(width), height_(height), pixels_(width_ * height_), deep_pool_(1) {}
+Film::Film(int width, int height) : width_(width), height_(height), pixels_(width_ * height_) {}
 
 void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
     Pixel& p = GetPixel(x, y);
 
-    // Thread-safe accumulation (works because RGB is just floats)
-    // For true safety, you might want to use atomics or accept some race conditions
-    // In practice, the races are benign (slightly wrong accumulated values)
     p.color_sum += L * weight;
     p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
@@ -67,7 +63,6 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
     Pixel& p = GetPixel(x, y);
 
     int prev_head = -1;
-    // reverse code for simplicity rn but it's not great for locality..
     for (int i = path_sample.segments.size() - 1; i >= 0; --i) {
         const DeepSegment& seg = path_sample.segments[i];
 
@@ -75,7 +70,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
         if (seg.z_front > seg.z_back && seg.z_back != kFarClip) continue;
         if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
 
-        // Allocate node from pool (grows automatically)
+        // Allocate node from pool
         size_t node_index = deep_pool_.Allocate();
 
         // Fill node
@@ -87,7 +82,7 @@ void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
         node.next = prev_head;
         prev_head = node_index;
     }
-    // Atomically prepend the entire chain to the pixel's list
+
     if (prev_head != -1) {
         int old_head = p.deep_head.load(std::memory_order_relaxed);
         do {
@@ -116,31 +111,26 @@ exrio::DeepImage Film::BuildDeepImage() const {
     // Pass 2: Create the deep image
     exrio::DeepImage result(width_, height_);
 
-    // Pass 3: Copy, Sort, and merge segments
-    std::cout << "\nBuilding deep image\n";
-    std::atomic<size_t> pixels_done(0);
-    size_t total_pixels = static_cast<size_t>(width_) * static_cast<size_t>(height_);
-    auto bar = bk::ProgressBar(&pixels_done, {.total = total_pixels,
-                                              .speed = 0.2,
-                                              .speed_unit = "px/s",
-                                              .style = bk::ProgressBarStyle::Rich});
-    if (total_pixels > 0) bar->show();
+    std::cout << "\nBuilding deep image (scanline-by-scanline)...\n";
+    std::atomic<size_t> scanlines_done(0);
+    auto bar = bk::ProgressBar(&scanlines_done, {.total = static_cast<size_t>(height_),
+                                                 .speed = 1.0,
+                                                 .speed_unit = "lines/s",
+                                                 .style = bk::ProgressBarStyle::Rich});
+    if (height_ > 0) bar->show();
 
+    // Process one scanline at a time to keep transient memory (sorting buffers) small.
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
-            if (counts[y * width_ + x] == 0) {
-                ++pixels_done;
-                continue;
-            }
+            const Pixel& p = GetPixel(x, y);
+            int head = p.deep_head.load(std::memory_order_acquire);
+            if (head == -1) continue;
 
-            // Collect samples for this pixel
+            // Collect samples for THIS pixel only
             std::vector<DeepSample> segments;
-            segments.reserve(counts[y * width_ + x]);
 
-            int head = GetPixel(x, y).deep_head.load(std::memory_order_acquire);
             while (head != -1) {
                 const DeepSegmentNode& node = deep_pool_[head];
-
                 DeepSample ds;
                 ds.z_front = node.z_front;
                 ds.z_back = node.z_back;
@@ -148,7 +138,6 @@ exrio::DeepImage Film::BuildDeepImage() const {
                 ds.g = node.L.g();
                 ds.b = node.L.b();
                 ds.alpha = node.alpha;
-
                 segments.push_back(ds);
                 head = node.next;
             }
@@ -157,35 +146,33 @@ exrio::DeepImage Film::BuildDeepImage() const {
             std::sort(segments.begin(), segments.end(),
                       [](const DeepSample& a, const DeepSample& b) {
                           if (std::abs(a.z_front - b.z_front) < 1e-5f) {
-                              return a.z_back < b.z_back;  // Tiebreaker
+                              return a.z_back < b.z_back;
                           }
                           return a.z_front < b.z_front;
                       });
 
             segments = MergeDeepSegments(segments, GetPixel(x, y).sample_count);
 
-            // Convert to deep_compositor::DeepSample and add to result
+            // Add to result
             exrio::DeepPixel& pixel = result.pixel(x, y);
             for (const DeepSample& seg : segments) {
                 pixel.addSample(
                     exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
             }
-            ++pixels_done;
         }
+        ++scanlines_done;
     }
 
-    if (total_pixels > 0) bar->done();
-
+    if (height_ > 0) bar->done();
     return result;
 }
 
-// Helper: Merge overlapping/adjacent segments
 std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
                                                 int pixel_sample_count) const {
     if (input.empty()) return input;
 
     std::vector<DeepSample> merged;
-    merged.reserve(input.size() / 4);  // estimate
+    merged.reserve(input.size() / 4);
 
     DeepSample current = input[0];
 
@@ -297,14 +284,12 @@ void Film::WriteImage(const std::string& filename) const {
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
-
             RGB color(0, 0, 0);
             float alpha = 0.0f;
             if (p.weight_sum > 0) {
                 color = p.color_sum / p.weight_sum;
                 alpha = p.alpha_sum / p.weight_sum;
             }
-
             size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
             rgba[idx + 0] = color.r();
             rgba[idx + 1] = color.g();
@@ -313,31 +298,29 @@ void Film::WriteImage(const std::string& filename) const {
         }
     }
 
-    exrio::writePNG(rgba, width_, height_, filename);
-    std::cout << "Wrote image to " << filename << "\n";
+    if (filename.ends_with(".exr")) {
+        exrio::writeFlatEXR(rgba, width_, height_, filename);
+        std::cout << "Wrote flat EXR to " << filename << "\n";
+    } else {
+        exrio::writePNG(rgba, width_, height_, filename);
+        std::cout << "Wrote PNG to " << filename << "\n";
+    }
 }
 
 std::unique_ptr<FlatImageBuffer> Film::CreateFlatBuffer() const {
     auto buf = std::make_unique<FlatImageBuffer>(width_, height_);
-
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
-
             RGB color(0.0f);
             float alpha = 0.0f;
-
             if (p.weight_sum > 0) {
-                // color_sum is already premultiplied (misses contribute 0 to both),
-                // so dividing by weight gives premultiplied average.
                 color = p.color_sum / p.weight_sum;
                 alpha = p.alpha_sum / p.weight_sum;
             }
-
             buf->SetPixel(x, y, color, alpha);
         }
     }
-
     return buf;
 }
 

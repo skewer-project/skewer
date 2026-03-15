@@ -178,9 +178,43 @@ func (s *Scheduler) MarkTaskComplete(taskID string) (*Task, bool) {
 	return s.popActiveTask(taskID)
 }
 
-// GetQueueLength returns current queue size for KEDA. NO LOCKS NEEDED.
+// GetQueueLength returns current total queue size for KEDA. NO LOCKS NEEDED.
 func (s *Scheduler) GetQueueLength() int {
 	return len(s.skewerQueue) + len(s.loomQueue)
+}
+
+func (s *Scheduler) GetQueueLengths() map[string]int {
+	return map[string]int{
+		"skewer": len(s.skewerQueue),
+		"loom":   len(s.loomQueue),
+	}
+}
+
+func (s *Scheduler) GetActiveTaskCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.activeTasks)
+}
+
+func (s *Scheduler) GetActiveTaskCounts() map[string]int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	counts := map[string]int{
+		"skewer": 0,
+		"loom":   0,
+	}
+
+	for _, task := range s.activeTasks {
+		switch task.Payload.(type) {
+		case *pb.RenderTask:
+			counts["skewer"]++
+		case *pb.MergeTask, *pb.CompositeTask:
+			counts["loom"]++
+		}
+	}
+
+	return counts
 }
 
 // StartSweeper runs a background loop to reclaim tasks from dead workers (that may have segfaulted).
@@ -260,7 +294,8 @@ func (s *Scheduler) PurgeJobTasks(jobID string) error {
 	filterQueue := func(ch chan *Task, jobID string) {
 
 		// Iterate to current length of ch
-		for i := 0; i < len(ch); i++ {
+		qLen := len(ch)
+		for i := 0; i < qLen; i++ {
 			select {
 			case task := <-ch:
 				if task == nil {

@@ -62,13 +62,22 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     // 4. Store render options
     options_ = config.render_options;
 
-    // 5. Create camera (aspect ratio derived from image dimensions)
+    // 5. Store camera parameters so RebuildFilm() can recreate the camera
+    // with the correct aspect ratio if the resolution is later overridden.
+    cam_look_from_ = config.look_from;
+    cam_look_at_ = config.look_at;
+    cam_vup_ = config.vup;
+    cam_vfov_ = config.vfov;
+    cam_aperture_ = config.aperture_radius;
+    cam_focus_dist_ = config.focus_distance;
+
+    // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(config.look_from, config.look_at, config.vup, config.vfov,
-                                       aspect, config.aperture_radius, config.focus_distance);
+    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
+                                       cam_aperture_, cam_focus_dist_);
 
-    // 6. Create film and integrator
+    // 7. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
     integrator_ = CreateIntegrator(options_.integrator_type);
     // GetW() returns the backward-facing basis vector (look_from - look_at).
@@ -83,6 +92,18 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
         std::cout << "[Session] Adaptive: threshold=" << ic.noise_threshold
                   << ", min=" << ic.min_samples << ", step=" << ic.adaptive_step << "\n";
     }
+}
+
+void RenderSession::RebuildFilm() {
+    // Rebuild camera with the (possibly overridden) aspect ratio so that
+    // the projection matches the new film dimensions.
+    float aspect = static_cast<float>(options_.image_config.width) /
+                   static_cast<float>(options_.image_config.height);
+    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
+                                       cam_aperture_, cam_focus_dist_);
+    options_.integrator_config.cam_w = -camera_->GetW();
+
+    film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
 }
 
 /**
