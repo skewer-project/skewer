@@ -35,7 +35,11 @@ jobs:
             libopenexr-dev \
             libimath-dev \
             libpng-dev \
-            zlib1g-dev
+            zlib1g-dev \
+            protobuf-compiler \
+            protobuf-compiler-grpc \
+            libprotobuf-dev \
+            libgrpc++-dev
 
       - name: Configure
         run: >
