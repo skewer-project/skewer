@@ -83,6 +83,7 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, co
     if (majorant <= 0.0f) return Tr;
 
     float t = t_min;
+    if (!medium.tree) return Spectrum(1.0f);
     NanoVDBAccessor acc(*medium.tree);
 
     while (true) {
