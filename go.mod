@@ -5,11 +5,14 @@ go 1.25.0
 require (
 	cloud.google.com/go/storage v1.60.0
 	github.com/google/uuid v1.6.0
+	github.com/spf13/cobra v1.10.2
 	google.golang.org/api v0.269.0
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
 	k8s.io/client-go v0.35.2
 )
+
+require github.com/inconshreveable/mousetrap v1.1.0 // indirect
 
 require (
 	cel.dev/expr v0.25.1 // indirect
