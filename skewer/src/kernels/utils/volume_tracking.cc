@@ -35,7 +35,7 @@ Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_
 
     while (true) {
         // Step forward using the majorant
-        t += -std::log(std::max(1.0f - rng.UniformFloat(), kEpsilon)) / majorant;
+        t += -std::log(std::max(1.0f - rng.UniformFloat(), kFloatEpsilon)) / majorant;
         if (t >= t_max) break;
 
         // Evaluate actual density at this point
