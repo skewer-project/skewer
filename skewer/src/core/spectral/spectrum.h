@@ -64,7 +64,7 @@ struct alignas(16) SpectralPacket {
     }
     SpectralPacket& operator/=(const SpectralPacket& s) {
         for (int i = 0; i < NSamples; ++i) {
-            if (std::abs(s.values[i]) > kZeroEpsilon) {
+            if (std::abs(s.values[i]) > kNearZeroEpsilon) {
                 values[i] /= s.values[i];
             } else {
                 values[i] = 0.0f;
@@ -138,7 +138,7 @@ template <int NSamples>
 inline SpectralPacket<NSamples> operator/(SpectralPacket<NSamples> s, SpectralPacket<NSamples> c) {
     SpectralPacket<NSamples> result(0.0f);
     for (int i = 0; i < NSamples; ++i) {
-        if (std::abs(c[i]) > kZeroEpsilon) {  // Protect against exact 0 and denormals
+        if (std::abs(c[i]) > kNearZeroEpsilon) {  // Protect against exact 0 and denormals
             result[i] = s[i] / c[i];
         }
     }

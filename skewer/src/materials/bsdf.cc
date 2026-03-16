@@ -21,8 +21,8 @@ inline float GGX_D(const Vec3& n, const Vec3& h, float alpha) {
 
 inline float GGX_G1(const Vec3& v, const Vec3& h, const Vec3& n, float alpha) {
     float VoH = Dot(v, h);
-    if (VoH <= 0.0f) return 0.0f;  // Microfacet is pointing away from the sensor
-    float NoV = std::max(0.0001f, Dot(n, v));
+    if (VoH <= 0.0f) return 0.0f;                     // Microfacet is pointing away from the sensor
+    float NoV = std::max(kBoundsEpsilon, Dot(n, v));  // maybe bounds is not best constant name
     float a2 = alpha * alpha;
     float denom = NoV + std::sqrt(a2 + (1.0f - a2) * NoV * NoV);
     return (2.0f * NoV) / denom;
