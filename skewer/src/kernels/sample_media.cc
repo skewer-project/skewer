@@ -39,9 +39,9 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
     float xi = rng.UniformFloat();
 
     // Protect against division by zero for perfectly clear media
-    float t = kInfinity;
+    float t = MathConstants::kInfinity;
     if (sigma_t_c > 0.0f) {
-        t = -std::log(std::max(1.0f - xi, kFloatEpsilon)) / sigma_t_c;
+        t = -std::log(std::max(1.0f - xi, Numeric::kFloatEpsilon)) / sigma_t_c;
     }
 
     // Determine if hit a particle OR passed through to the surface
@@ -89,7 +89,7 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
 bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
                 Spectrum& beta, MediumInteraction* mi) {
     float t_min_box = 0.0f;
-    float t_max_box = kInfinity;
+    float t_max_box = MathConstants::kInfinity;
     if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
 
     // Constrain marching bounds
@@ -110,7 +110,7 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
     while (true) {
         // Sample a distance step based on the majorant
         float xi_1 = rng.UniformFloat();
-        float step_size = -std::log(std::max(1.0f - xi_1, kFloatEpsilon)) / majorant;
+        float step_size = -std::log(std::max(1.0f - xi_1, Numeric::kFloatEpsilon)) / majorant;
         t += step_size;
 
         if (t >= t_max) break;  // Exited vol if stepped out of the box or hit surface
@@ -148,7 +148,7 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
         // we must weight the non-hero channels.
         // Note: If sigma_t is perfectly uniform across all channels (grey smoke),
         // this safely evaluates to 1.0.
-        float denom = std::max(majorant - sigma_t[hero], kFloatEpsilon);
+        float denom = std::max(majorant - sigma_t[hero], Numeric::kFloatEpsilon);
         Spectrum null_weight = (Spectrum(majorant) - sigma_t) / denom;
         beta *= null_weight;
     }
