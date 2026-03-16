@@ -17,7 +17,7 @@ static constexpr float kOneMinusEpsilon = 0x1.fffffep-1;
 // OR simpler C++ style:
 // static constexpr float OneMinusEpsilon = 1.0f - std::numeric_limits<float>::epsilon();
 
-constexpr float kEpsilon = std::numeric_limits<float>::epsilon();
+constexpr float kFloatEpsilon = std::numeric_limits<float>::epsilon();
 constexpr float kRayOffsetEpsilon = 1e-3f;
 constexpr float kShadowEpsilon = kRayOffsetEpsilon;
 constexpr float kBoundsEpsilon = 1e-4f;
