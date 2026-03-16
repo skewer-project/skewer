@@ -6,6 +6,7 @@
 
 namespace skwr {
 
+namespace MathConstants {
 constexpr float kInfinity = std::numeric_limits<float>::max();
 constexpr float kPi = 3.1415926535897932385f;
 constexpr float kInvPi = 0.31830988618379067154f;
@@ -17,19 +18,22 @@ static constexpr float kOneMinusEpsilon = 0x1.fffffep-1;
 // OR simpler C++ style:
 // static constexpr float OneMinusEpsilon = 1.0f - std::numeric_limits<float>::epsilon();
 
+inline float DegreesToRadians(float degrees) { return degrees * MathConstants::kPi / 180.0f; }
+}  // namespace MathConstants
+
+namespace Numeric {
 constexpr float kFloatEpsilon = std::numeric_limits<float>::epsilon();
-constexpr float kRayOffsetEpsilon = 1e-3f;
-constexpr float kShadowEpsilon = kRayOffsetEpsilon;
-constexpr float kBoundsEpsilon = 1e-4f;
 constexpr float kNearZeroEpsilon = 1e-8f;
+}  // namespace Numeric
+
+namespace RenderConstants {
+constexpr float kRayOffsetEpsilon = 1e-3f;
+constexpr float kBoundsEpsilon = 1e-4f;
 constexpr float kFarClip = 1e10f;
-
 constexpr float kIsotropicPhaseEpsilon = 1e-3f;
-
-inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
-
 // amount of DeepSegmentNodes in one chunk in the DeepSegmentPool
 static constexpr std::size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28 MB)
+}  // namespace RenderConstants
 
 namespace Rec709 {
 constexpr float kWeightRed = 0.2126f;

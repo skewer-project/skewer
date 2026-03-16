@@ -65,8 +65,9 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
     for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
         SurfaceInteraction si;
         MediumInteraction mi;
-        bool scatter_surface = scene.Intersect(r, kShadowEpsilon, kInfinity, &si);
-        float t_max = scatter_surface ? si.t : kInfinity;
+        bool scatter_surface =
+            scene.Intersect(r, RenderConstants::kRayOffsetEpsilon, MathConstants::kInfinity, &si);
+        float t_max = scatter_surface ? si.t : MathConstants::kInfinity;
         bool scatter_medium = false;
 
         // Local vertex segment tracking
@@ -137,7 +138,8 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             }
             // SHADING POLICY (Opacity & BSDF)
             if (si.material_id == kNullMaterialId) {
-                Ray next_ray(si.point + (r.direction() * kShadowEpsilon), r.direction());
+                Ray next_ray(si.point + (r.direction() * RenderConstants::kRayOffsetEpsilon),
+                             r.direction());
                 next_ray.vol_stack() = r.vol_stack();
                 r = next_ray;
                 depth--;
@@ -192,9 +194,11 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             /* Next Event Estimation */
             if (mat.type != MaterialType::Metal && mat.type != MaterialType::Dielectric) {
                 DirectLightSample dls;
-                if (GenerateLightSample(si.point + (si.n_shading * kShadowEpsilon), scene, rng, wl,
-                                        &dls)) {
-                    Ray shadow_ray(si.point + (dls.wi * kShadowEpsilon), dls.wi);
+                if (GenerateLightSample(
+                        si.point + (si.n_shading * RenderConstants::kRayOffsetEpsilon), scene, rng,
+                        wl, &dls)) {
+                    Ray shadow_ray(si.point + (dls.wi * RenderConstants::kRayOffsetEpsilon),
+                                   dls.wi);
                     shadow_ray.vol_stack() = r.vol_stack();
 
                     Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
@@ -235,7 +239,7 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
 
                     prev_scatter_pdf = pdf;
                     beta *= weight;
-                    Ray next_r(si.point + (wi * kShadowEpsilon), wi);
+                    Ray next_r(si.point + (wi * RenderConstants::kRayOffsetEpsilon), wi);
                     next_r.vol_stack() = r.vol_stack();
 
                     // Update is_camera_path based on transmission
@@ -255,7 +259,8 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
             }
         } else {
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
-            dpr.AppendVertex(kFarClip, kFarClip, env_L, 1.0f, is_camera_path, false);
+            dpr.AppendVertex(RenderConstants::kFarClip, RenderConstants::kFarClip, env_L, 1.0f,
+                             is_camera_path, false);
             L += env_L * current_beta;
             break;
         }

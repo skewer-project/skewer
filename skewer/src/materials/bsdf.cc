@@ -16,13 +16,14 @@ inline float GGX_D(const Vec3& n, const Vec3& h, float alpha) {
     if (NoH <= 0.0f) return 0.0f;
     float a2 = alpha * alpha;
     float denom = (NoH * NoH * (a2 - 1.0f) + 1.0f);
-    return a2 * kInvPi / (denom * denom);
+    return a2 * MathConstants::kInvPi / (denom * denom);
 }
 
 inline float GGX_G1(const Vec3& v, const Vec3& h, const Vec3& n, float alpha) {
     float VoH = Dot(v, h);
-    if (VoH <= 0.0f) return 0.0f;                     // Microfacet is pointing away from the sensor
-    float NoV = std::max(kBoundsEpsilon, Dot(n, v));  // maybe bounds is not best constant name
+    if (VoH <= 0.0f) return 0.0f;  // Microfacet is pointing away from the sensor
+    float NoV = std::max(RenderConstants::kBoundsEpsilon,
+                         Dot(n, v));  // maybe bounds is not best constant name
     float a2 = alpha * alpha;
     float denom = NoV + std::sqrt(a2 + (1.0f - a2) * NoV * NoV);
     return (2.0f * NoV) / denom;
@@ -38,7 +39,7 @@ inline Vec3 SampleGGX(const Vec3& n, float alpha, RNG& rng) {
     float xi2 = rng.UniformFloat();
 
     // Map random numbers to a microfacet normal (half-vector)
-    float phi = 2.0f * kPi * xi1;
+    float phi = 2.0f * MathConstants::kPi * xi1;
     float cosTheta = std::sqrt((1.0f - xi2) / (1.0f + (alpha * alpha - 1.0f) * xi2));
     float sinTheta = std::sqrt(1.0f - cosTheta * cosTheta);
 
@@ -88,7 +89,7 @@ Spectrum EvalBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, co
 
     Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
 
-    return albedo * kInvPi;
+    return albedo * MathConstants::kInvPi;
 }
 
 float PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const Vec3& wi) {
@@ -97,7 +98,7 @@ float PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const 
 
     float cosine = Dot(wi, sd.n_shading);
     if (cosine <= 0.0) return 0.f;
-    return cosine * kInvPi;  // Cos-weighted hemisphere sampling
+    return cosine * MathConstants::kInvPi;  // Cos-weighted hemisphere sampling
 }
 
 /**
@@ -122,8 +123,8 @@ bool SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceI
     if (cosine <= 0.0f) return false;
 
     Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
-    pdf = cosine / kPi;
-    f = albedo * kInvPi;
+    pdf = cosine / MathConstants::kPi;
+    f = albedo * MathConstants::kInvPi;
     return true;
 }
 
