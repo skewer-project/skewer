@@ -18,9 +18,10 @@ static constexpr float kOneMinusEpsilon = 0x1.fffffep-1;
 // static constexpr float OneMinusEpsilon = 1.0f - std::numeric_limits<float>::epsilon();
 
 constexpr float kEpsilon = std::numeric_limits<float>::epsilon();
-constexpr float kShadowEpsilon = 0.001f;
-constexpr float kBoundEpsilon = 0.0001f;
-constexpr float kZeroEpsilon = 1e-8f;
+constexpr float kRayOffsetEpsilon = 1e-3f;
+constexpr float kShadowEpsilon = kRayOffsetEpsilon;
+constexpr float kBoundsEpsilon = 1e-4f;
+constexpr float kNearZeroEpsilon = 1e-8f;
 constexpr float kFarClip = 1e10f;
 
 constexpr float kIsotropicPhaseEpsilon = 1e-3f;
