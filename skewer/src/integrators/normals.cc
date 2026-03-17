@@ -25,10 +25,10 @@ void Normals::Render(const Scene& scene, const Camera& cam, Film* film,
             Ray r = cam.GetRay(u, v, rng);
 
             SurfaceInteraction si;
-            const float t_min = kRayOffsetEpsilon;
+            const float t_min = RenderConstants::kRayOffsetEpsilon;
             RGB color(0.f);
 
-            if (scene.Intersect(r, t_min, kInfinity, &si)) {
+            if (scene.Intersect(r, t_min, MathConstants::kInfinity, &si)) {
                 // If Hit: Visualise Normal
                 // Normals range from -1.0 to 1.0.
                 // We map them to 0.0 to 1.0 for color display.
