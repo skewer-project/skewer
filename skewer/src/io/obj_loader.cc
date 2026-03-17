@@ -131,8 +131,8 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
     }
 
     // Compute bounding box for centering (used in auto-fit mode)
-    Vec3 bbox_min(kInfinity, kInfinity, kInfinity);
-    Vec3 bbox_max(-kInfinity, -kInfinity, -kInfinity);
+    Vec3 bbox_min(MathConstants::kInfinity, MathConstants::kInfinity, MathConstants::kInfinity);
+    Vec3 bbox_max(-MathConstants::kInfinity, -MathConstants::kInfinity, -MathConstants::kInfinity);
     for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
         for (int a = 0; a < 3; a++) {
             if (attrib.vertices[i + a] < bbox_min[a]) bbox_min[a] = attrib.vertices[i + a];
