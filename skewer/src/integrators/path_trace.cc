@@ -1,16 +1,16 @@
 #include "integrators/path_trace.h"
 
 #include <atomic>
-#include <iomanip>
 #include <thread>
 #include <vector>
 
 #include "barkeep.h"
-#include "core/sampling.h"
+#include "core/sampling/sampling.h"
 #include "core/sampling/wavelength_sampler.h"
-#include "core/spectrum.h"
+#include "core/spectral/spectral_utils.h"
+#include "core/spectral/spectrum.h"
+#include "core/transport/path_sample.h"
 #include "film/film.h"
-#include "integrators/path_sample.h"
 #include "kernels/path_kernel.h"
 #include "scene/camera.h"
 #include "scene/light.h"
@@ -81,11 +81,17 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                     if (is_adaptive) {
                         // Countdown avoids modulo (integer division) on the hotpath.
                         int next_check = min_s;
+                        uint16_t global_med = scene.GetGlobalMedium();
                         for (int s = 0; s < max_s; ++s) {
                             float u = (float(x) + rng.UniformFloat()) / width;
                             float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
                             SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
                             Ray r = cam.GetRay(u, v, rng);
+                            if (global_med != 0) {
+                                // Global medium usually has priority 0 so bounded media can
+                                // override it
+                                r.vol_stack().Push(global_med, 0);
+                            }
                             PathSample result = Li(r, scene, rng, config, wl);
                             RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
@@ -101,11 +107,17 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                             }
                         }
                     } else {
+                        uint16_t global_med = scene.GetGlobalMedium();
                         for (int s = 0; s < max_s; ++s) {
                             float u = (float(x) + rng.UniformFloat()) / width;
                             float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
                             SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
                             Ray r = cam.GetRay(u, v, rng);
+                            if (global_med != 0) {
+                                // Global medium usually has priority 0 so bounded media can
+                                // override it
+                                r.vol_stack().Push(global_med, 0);
+                            }
                             PathSample result = Li(r, scene, rng, config, wl);
                             RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 

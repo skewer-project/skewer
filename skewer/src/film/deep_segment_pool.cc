@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
 
 using namespace skwr;
 

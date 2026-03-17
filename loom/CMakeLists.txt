@@ -6,14 +6,33 @@ project(deep_compositor_demo VERSION 1.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#     add_compile_options(-Wall -Wextra -Wpedantic) 
+#     message(STATUS "Clang detected: Strict mode and Werror enabled.")
+# endif()
+
+
+# find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+# if(CLANG_TIDY_EXE)
+#     # Adding 'modernize-concat-nested-namespaces' is great for C++20!
+#     set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=-*,bugprone-*,readability-*,modernize-*,portability-*;--header-filter=src/.*;--warnings-as-errors=-*")
+# endif()
+
 include(CTest)
 cmake_policy(SET CMP0135 NEW)
 
+
+# Meant to disable native optimizations for older macbooks
+set(SKEWER_BUILD_NATIVE_OPTIMIZATIONS OFF CACHE BOOL "" FORCE)
+
+# Needs to be changed to not pull entire skewer renderer in. 
 if(NOT TARGET exrio::exrio)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio/CMakeLists.txt")
         add_subdirectory(
             "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio"
             "${CMAKE_CURRENT_BINARY_DIR}/exrio"
+            SYSTEM
         )
     else()
         find_package(exrio REQUIRED CONFIG)
@@ -22,9 +41,11 @@ endif()
 
 # Loom compositor logic (composition/merging) sits here.
 add_library(loom_compositor STATIC
+    src/deep_merger.cc
     src/deep_compositor.cc
     src/composite_pipeline.cc
     src/deep_volume.cc
+    src/utils.cc
 )
 target_include_directories(loom_compositor PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(loom_compositor PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../skewer/external)
