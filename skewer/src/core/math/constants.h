@@ -17,8 +17,6 @@ constexpr uint64_t kGoldenRatio = 0x9E3779B97F4A7C15ULL;
 static constexpr float kOneMinusEpsilon = 0x1.fffffep-1;
 // OR simpler C++ style:
 // static constexpr float OneMinusEpsilon = 1.0f - std::numeric_limits<float>::epsilon();
-
-inline float DegreesToRadians(float degrees) { return degrees * MathConstants::kPi / 180.0f; }
 }  // namespace MathConstants
 
 namespace Numeric {

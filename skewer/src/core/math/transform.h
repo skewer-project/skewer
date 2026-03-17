@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/math/constants.h"
+#include "core/math/utils.h"
 #include "core/math/vec3.h"
 
 namespace skwr {
@@ -28,9 +29,9 @@ inline Vec3 RotateEulerYXZ(const Vec3& p, float rx, float ry, float rz) {
 // Rotation angles are in degrees. Scale is per-axis.
 inline void ApplyTransform(std::vector<Vec3>& vertices, const Vec3& translate,
                            const Vec3& rotate_deg, const Vec3& scale) {
-    float rx = MathConstants::DegreesToRadians(rotate_deg.x());
-    float ry = MathConstants::DegreesToRadians(rotate_deg.y());
-    float rz = MathConstants::DegreesToRadians(rotate_deg.z());
+    float rx = DegreesToRadians(rotate_deg.x());
+    float ry = DegreesToRadians(rotate_deg.y());
+    float rz = DegreesToRadians(rotate_deg.z());
 
     bool has_rotation = (rx != 0.0f || ry != 0.0f || rz != 0.0f);
 
@@ -51,9 +52,9 @@ inline void ApplyTransform(std::vector<Vec3>& vertices, const Vec3& translate,
 // Apply the same rotation to normal vectors (no scale/translate).
 // Normals need to be re-normalized after rotation.
 inline void ApplyRotationToNormals(std::vector<Vec3>& normals, const Vec3& rotate_deg) {
-    float rx = MathConstants::DegreesToRadians(rotate_deg.x());
-    float ry = MathConstants::DegreesToRadians(rotate_deg.y());
-    float rz = MathConstants::DegreesToRadians(rotate_deg.z());
+    float rx = DegreesToRadians(rotate_deg.x());
+    float ry = DegreesToRadians(rotate_deg.y());
+    float rz = DegreesToRadians(rotate_deg.z());
 
     if (rx == 0.0f && ry == 0.0f && rz == 0.0f) return;
 
