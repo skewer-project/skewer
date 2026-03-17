@@ -7,10 +7,10 @@
 namespace skwr {
 
 namespace MathConstants {
-constexpr float kInfinity = std::numeric_limits<float>::max();
+constexpr float kFloatInfinity = std::numeric_limits<float>::max();
 constexpr float kPi = 3.1415926535897932385f;
 constexpr float kInvPi = 0.31830988618379067154f;
-constexpr uint64_t kGoldenRatio = 0x9E3779B97F4A7C15ULL;
+constexpr uint64_t kGoldenRatio64 = 0x9E3779B97F4A7C15ULL;
 
 // std::numeric_limits::epsilon() is the gap between 1.0 and the next value.
 // Subtract half of it to be safe, or the whole thing.

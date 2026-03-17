@@ -65,9 +65,9 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
     for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
         SurfaceInteraction si;
         MediumInteraction mi;
-        bool scatter_surface =
-            scene.Intersect(r, RenderConstants::kRayOffsetEpsilon, MathConstants::kInfinity, &si);
-        float t_max = scatter_surface ? si.t : MathConstants::kInfinity;
+        bool scatter_surface = scene.Intersect(r, RenderConstants::kRayOffsetEpsilon,
+                                               MathConstants::kFloatInfinity, &si);
+        float t_max = scatter_surface ? si.t : MathConstants::kFloatInfinity;
         bool scatter_medium = false;
 
         // Local vertex segment tracking

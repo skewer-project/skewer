@@ -28,7 +28,7 @@ void Normals::Render(const Scene& scene, const Camera& cam, Film* film,
             const float t_min = RenderConstants::kRayOffsetEpsilon;
             RGB color(0.f);
 
-            if (scene.Intersect(r, t_min, MathConstants::kInfinity, &si)) {
+            if (scene.Intersect(r, t_min, MathConstants::kFloatInfinity, &si)) {
                 // If Hit: Visualise Normal
                 // Normals range from -1.0 to 1.0.
                 // We map them to 0.0 to 1.0 for color display.
