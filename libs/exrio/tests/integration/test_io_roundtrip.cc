@@ -21,7 +21,7 @@ class IORoundtripTest : public ::testing::Test {
   protected:
     void SetUp() override {
         // Use std::filesystem to get a reliable, writable temp directory.
-        // Create a per-test subdirectory so parallel or repeated runs don't collide.
+        // Create a per-test subdirectory so parallel Íor repeated runs don't collide.
         auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
         std::string dirName = std::string(info->name());
         for (auto& c : dirName) {

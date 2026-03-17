@@ -10,12 +10,9 @@
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
-#include "exrio/deep_image.h"
+#include "deep_info.h"
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
 #include "proto/coordinator/v1/coordinator.pb.h"
-
-// TODO: Include necessary Loom engine headers
-// #include <loom/engine/loom_session.h>
 
 using api::proto::coordinator::v1::CompositeTask;
 using api::proto::coordinator::v1::CoordinatorService;
@@ -76,45 +73,40 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                               << " for frame " << package.frame_id() << "\n";
 
                     // Load Phase
-                    std::vector<std::string> inputLayers(task.layer_uris().begin(),
-                                                         task.layer_uris().end());
+                    std::vector<std::string> inputFiles(task.layer_uris().begin(),
+                                                        task.layer_uris().end());
 
-                    std::cout << "[LOOM]: -> Composite Inputs (" << inputLayers.size()
+                    std::cout << "[Loom] -> Composite Inputs (" << inputFiles.size()
                               << " files):\n";
-                    for (const auto& uri : inputLayers) {
+                    for (const auto& uri : inputFiles) {
                         std::cout << "  - " << uri << "\n";
                     }
 
-                    std::vector<exrio::DeepImage> images = exrio::LoadImagesPhase(inputLayers);
+                    Options opts = {
+                        inputFiles,
+                        std::vector<float>{0},  // TODO: collect real input_z_offsets
+                        "",                     // coordinator handles output prefixing and parsing
+                    };
 
-                    // Merge Phase
-                    float taskMergeThreshold =
-                        0.001F;  // TODO: include mergeThreshold in MergeTask protobuf
-                    exrio::CompositorOptions compOpts;
-                    compOpts.mergeThreshold = taskMergeThreshold;
-                    compOpts.enableMerging = (taskMergeThreshold > 0.0f);
-
-                    exrio::CompositorStats stats;
-                    exrio::DeepImage merged = deepMerge(images, compOpts, &stats);
-
-                    // Flatten Phase (should be more configurable)
-                    bool isDeepOutput = output_uri.ends_with(
-                        ".exr");  // TODO: should check if user specifically wants deep vs flat
-                    bool isFlatOutput = false;
-                    bool isPngOutput = output_uri.ends_with(".png");
-                    std::vector<float> flatRgba;
-
-                    if (isPngOutput || isFlatOutput) {
-                        flatRgba = exrio::FlattenPhase(merged);
+                    // Populate image info using opts
+                    std::vector<std::unique_ptr<deep_compositor::DeepInfo>> imagesInfo;
+                    int success = exrio::SaveImageInfo(opts, imagesInfo);
+                    if (success == 1) {
+                        std::cerr << "[Loom] Error: Failed to load worker options\n";
+                        continue;
                     }
 
-                    // Write Phase
-                    std::cout << "[LOOM]: Writing result to: " << output_uri << "\n";
-                    exrio::WriteOutputsPhase(merged, flatRgba, output_uri, isDeepOutput,
-                                             isFlatOutput, isPngOutput);
+                    // Process and write image in different formats
+                    std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
 
-                    // TODO: Consider logging to kubectl logs
-                    std::cout << "[LOOM]: Engine Composite execution completed.\n";
+                    // Write deep EXR (handles if deep output is wanted)
+                    std::vector<float> finalImage = deep_compositor::ProcessAllEXR(
+                        opts, task.height(), task.width(), imagesInfo);
+                    // Writes flat outputs if needed
+                    exrio::WriteFlatOutputs(finalImage, output_uri, opts.flat_output,
+                                            opts.png_output, task.width(), task.height());
+
+                    std::cout << "[Loom] -> Engine Composite execution completed.\n";
 
                 } else {
                     std::cerr << "[LOOM]: Error: Received unsupported task type. Ignoring.\n";

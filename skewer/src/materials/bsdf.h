@@ -1,12 +1,12 @@
 #ifndef SKWR_MATERIALS_BSDF_H_
 #define SKWR_MATERIALS_BSDF_H_
 
-#include "core/rng.h"
-#include "core/spectrum.h"
-#include "core/vec3.h"
+#include "core/math/vec3.h"
+#include "core/sampling/rng.h"
+#include "core/spectral/spectrum.h"
+#include "core/transport/surface_interaction.h"
 #include "materials/material.h"
 #include "materials/texture_lookup.h"
-#include "scene/surface_interaction.h"
 
 namespace skwr {
 

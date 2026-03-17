@@ -9,14 +9,15 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/math/transform.h"
+#include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
 #include "core/spectral/spectral_utils.h"
-#include "core/transform.h"
-#include "core/vec3.h"
 #include "geometry/sphere.h"
 #include "io/obj_loader.h"
 #include "materials/material.h"
 #include "materials/texture.h"
+#include "media/mediums.h"
 #include "scene/mesh_utils.h"
 #include "scene/scene.h"
 #include "session/render_options.h"
@@ -184,8 +185,18 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, Scene& scen
     uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
     Vec3 center = ParseVec3(obj.at("center"));
     float radius = obj.at("radius").get<float>();
+    uint16_t interior_medium = static_cast<uint16_t>(MediumType::Vacuum);
+    uint16_t exterior_medium = static_cast<uint16_t>(MediumType::Vacuum);
+    uint16_t priority = 0;
 
-    scene.AddSphere(Sphere{center, radius, mat_id});
+    Sphere s;
+    s.center = center;
+    s.radius = radius;
+    s.material_id = mat_id;
+    s.interior_medium = interior_medium;
+    s.exterior_medium = exterior_medium;
+    s.priority = priority;
+    scene.AddSphere(s);
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
