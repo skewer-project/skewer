@@ -1,11 +1,11 @@
-#ifndef SKWR_CORE_TRANSFORM_H_
-#define SKWR_CORE_TRANSFORM_H_
+#ifndef SKWR_CORE_MATH_TRANSFORM_H_
+#define SKWR_CORE_MATH_TRANSFORM_H_
 
 #include <cmath>
 #include <vector>
 
-#include "core/constants.h"
-#include "core/vec3.h"
+#include "core/math/constants.h"
+#include "core/math/vec3.h"
 
 namespace skwr {
 
@@ -64,4 +64,4 @@ inline void ApplyRotationToNormals(std::vector<Vec3>& normals, const Vec3& rotat
 
 }  // namespace skwr
 
-#endif  // SKWR_CORE_TRANSFORM_H_
+#endif  // SKWR_CORE_MATH_TRANSFORM_H_

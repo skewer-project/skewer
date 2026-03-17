@@ -3,11 +3,11 @@
 
 #include <cmath>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
+#include "core/math/vec3.h"
 #include "core/ray.h"
-#include "core/rng.h"
-#include "core/sampling.h"
-#include "core/vec3.h"
+#include "core/sampling/rng.h"
+#include "core/sampling/sampling.h"
 
 namespace skwr {
 

@@ -4,9 +4,9 @@
 #include <algorithm>
 #include <limits>
 
-#include "core/constants.h"
+#include "core/math/constants.h"
+#include "core/math/vec3.h"
 #include "core/ray.h"
-#include "core/vec3.h"
 
 namespace skwr {
 
@@ -74,6 +74,32 @@ class BoundBox {
         t_max = std::min(t_max, std::max(t0, t1));
 
         // Y Ayis
+        t0 = (min_.y() - orig.y()) * inv_d.y();
+        t1 = (max_.y() - orig.y()) * inv_d.y();
+        t_min = std::max(t_min, std::min(t0, t1));
+        t_max = std::min(t_max, std::max(t0, t1));
+
+        // Z Axis
+        t0 = (min_.z() - orig.z()) * inv_d.z();
+        t1 = (max_.z() - orig.z()) * inv_d.z();
+        t_min = std::max(t_min, std::min(t0, t1));
+        t_max = std::min(t_max, std::max(t0, t1));
+
+        return t_max > t_min;
+    }
+
+    // TODO: figure out better way to capture tmin tmax vals w/o duplicating code?
+    bool IntersectP(const Ray& r, float& t_min, float& t_max) const {
+        const Vec3& inv_d = r.inv_direction();
+        const Point3& orig = r.origin();
+
+        // X Axis
+        float t0 = (min_.x() - orig.x()) * inv_d.x();
+        float t1 = (max_.x() - orig.x()) * inv_d.x();
+        t_min = std::max(t_min, std::min(t0, t1));
+        t_max = std::min(t_max, std::max(t0, t1));
+
+        // Y Axis
         t0 = (min_.y() - orig.y()) * inv_d.y();
         t1 = (max_.y() - orig.y()) * inv_d.y();
         t_min = std::max(t_min, std::min(t0, t1));

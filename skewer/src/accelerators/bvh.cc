@@ -7,6 +7,8 @@
 #include <vector>
 
 #include "geometry/boundbox.h"
+#include "geometry/intersect_triangle.h"
+#include "geometry/triangle.h"
 
 namespace skwr {
 
@@ -205,6 +207,48 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
 
     Subdivide(left_child_idx, first_tri, left_count, primitive_info);
     Subdivide(left_child_idx + 1, first_tri + left_count, tri_count - left_count, primitive_info);
+}
+
+bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
+                    const std::vector<Triangle>& triangles) const {
+    if (IsEmpty()) return false;
+
+    bool hit_anything = false;
+    float closest_t = t_max;
+
+    const Vec3& inv_dir = r.inv_direction();
+    const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
+
+    int nodes_to_visit[64];
+    int to_visit_offset = 0;
+
+    nodes_to_visit[0] = 0;
+    while (to_visit_offset >= 0) {
+        int current_node_idx = nodes_to_visit[to_visit_offset--];
+        const BVHNode& node = GetNodes()[current_node_idx];
+
+        if (node.bounds.Intersect(r, t_min, closest_t)) {
+            if (node.tri_count > 0) {
+                for (uint32_t i = 0; i < node.tri_count; ++i) {
+                    const Triangle& tri = triangles[node.left_first + i];
+                    if (IntersectTriangle(r, tri, t_min, closest_t, si)) {
+                        hit_anything = true;
+                        closest_t = si->t;
+                    }
+                }
+            } else {
+                int axis = node.bounds.LongestAxis();
+                if (dir_is_neg[axis]) {
+                    nodes_to_visit[++to_visit_offset] = node.left_first;
+                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
+                } else {
+                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
+                    nodes_to_visit[++to_visit_offset] = node.left_first;
+                }
+            }
+        }
+    }
+    return hit_anything;
 }
 
 }  // namespace skwr

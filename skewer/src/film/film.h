@@ -3,18 +3,15 @@
 
 #include <exrio/deep_image.h>
 
-#include <algorithm>
 #include <atomic>
-#include <cmath>
 #include <cstddef>
 #include <memory>
-#include <mutex>
 #include <vector>
 
-#include "core/color.h"
+#include "core/color/color.h"
+#include "core/transport/path_sample.h"
 #include "film/deep_segment_pool.h"
 #include "film/image_buffer.h"
-#include "integrators/path_sample.h"
 
 namespace skwr {
 

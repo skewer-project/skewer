@@ -7,7 +7,7 @@
 #include <shared_mutex>
 #include <vector>
 
-#include "core/color.h"
+#include "core/color/color.h"
 
 namespace skwr {
 
