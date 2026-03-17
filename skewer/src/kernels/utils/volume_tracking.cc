@@ -19,7 +19,7 @@ namespace skwr {
 Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_ray, float dist,
                                     RNG& rng) {
     float t_min_box = 0.0f;
-    float t_max_box = MathConstants::kInfinity;
+    float t_max_box = MathConstants::kFloatInfinity;
     if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
 
     float t_min = std::max(0.0f, t_min_box);

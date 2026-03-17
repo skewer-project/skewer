@@ -39,7 +39,7 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
     float xi = rng.UniformFloat();
 
     // Protect against division by zero for perfectly clear media
-    float t = MathConstants::kInfinity;
+    float t = MathConstants::kFloatInfinity;
     if (sigma_t_c > 0.0f) {
         t = -std::log(std::max(1.0f - xi, Numeric::kFloatEpsilon)) / sigma_t_c;
     }
@@ -89,7 +89,7 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
 bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
                 Spectrum& beta, MediumInteraction* mi) {
     float t_min_box = 0.0f;
-    float t_max_box = MathConstants::kInfinity;
+    float t_max_box = MathConstants::kFloatInfinity;
     if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
 
     // Constrain marching bounds
