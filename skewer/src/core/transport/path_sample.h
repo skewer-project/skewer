@@ -6,12 +6,16 @@
 #include "core/spectral/spectrum.h"
 #include "core/transport/deep_segment.h"
 
+/**
+ * This is deprecated as of the SampleWriter class implementation
+ */
+
 namespace skwr {
 
 struct PathSample {
     Spectrum L;          // "Flat" beauty pass (premultiplied radiance)
     float alpha = 0.0f;  // Coverage for the flat beauty pass (0 = transparent, 1 = opaque)
-    BoundedArray<DeepSegment, kMaxDeepSegments> segments;
+    // BoundedArray<DeepSegment, kMaxDeepSegments> segments;
 };
 
 }  // namespace skwr
