@@ -5,8 +5,10 @@
 #include <atomic>
 
 #include "barkeep.h"
+#include "core/containers/bounded_array.h"
+#include "core/cpu_config.h"
 #include "core/math/constants.h"
-#include "core/transport/path_sample.h"
+#include "core/transport/deep_segment.h"
 #include "film/deep_segment_pool.h"
 #include "film/image_buffer.h"
 
@@ -57,14 +59,15 @@ bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
     return noise / std::max(mean_lum, 0.5f) < noise_threshold;
 }
 
-void Film::AddDeepSample(int x, int y, const PathSample& path_sample) {
-    if (path_sample.segments.empty()) return;
+void Film::AddDeepSample(int x, int y,
+                         const BoundedArray<DeepSegment, kMaxDeepSegments>& segments) {
+    if (segments.empty()) return;
 
     Pixel& p = GetPixel(x, y);
 
     int prev_head = -1;
-    for (int i = path_sample.segments.size() - 1; i >= 0; --i) {
-        const DeepSegment& seg = path_sample.segments[i];
+    for (int i = segments.size() - 1; i >= 0; --i) {
+        const DeepSegment& seg = segments[i];
 
         // Skip empty/invalid segments
         if (seg.z_front > seg.z_back && seg.z_back != kFarClip) continue;
