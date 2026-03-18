@@ -15,7 +15,7 @@ namespace skwr {
 struct PathSample {
     Spectrum L;          // "Flat" beauty pass (premultiplied radiance)
     float alpha = 0.0f;  // Coverage for the flat beauty pass (0 = transparent, 1 = opaque)
-    // BoundedArray<DeepSegment, kMaxDeepSegments> segments;
+    BoundedArray<DeepSegment, kMaxDeepSegments> segments;
 };
 
 }  // namespace skwr
