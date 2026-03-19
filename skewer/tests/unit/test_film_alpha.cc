@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "core/color/color.h"
+#include "core/containers/bounded_array.h"
+#include "core/cpu_config.h"
 #include "core/transport/path_sample.h"
 #include "film/film.h"
 #include "film/image_buffer.h"
@@ -89,8 +91,8 @@ TEST_F(FilmAlphaTest, WeightedSamplesRespectWeight) {
 TEST_F(FilmAlphaTest, DeepImageNormalizesByActualPixelSampleCount) {
     Film film(1, 1);
 
-    PathSample hit;
-    hit.segments.push_back({1.0f, 1.001f, RGB(0.5f, 0.25f, 0.0f), 1.0f});
+    BoundedArray<DeepSegment, kMaxDeepSegments> hit;
+    hit.push_back({1.0f, 1.001f, RGB(0.5f, 0.25f, 0.0f), 1.0f});
 
     // Two covered samples contribute a deep segment.
     for (int i = 0; i < 2; ++i) {
