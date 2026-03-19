@@ -291,31 +291,35 @@ func (s *Scheduler) PurgeJobTasks(jobID string) error {
 	}
 
 	// Helper to filter tasks for a given job ID out of a queue channel.
-	// The safest way to filter a channel is to swap it with a fresh one.
-	filterQueue := func(chPtr *chan *Task, jobID string) {
-		oldCh := *chPtr
-		newCh := make(chan *Task, cap(oldCh))
+	// The safest way to filter a channel is to separate good ones and purge in place.
+	filterQueue := func(ch chan *Task, jobID string) {
+		var kept []*Task
 
-		// Drain old channel
-		for {
+		// Drain everything from channel and keep track of tasks to keep
+	DrainLoop:
+		for len(ch) > 0 {
 			select {
-			case task := <-oldCh:
+			case task := <-ch:
 				if task != nil && task.JobID != jobID {
-					newCh <- task // Keep tasks from other jobs
+					kept = append(kept, task) // Keep tasks from other jobs
 				}
-			default: // oldCh is empty now so swap pointer
-				*chPtr = newCh
-				return
+			default: // Channel drained by worker in meantime
+				break DrainLoop
 			}
+		}
+
+		// Put kept tasks back into the channel
+		for _, task := range kept {
+			ch <- task
 		}
 	}
 
 	// Use helper function to purge
 	if s.skewerQueue != nil {
-		filterQueue(&s.skewerQueue, jobID)
+		filterQueue(s.skewerQueue, jobID)
 	}
 	if s.loomQueue != nil {
-		filterQueue(&s.loomQueue, jobID)
+		filterQueue(s.loomQueue, jobID)
 	}
 
 	return nil
