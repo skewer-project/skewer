@@ -53,8 +53,8 @@ func main() {
 
 	// Serve the server as a background goroutine
 	go func() {
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("[ERROR] Failed to serve: %v", err)
+		if err := grpcServer.Serve(lis); err == grpc.ErrServerStopped {
+			grpcServer.GracefulStop()
 		}
 	}()
 
@@ -65,8 +65,8 @@ func main() {
 	<-c // This will block until the signal is received
 
 	// Stop background capacity manager loop and grpc server
-	log.Println("[SERVER] Shutting down gracefully...")
+	log.Println("[SERVER]: Shutting down gracefully...")
 	myServer.Stop()
 	grpcServer.GracefulStop()
-	log.Println("[SERVER] Shutdown complete.")
+	log.Println("[SERVER]: Shutdown complete.")
 }
