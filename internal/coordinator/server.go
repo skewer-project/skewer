@@ -335,9 +335,7 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 
 			// Handle loom-worker
 			loomTarget := queueLengths["loom"] + activeCounts["loom"]
-			if loomTarget > limit {
-				loomTarget = limit
-			}
+			loomTarget = min(loomTarget, limit)
 			if queueLengths["loom"] == 0 && activeCounts["loom"] == 0 {
 				loomTarget = 0
 			}
@@ -348,18 +346,18 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 	}
 }
 
-func (s *Server) translateLocalPath(uri string) string {
+func (s *Server) translateLocalPath(uri string) (string, error) {
 	if s.localStorageBase == "" {
-		return uri
+		return uri, nil
 	}
 
 	// Handle Cloud URIs (gs://)
 	if trimmed, hasPrefix := strings.CutPrefix(uri, "gs://"); hasPrefix {
 		parts := strings.SplitN(trimmed, "/", 2)
 		if len(parts) == 1 {
-			return filepath.Join(s.localStorageBase, parts[0])
+			return filepath.Join(s.localStorageBase, parts[0]), nil
 		}
-		return filepath.Join(s.localStorageBase, parts[0], parts[1])
+		return filepath.Join(s.localStorageBase, parts[0], parts[1]), nil
 	}
 
 	// Handle Local Paths (Mapping host paths to container paths)
@@ -371,11 +369,10 @@ func (s *Server) translateLocalPath(uri string) string {
 		// SECURITY: Clean the path and prevent traversal
 		cleanRel := filepath.Clean(rel)
 		if strings.HasPrefix(cleanRel, "..") {
-			log.Printf("[WARNING]: Path traversal attempt blocked: %s", uri)
-			return uri // Fallback or reject
+			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
 		}
 
-		return filepath.Join(s.localStorageBase, cleanRel)
+		return filepath.Join(s.localStorageBase, cleanRel), nil
 	}
 
 	// If the path is relative and starts with "data/", swap it for our storage base.
@@ -383,20 +380,25 @@ func (s *Server) translateLocalPath(uri string) string {
 		// SECURITY: Clean the path and prevent traversal
 		cleanTrimmed := filepath.Clean(trimmed)
 		if strings.HasPrefix(cleanTrimmed, "..") || strings.HasPrefix(cleanTrimmed, "/") {
-			log.Printf("[WARNING]: Path traversal attempt blocked: %s", uri)
-			return uri // Fallback or reject
+			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
 		}
-		return filepath.Join(s.localStorageBase, cleanTrimmed)
+		return filepath.Join(s.localStorageBase, cleanTrimmed), nil
 	}
 
-	return uri
+	return uri, nil
 }
 
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
 	for frameID := int32(0); frameID < req.GetNumFrames(); frameID++ {
 		// Calculate uri prefixes
-		outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
-		sceneUri := s.translateLocalPath(job.GetSceneUri())
+		outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
+		if err != nil {
+			return err
+		}
+		sceneUri, err := s.translateLocalPath(job.GetSceneUri())
+		if err != nil {
+			return err
+		}
 
 		// Replace #### with padded frame ID if it exists in the scene URI
 		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
@@ -438,7 +440,10 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {
 
-	outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
+	outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
+	if err != nil {
+		return err
+	}
 
 	for frameID := 0; frameID < int(req.GetNumFrames()); frameID++ {
 
@@ -448,8 +453,13 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		// Create a fresh slice for THIS specific frame task
 		frameLayerUris := make([]string, len(originalPrefixes))
 
+		// Clean all the uri prefixes for the layers and store them as full uris in new list
 		for idx, uriPrefix := range originalPrefixes {
-			translatedPrefix := s.translateLocalPath(uriPrefix)
+			translatedPrefix, err := s.translateLocalPath(uriPrefix)
+			if err != nil {
+				return err
+			}
+
 			fullLayerUri, err := url.JoinPath(translatedPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 			if err != nil {
 				return err
