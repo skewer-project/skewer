@@ -17,7 +17,7 @@ class Camera {
   public:
     Camera(const Vec3& look_from, const Vec3& look_at, const Vec3& vup, float vfov,
            float aspect_ratio, float aperture_radius = 0.0f, float focus_distance = 1.0f) {
-        auto theta = vfov * kPi / 180.0f;
+        auto theta = vfov * MathConstants::kPi / 180.0f;
         auto h = std::tan(theta / 2.0f);
         auto viewport_height = 2.0f * h;
         auto viewport_width = aspect_ratio * viewport_height;
