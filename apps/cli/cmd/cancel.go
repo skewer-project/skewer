@@ -52,7 +52,9 @@ var cancelCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(cancelCmd)
-
 	cancelCmd.Flags().StringVarP(&cancelJobID, "job", "j", "", "The UUID of the job to cancel")
-	cancelCmd.MarkFlagRequired("job")
+
+	if err := cancelCmd.MarkFlagRequired("job"); err != nil {
+		log.Fatalf("Failed to mark 'job' flag as required: %v", err)
+	}
 }

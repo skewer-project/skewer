@@ -19,7 +19,8 @@ Spectrum EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& r
 
     while (true) {
         SurfaceInteraction shadow_si;
-        if (scene.Intersect(shadow_ray, kShadowEpsilon, remaining_dist - 2.0f * kShadowEpsilon,
+        if (scene.Intersect(shadow_ray, RenderConstants::kRayOffsetEpsilon,
+                            remaining_dist - 2.0f * RenderConstants::kRayOffsetEpsilon,
                             &shadow_si)) {
             // Accumulate volume transmittance through the current medium up to the hit
             Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t, wl);
@@ -54,8 +55,9 @@ Spectrum EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& r
             }
 
             // Advance the shadow ray past the surface
-            Ray next_ray(shadow_si.point + (shadow_ray.direction() * kShadowEpsilon),
-                         shadow_ray.direction());
+            Ray next_ray(
+                shadow_si.point + (shadow_ray.direction() * RenderConstants::kRayOffsetEpsilon),
+                shadow_ray.direction());
             next_ray.vol_stack() = shadow_ray.vol_stack();
             shadow_ray = next_ray;
             remaining_dist -= shadow_si.t;

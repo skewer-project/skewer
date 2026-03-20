@@ -22,6 +22,7 @@ type Server struct {
 	manager          CloudManager
 	tracker          *JobTracker
 	localStorageBase string
+	cancel           context.CancelFunc
 }
 
 func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, localStorageBase string) *Server {
@@ -33,7 +34,9 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, 
 	}
 
 	// Start a background loop to manage worker capacity
-	go s.runCapacityManager(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel // cancellation context for server
+	go s.runCapacityManager(ctx)
 
 	// Set the terminal failure callback
 	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
@@ -43,6 +46,13 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, 
 	}
 
 	return s
+}
+
+// Method to gracefully stop server
+func (s *Server) Stop() {
+	if s.cancel != nil {
+		s.cancel()
+	}
 }
 
 // ================= //
@@ -60,15 +70,14 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 	var newJob Job
 
 	// Route the job creation based on the user's requested payload
-	switch jobTypes := req.JobType.(type) {
+	switch req.JobType.(type) {
 	case *pb.SubmitJobRequest_RenderJob:
 		newJob = &RenderJob{
-			JobID:          jobID,
-			Dependencies:   req.DependsOn,
-			Status:         pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
-			TotalTasks:     req.NumFrames*jobTypes.RenderJob.SampleDivision + req.NumFrames, // Render tasks + Merge tasks
-			SampleDivision: jobTypes.RenderJob.SampleDivision,
-			OriginalReq:    req,
+			JobID:        jobID,
+			Dependencies: req.DependsOn,
+			Status:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
+			TotalTasks:   req.NumFrames, // Strictly one task per frame
+			OriginalReq:  req,
 		}
 	case *pb.SubmitJobRequest_CompositeJob:
 		newJob = &CompositeJob{
@@ -181,8 +190,6 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 	switch t := task.Payload.(type) {
 	case *pb.RenderTask:
 		workPackage.Payload = &pb.WorkPackage_RenderTask{RenderTask: t}
-	case *pb.MergeTask:
-		workPackage.Payload = &pb.WorkPackage_MergeTask{MergeTask: t}
 	case *pb.CompositeTask:
 		workPackage.Payload = &pb.WorkPackage_CompositeTask{CompositeTask: t}
 	default:
@@ -253,20 +260,6 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 		jobType.CompletedTasks++
 		complete = jobType.CompletedTasks == jobType.TotalTasks
 
-		// Update the specific frame's progress
-		frameState := jobType.Frames[task.FrameID]
-		frameState.CompletedChunks++
-
-		// Check if frame is complete to queue in a MergeTask
-		if frameState.CompletedChunks == frameState.TotalChunks {
-			log.Printf("[COORDINATOR]: Frame %s for job %s is fully rendered. Queuing MergeTask.", task.FrameID, jobID)
-
-			// NOW we hand it to the scheduler
-			s.scheduler.EnqueueTask(frameState.PendingMerge, jobID, task.FrameID)
-
-			// Free up memory
-			frameState.PendingMerge = nil
-		}
 		jobType.mu.Unlock()
 
 	case *CompositeJob:
@@ -285,7 +278,7 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 
 		// Loop through whatever jobs just hit 0 dependencies and queue them
 		for _, newJob := range unlockedJobs {
-			// (You will eventually call s.handleCompositeJobSubmit here
+			// (We will eventually call s.handleCompositeJobSubmit here
 			// to actually queue the tasks for the newly unlocked job)
 			log.Printf("[COORDINATOR]: Job %s is fully unlocked and ready to queue!", newJob.ID())
 
@@ -342,9 +335,7 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 
 			// Handle loom-worker
 			loomTarget := queueLengths["loom"] + activeCounts["loom"]
-			if loomTarget > limit {
-				loomTarget = limit
-			}
+			loomTarget = min(loomTarget, limit)
 			if queueLengths["loom"] == 0 && activeCounts["loom"] == 0 {
 				loomTarget = 0
 			}
@@ -355,18 +346,18 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 	}
 }
 
-func (s *Server) translateLocalPath(uri string) string {
+func (s *Server) translateLocalPath(uri string) (string, error) {
 	if s.localStorageBase == "" {
-		return uri
+		return uri, nil
 	}
 
 	// Handle Cloud URIs (gs://)
 	if trimmed, hasPrefix := strings.CutPrefix(uri, "gs://"); hasPrefix {
 		parts := strings.SplitN(trimmed, "/", 2)
 		if len(parts) == 1 {
-			return filepath.Join(s.localStorageBase, parts[0])
+			return filepath.Join(s.localStorageBase, parts[0]), nil
 		}
-		return filepath.Join(s.localStorageBase, parts[0], parts[1])
+		return filepath.Join(s.localStorageBase, parts[0], parts[1]), nil
 	}
 
 	// Handle Local Paths (Mapping host paths to container paths)
@@ -375,118 +366,74 @@ func (s *Server) translateLocalPath(uri string) string {
 	// If the path is already absolute and starts with the host's data path, swap it.
 	if hostDataPath != "" && filepath.IsAbs(uri) && strings.HasPrefix(uri, hostDataPath) {
 		rel, _ := filepath.Rel(hostDataPath, uri)
-		return filepath.Join(s.localStorageBase, rel)
+		// SECURITY: Clean the path and prevent traversal
+		cleanRel := filepath.Clean(rel)
+		if strings.HasPrefix(cleanRel, "..") {
+			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
+		}
+
+		return filepath.Join(s.localStorageBase, cleanRel), nil
 	}
 
 	// If the path is relative and starts with "data/", swap it for our storage base.
 	if trimmed, hasPrefix := strings.CutPrefix(uri, "data/"); hasPrefix {
-		return filepath.Join(s.localStorageBase, trimmed)
+		// SECURITY: Clean the path and prevent traversal
+		cleanTrimmed := filepath.Clean(trimmed)
+		if strings.HasPrefix(cleanTrimmed, "..") || strings.HasPrefix(cleanTrimmed, "/") {
+			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
+		}
+		return filepath.Join(s.localStorageBase, cleanTrimmed), nil
 	}
 
-	return uri
+	return uri, nil
 }
 
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
-	sampleDivision := job.GetSampleDivision()
-	if sampleDivision <= 0 {
-		return fmt.Errorf("[ERROR: Invalid sample_division %d: must be > 0", sampleDivision)
-	}
-
 	for frameID := int32(0); frameID < req.GetNumFrames(); frameID++ {
-		numSamplesPerWorker := job.GetTotalSamples() / job.GetSampleDivision()
-		extraSamplesPerWorker := job.GetTotalSamples() % job.GetSampleDivision()
+		// Calculate uri prefixes
+		outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
+		if err != nil {
+			return err
+		}
+		sceneUri, err := s.translateLocalPath(job.GetSceneUri())
+		if err != nil {
+			return err
+		}
 
-		outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
-		sceneUri := s.translateLocalPath(job.GetSceneUri())
+		// Replace #### with padded frame ID if it exists in the scene URI
+		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
 
-		// Create the Merge task uri
+		// Some deep checking for the final file type extension
 		extension := ".exr"
 		if !job.GetEnableDeep() {
 			extension = ".png"
 		}
-		mergeUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d%s", frameID+1, extension))
+
+		// This is the output uri for the frame
+		outputUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d%s", frameID+1, extension))
 		if err != nil {
 			return err
 		}
 
-		// DON'T enqueue MergeTask. Store it in memory instead and wait until all chunks are completed
-		genericJob, err := s.tracker.GetJob(jobID)
-		if err != nil {
-			return err
-		}
-		renderJob := genericJob.(*RenderJob)
+		// Create render task to enqueue it to the scheduler
+		task := &pb.RenderTask{
+			SceneUri: frameSceneUri,
+			Width:    req.GetWidth(),
+			Height:   req.GetHeight(),
 
-		// While this is technically safe because the tasks haven't been queued yet, it's probably better
-		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
-		// at that exact millisecond
-		renderJob.mu.Lock()
-		if renderJob.Frames == nil {
-			renderJob.Frames = make(map[string]*FrameState)
-		}
+			OutputUri:  outputUri,
+			EnableDeep: job.GetEnableDeep(),
+			Threads:    job.GetThreads(),
 
-		renderJob.Frames[fmt.Sprint(frameID)] = &FrameState{
-			CompletedChunks: 0,
-			TotalChunks:     renderJob.SampleDivision,
-			PendingMerge: &pb.MergeTask{
-				OutputUri: mergeUri,
-				// NOTE: We append the PartialDeepExrUris as we generate them below
-			},
-		}
-		renderJob.mu.Unlock()
-
-		// for frameID := range req.NumFrames {
-		// Replace #### with padded frame ID if it exists in the scene URI
-		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
-
-		var sampleStart int32 = 0
-		var outputUris []string
-		for chunk := int32(0); chunk < job.GetSampleDivision(); chunk++ {
-			uriSuffix := fmt.Sprintf("frame-%04d-chunk-%d.exr", frameID+1, chunk)
-
-			// Add in remainder
-			var sampleEnd int32 = sampleStart + numSamplesPerWorker
-			if extraSamplesPerWorker > 0 {
-				extraSamplesPerWorker--
-				sampleEnd++
-			}
-
-			// Safe URI joining with net/url
-			outputUri, err := url.JoinPath(outputUriPrefix, uriSuffix)
-			if err != nil {
-				return err
-			}
-
-			outputUris = append(outputUris, outputUri)
-
-			task := &pb.RenderTask{
-				SceneUri: frameSceneUri,
-				Width:    req.GetWidth(),
-				Height:   req.GetHeight(),
-
-				SampleStart: sampleStart,
-				SampleEnd:   sampleEnd, // End is EXCLUSIVE
-
-				OutputUri:  outputUri,
-				EnableDeep: job.GetSampleDivision() > 1 || job.GetEnableDeep(),
-				Threads:    job.GetThreads(),
-
-				NoiseThreshold: job.GetNoiseThreshold(),
-				MinSamples:     job.GetMinSamples(),
-				AdaptiveStep:   job.GetAdaptiveStep(),
-			}
-			if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
-				return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
-			}
-
-			sampleStart = sampleEnd
+			NoiseThreshold: job.GetNoiseThreshold(),
+			MinSamples:     job.GetMinSamples(),
+			AdaptiveStep:   job.GetAdaptiveStep(),
+			MaxSamples:     job.GetMaxSamples(),
 		}
 
-		// While this is technically safe because the tasks haven't been queued yet, it's probably better
-		// to lock since we're modifying the maps, just in case another goroutine happens to query GetJobStatus
-		// at that exact millisecond
-		renderJob.mu.Lock()
-		renderJob.Frames[fmt.Sprint(frameID)].PendingMerge.PartialDeepExrUris = outputUris
-		renderJob.mu.Unlock()
+		if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
+			return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
+		}
 	}
 
 	return nil
@@ -494,7 +441,10 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {
 
-	outputUriPrefix := s.translateLocalPath(job.GetOutputUriPrefix())
+	outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
+	if err != nil {
+		return err
+	}
 
 	for frameID := 0; frameID < int(req.GetNumFrames()); frameID++ {
 
@@ -504,8 +454,13 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		// Create a fresh slice for THIS specific frame task
 		frameLayerUris := make([]string, len(originalPrefixes))
 
+		// Clean all the uri prefixes for the layers and store them as full uris in new list
 		for idx, uriPrefix := range originalPrefixes {
-			translatedPrefix := s.translateLocalPath(uriPrefix)
+			translatedPrefix, err := s.translateLocalPath(uriPrefix)
+			if err != nil {
+				return err
+			}
+
 			fullLayerUri, err := url.JoinPath(translatedPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
 			if err != nil {
 				return err
@@ -533,7 +488,3 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 
 	return nil
 }
-
-// func generateJobID() string {
-// 	return "job-" + time.Now().Format("20060102150405")
-// }

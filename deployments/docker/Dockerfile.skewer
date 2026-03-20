@@ -36,7 +36,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime libraries
 RUN apt-get update && apt-get install -y \
-    libimath-3-1-29 \
+    libimath-3-1-29t64 \
     libopenexr-3-1-30 \
     zlib1g \
     libpng16-16t64 \
@@ -48,10 +48,10 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/build/release/skewer/skewer-worker /usr/local/bin/skewer-worker
 
 # Create a dedicated, non-root system user and group
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+RUN groupadd -r appgroup && useradd -u 1001 -r -g appgroup appuser
 
 # Switch to the new user
-USER appuser
+USER 1001
 
 # Run the worker natively
 ENTRYPOINT ["/usr/local/bin/skewer-worker"]

@@ -14,7 +14,6 @@
 #include <half.h>
 
 #include <cassert>
-#include <stdexcept>
 
 #include "film/image_buffer.h"
 #include "stb_image.h"
