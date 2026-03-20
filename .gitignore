@@ -11,6 +11,9 @@
 # CMake user-local settings
 /CMakeUserPresets.json
 
+# Blender
+*.blend1
+
 # OS/editor files
 .DS_Store
 .vscode/
