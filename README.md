@@ -40,3 +40,7 @@ cmake --preset ci (or release)
 cmake --build --preset ci --parallel
 ctest --preset ci
 ```
+
+## Deployment & CLI
+
+For instructions on deploying the cluster locally (using OrbStack/Minikube) and using the `skewer-cli` to submit and manage rendering jobs, please refer to the [Local Deployment & CLI Guide](LOCAL_DEPLOYMENT.md).
