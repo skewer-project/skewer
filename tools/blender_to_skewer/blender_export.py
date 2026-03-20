@@ -3,7 +3,7 @@ blender_export.py — Blender → skewer scene.json exporter
 =========================================================
 Run inside Blender's Scripting workspace, or from the command line:
 
-    blender my_scene.blend --background --python blender_export.py
+    blender my_scene.blend --background --python tools/blender_to_skewer/blender_export.py
 
 The script inspects every visible MESH object in the active scene and
 writes a scene.json (plus per-object OBJ files) that the skewer renderer
