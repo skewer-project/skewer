@@ -67,7 +67,18 @@ void RunLoop(const Options& opt, PackageHandler handler) {
 
         WorkPackage package;
         while (stream->Read(&package)) {
-            std::optional<TaskOutcome> outcome = handler(package);
+            std::optional<TaskOutcome> outcome;
+            try {
+                outcome = handler(package);
+            } catch (const std::exception& e) {
+                std::cerr << lp << ": Handler threw exception for task " << package.task_id()
+                          << ": " << e.what() << "\n";
+                outcome = TaskOutcome{.success = false, .error_message = e.what()};
+            } catch (...) {
+                std::cerr << lp << ": Handler threw unknown exception for task "
+                          << package.task_id() << "\n";
+                outcome = TaskOutcome{.success = false, .error_message = "unknown exception"};
+            }
             if (!outcome.has_value()) {
                 continue;
             }
