@@ -346,6 +346,15 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 	}
 }
 
+// relativePathEscapesRoot is true for cleaned relative paths that step outside
+// their base directory (".." or "../..."). Segment names like "..foo" are allowed.
+func relativePathEscapesRoot(clean string) bool {
+	if clean == ".." {
+		return true
+	}
+	return strings.HasPrefix(clean, ".."+string(filepath.Separator))
+}
+
 func (s *Server) translateLocalPath(uri string) (string, error) {
 	if s.localStorageBase == "" {
 		return uri, nil
@@ -368,7 +377,7 @@ func (s *Server) translateLocalPath(uri string) (string, error) {
 		rel, _ := filepath.Rel(hostDataPath, uri)
 		// SECURITY: Clean the path and prevent traversal
 		cleanRel := filepath.Clean(rel)
-		if strings.HasPrefix(cleanRel, "..") {
+		if relativePathEscapesRoot(cleanRel) {
 			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
 		}
 
@@ -379,7 +388,7 @@ func (s *Server) translateLocalPath(uri string) (string, error) {
 	if trimmed, hasPrefix := strings.CutPrefix(uri, "data/"); hasPrefix {
 		// SECURITY: Clean the path and prevent traversal
 		cleanTrimmed := filepath.Clean(trimmed)
-		if strings.HasPrefix(cleanTrimmed, "..") || strings.HasPrefix(cleanTrimmed, "/") {
+		if relativePathEscapesRoot(cleanTrimmed) || strings.HasPrefix(cleanTrimmed, "/") {
 			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
 		}
 		return filepath.Join(s.localStorageBase, cleanTrimmed), nil
@@ -393,7 +402,7 @@ func (s *Server) translateLocalPath(uri string) (string, error) {
 		if cleanRel == "." || cleanRel == "" {
 			return "", fmt.Errorf("[ERROR]: Invalid empty relative path")
 		}
-		if strings.HasPrefix(cleanRel, "..") {
+		if relativePathEscapesRoot(cleanRel) {
 			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri)
 		}
 		return filepath.Join(s.localStorageBase, cleanRel), nil

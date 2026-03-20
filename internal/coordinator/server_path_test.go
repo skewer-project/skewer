@@ -56,3 +56,23 @@ func TestTranslateLocalPath_EmptyBasePassthrough(t *testing.T) {
 		t.Fatalf("got %q", out)
 	}
 }
+
+func TestTranslateLocalPath_DotDotFooSegmentAllowed(t *testing.T) {
+	s := &Server{localStorageBase: "/data"}
+	out, err := s.translateLocalPath("..foo/bar.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join("/", "data", "..foo", "bar.json")
+	if out != want {
+		t.Fatalf("got %q want %q", out, want)
+	}
+}
+
+func TestTranslateLocalPath_ParentTraversalBlocked(t *testing.T) {
+	s := &Server{localStorageBase: "/data"}
+	_, err := s.translateLocalPath("../outside.json")
+	if err == nil {
+		t.Fatal("expected error for path traversal")
+	}
+}
