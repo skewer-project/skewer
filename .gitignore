@@ -24,6 +24,7 @@ compile_commands.json
 objects/
 scenes/
 images/
+renders/
 
 # generated images
 *.exr
