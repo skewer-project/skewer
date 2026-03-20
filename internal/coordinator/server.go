@@ -428,6 +428,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			NoiseThreshold: job.GetNoiseThreshold(),
 			MinSamples:     job.GetMinSamples(),
 			AdaptiveStep:   job.GetAdaptiveStep(),
+			MaxSamples:     job.GetMaxSamples(),
 		}
 
 		if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {

@@ -214,7 +214,7 @@ func (*SubmitJobRequest_CompositeJob) isSubmitJobRequest_JobType() {}
 type RenderJob struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	SceneUri        string                 `protobuf:"bytes,1,opt,name=scene_uri,json=sceneUri,proto3" json:"scene_uri,omitempty"`
-	TotalSamples    int32                  `protobuf:"varint,2,opt,name=total_samples,json=totalSamples,proto3" json:"total_samples,omitempty"`           // number of rays shot per pixel e.g., 1024
+	MaxSamples      int32                  `protobuf:"varint,2,opt,name=max_samples,json=maxSamples,proto3" json:"max_samples,omitempty"`                 // max number of rays shot per pixel e.g., 1024
 	OutputUriPrefix string                 `protobuf:"bytes,3,opt,name=output_uri_prefix,json=outputUriPrefix,proto3" json:"output_uri_prefix,omitempty"` // gs://bucket/renders/smoke/
 	EnableDeep      bool                   `protobuf:"varint,4,opt,name=enable_deep,json=enableDeep,proto3" json:"enable_deep,omitempty"`
 	Threads         int32                  `protobuf:"varint,5,opt,name=threads,proto3" json:"threads,omitempty"`
@@ -264,9 +264,9 @@ func (x *RenderJob) GetSceneUri() string {
 	return ""
 }
 
-func (x *RenderJob) GetTotalSamples() int32 {
+func (x *RenderJob) GetMaxSamples() int32 {
 	if x != nil {
-		return x.TotalSamples
+		return x.MaxSamples
 	}
 	return 0
 }
@@ -780,6 +780,7 @@ type RenderTask struct {
 	NoiseThreshold float32 `protobuf:"fixed32,7,opt,name=noise_threshold,json=noiseThreshold,proto3" json:"noise_threshold,omitempty"`
 	MinSamples     int32   `protobuf:"varint,8,opt,name=min_samples,json=minSamples,proto3" json:"min_samples,omitempty"`
 	AdaptiveStep   int32   `protobuf:"varint,9,opt,name=adaptive_step,json=adaptiveStep,proto3" json:"adaptive_step,omitempty"`
+	MaxSamples     int32   `protobuf:"varint,10,opt,name=max_samples,json=maxSamples,proto3" json:"max_samples,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -873,6 +874,13 @@ func (x *RenderTask) GetMinSamples() int32 {
 func (x *RenderTask) GetAdaptiveStep() int32 {
 	if x != nil {
 		return x.AdaptiveStep
+	}
+	return 0
+}
+
+func (x *RenderTask) GetMaxSamples() int32 {
+	if x != nil {
+		return x.MaxSamples
 	}
 	return 0
 }
@@ -1103,10 +1111,11 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"render_job\x18\a \x01(\v2#.api.proto.coordinator.v1.RenderJobH\x00R\trenderJob\x12M\n" +
 	"\rcomposite_job\x18\b \x01(\v2&.api.proto.coordinator.v1.CompositeJobH\x00R\fcompositeJobB\n" +
 	"\n" +
-	"\bjob_type\"\xa3\x02\n" +
+	"\bjob_type\"\x9f\x02\n" +
 	"\tRenderJob\x12\x1b\n" +
-	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12#\n" +
-	"\rtotal_samples\x18\x02 \x01(\x05R\ftotalSamples\x12*\n" +
+	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12\x1f\n" +
+	"\vmax_samples\x18\x02 \x01(\x05R\n" +
+	"maxSamples\x12*\n" +
 	"\x11output_uri_prefix\x18\x03 \x01(\tR\x0foutputUriPrefix\x12\x1f\n" +
 	"\venable_deep\x18\x04 \x01(\bR\n" +
 	"enableDeep\x12\x18\n" +
@@ -1148,7 +1157,7 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\vrender_task\x18\x04 \x01(\v2$.api.proto.coordinator.v1.RenderTaskH\x00R\n" +
 	"renderTask\x12P\n" +
 	"\x0ecomposite_task\x18\x05 \x01(\v2'.api.proto.coordinator.v1.CompositeTaskH\x00R\rcompositeTaskB\t\n" +
-	"\apayload\"\xa0\x02\n" +
+	"\apayload\"\xc1\x02\n" +
 	"\n" +
 	"RenderTask\x12\x1b\n" +
 	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12\x14\n" +
@@ -1162,7 +1171,10 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\x0fnoise_threshold\x18\a \x01(\x02R\x0enoiseThreshold\x12\x1f\n" +
 	"\vmin_samples\x18\b \x01(\x05R\n" +
 	"minSamples\x12#\n" +
-	"\radaptive_step\x18\t \x01(\x05R\fadaptiveStep\"{\n" +
+	"\radaptive_step\x18\t \x01(\x05R\fadaptiveStep\x12\x1f\n" +
+	"\vmax_samples\x18\n" +
+	" \x01(\x05R\n" +
+	"maxSamples\"{\n" +
 	"\rCompositeTask\x12\x1d\n" +
 	"\n" +
 	"layer_uris\x18\x01 \x03(\tR\tlayerUris\x12\x14\n" +
