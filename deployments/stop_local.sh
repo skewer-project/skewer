@@ -3,7 +3,7 @@
 echo "Stopping Skewer local cluster..."
 
 # Move to the project root directory
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 # Function to safely delete resources if they exist
 delete_resources() {

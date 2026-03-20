@@ -32,6 +32,13 @@ func (d *DAG) AddNode(node Node) {
 	d.nodes[node.ID()] = node
 }
 
+func (d *DAG) RemoveNode(nodeID string) {
+	delete(d.nodes, nodeID)
+	delete(d.deps, nodeID)
+	// We don't strictly need to clean up successors,
+	// as long as the node is gone from the main maps.
+}
+
 // Add a dependency where "from" depends on "to"
 func (d *DAG) AddDependency(from, to Node) {
 	d.deps[from.ID()] = append(d.deps[from.ID()], to.ID())

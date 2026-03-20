@@ -17,6 +17,9 @@ spec:
     spec:
       containers:
         - name: worker
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
           # NOTE: Replace this with Google Artifact Registry URI
           image: loom-worker:latest
           imagePullPolicy: IfNotPresent

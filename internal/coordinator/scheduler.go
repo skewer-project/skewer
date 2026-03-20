@@ -55,7 +55,7 @@ func (s *Scheduler) EnqueueTask(payload any, jobID string, frameID string) (stri
 		s.skewerQueue <- task
 		return taskID, nil
 
-	case *pb.MergeTask, *pb.CompositeTask:
+	case *pb.CompositeTask:
 		s.loomQueue <- task
 		return taskID, nil
 
@@ -165,7 +165,7 @@ func (s *Scheduler) RequeueTask(taskID string) {
 				fmt.Printf("[SCHEDULER] Requeued Skewer task %s\n", t.ID)
 
 			// Route to Loom Queue
-			case *pb.MergeTask, *pb.CompositeTask:
+			case *pb.CompositeTask:
 				s.loomQueue <- t
 				fmt.Printf("[SCHEDULER] Requeued Loom task %s\n", t.ID)
 			}
@@ -209,7 +209,7 @@ func (s *Scheduler) GetActiveTaskCounts() map[string]int {
 		switch task.Payload.(type) {
 		case *pb.RenderTask:
 			counts["skewer"]++
-		case *pb.MergeTask, *pb.CompositeTask:
+		case *pb.CompositeTask:
 			counts["loom"]++
 		}
 	}
@@ -272,7 +272,7 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 			s.skewerQueue <- task
 			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", task.ID, task.Retries)
 
-		case *pb.MergeTask, *pb.CompositeTask:
+		case *pb.CompositeTask:
 			s.loomQueue <- task
 			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", task.ID, task.Retries)
 		}
@@ -291,30 +291,26 @@ func (s *Scheduler) PurgeJobTasks(jobID string) error {
 	}
 
 	// Helper to filter tasks for a given job ID out of a queue channel.
+	// The safest way to filter a channel is to separate good ones and purge in place.
 	filterQueue := func(ch chan *Task, jobID string) {
+		var kept []*Task
 
-		// Iterate to current length of ch
-		qLen := len(ch)
-		for i := 0; i < qLen; i++ {
+		// Drain everything from channel and keep track of tasks to keep
+	DrainLoop:
+		for len(ch) > 0 {
 			select {
 			case task := <-ch:
-				if task == nil {
-					// Keep in case it's being used as sentinel or signal
-					ch <- task
-					continue
+				if task != nil && task.JobID != jobID {
+					kept = append(kept, task) // Keep tasks from other jobs
 				}
-				if task.JobID == jobID {
-					// Drop task for job and don't reenqueue
-					continue
-				}
-
-				// Reenqueue any other tasks
-				ch <- task
-
-			default:
-				// Queue is empty
-				return
+			default: // Channel drained by worker in meantime
+				break DrainLoop
 			}
+		}
+
+		// Put kept tasks back into the channel
+		for _, task := range kept {
+			ch <- task
 		}
 	}
 

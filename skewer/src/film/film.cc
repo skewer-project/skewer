@@ -172,7 +172,8 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
     if (input.empty()) return input;
 
     std::vector<DeepSample> merged;
-    merged.reserve(input.size() / 4);
+    size_t reserve_size = std::max<size_t>(1, input.size() / 4);
+    merged.reserve(reserve_size);
 
     DeepSample current = input[0];
 

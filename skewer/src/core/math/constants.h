@@ -1,6 +1,7 @@
 #ifndef SKWR_CORE_MATH_CONSTANTS_H_
 #define SKWR_CORE_MATH_CONSTANTS_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 
