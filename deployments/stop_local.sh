@@ -12,7 +12,7 @@ delete_resources() {
         echo "Cleaning up resources from $file..."
         # We pipe through sed to handle the same placeholder logic as the deploy script
         # though for deletion, the exact path doesn't usually matter for the selector
-        sed "s|{{SKEWER_DATA_PATH}}|$(pwd)/data|g" "$file" | kubectl delete --ignore-not-found -f -
+        sed "s|{{SKEWER_DATA_PATH}}|$(pwd)|g" "$file" | kubectl delete --ignore-not-found -f -
     fi
 }
 
@@ -23,4 +23,4 @@ delete_resources "deployments/k8s/coordinator.yaml"
 
 echo "-----------------------------------"
 echo "All Kubernetes resources removed."
-echo "Note: Your local 'data/' directory remains untouched."
+echo "Note: Your local repository tree (scenes, renders, etc.) remains untouched."
