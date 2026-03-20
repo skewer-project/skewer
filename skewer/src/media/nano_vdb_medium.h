@@ -4,11 +4,86 @@
 #include <nanovdb/NanoVDB.h>
 #include <nanovdb/util/IO.h>
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
 #include "geometry/boundbox.h"
 
 namespace skwr {
+
+// RAII (Resource Acquisition Is Initialization) wrapper for zero-copy memory mapped files
+class MappedFile {
+    public:
+    MappedFile() : data_(nullptr), size_(0) {}
+
+    // Disable copying (Exclusive Ownership)
+    MappedFile(const MappedFile&) = delete;
+    MappedFile& operator=(const MappedFile&) = delete;
+
+    // Enable moving
+    MappedFile(MappedFile&& other) noexcept : data_(other.data_), size_(other.size_) {
+        other.data_ = nullptr;
+        other.size_ = 0;
+    }
+
+    MappedFile& operator=(MappedFile&& other) noexcept {
+        if (this != &other) {
+            Unmap();
+            data_ = other.data_;
+            size_ = other.size_;
+            other.data_ = nullptr;
+            other.size_ = 0;
+        }
+        return *this;
+    }
+
+    ~MappedFile() { Unmap(); }
+
+    // Maps a file into memory using mmap.
+    bool Map(const std::string& filepath) {
+        Unmap();
+        int fd = open(filepath.c_str(), O_RDONLY);
+        if (fd < 0) return false;
+
+        // Gather stat information about the file to get size
+        struct stat st;
+        fstat(fd, &st);
+        size_ = st.st_size;
+
+        data_ = mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd, 0);
+        close(fd);
+
+        if (data_ == MAP_FAILED) {
+            data_ = nullptr;
+            size_ = 0;
+            return false;
+        }
+
+        return true;
+    }
+
+    void* GetData() const { return data_; }
+    size_t GetSize() const { return size_; }
+
+    private:
+    // Unmaps the current data, if any. Called by destructor and move assignment.
+    void Unmap() {
+        if (data_ && data_ != MAP_FAILED) {
+            munmap(data_, size_);
+            data_ = nullptr;
+            size_ = 0;
+        }
+    }
+
+    void* data_;
+    size_t size_;
+
+};
+
 
 /**
  * Safe per-thread accessor lookup for cache coherence
@@ -28,6 +103,8 @@ struct NanoVDBMedium {
     float max_density = 1.0f;
     float density_multiplier = 1.0f;
 
+    MappedFile mapped_file;
+
     // The contiguous memory buffer holding the VDB data
     nanovdb::GridHandle<> handle;
     const nanovdb::FloatGrid* grid = nullptr;
@@ -43,10 +120,25 @@ struct NanoVDBMedium {
 
     bool Load(const std::string& filepath) {
         if (scale == 0.0f || density_multiplier < 0.0f) return false;
+
+        // Map file directly into virtual memory
+        if (!mapped_file.Map(filepath)) {
+            std::cerr << "Failed to mmap NanoVDB: " << filepath << "\n";
+            return false;
+        }
+
         try {
-            handle = nanovdb::io::readGrid(filepath);
+            // Wrap the mapped pointer in a non-owning NanoVDB HostBuffer
+            auto buffer = nanovdb::HostBuffer::createFull(mapped_file.GetSize(), mapped_file.GetData());
+
+            // Create the handle and extract pointers
+            handle = nanovdb::GridHandle<>(std::move(buffer));
             grid = handle.grid<float>();
-            if (!grid) return false;
+
+            if (!grid) {
+                std::cerr << "NanoVDB Grid is not a 32-bit float grid.\n";
+                return false;
+            }
 
             tree = &grid->tree();
 
@@ -74,7 +166,7 @@ struct NanoVDBMedium {
 
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "Failed to load NanoVDB: " << e.what() << "\n";
+            std::cerr << "Failed to parse mapped NanoVDB: " << e.what() << "\n";
             return false;
         }
     }
