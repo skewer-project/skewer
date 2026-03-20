@@ -45,7 +45,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
         grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
     std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
 
-    // Cooldown timer before acquireing stream again on retry
+    // Cooldown timer before acquiring stream again on retry
     int backoff_ms = 100;
     const int max_backoff_ms = 30000;  // 30 seconds max
 
