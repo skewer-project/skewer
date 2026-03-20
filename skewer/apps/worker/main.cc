@@ -103,8 +103,8 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 }
                 if (task.max_samples() > 0) {
                     session.Options().integrator_config.max_samples = task.max_samples();
-                    std::cout << "[SKEWER]: Overriding JSON samples with: "
-                        << task.max_samples() << "\n";
+                    std::cout << "[SKEWER]: Overriding JSON samples with: " << task.max_samples()
+                              << "\n";
                 }
 
                 session.Options().integrator_config.num_threads = task_threads;
