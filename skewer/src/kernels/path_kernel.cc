@@ -75,7 +75,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
         float vertex_alpha = 1.0f;
 
         if (r.vol_stack().GetActiveMedium() != 0) {
-            scatter_medium = SampleMedium(r, scene, t_max, rng, beta, &mi);
+            scatter_medium = SampleMedium(r, scene, t_max, rng, beta, &mi, wl);
         }
         // vol dispatch, sample medium with t_surface as upper bound
         if (scatter_medium) {

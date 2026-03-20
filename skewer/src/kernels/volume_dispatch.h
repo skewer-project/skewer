@@ -11,7 +11,7 @@ class Ray;
 class RNG;
 
 bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spectrum& beta,
-                  MediumInteraction* mi);
+                  MediumInteraction* mi, const SampledWavelengths& wl);
 
 }  // namespace skwr
 

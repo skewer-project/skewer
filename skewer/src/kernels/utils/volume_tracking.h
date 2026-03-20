@@ -7,13 +7,17 @@
 namespace skwr {
 
 struct GridMedium;
+struct NanoVDBMedium;
 class Scene;
 class Ray;
 class RNG;
 
-Spectrum CalculateGridTransmittance(const GridMedium& medium, const Ray& shadow_ray, float dist,
-                                    RNG& rng);
-Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray, float dist);
+Spectrum CalculateGridTransmittance(const GridMedium& medium, RNG& rng, const Ray& shadow_ray,
+                                    float dist);
+Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray, float dist,
+                                const SampledWavelengths& wl);
+Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const Ray& shadow_ray,
+                                       float dist, const SampledWavelengths& wl);
 float EvalHenyeyGreenstein(float g, const Vec3& wo, const Vec3& wi);
 void SampleHenyeyGreenstein(float g, const Vec3& wo, float u1, float u2, Vec3& wi);
 
