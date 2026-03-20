@@ -12,8 +12,8 @@
 #include "core/spectral/spectrum.h"
 #include "core/transport/deep_path_recorder.h"
 #include "core/transport/medium_interaction.h"
-#include "core/transport/path_sample.h"
 #include "core/transport/surface_interaction.h"
+#include "film/sample_writer.h"
 #include "kernels/utils/direct_lighting.h"
 #include "kernels/utils/visibility.h"
 #include "kernels/utils/volume_tracking.h"
@@ -47,9 +47,8 @@ namespace skwr {
  *
  * |- Deferred Deep Output pass
  */
-PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
-              const SampledWavelengths& wl) {
-    PathSample result;
+void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
+        const SampledWavelengths& wl, SampleWriter& writer) {
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
     Ray r = ray;
@@ -277,10 +276,9 @@ PathSample Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConf
         dpr.UpdateBSDFWeight(beta, current_beta);
     }
 
-    dpr.ResolveToDeep(result, ray, config.cam_w, wl);
-    result.L = L;
-    result.alpha = 1.0f;  // TODO: alpha accumulation in loop
-    return result;
+    dpr.ResolveToDeep(writer, ray, config.cam_w, wl);
+    writer.WriteBeauty(SpectrumToRGB(L, wl), 1.0f);  // TODO: alpha accumulation in loop
+    writer.FlushDeepSegments();
 }
 
 }  // namespace skwr

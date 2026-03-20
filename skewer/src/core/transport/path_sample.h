@@ -6,6 +6,10 @@
 #include "core/spectral/spectrum.h"
 #include "core/transport/deep_segment.h"
 
+/**
+ * This is deprecated as of the SampleWriter class implementation
+ */
+
 namespace skwr {
 
 struct PathSample {

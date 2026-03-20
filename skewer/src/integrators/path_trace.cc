@@ -7,10 +7,9 @@
 #include "barkeep.h"
 #include "core/sampling/sampling.h"
 #include "core/sampling/wavelength_sampler.h"
-#include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
-#include "core/transport/path_sample.h"
 #include "film/film.h"
+#include "film/sample_writer.h"
 #include "kernels/path_kernel.h"
 #include "scene/camera.h"
 #include "scene/light.h"
@@ -76,57 +75,37 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
             for (int y = y0; y < y1; ++y) {
                 for (int x = x0; x < x1; ++x) {
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
-                    const int max_s = config.max_samples;
 
-                    if (is_adaptive) {
-                        // Countdown avoids modulo (integer division) on the hotpath.
-                        int next_check = min_s;
-                        uint16_t global_med = scene.GetGlobalMedium();
-                        for (int s = 0; s < max_s; ++s) {
-                            float u = (float(x) + rng.UniformFloat()) / width;
-                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
-                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
-                            Ray r = cam.GetRay(u, v, rng);
-                            if (global_med != 0) {
-                                // Global medium usually has priority 0 so bounded media can
-                                // override it
-                                r.vol_stack().Push(global_med, 0);
-                            }
-                            PathSample result = Li(r, scene, rng, config, wl);
-                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
+                    uint16_t global_med = scene.GetGlobalMedium();
+                    int next_check = min_s;
+                    int samples_taken = 0;
 
-                            film->AddAdaptiveSample(x, y, pixel_color, result.alpha, 1.0f);
-                            if (config.enable_deep) film->AddDeepSample(x, y, result);
+                    for (int s = 0; s < config.max_samples; ++s) {
+                        float u = (float(x) + rng.UniformFloat()) / width;
+                        float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
 
-                            if (s + 1 == next_check) {
-                                if (film->IsPixelConverged(x, y, config.noise_threshold)) {
-                                    tile_samples += s + 1;
-                                    goto next_pixel;
-                                }
-                                next_check += step;
-                            }
+                        SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
+                        Ray r = cam.GetRay(u, v, rng);
+
+                        if (global_med != 0) {
+                            // Global medium usually has priority 0 so bounded media can override it
+                            r.vol_stack().Push(global_med, 0);
                         }
-                    } else {
-                        uint16_t global_med = scene.GetGlobalMedium();
-                        for (int s = 0; s < max_s; ++s) {
-                            float u = (float(x) + rng.UniformFloat()) / width;
-                            float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
-                            SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
-                            Ray r = cam.GetRay(u, v, rng);
-                            if (global_med != 0) {
-                                // Global medium usually has priority 0 so bounded media can
-                                // override it
-                                r.vol_stack().Push(global_med, 0);
-                            }
-                            PathSample result = Li(r, scene, rng, config, wl);
-                            RGB pixel_color = SpectrumToRGB(result.L, wl) * result.alpha;
 
-                            film->AddSample(x, y, pixel_color, result.alpha, 1.0f);
-                            if (config.enable_deep) film->AddDeepSample(x, y, result);
+                        SampleWriter writer(film, x, y, 1.0f, is_adaptive, config.enable_deep);
+
+                        Li(r, scene, rng, config, wl, writer);
+
+                        samples_taken++;
+
+                        if (is_adaptive && samples_taken == next_check) {
+                            if (film->IsPixelConverged(x, y, config.noise_threshold)) {
+                                break;
+                            }
+                            next_check += step;
                         }
                     }
-                    tile_samples += config.max_samples;
-                next_pixel:;
+                    tile_samples += samples_taken;
                 }
             }
 
