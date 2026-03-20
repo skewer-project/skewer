@@ -1,6 +1,3 @@
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
-
 #include <OpenEXR/ImfChannelList.h>
 #include <OpenEXR/ImfDeepFrameBuffer.h>
 #include <OpenEXR/ImfDeepScanLineInputFile.h>
@@ -8,8 +5,6 @@
 #include <OpenEXR/ImfInputFile.h>
 #include <OpenEXR/ImfMultiPartInputFile.h>
 #include <OpenEXR/ImfPartType.h>
-
-#pragma clang diagnostic pop
 
 #include <exrio/deep_reader.h>
 #include <exrio/utils.h>
