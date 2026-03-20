@@ -9,7 +9,9 @@
 #include <vector>
 
 #include "core/color/color.h"
-#include "core/transport/path_sample.h"
+#include "core/containers/bounded_array.h"
+#include "core/cpu_config.h"
+#include "core/transport/deep_segment.h"
 #include "film/deep_segment_pool.h"
 #include "film/image_buffer.h"
 
@@ -38,7 +40,7 @@ class Film {
     // convergence check, should called every adaptive_step samples.
     bool IsPixelConverged(int x, int y, float noise_threshold) const;
 
-    void AddDeepSample(int x, int y, const PathSample& path_sample);
+    void AddDeepSample(int x, int y, const BoundedArray<DeepSegment, kMaxDeepSegments>& segments);
 
     // Saves to disk (PNG, EXR)
     void WriteImage(const std::string& filename) const;
