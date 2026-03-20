@@ -61,6 +61,9 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
     bool is_camera_path = true;
     float prev_scatter_pdf = 1.0f;  // pdf of previous bounce (for directional MIS)
 
+    bool saw_visible = false;
+    int vis_checks = 0;
+
     for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
         SurfaceInteraction si;
         MediumInteraction mi;
@@ -79,6 +82,10 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
         // vol dispatch, sample medium with t_surface as upper bound
         if (scatter_medium) {
             ray_t += mi.t;
+            if (config.transparent_background && vis_checks < config.visibility_depth) {
+                vis_checks++;
+                saw_visible = true;  // Participating media contribute layer coverage
+            }
 
             /* Volume Next Event Estimation (Direct Lighting) */
             DirectLightSample dls;
@@ -144,6 +151,10 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             }
 
             const Material& mat = scene.GetMaterial(si.material_id);
+            if (config.transparent_background && vis_checks < config.visibility_depth) {
+                vis_checks++;
+                if (mat.visible) saw_visible = true;
+            }
             ShadingData sd = ResolveShadingData(mat, si, scene);
 
             // Lazy Evaluation
@@ -253,6 +264,10 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 break;
             }
         } else {
+            if (config.transparent_background && vis_checks < config.visibility_depth) {
+                vis_checks++;
+                // Environment hit = no visible object along this path segment
+            }
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
             dpr.AppendVertex(kFarClip, kFarClip, env_L, 1.0f, is_camera_path, false);
             L += env_L * current_beta;
@@ -272,7 +287,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
     }
 
     dpr.ResolveToDeep(writer, ray, config.cam_w, wl);
-    writer.WriteBeauty(SpectrumToRGB(L, wl), 1.0f);  // TODO: alpha accumulation in loop
+    const float out_alpha = (config.transparent_background && !saw_visible) ? 0.0f : 1.0f;
+    writer.WriteBeauty(SpectrumToRGB(L, wl), out_alpha);
     writer.FlushDeepSegments();
 }
 
