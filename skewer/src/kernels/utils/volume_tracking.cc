@@ -67,7 +67,7 @@ Spectrum CalculateGridTransmittance(const GridMedium& medium, RNG& rng, const Ra
 Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const Ray& shadow_ray,
                                        float dist, const SampledWavelengths& wl) {
     float t_min_box = 0.0f;
-    float t_max_box = kInfinity;
+    float t_max_box = MathConstants::kFloatInfinity;
     if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
 
     float t_min = std::max(0.0f, t_min_box);
@@ -87,7 +87,7 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, co
     NanoVDBAccessor acc(*medium.tree);
 
     while (true) {
-        t += -std::log(std::max(1.0f - rng.UniformFloat(), kEpsilon)) / majorant;
+        t += -std::log(std::max(1.0f - rng.UniformFloat(), Numeric::kFloatEpsilon)) / majorant;
         if (t >= t_max) break;
 
         // FETCH FROM VDB
