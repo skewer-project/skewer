@@ -385,6 +385,20 @@ func (s *Server) translateLocalPath(uri string) (string, error) {
 		return filepath.Join(s.localStorageBase, cleanTrimmed), nil
 	}
 
+	// Repo-relative paths (e.g. scenes/foo.json): workspace root is mounted at
+	// localStorageBase (/data in Kubernetes). Without this, workers see a bare
+	// relative path and resolve it from process CWD (/) and the task fails.
+	if !filepath.IsAbs(uri) {
+		cleanRel := filepath.Clean(uri)
+		if cleanRel == "." || cleanRel == "" {
+			return "", fmt.Errorf("[ERROR]: Invalid empty relative path")
+		}
+		if strings.HasPrefix(cleanRel, "..") {
+			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri)
+		}
+		return filepath.Join(s.localStorageBase, cleanRel), nil
+	}
+
 	return uri, nil
 }
 
@@ -398,6 +412,9 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 		sceneUri, err := s.translateLocalPath(job.GetSceneUri())
 		if err != nil {
 			return err
+		}
+		if frameID == 0 {
+			log.Printf("[COORDINATOR] Scene path: raw=%q -> worker=%q", job.GetSceneUri(), sceneUri)
 		}
 
 		// Replace #### with padded frame ID if it exists in the scene URI
