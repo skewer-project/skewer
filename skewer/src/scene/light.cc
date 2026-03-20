@@ -11,7 +11,7 @@ float LightPdfArea(const Scene& scene, int light_index) {
 
     if (light.type == AreaLight::Sphere) {
         const Sphere& s = scene.Spheres()[light.primitive_index];
-        float area = 4.0f * kPi * s.radius * s.radius;
+        float area = 4.0f * MathConstants::kPi * s.radius * s.radius;
         return 1.0f / area;
     } else if (light.type == AreaLight::Triangle) {
         const Triangle& t = scene.Triangles()[light.primitive_index];

@@ -1,12 +1,14 @@
 #ifndef SKWR_CORE_MATH_CONSTANTS_H_
 #define SKWR_CORE_MATH_CONSTANTS_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 
 namespace skwr {
 
-constexpr float kInfinity = std::numeric_limits<float>::max();
+namespace MathConstants {
+constexpr float kFloatInfinity = std::numeric_limits<float>::max();
 constexpr float kPi = 3.1415926535897932385f;
 constexpr float kInvPi = 0.31830988618379067154f;
 constexpr uint64_t kGoldenRatio = 0x9E3779B97F4A7C15ULL;
@@ -16,19 +18,21 @@ constexpr uint64_t kGoldenRatio = 0x9E3779B97F4A7C15ULL;
 static constexpr float kOneMinusEpsilon = 0x1.fffffep-1;
 // OR simpler C++ style:
 // static constexpr float OneMinusEpsilon = 1.0f - std::numeric_limits<float>::epsilon();
+}  // namespace MathConstants
 
-constexpr float kEpsilon = std::numeric_limits<float>::epsilon();
-constexpr float kShadowEpsilon = 0.001f;
-constexpr float kBoundEpsilon = 0.0001f;
-constexpr float kZeroEpsilon = 1e-8f;
+namespace Numeric {
+constexpr float kFloatEpsilon = std::numeric_limits<float>::epsilon();
+constexpr float kNearZeroEpsilon = 1e-8f;
+}  // namespace Numeric
+
+namespace RenderConstants {
+constexpr float kRayOffsetEpsilon = 1e-3f;
+constexpr float kBoundsEpsilon = 1e-4f;
 constexpr float kFarClip = 1e10f;
-
 constexpr float kIsotropicPhaseEpsilon = 1e-3f;
-
-inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
-
 // amount of DeepSegmentNodes in one chunk in the DeepSegmentPool
 static constexpr std::size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28 MB)
+}  // namespace RenderConstants
 
 namespace Rec709 {
 constexpr float kWeightRed = 0.2126f;

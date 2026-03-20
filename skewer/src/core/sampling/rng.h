@@ -53,7 +53,7 @@ class RNG {
         // Multiplies by 1.0 / 2^32
         // 0x1p-32f is a hex constant for 1.0 / 2^32
         // OneMinusEpsilon prevents returning 1.0f bug (rare but possible)
-        return std::min(float(UniformUInt32() * 0x1p-32f), float(kOneMinusEpsilon));
+        return std::min(float(UniformUInt32() * 0x1p-32f), float(MathConstants::kOneMinusEpsilon));
     }
 
   private:
