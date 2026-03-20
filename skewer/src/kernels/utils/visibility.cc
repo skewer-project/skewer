@@ -23,7 +23,7 @@ Spectrum EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& r
                             remaining_dist - 2.0f * RenderConstants::kRayOffsetEpsilon,
                             &shadow_si)) {
             // Accumulate volume transmittance through the current medium up to the hit
-            Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t);
+            Tr *= CalculateTransmittance(scene, rng, shadow_ray, shadow_si.t, wl);
 
             // Transport policy (update if it crosses boundary)
             if (shadow_si.interior_medium != shadow_si.exterior_medium) {
@@ -63,7 +63,7 @@ Spectrum EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& r
             remaining_dist -= shadow_si.t;
             if (remaining_dist <= 0.0f) break;
         } else {
-            Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist);
+            Tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist, wl);
             break;
         }
     }

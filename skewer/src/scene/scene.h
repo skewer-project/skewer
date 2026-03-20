@@ -13,6 +13,7 @@
 #include "materials/material.h"
 #include "materials/texture.h"
 #include "media/mediums.h"
+#include "media/nano_vdb_medium.h"
 #include "scene/light.h"
 
 namespace skwr {
@@ -31,6 +32,7 @@ class Scene {
     uint32_t AddTexture(ImageTexture&& t);  // Returns texture_id
     uint16_t AddHomogeneousMedium(const HomogeneousMedium& m);
     uint16_t AddGridMedium(const GridMedium& m);
+    uint16_t AddNanoVDBMedium(NanoVDBMedium m);  // Move f(std::move(m)) or  Pass by copy f(m)
     void SetGlobalMedium(uint16_t medium_id) { global_medium_id_ = medium_id; }
     uint16_t GetGlobalMedium() const { return global_medium_id_; }
 
@@ -45,6 +47,7 @@ class Scene {
     const std::vector<AreaLight>& Lights() const { return lights_; }
     const std::vector<HomogeneousMedium>& homogeneous_media() const { return homogeneous_media_; }
     const std::vector<GridMedium>& grid_media() const { return grid_media_; }
+    const std::vector<NanoVDBMedium>& nanovdb_media() const { return nanovdb_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
 
     void Build();  // Construct the BVH from the shapes list
@@ -63,7 +66,7 @@ class Scene {
     std::vector<AreaLight> lights_;
     std::vector<HomogeneousMedium> homogeneous_media_;
     std::vector<GridMedium> grid_media_;
-    // std::vector<NanoVDBMedium> nanovdb_media_; // TODO
+    std::vector<NanoVDBMedium> nanovdb_media_;
     BVH bvh_;
     float inv_light_count_;
     uint16_t global_medium_id_ = 0;  // 0 represents Vacuum
