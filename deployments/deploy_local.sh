@@ -97,10 +97,11 @@ if [ "$RUNTIME" == "minikube" ]; then
     minikube image load skewer-coordinator:latest
 fi
 
-# Resolve the absolute path of the data directory for hostPath mounting
+# Mount the repository root at /data in containers. CLI paths use a logical "data/"
+# prefix (e.g. data/scenes/foo.json → repo/scenes/foo.json on the host).
 # Note: On Mac, /Users/ is shared with the VM by default in both Minikube and OrbStack.
-SKEWER_DATA_PATH="$(pwd)/data"
-echo "Mapping local data directory: ${SKEWER_DATA_PATH}"
+SKEWER_DATA_PATH="$(pwd)"
+echo "Mapping repository root for worker/coordinator storage: ${SKEWER_DATA_PATH}"
 
 # Apply the coordinator, skewer-worker, and loom-worker deployments with path injection
 # We use sed to replace the placeholder with the absolute path
