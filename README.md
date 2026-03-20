@@ -5,6 +5,13 @@ This repo contains the following projects:
 - `loom` - A deep compositor
 - `libs/exrio` - shared deep EXR helpers
 
+## Scene conversion (`tools/`)
+
+Python helpers for working with Blender and Skewer JSON:
+
+- [`tools/blender_to_skewer/`](tools/blender_to_skewer/) — run `blender_export.py` inside Blender to export to Skewer scene JSON.
+- [`tools/skewer_to_blend/`](tools/skewer_to_blend/) — run `convert.py` with Blender’s CLI to build a `.blend` from a Skewer JSON scene.
+
 ## Prerequisites
 
 - CMake 3.21+
