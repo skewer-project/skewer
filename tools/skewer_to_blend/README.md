@@ -1,6 +1,6 @@
 # Skewer -> Blender scene converter
 
-A tool to convert `skewer` scene configs into blender files.
+A tool to convert `skewer` scene configs into Blender files.
 
 Usage:
 
