@@ -5,7 +5,6 @@
 #include <OpenEXR/ImfInputFile.h>
 #include <OpenEXR/ImfMultiPartInputFile.h>
 #include <OpenEXR/ImfPartType.h>
-
 #include <exrio/deep_reader.h>
 #include <exrio/utils.h>
 

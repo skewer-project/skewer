@@ -4,7 +4,6 @@
 #include <OpenEXR/ImfHeader.h>
 #include <OpenEXR/ImfOutputFile.h>
 #include <OpenEXR/ImfPartType.h>
-
 #include <exrio/deep_writer.h>
 #include <exrio/utils.h>
 
