@@ -1,179 +1,93 @@
-#include <grpcpp/grpcpp.h>
+#include <coordinator_worker/worker_loop.h>
 
-#include <chrono>
-#include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <random>
+#include <optional>
 #include <string>
-#include <thread>
+#include <vector>
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
 #include "deep_info.h"
-#include "proto/coordinator/v1/coordinator.grpc.pb.h"
 #include "proto/coordinator/v1/coordinator.pb.h"
 
 using api::proto::coordinator::v1::CompositeTask;
-using api::proto::coordinator::v1::CoordinatorService;
-using api::proto::coordinator::v1::GetWorkStreamRequest;
-using api::proto::coordinator::v1::ReportTaskResultRequest;
-using api::proto::coordinator::v1::ReportTaskResultResponse;
 using api::proto::coordinator::v1::WorkPackage;
-using grpc::Channel;
-using grpc::ClientContext;
-using grpc::ClientReader;
-using grpc::Status;
 
-// Starts the loom worker loop.
-void RunLoomWorker(const std::string& coordinator_addr) {
-    // Generate a unique worker ID with time epoch and mersenne twister engine
-    std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(1000, 9999);
+namespace {
 
-    std::string worker_id =
-        "loom-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + "-" +
-        std::to_string(dis(gen));
+/// Load deep EXRs, composite, and write flat/deep outputs described by `task`.
+coordinator_worker::TaskOutcome RunCompositePipeline(const CompositeTask& task) {
+    coordinator_worker::TaskOutcome out;
+    out.success = true;
+    out.output_uri = task.output_uri();
 
-    std::cout << "[LOOM]: Starting worker loop, ID: " << worker_id << "\n";
-    std::cout << "[LOOM]: Coordinator Address: " << coordinator_addr << "\n";
+    std::vector<std::string> input_files(task.layer_uris().begin(), task.layer_uris().end());
 
-    // Open a channel to the coordinator
-    std::shared_ptr<Channel> channel =
-        grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
-    std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
+    std::cout << "[Loom] -> Composite Inputs (" << input_files.size() << " files):\n";
+    for (const auto& uri : input_files) {
+        std::cout << "  - " << uri << "\n";
+    }
 
-    // Cooldown timer before acquiring stream again on retry
-    int backoff_ms = 100;
-    const int max_backoff_ms = 30000;  // 30 seconds max
+    Options opts = {
+        input_files,
+        std::vector<float>{0},  // TODO: collect real input_z_offsets
+        "",                     // coordinator handles output prefixing and parsing
+    };
 
-    // Main registration loop with coordiantor
-    while (true) {
-        ClientContext context;
-        GetWorkStreamRequest request;
-        request.set_worker_id(worker_id);
-        request.add_capabilities("loom");
+    std::vector<std::unique_ptr<deep_compositor::DeepInfo>> images_info;
+    int load_rc = exrio::SaveImageInfo(opts, images_info);
+    if (load_rc == 1) {
+        out.success = false;
+        out.error_message = "Failed to load worker options";
+        return out;
+    }
 
-        std::unique_ptr<ClientReader<WorkPackage>> stream(stub->GetWorkStream(&context, request));
+    std::cout << "[Loom] -> Writing result to: " << out.output_uri << "\n";
 
-        // Loop to read work packages from the coordinator
-        WorkPackage package;
-        while (stream->Read(&package)) {
-            bool success = true;
-            std::string error_message = "";
-            std::string output_uri = "";
+    std::vector<float> final_image =
+        deep_compositor::ProcessAllEXR(opts, task.height(), task.width(), images_info);
+    exrio::WriteFlatOutputs(final_image, out.output_uri, opts.flat_output, opts.png_output,
+                            task.width(), task.height());
 
-            try {
-                if (package.has_composite_task()) {
-                    const CompositeTask& task = package.composite_task();
-                    output_uri = task.output_uri();
-                    std::cout << "[LOOM]: Starting CompositeTask: " << package.task_id()
-                              << " for frame " << package.frame_id() << "\n";
+    std::cout << "[Loom] -> Engine Composite execution completed.\n";
+    return out;
+}
 
-                    // Load Phase
-                    std::vector<std::string> inputFiles(task.layer_uris().begin(),
-                                                        task.layer_uris().end());
+std::optional<coordinator_worker::TaskOutcome> HandlePackage(const WorkPackage& package) {
+    if (!package.has_composite_task()) {
+        std::cerr << "[LOOM]: Error: Received unsupported task type. Ignoring.\n";
+        return std::nullopt;
+    }
 
-                    std::cout << "[Loom] -> Composite Inputs (" << inputFiles.size()
-                              << " files):\n";
-                    for (const auto& uri : inputFiles) {
-                        std::cout << "  - " << uri << "\n";
-                    }
+    std::cout << "[LOOM]: Starting CompositeTask: " << package.task_id() << " for frame "
+              << package.frame_id() << "\n";
 
-                    Options opts = {
-                        inputFiles,
-                        std::vector<float>{0},  // TODO: collect real input_z_offsets
-                        "",                     // coordinator handles output prefixing and parsing
-                    };
-
-                    // Populate image info using opts
-                    std::vector<std::unique_ptr<deep_compositor::DeepInfo>> imagesInfo;
-                    int success = exrio::SaveImageInfo(opts, imagesInfo);
-                    if (success == 1) {
-                        std::cerr << "[Loom] Error: Failed to load worker options\n";
-                        continue;
-                    }
-
-                    // Process and write image in different formats
-                    std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
-
-                    // Write deep EXR (handles if deep output is wanted)
-                    std::vector<float> finalImage = deep_compositor::ProcessAllEXR(
-                        opts, task.height(), task.width(), imagesInfo);
-                    // Writes flat outputs if needed
-                    exrio::WriteFlatOutputs(finalImage, output_uri, opts.flat_output,
-                                            opts.png_output, task.width(), task.height());
-
-                    std::cout << "[Loom] -> Engine Composite execution completed.\n";
-
-                } else {
-                    std::cerr << "[LOOM]: Error: Received unsupported task type. Ignoring.\n";
-                    continue;
-                }
-            } catch (const std::exception& e) {
-                success = false;
-                error_message = e.what();
-                std::cerr << "[LOOM]: Task computation failed: " << error_message << "\n";
-            }
-
-            // Report the result
-            ClientContext report_context;
-
-            // Fail fast if the coordinator doesn't acknowledge within 10 seconds
-            std::chrono::system_clock::time_point deadline =
-                std::chrono::system_clock::now() + std::chrono::seconds(10);
-            report_context.set_deadline(deadline);
-
-            ReportTaskResultRequest report_req;
-            report_req.set_task_id(package.task_id());
-            report_req.set_job_id(package.job_id());
-            report_req.set_worker_id(worker_id);
-            report_req.set_success(success);
-            report_req.set_error_message(error_message);
-            report_req.set_output_uri(output_uri);
-
-            ReportTaskResultResponse report_res;
-            Status report_status = stub->ReportTaskResult(&report_context, report_req, &report_res);
-            if (!report_status.ok()) {
-                std::cerr << "[LOOM]: Failed to report task result: "
-                          << report_status.error_message() << "\n";
-            } else {
-                std::cout << "[LOOM]: Task " << package.task_id()
-                          << " result reported successfully.\n";
-            }
-        }
-
-        // If we get here, the stream closed (either coordinator shut it down, or a network error)
-        grpc::Status status = stream->Finish();
-        if (!status.ok()) {
-            std::cerr << "[LOOM]: Stream failed: " << status.error_message() << ". Retrying in "
-                      << backoff_ms << "ms...\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
-
-            backoff_ms *= 2;
-            if (backoff_ms > max_backoff_ms) {
-                backoff_ms = max_backoff_ms;
-            }
-
-        } else {
-            // Stream closed normally (Coordinator intentionally hung up after assigning a task)
-            // Reset backoff and immediately reconnect to ask for more work.
-            backoff_ms = 100;
-        }
+    try {
+        return RunCompositePipeline(package.composite_task());
+    } catch (const std::exception& e) {
+        coordinator_worker::TaskOutcome out;
+        out.success = false;
+        out.error_message = e.what();
+        out.output_uri = package.composite_task().output_uri();
+        std::cerr << "[LOOM]: Task computation failed: " << out.error_message << "\n";
+        return out;
     }
 }
+
+}  // namespace
 
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
-    // Determine coordinator address
-    std::string coordinator_addr = "localhost:50051";
-    if (const char* env_addr = std::getenv("COORDINATOR_ADDR")) {
-        coordinator_addr = env_addr;
-    }
 
-    RunLoomWorker(coordinator_addr);
+    coordinator_worker::Options opt;
+    opt.coordinator_addr = coordinator_worker::DefaultCoordinatorAddr();
+    opt.log_prefix = "[LOOM]";
+    opt.worker_name_tag = "loom-worker";
+    opt.capabilities = {"loom"};
+
+    coordinator_worker::RunLoop(opt,
+                                [](const WorkPackage& package) { return HandlePackage(package); });
     return 0;
 }
