@@ -19,6 +19,8 @@ spec:
         - name: worker
           securityContext:
             runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
             allowPrivilegeEscalation: false
           # NOTE: Replace this with Google Artifact Registry URI
           image: loom-worker:latest
