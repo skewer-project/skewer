@@ -95,10 +95,18 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
 
                 // Adapt integrator config to sample range
                 session.LoadSceneFromFile(task.scene_uri(), 0);
+
+                // Check for overrides from the coordinator
                 if (task.width() > 0 && task.height() > 0) {
                     session.Options().image_config.width = task.width();
                     session.Options().image_config.height = task.height();
                 }
+                if (task.max_samples() > 0) {
+                    session.Options().integrator_config.max_samples = task.max_samples();
+                    std::cout << "[SKEWER]: Overriding JSON samples with: "
+                        << task.max_samples() << "\n";
+                }
+
                 session.Options().integrator_config.num_threads = task_threads;
                 session.Options().image_config.outfile = task.output_uri();
                 session.Options().image_config.exrfile = task.output_uri();

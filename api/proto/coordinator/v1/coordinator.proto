@@ -46,7 +46,7 @@ message SubmitJobRequest {
 
 message RenderJob {
   string scene_uri = 1;
-  int32 total_samples = 2; // number of rays shot per pixel e.g., 1024
+  int32 max_samples = 2; // max number of rays shot per pixel e.g., 1024
   string output_uri_prefix = 3; // gs://bucket/renders/smoke/
   bool enable_deep = 4;
   int32 threads = 5;
@@ -133,6 +133,7 @@ message RenderTask {
   float noise_threshold = 7;
   int32 min_samples = 8;
   int32 adaptive_step = 9;
+  int32 max_samples = 10;
 }
 
 message CompositeTask {
