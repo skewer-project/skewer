@@ -73,11 +73,13 @@ void RunLoop(const Options& opt, PackageHandler handler) {
             } catch (const std::exception& e) {
                 std::cerr << lp << ": Handler threw exception for task " << package.task_id()
                           << ": " << e.what() << "\n";
-                outcome = TaskOutcome{.success = false, .error_message = e.what()};
+                outcome =
+                    TaskOutcome{.success = false, .error_message = e.what(), .output_uri = {}};
             } catch (...) {
                 std::cerr << lp << ": Handler threw unknown exception for task "
                           << package.task_id() << "\n";
-                outcome = TaskOutcome{.success = false, .error_message = "unknown exception"};
+                outcome = TaskOutcome{
+                    .success = false, .error_message = "unknown exception", .output_uri = {}};
             }
             if (!outcome.has_value()) {
                 continue;
