@@ -118,7 +118,7 @@ class BoundBox {
     void PadToMinimums() {
         // Adjust based on scene scale
         // good for scenes sized 1.0 - 1000.0
-        float delta = kBoundEpsilon;
+        float delta = RenderConstants::kBoundsEpsilon;
 
         Vec3 diag = max_ - min_;
 

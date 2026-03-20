@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/math/constants.h"
+#include "core/math/utils.h"
 #include "core/math/vec3.h"
 
 namespace skwr {
