@@ -32,7 +32,7 @@ From the root of the project, run:
 ```bash
 ./deployments/stop_local.sh
 ```
-*(Note: Your `data/` directory and rendered images are safely preserved on your host machine.)*
+*(Note: Your repository files (scenes, renders, etc.) on the host are not removed by this script.)*
 
 ## Using the Skewer CLI
 
@@ -83,7 +83,7 @@ You can override the JSON scene file's defaults using CLI flags:
 ```
 
 **Key Flags:**
-*   `-s, --scene`: URI of the scene file (local `data/` path or `gs://`). **[Required]**
+*   `-s, --scene`: URI of the scene file (local path with optional `data/` prefix, or `gs://`). **[Required]**
 *   `-f, --frames`: Number of frames to render.
 *   `-S, --samples`: Maximum samples per pixel (overrides JSON if > 0).
 *   `-W, --width` / `-H, --height`: Image dimensions (overrides JSON if > 0).
@@ -120,9 +120,9 @@ This drops all pending tasks for the job and prevents further processing.
 
 ## Local Data Mapping
 
-The Skewer cluster is configured to mount your local repository's `data/` directory directly into the worker containers using a Kubernetes `hostPath` volume. 
+The Skewer cluster mounts your **repository root** into worker and coordinator containers at `/data` using a Kubernetes `hostPath` volume. You can pass either `data/scenes/foo.json` or `scenes/foo.json`: the coordinator rewrites them to `/data/scenes/foo.json` in the cluster. The same applies to `--output` (`data/renders/` is the default prefix).
 
 This means:
-1.  Place your `.json` scenes and `.obj` assets inside `data/scenes/` or `data/objects/`.
-2.  Set your output directory to something inside `data/renders/`.
-3.  The workers will read and write files directly to your host machine, making it easy to inspect the final `.png` or `.exr` results instantly!
+1.  Keep `.json` scenes and `.obj` assets under `scenes/` and `objects/` at the repo root (or use the same layout with a `data/` prefix in URIs).
+2.  Set your output directory to something like `data/renders/my_job/` (written under `renders/` in the repo).
+3.  Workers read and write files on your host so you can inspect `.png` or `.exr` results immediately.
