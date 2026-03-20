@@ -66,7 +66,7 @@ std::string DefaultCoordinatorAddr();
 /// \brief Builds a globally unique worker id for coordinator bookkeeping.
 ///
 /// \param worker_name_tag See `Options::worker_name_tag`.
-/// \returns Concatenation of `worker_name_tag`, epoch nanoseconds, and a random suffix.
+/// \returns Concatenation of `worker_name_tag`, an epoch-based timestamp, and a random suffix.
 std::string MakeWorkerId(std::string_view worker_name_tag);
 
 }  // namespace coordinator_worker
