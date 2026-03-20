@@ -175,7 +175,7 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
 
     int hero_idx = 0;
     float t = t_min;
-    NanoVDBAccessor acc(*medium.tree);
+    NanoVDBAccessor acc(medium);
 
     while (true) {
         float xi_1 = rng.UniformFloat();

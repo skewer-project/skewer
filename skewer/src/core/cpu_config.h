@@ -1,6 +1,7 @@
 #ifndef SKWR_CORE_CPU_CONFIG_H_
 #define SKWR_CORE_CPU_CONFIG_H_
 
+#include <cstddef>
 #include <cstdint>
 
 /**
@@ -10,7 +11,7 @@
 constexpr int kNSamples = 4;
 
 /** Hardcap based on maximum allowed bounces (e.g., 16 or 32) */
-constexpr size_t kMaxDeepSegments = 16;
+constexpr std::size_t kMaxDeepSegments = 16;
 
 /**
  * Define a maximum overlap depth. 4 is the industry standard for path tracers
