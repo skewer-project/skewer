@@ -58,7 +58,7 @@ spec:
             - name: LOCAL_DATA_PATH
               value: "{{SKEWER_DATA_PATH}}"
             - name: MAX_WORKERS
-              value: "1"
+              value: "{{MAX_WORKERS}}"
           volumeMounts:
             - name: skewer-data
               mountPath: "/data"

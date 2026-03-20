@@ -4,16 +4,15 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
+#include <thread>
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
 #include "deep_info.h"
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
 #include "proto/coordinator/v1/coordinator.pb.h"
-
-// TODO: Include necessary Loom engine headers
-// #include <loom/engine/loom_session.h>
 
 using api::proto::coordinator::v1::CompositeTask;
 using api::proto::coordinator::v1::CoordinatorService;
@@ -28,18 +27,27 @@ using grpc::Status;
 
 // Starts the loom worker loop.
 void RunLoomWorker(const std::string& coordinator_addr) {
-    std::string worker_id =
-        "loom-worker-" + std::to_string(std::chrono::system_clock::now()
-                                            .time_since_epoch()
-                                            .count());  // epoch time is fine for now
+    // Generate a unique worker ID with time epoch and mersenne twister engine
+    std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(1000, 9999);
 
-    std::cout << "[Loom] Starting worker loop, ID: " << worker_id << "\n";
-    std::cout << "[Loom] Coordinator Address: " << coordinator_addr << "\n";
+    std::string worker_id =
+        "loom-worker-" +
+        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + "-" +
+        std::to_string(dis(gen));
+
+    std::cout << "[LOOM]: Starting worker loop, ID: " << worker_id << "\n";
+    std::cout << "[LOOM]: Coordinator Address: " << coordinator_addr << "\n";
 
     // Open a channel to the coordinator
     std::shared_ptr<Channel> channel =
         grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
     std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
+
+    // Cooldown timer before acquiring stream again on retry
+    int backoff_ms = 100;
+    const int max_backoff_ms = 30000;  // 30 seconds max
 
     // Main registration loop with coordiantor
     while (true) {
@@ -57,13 +65,11 @@ void RunLoomWorker(const std::string& coordinator_addr) {
             std::string error_message = "";
             std::string output_uri = "";
 
-            // NOTE: FUNCTIONALLY, a MergeTask is the same as a CompositeTask but they serve
-            // different purposes semantically
             try {
                 if (package.has_composite_task()) {
                     const CompositeTask& task = package.composite_task();
                     output_uri = task.output_uri();
-                    std::cout << "[Loom] Starting CompositeTask: " << package.task_id()
+                    std::cout << "[LOOM]: Starting CompositeTask: " << package.task_id()
                               << " for frame " << package.frame_id() << "\n";
 
                     // Load Phase
@@ -103,17 +109,23 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     std::cout << "[Loom] -> Engine Composite execution completed.\n";
 
                 } else {
-                    std::cerr << "[Loom] Error: Received unsupported task type. Ignoring.\n";
+                    std::cerr << "[LOOM]: Error: Received unsupported task type. Ignoring.\n";
                     continue;
                 }
             } catch (const std::exception& e) {
                 success = false;
                 error_message = e.what();
-                std::cerr << "[Loom] Task computation failed: " << error_message << "\n";
+                std::cerr << "[LOOM]: Task computation failed: " << error_message << "\n";
             }
 
             // Report the result
             ClientContext report_context;
+
+            // Fail fast if the coordinator doesn't acknowledge within 10 seconds
+            std::chrono::system_clock::time_point deadline =
+                std::chrono::system_clock::now() + std::chrono::seconds(10);
+            report_context.set_deadline(deadline);
+
             ReportTaskResultRequest report_req;
             report_req.set_task_id(package.task_id());
             report_req.set_job_id(package.job_id());
@@ -125,17 +137,31 @@ void RunLoomWorker(const std::string& coordinator_addr) {
             ReportTaskResultResponse report_res;
             Status report_status = stub->ReportTaskResult(&report_context, report_req, &report_res);
             if (!report_status.ok()) {
-                std::cerr << "[Loom] Failed to report task result: "
+                std::cerr << "[LOOM]: Failed to report task result: "
                           << report_status.error_message() << "\n";
             } else {
-                std::cout << "[Loom] Task " << package.task_id()
+                std::cout << "[LOOM]: Task " << package.task_id()
                           << " result reported successfully.\n";
             }
         }
 
-        // After stream closes, we loop back and try to get a new stream immediately.
-        // We only sleep if it was a real error or if there's no work.
-        // The Coordinator now closes the stream after 1 task to ensure fair distribution.
+        // If we get here, the stream closed (either coordinator shut it down, or a network error)
+        grpc::Status status = stream->Finish();
+        if (!status.ok()) {
+            std::cerr << "[LOOM]: Stream failed: " << status.error_message() << ". Retrying in "
+                      << backoff_ms << "ms...\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
+
+            backoff_ms *= 2;
+            if (backoff_ms > max_backoff_ms) {
+                backoff_ms = max_backoff_ms;
+            }
+
+        } else {
+            // Stream closed normally (Coordinator intentionally hung up after assigning a task)
+            // Reset backoff and immediately reconnect to ask for more work.
+            backoff_ms = 100;
+        }
     }
 }
 

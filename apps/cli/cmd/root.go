@@ -12,6 +12,7 @@ import (
 )
 
 var coordinatorAddr string
+var pfCmd *exec.Cmd // Store a reference to the port-forward command
 
 func ensureConnection(addr string) error {
 	// If not localhost, don't try to port-forward
@@ -27,10 +28,14 @@ func ensureConnection(addr string) error {
 
 	fmt.Println("[CLI] Coordinator not reachable. Attempting to port-forward...")
 
+	// Extract the port from the address (e.g. "localhost:50051" -> "50051")
+	parts := strings.Split(addr, ":")
+	port := parts[len(parts)-1]
+	portArg := fmt.Sprintf("%s:%s", port, port)
+
 	// Spawn kubectl port-forward in the background
-	// We'll just run it and hope for the best, letting it stay alive
-	cmd := exec.Command("kubectl", "port-forward", "svc/skewer-coordinator", "50051:50051")
-	if err := cmd.Start(); err != nil {
+	pfCmd = exec.Command("kubectl", "port-forward", "svc/skewer-coordinator", portArg)
+	if err := pfCmd.Start(); err != nil {
 		return fmt.Errorf("failed to start kubectl port-forward: %w", err)
 	}
 
@@ -40,7 +45,7 @@ func ensureConnection(addr string) error {
 		time.Sleep(1 * time.Second)
 		_, err := net.DialTimeout("tcp", addr, 1*time.Second)
 		if err == nil {
-			fmt.Println("[CLI] Port-forwarding successful.")
+			fmt.Println("[CLI]: Port-forwarding successful.")
 			return nil
 		}
 	}
@@ -48,19 +53,24 @@ func ensureConnection(addr string) error {
 	return fmt.Errorf("failed to connect to coordinator after port-forwarding")
 }
 
+// Clean up port-forward process if we started one
+func cleanupPortForward() {
+	if pfCmd != nil && pfCmd.Process != nil {
+		pfCmd.Process.Kill()
+		pfCmd.Wait()
+	}
+}
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "skewer",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Short: "Skewer is a distributed rendering orchestrator.",
+	Long: `Skewer CLI submits and manages rendering and compositing jobs
+   for the Skewer distributed rendering engine.`,
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		// This runs after every command completes
+		cleanupPortForward()
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -68,18 +78,12 @@ to quickly create a Cobra application.`,
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
+		cleanupPortForward()
 		os.Exit(1)
 	}
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
+	// Here we define your flags and configuration settings.
 	rootCmd.PersistentFlags().StringVarP(&coordinatorAddr, "coordinator", "c", "localhost:50051", "Address of the Skewer Coordinator")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
