@@ -119,11 +119,11 @@ target_link_libraries(skewer-worker
     PRIVATE
     nlohmann_json::nlohmann_json
     exrio::exrio
+    nanovdb
     Imath::Imath
     OpenEXR::OpenEXR
     ZLIB::ZLIB
-    nanovdb
-    coordinator_proto
+    coordinator_worker
 )
 
 # Enable NanoVDB SIMD optimizations
