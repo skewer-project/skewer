@@ -18,6 +18,18 @@ option(SKEWER_COMBINED_BUILD_EXRIO "Build exrio helper library" ON)
 option(SKEWER_COMBINED_BUILD_LOOM "Build loom deep compositor" ON)
 option(SKEWER_COMBINED_BUILD_SKEWER "Build skewer deep renderer" ON)
 
+option(ENABLE_CLANG_TIDY "Enable clang-tidy during build" OFF)
+
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+    if(CLANG_TIDY_EXE)
+        message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
+        set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+    else()
+        message(WARNING "clang-tidy not found, but ENABLE_CLANG_TIDY is ON")
+    endif()
+endif()
+
 if(SKEWER_COMBINED_BUILD_LOOM AND NOT SKEWER_COMBINED_BUILD_EXRIO)
     message(FATAL_ERROR "SKEWER_COMBINED_BUILD_LOOM=ON requires SKEWER_COMBINED_BUILD_EXRIO=ON")
 endif()

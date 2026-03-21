@@ -2,7 +2,9 @@
 
 # Runs clang-tidy on the codebase using compile_commands.json
 
-BUILD_DIR="build_tidy"
+# Use build/tidy as the default build directory to keep the root clean.
+# This aligns with the 'tidy' preset in CMakePresets.json and is ignored by git.
+BUILD_DIR="build/tidy"
 TIDY_FLAGS=""
 THREADS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1)
 
@@ -31,21 +33,26 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     fi
 fi
 
+# Configure using the 'tidy' preset if it hasn't been configured yet.
 if [ ! -d "$BUILD_DIR" ]; then
-    echo "Configuring CMake in $BUILD_DIR..."
-    cmake -B "$BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    echo "Configuring CMake using 'tidy' preset in $BUILD_DIR..."
+    cmake --preset tidy
 fi
+
+# Regex to filter files (adjust to match your project structure)
+# Matches files in apps/, skewer/src/, loom/src/, and libs/exrio/src/
+FILE_REGEX="(apps|skewer/src|loom/src|libs/exrio/src)/.*"
 
 # Use run-clang-tidy if available, otherwise fallback to finding files
 if command -v run-clang-tidy &> /dev/null; then
-    echo "Running: run-clang-tidy -p $BUILD_DIR -j $THREADS $TIDY_FLAGS \"src/.*|apps/.*\""
-    run-clang-tidy -p "$BUILD_DIR" -j "$THREADS" $TIDY_FLAGS "src/.*|apps/.*"
+    echo "Running: run-clang-tidy -p $BUILD_DIR -j $THREADS $TIDY_FLAGS \"$FILE_REGEX\""
+    run-clang-tidy -p "$BUILD_DIR" -j "$THREADS" $TIDY_FLAGS "$FILE_REGEX"
 elif command -v run-clang-tidy.py &> /dev/null; then
-    echo "Running: run-clang-tidy.py -p $BUILD_DIR -j $THREADS $TIDY_FLAGS \"src/.*|apps/.*\""
-    run-clang-tidy.py -p "$BUILD_DIR" -j "$THREADS" $TIDY_FLAGS "src/.*|apps/.*"
+    echo "Running: run-clang-tidy.py -p $BUILD_DIR -j $THREADS $TIDY_FLAGS \"$FILE_REGEX\""
+    run-clang-tidy.py -p "$BUILD_DIR" -j "$THREADS" $TIDY_FLAGS "$FILE_REGEX"
 else
     echo "run-clang-tidy not found. Running clang-tidy manually on files..."
     echo "Using flags: $TIDY_FLAGS"
     # Find files and run clang-tidy in parallel using xargs
-    find src apps -name "*.cc" -o -name "*.cpp" | xargs -P "$THREADS" -I {} clang-tidy -p "$BUILD_DIR" $TIDY_FLAGS {}
+    find apps skewer/src loom/src libs/exrio/src -name "*.cc" -o -name "*.cpp" -o -name "*.h" | xargs -P "$THREADS" -I {} clang-tidy -p "$BUILD_DIR" $TIDY_FLAGS {}
 fi
