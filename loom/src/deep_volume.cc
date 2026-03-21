@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <set>
+#include "exrio/deep_image.h"
 
 namespace exrio {
 
@@ -10,10 +11,10 @@ namespace exrio {
 // splitSample -- Beer-Lambert exponential attenuation
 // ============================================================================
 
-std::pair<DeepSample, DeepSample> splitSample(const DeepSample& sample, float z_split) {
-    constexpr float kEpsilon = 1e-7f;
+static std::pair<DeepSample, DeepSample> SplitSample(const DeepSample& sample, float z_split) {
+    constexpr float kEpsilon = 1e-7F;
 
-    float thick = sample.thickness();
+    float const thick = sample.thickness();
 
     // Not a volume, or split point not strictly inside the range -> no split
     if (thick < kEpsilon || z_split <= sample.depth + kEpsilon ||
@@ -25,42 +26,44 @@ std::pair<DeepSample, DeepSample> splitSample(const DeepSample& sample, float z_
     float alpha = sample.alpha;
 
     // Clamp alpha to avoid log(0)
-    if (alpha >= 1.0f) alpha = 1.0f - kEpsilon;
+    if (alpha >= 1.0F) { alpha = 1.0F - kEpsilon;
+}
 
-    float frontThick = z_split - sample.depth;
-    float backThick = sample.depth_back - z_split;
+    float const front_thick = z_split - sample.depth;
+    float const back_thick = sample.depth_back - z_split;
 
-    float alphaFront, alphaBack;
+    float alphaFront;
+    float alphaBack;
 
-    if (alpha <= 0.0f) {
+    if (alpha <= 0.0F) {
         // Fully transparent -- two zero-alpha fragments
-        alphaFront = 0.0f;
-        alphaBack = 0.0f;
+        alphaFront = 0.0F;
+        alphaBack = 0.0F;
     } else {
         // sigma = -ln(1 - alpha) / thickness
-        float sigma = -std::log(1.0f - alpha) / thick;
+        float sigma = -std::log(1.0f - alpha) / thick = NAN;
         alphaFront = 1.0f - std::exp(-sigma * frontThick);
         alphaBack = 1.0f - std::exp(-sigma * backThick);
     }
 
     // Premultiplied RGB scales with alpha ratio
-    float ratioFront = (alpha > 0.0f) ? alphaFront / alpha : 0.0f;
-    float ratioBack = (alpha > 0.0f) ? alphaBack / alpha : 0.0f;
+    float const ratio_front = (alpha > 0.0F) ? alphaFront / alpha : 0.0F;
+    float const ratio_back = (alpha > 0.0F) ? alphaBack / alpha : 0.0F;
 
     DeepSample front;
     front.depth = sample.depth;
     front.depth_back = z_split;
-    front.red = sample.red * ratioFront;
-    front.green = sample.green * ratioFront;
-    front.blue = sample.blue * ratioFront;
+    front.red = sample.red * ratio_front;
+    front.green = sample.green * ratio_front;
+    front.blue = sample.blue * ratio_front;
     front.alpha = alphaFront;
 
     DeepSample back;
     back.depth = z_split;
     back.depth_back = sample.depth_back;
-    back.red = sample.red * ratioBack;
-    back.green = sample.green * ratioBack;
-    back.blue = sample.blue * ratioBack;
+    back.red = sample.red * ratio_back;
+    back.green = sample.green * ratio_back;
+    back.blue = sample.blue * ratio_back;
     back.alpha = alphaBack;
 
     return {front, back};
@@ -70,12 +73,12 @@ std::pair<DeepSample, DeepSample> splitSample(const DeepSample& sample, float z_
 // blendCoincidentSamples -- uniform interspersion
 // ============================================================================
 
-DeepSample blendCoincidentSamples(const DeepSample& a, const DeepSample& b) {
+auto blendCoincidentSamples(const DeepSample& a, const DeepSample& b) -> DeepSample {
     // alpha_combined = 1 - (1 - a.alpha)(1 - b.alpha)
-    float alphaCombined = a.alpha + b.alpha - a.alpha * b.alpha;
+    float const alpha_combined = a.alpha + b.alpha - (a.alpha * b.alpha);
 
-    float alphaSum = a.alpha + b.alpha;
-    float scale = (alphaSum > 0.0f) ? alphaCombined / alphaSum : 0.0f;
+    float const alpha_sum = a.alpha + b.alpha;
+    float const scale = (alpha_sum > 0.0F) ? alpha_combined / alpha_sum : 0.0F;
 
     DeepSample result;
     result.depth = a.depth;
@@ -83,7 +86,7 @@ DeepSample blendCoincidentSamples(const DeepSample& a, const DeepSample& b) {
     result.red = (a.red + b.red) * scale;
     result.green = (a.green + b.green) * scale;
     result.blue = (a.blue + b.blue) * scale;
-    result.alpha = alphaCombined;
+    result.alpha = alpha_combined;
 
     return result;
 }
@@ -92,15 +95,16 @@ DeepSample blendCoincidentSamples(const DeepSample& a, const DeepSample& b) {
 // mergePixelsVolumetric -- main volumetric merge algorithm
 // ============================================================================
 
-DeepPixel mergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels, float epsilon) {
+static auto MergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels, float epsilon) -> DeepPixel {
     DeepPixel result;
 
     // 1. Collect all samples
-    size_t totalSamples = 0;
+    size_t total_samples = 0;
     for (const auto* pixel : pixels) {
         totalSamples += pixel->sampleCount();
     }
-    if (totalSamples == 0) return result;
+    if (total_samples == 0) { return result;
+}
 
     std::vector<DeepSample> allSamples;
     allSamples.reserve(totalSamples);

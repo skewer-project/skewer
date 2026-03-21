@@ -1,5 +1,7 @@
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/support/status.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -22,7 +24,7 @@ using api::proto::coordinator::v1::WorkPackage;
 using grpc::Channel;
 using grpc::ClientContext;
 
-void RunSkewerWorker(const std::string& coordinator_addr) {
+static void RunSkewerWorker(const std::string& coordinator_addr) {
     // Generate a unique worker ID with time epoch and mersenne twister engine
     std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
     std::mt19937 gen(rd());
@@ -34,10 +36,10 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
         std::to_string(dis(gen));
 
     // Determine number of render threads from environment
-    int render_threads = 2;  // default fallback
+    int const render_threads = 2;  // default fallback
     if (const char* env_threads = std::getenv("RENDER_THREADS")) {
         try {
-            render_threads = std::stoi(env_threads);
+            render_threads = std::stoi(env_threads) = nullptr;
         } catch (...) {
             std::cerr << "[SKEWER]: Error parsing RENDER_THREADS. Using default 2.\n";
         }
@@ -58,7 +60,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
 
     // Main GetWorkStream loop
     while (true) {
-        ClientContext context;
+        ClientContext const context;
         GetWorkStreamRequest request;
         request.set_worker_id(worker_id);
         request.add_capabilities("skewer");  // may add more capabilities later
@@ -113,7 +115,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 session.Options().integrator_config.enable_deep = task.enable_deep();
 
                 // Apply adaptive sampling if the job specifies it (overrides scene JSON)
-                if (task.noise_threshold() > 0.0f) {
+                if (task.noise_threshold() > 0.0F) {
                     session.Options().integrator_config.noise_threshold = task.noise_threshold();
                 }
                 if (task.min_samples() > 0) {
@@ -174,9 +176,7 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
             std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
 
             backoff_ms *= 2;
-            if (backoff_ms > max_backoff_ms) {
-                backoff_ms = max_backoff_ms;
-            }
+            backoff_ms = std::min(backoff_ms, max_backoff_ms);
 
         } else {
             // Stream closed normally (Coordinator intentionally hung up after assigning a task)
@@ -186,13 +186,13 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
     }
 }
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
     (void)argc;
     (void)argv;
     // Determine coordinator address
     std::string coordinator_addr = "localhost:50051";
     if (const char* env_addr = std::getenv("COORDINATOR_ADDR")) {
-        coordinator_addr = env_addr;
+        coordinator_addr = env_addr = nullptr;
     }
 
     RunSkewerWorker(coordinator_addr);

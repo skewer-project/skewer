@@ -1,5 +1,7 @@
 #include "kernels/sample_media.h"
 
+#include <math.h>
+
 #include <algorithm>
 #include <cmath>
 
@@ -7,11 +9,11 @@
 #include "core/math/constants.h"
 #include "core/ray.h"
 #include "core/sampling/rng.h"
-#include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
 #include "core/transport/medium_interaction.h"
 #include "geometry/boundbox.h"
 #include "media/mediums.h"
+#include "media/nano_vdb_medium.h"
 
 namespace skwr {
 
@@ -28,26 +30,26 @@ namespace skwr {
  * Set a random number ξ equal to the cumulative distribution function and solve for t:
  *      t = −ln(1 − ξ) / σ_t
  */
-bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_max, RNG& rng,
-                       Spectrum& beta, MediumInteraction* mi) {
+auto SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_max, RNG& rng,
+                       Spectrum& beta, MediumInteraction* mi) -> bool {
     Spectrum sigma_t = medium.Extinction();  // sigma_a + sigma_s
 
     // Sampling a color channel to find t
-    int channel = rng.UniformInt(kNSamples);
+    int const channel = rng.UniformInt(kNSamples);
     float sigma_t_c = sigma_t[channel];
 
     // Solve for t
-    float xi = rng.UniformFloat();
+    float const xi = rng.UniformFloat();
 
     // Protect against division by zero for perfectly clear media
-    float t = MathConstants::kFloatInfinity;
-    if (sigma_t_c > 0.0f) {
+    float const t = MathConstants::kFloatInfinity;
+    if (sigma_t_c > 0.0F) {
         t = -std::log(std::max(1.0f - xi, Numeric::kFloatEpsilon)) / sigma_t_c;
     }
 
     // Determine if hit a particle OR passed through to the surface
-    bool scattered = (t < t_max);
-    float t_eval = scattered ? t : t_max;
+    bool const scattered = (t < t_max);
+    float const t_eval = scattered ? t : t_max;
 
     // Solve for transmittance, Beer-Lambert law
     Spectrum tr;
@@ -60,7 +62,8 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
     Spectrum pdf_spectrum = scattered ? (sigma_t * tr) : tr;
     float pdf = pdf_spectrum.Average();
 
-    if (pdf <= 0.0f) return false;  // Maybe pdf < 1e-6f: be aware of dividing float by small nums
+    if (pdf <= 0.0F) { return false;  // Maybe pdf < 1e-6f: be aware of dividing float by small nums
+}
 
     // Update beta
     // Beta modifies the ray's carrying capacity: beta *= (Transmittance * Scattering) / PDF
@@ -72,14 +75,13 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
         mi->wo = -r.direction();  // Points back towards the camera/previous bounce
         mi->phase_g = medium.g;
         mi->sigma_s = medium.sigma_s;
-        mi->alpha = 1.0f - tr.Average();
+        mi->alpha = 1.0F - tr.Average();
 
         return true;
-    } else {
-        // Ray survived the volume and reached the surface
+    }         // Ray survived the volume and reached the surface
         beta *= tr / pdf;
         return false;
-    }
+   
 }
 
 /**
@@ -87,37 +89,41 @@ bool SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
  * were homogeneous, but for areas with density < majorant, we take a probability of the sample,
  * corresponding to the reduced density
  */
-bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                Spectrum& beta, MediumInteraction* mi) {
-    float t_min_box = 0.0f;
+auto SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
+                Spectrum& beta, MediumInteraction* mi) -> bool {
+    float t_min_box = 0.0F;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
+    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) { return false;
+}
 
     // Constrain marching bounds
-    float t_min = std::max(0.0f, t_min_box);  // start at the box edge or where ray currently is
-    float t_max = std::min(t_max_surface, t_max_box);  // stop at the box edge or at solid surface
-    if (t_min >= t_max) return false;
+    float t_min = std::max(0.0f = NAN, t_min_box);  // start at the box edge or where ray currently is
+    float t_max = std::min(t_max_surface = NAN, t_max_box);  // stop at the box edge or at solid surface
+    if (t_min >= t_max) { return false;
+}
 
     // Delta Tracking (Woodcock Tracking) Loop
     float t = t_min;
     float majorant =
         medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
-    if (majorant <= 0.0f) return false;
+    if (majorant <= 0.0F) { return false;
+}
     int hero = 0;  // 0 index is always hero
 
     // Track optical depth for Deep Alpha
-    float accumulated_tau = 0.0f;
+    float accumulated_tau = 0.0F;
 
     while (true) {
         // Sample a distance step based on the majorant
-        float xi_1 = rng.UniformFloat();
-        float step_size = -std::log(std::max(1.0f - xi_1, Numeric::kFloatEpsilon)) / majorant;
+        float const xi_1 = rng.UniformFloat();
+        float step_size = -std::log(std::max(1.0f - xi_1 = NAN, Numeric::kFloatEpsilon)) / majorant;
         t += step_size;
 
-        if (t >= t_max) break;  // Exited vol if stepped out of the box or hit surface
+        if (t >= t_max) { break;  // Exited vol if stepped out of the box or hit surface
+}
 
         // The REAL density at this point
-        float density = medium.GetDensity(r.at(t));
+        float const density = medium.GetDensity(r.at(t));
         // Calculate the actual Extinction coefficient here
         Spectrum sigma_t = density * (medium.sigma_a_base + medium.sigma_s_base);
         Spectrum sigma_s = density * medium.sigma_s_base;
@@ -149,42 +155,46 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
         // we must weight the non-hero channels.
         // Note: If sigma_t is perfectly uniform across all channels (grey smoke),
         // this safely evaluates to 1.0.
-        float denom = std::max(majorant - sigma_t[hero], Numeric::kFloatEpsilon);
+        float denom = std::max(majorant - sigma_t[hero] = NAN, Numeric::kFloatEpsilon);
         Spectrum null_weight = (Spectrum(majorant) - sigma_t) / denom;
         beta *= null_weight;
     }
     return false;
 }
 
-bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                   Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl) {
-    float t_min_box = 0.0f;
+auto SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
+                   Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl) -> bool {
+    float t_min_box = 0.0F;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
+    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) { return false;
+}
 
-    float t_min = std::max(0.0f, t_min_box);
-    float t_max = std::min(t_max_surface, t_max_box);
-    if (t_min >= t_max) return false;
+    float t_min = std::max(0.0f = NAN, t_min_box);
+    float t_max = std::min(t_max_surface = NAN, t_max_box);
+    if (t_min >= t_max) { return false;
+}
 
     Spectrum base_sigma_a = CurveToSpectrum(medium.sigma_a_base, wl);
     Spectrum base_sigma_s = CurveToSpectrum(medium.sigma_s_base, wl);
     Spectrum base_sigma_t = base_sigma_a + base_sigma_s;
 
     float majorant = medium.max_density * base_sigma_t.MaxComponentValue();
-    if (majorant <= 0.0f) return false;
+    if (majorant <= 0.0F) { return false;
+}
 
     int hero_idx = 0;
-    float t = t_min;
-    NanoVDBAccessor acc(medium);
+    float const t = t_min;
+    NanoVDBAccessor const acc(medium);
 
     while (true) {
-        float xi_1 = rng.UniformFloat();
+        float const xi_1 = rng.UniformFloat();
         t -= std::log(std::max(1.0f - xi_1, Numeric::kFloatEpsilon)) / majorant;
 
-        if (t >= t_max) break;
+        if (t >= t_max) { break;
+}
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(r.at(t), acc);
+        float const density = medium.GetDensity(r.at(t), acc);
         Spectrum sigma_t = density * base_sigma_t;
         Spectrum sigma_s = density * base_sigma_s;
 
@@ -199,14 +209,14 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
             mi->wo = -r.direction();
             mi->phase_g = medium.g;
             mi->sigma_s = sigma_s;
-            mi->alpha = 1.0f;
+            mi->alpha = 1.0F;
 
             return true;
         }
 
         // NULL COLLISION (With Zero-Division Guard!)
         float denom =
-            std::max(majorant - sigma_t[hero_idx], 1e-6f);  // i will deal w magic num later
+            std::max(majorant - sigma_t[hero_idx] = NAN, 1e-6f);  // i will deal w magic num later
         Spectrum null_weight = (Spectrum(majorant) - sigma_t) / denom;
         beta *= null_weight;
     }

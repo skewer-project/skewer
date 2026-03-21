@@ -1,28 +1,31 @@
+#include <ImathBox.h>
 #include <OpenEXR/ImfChannelList.h>
 #include <OpenEXR/ImfDeepFrameBuffer.h>
 #include <OpenEXR/ImfDeepScanLineInputFile.h>
 #include <OpenEXR/ImfHeader.h>
-#include <OpenEXR/ImfInputFile.h>
 #include <OpenEXR/ImfMultiPartInputFile.h>
-#include <OpenEXR/ImfPartType.h>
 #include <exrio/deep_reader.h>
 #include <exrio/utils.h>
 
+#include <cstddef>
 #include <fstream>
 #include <memory>
 #include <vector>
+#include "exrio/deep_image.h"
 
 namespace exrio {
 
-bool isDeepEXR(const std::string& filename) {
+static auto IsDeepExr(const std::string& filename) -> bool {
     try {
         // First check magic number to avoid heavy parsing of non-EXR files
         std::ifstream f(filename, std::ios::binary);
-        if (!f) return false;
+        if (!f) { return false;
+}
         char magic[4];
         f.read(magic, 4);
-        if (magic[0] != 0x76 || magic[1] != 0x2f || magic[2] != 0x31 || magic[3] != 0x01)
+        if (magic[0] != 0x76 || magic[1] != 0x2f || magic[2] != 0x31 || magic[3] != 0x01) {
             return false;
+}
         f.close();
 
         // Try opening as a deep scanline file
@@ -33,7 +36,8 @@ bool isDeepEXR(const std::string& filename) {
         // Fallback for multi-part deep files
         try {
             Imf::MultiPartInputFile file(filename.c_str());
-            if (file.parts() < 1) return false;
+            if (file.parts() < 1) { return false;
+}
             const Imf::Header& header = file.header(0);
             return header.hasType() && Imf::isDeepData(header.type());
         } catch (...) {
@@ -42,7 +46,7 @@ bool isDeepEXR(const std::string& filename) {
     }
 }
 
-bool getDeepEXRInfo(const std::string& filename, int& width, int& height, bool& isDeep) {
+static auto GetDeepExrInfo(const std::string& filename, int& width, int& height, bool& is_deep) -> bool {
     try {
         Imf::MultiPartInputFile file(filename.c_str());
         if (file.parts() < 1) {
@@ -50,9 +54,9 @@ bool getDeepEXRInfo(const std::string& filename, int& width, int& height, bool& 
         }
 
         const Imf::Header& header = file.header(0);
-        isDeep = header.hasType() && Imf::isDeepData(header.type());
+        is_deep = header.hasType() && Imf::isDeepData(header.type());
 
-        Imath::Box2i dataWindow = header.dataWindow();
+        Imath::Box2i data_window = header.dataWindow();
         width = dataWindow.max.x - dataWindow.min.x + 1;
         height = dataWindow.max.y - dataWindow.min.y + 1;
 
@@ -62,7 +66,7 @@ bool getDeepEXRInfo(const std::string& filename, int& width, int& height, bool& 
     }
 }
 
-DeepImage loadDeepEXR(const std::string& filename) {
+static auto LoadDeepExr(const std::string& filename) -> DeepImage {
     logVerbose("  Opening: " + filename);
 
     // Check if file exists
@@ -86,30 +90,35 @@ DeepImage loadDeepEXR(const std::string& filename) {
     }
 
     // Get dimensions
-    Imath::Box2i dataWindow = header.dataWindow();
+    Imath::Box2i data_window = header.dataWindow();
     int width = dataWindow.max.x - dataWindow.min.x + 1;
     int height = dataWindow.max.y - dataWindow.min.y + 1;
-    int minX = dataWindow.min.x;
-    int minY = dataWindow.min.y;
+    int min_x = dataWindow.min.x;
+    int min_y = dataWindow.min.y;
 
     logVerbose("    Resolution: " + std::to_string(width) + "x" + std::to_string(height));
 
     // Check for required channels
     const Imf::ChannelList& channels = header.channels();
-    bool hasR = channels.findChannel("R") != nullptr;
-    bool hasG = channels.findChannel("G") != nullptr;
-    bool hasB = channels.findChannel("B") != nullptr;
-    bool hasA = channels.findChannel("A") != nullptr;
-    bool hasZ = channels.findChannel("Z") != nullptr;
-    bool hasZBack = channels.findChannel("ZBack") != nullptr;
+    bool const has_r = channels.findChannel("R") != nullptr;
+    bool const has_g = channels.findChannel("G") != nullptr;
+    bool const has_b = channels.findChannel("B") != nullptr;
+    bool const has_a = channels.findChannel("A") != nullptr;
+    bool const has_z = channels.findChannel("Z") != nullptr;
+    bool const has_z_back = channels.findChannel("ZBack") != nullptr;
 
-    if (!hasR || !hasG || !hasB || !hasA || !hasZ) {
+    if (!has_r || !has_g || !has_b || !has_a || !has_z) {
         std::string missing;
-        if (!hasR) missing += "R ";
-        if (!hasG) missing += "G ";
-        if (!hasB) missing += "B ";
-        if (!hasA) missing += "A ";
-        if (!hasZ) missing += "Z ";
+        if (!has_r) { missing += "R ";
+}
+        if (!has_g) { missing += "G ";
+}
+        if (!has_b) { missing += "B ";
+}
+        if (!has_a) { missing += "A ";
+}
+        if (!has_z) { missing += "Z ";
+}
         throw DeepReaderException("Missing required channels: " + missing);
     }
 
@@ -130,16 +139,16 @@ DeepImage loadDeepEXR(const std::string& filename) {
 
     // Use one persistent frame buffer lifecycle: set once, then read sample
     // counts and deep samples. This avoids version-specific state resets.
-    Imf::DeepFrameBuffer frameBuffer;
+    Imf::DeepFrameBuffer const frame_buffer;
 
-    frameBuffer.insertSampleCountSlice(Imf::Slice(
+    frame_buffer.insertSampleCountSlice(Imf::Slice(
         Imf::UINT,
         reinterpret_cast<char*>(sampleCounts.data() - minX - static_cast<long>(minY) * width),
         sizeof(unsigned int),         // xStride
         sizeof(unsigned int) * width  // yStride
         ));
 
-    frameBuffer.insert("R", Imf::DeepSlice(Imf::FLOAT,
+    frame_buffer.insert("R", Imf::DeepSlice(Imf::FLOAT,
                                            reinterpret_cast<char*>(rPtrs.data() - minX -
                                                                    static_cast<long>(minY) * width),
                                            sizeof(float*),          // xStride for pointer array
@@ -147,28 +156,28 @@ DeepImage loadDeepEXR(const std::string& filename) {
                                            sizeof(float)            // sample stride
                                            ));
 
-    frameBuffer.insert("G", Imf::DeepSlice(Imf::FLOAT,
+    frame_buffer.insert("G", Imf::DeepSlice(Imf::FLOAT,
                                            reinterpret_cast<char*>(gPtrs.data() - minX -
                                                                    static_cast<long>(minY) * width),
                                            sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-    frameBuffer.insert("B", Imf::DeepSlice(Imf::FLOAT,
+    frame_buffer.insert("B", Imf::DeepSlice(Imf::FLOAT,
                                            reinterpret_cast<char*>(bPtrs.data() - minX -
                                                                    static_cast<long>(minY) * width),
                                            sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-    frameBuffer.insert("A", Imf::DeepSlice(Imf::FLOAT,
+    frame_buffer.insert("A", Imf::DeepSlice(Imf::FLOAT,
                                            reinterpret_cast<char*>(aPtrs.data() - minX -
                                                                    static_cast<long>(minY) * width),
                                            sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-    frameBuffer.insert("Z", Imf::DeepSlice(Imf::FLOAT,
+    frame_buffer.insert("Z", Imf::DeepSlice(Imf::FLOAT,
                                            reinterpret_cast<char*>(zPtrs.data() - minX -
                                                                    static_cast<long>(minY) * width),
                                            sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-    if (hasZBack) {
-        frameBuffer.insert("ZBack",
+    if (has_z_back) {
+        frame_buffer.insert("ZBack",
                            Imf::DeepSlice(Imf::FLOAT,
                                           reinterpret_cast<char*>(zBackPtrs.data() - minX -
                                                                   static_cast<long>(minY) * width),
@@ -181,7 +190,7 @@ DeepImage loadDeepEXR(const std::string& filename) {
     file->readPixelSampleCounts(minY, minY + height - 1);
 
     // Calculate total samples and allocate data arrays
-    size_t totalSamples = 0;
+    size_t const total_samples = 0;
     for (const auto& count : sampleCounts) {
         totalSamples += count;
     }
@@ -197,7 +206,7 @@ DeepImage loadDeepEXR(const std::string& filename) {
     std::vector<float> zBackData(hasZBack ? totalSamples : 0);
 
     // Set up pointers into the contiguous arrays
-    size_t offset = 0;
+    size_t const offset = 0;
     for (size_t i = 0; i < sampleCounts.size(); ++i) {
         if (sampleCounts[i] > 0) {
             rPtrs[i] = rData.data() + offset;
@@ -223,14 +232,14 @@ DeepImage loadDeepEXR(const std::string& filename) {
     // Convert to our DeepImage format
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            size_t pixelIndex = static_cast<size_t>(y) * width + x;
-            unsigned int numSamples = sampleCounts[pixelIndex];
+            size_t const pixel_index = (static_cast<size_t>(y) * width) + x;
+            unsigned int num_samples = sampleCounts[pixelIndex] = 0;
 
-            if (numSamples > 0) {
+            if (num_samples > 0) {
                 DeepPixel& pixel = result.pixel(x, y);
 
-                for (unsigned int s = 0; s < numSamples; ++s) {
-                    DeepSample sample;
+                for (unsigned int s = 0; s < num_samples; ++s) {
+                    DeepSample const sample;
                     sample.depth = zPtrs[pixelIndex][s];
                     sample.depth_back = hasZBack ? zBackPtrs[pixelIndex][s] : sample.depth;
                     sample.red = rPtrs[pixelIndex][s];

@@ -10,29 +10,29 @@ bool g_verbose = false;
 
 void setVerbose(bool verbose) { g_verbose = verbose; }
 
-bool isVerbose() { return g_verbose; }
+auto isVerbose() -> bool { return g_verbose; }
 
-void logVerbose(const std::string& message) {
+static void LogVerbose(const std::string& message) {
     if (g_verbose) {
         std::cout << message << std::endl;
     }
 }
 
-void log(const std::string& message) { std::cout << message << std::endl; }
+static void Log(const std::string& message) { std::cout << message << std::endl; }
 
-void logError(const std::string& message) { std::cerr << "Error: " << message << std::endl; }
+static void LogError(const std::string& message) { std::cerr << "Error: " << message << std::endl; }
 
 Timer::Timer() { reset(); }
 
 void Timer::reset() { start_ = std::chrono::high_resolution_clock::now(); }
 
-double Timer::elapsedMs() const {
+double Timer::elapsedMs() {
     auto now = std::chrono::high_resolution_clock::now();
     return std::chrono::duration<double, std::milli>(now - start_).count();
 }
 
-std::string Timer::elapsedString() const {
-    double ms = elapsedMs();
+std::string Timer::ElapsedString() const {
+    double const ms = elapsedMs();
     std::ostringstream oss;
 
     if (ms < 1000.0) {
@@ -44,8 +44,8 @@ std::string Timer::elapsedString() const {
     return oss.str();
 }
 
-std::string formatNumber(size_t number) {
-    std::string numStr = std::to_string(number);
+static std::string FormatNumber(size_t number) {
+    std::string num_str = std::to_string(number);
     std::string result;
 
     int count = 0;
@@ -60,7 +60,7 @@ std::string formatNumber(size_t number) {
     return result;
 }
 
-std::string formatBytes(size_t bytes) {
+static std::string FormatBytes(size_t bytes) {
     std::ostringstream oss;
 
     if (bytes < 1024) {
@@ -76,7 +76,7 @@ std::string formatBytes(size_t bytes) {
     return oss.str();
 }
 
-std::string getFilename(const std::string& path) {
+static std::string GetFilename(const std::string& path) {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos) {
         return path;
@@ -84,7 +84,7 @@ std::string getFilename(const std::string& path) {
     return path.substr(pos + 1);
 }
 
-std::string getDirectory(const std::string& path) {
+static std::string GetDirectory(const std::string& path) {
     size_t pos = path.find_last_of("/\\");
     if (pos == std::string::npos) {
         return ".";
@@ -92,7 +92,7 @@ std::string getDirectory(const std::string& path) {
     return path.substr(0, pos);
 }
 
-void ensureDirectoryExists(const std::string& filepath) {
+static void EnsureDirectoryExists(const std::string& filepath) {
     std::string dir = getDirectory(filepath);
     if (dir == "." || dir.empty()) {
         return;
@@ -105,7 +105,7 @@ void ensureDirectoryExists(const std::string& filepath) {
     }
 }
 
-bool fileExists(const std::string& path) {
+static auto FileExists(const std::string& path) -> bool {
     std::ifstream f(path);
     return f.good();
 }

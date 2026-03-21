@@ -1,5 +1,8 @@
 #include "io/obj_loader.h"
 
+#include <math.h>
+
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <string>
@@ -9,7 +12,6 @@
 #include "core/math/constants.h"
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_utils.h"
-#include "geometry/mesh.h"
 #include "materials/material.h"
 #include "materials/texture.h"
 #include "scene/scene.h"
@@ -21,9 +23,10 @@ namespace skwr {
 
 // Helper: load a texture from an .mtl texture name if non-empty.
 // Returns kNoTexture if the name is empty or load fails.
-static uint32_t LoadMtlTexture(const std::string& texname, const std::string& base_path,
-                               Scene& scene) {
-    if (texname.empty()) return kNoTexture;
+static auto LoadMtlTexture(const std::string& texname, const std::string& base_path,
+                               Scene& scene) -> uint32_t {
+    if (texname.empty()) { return kNoTexture;
+}
 
     std::string filepath;
     if (!texname.empty() && texname[0] == '/') {
@@ -32,18 +35,19 @@ static uint32_t LoadMtlTexture(const std::string& texname, const std::string& ba
         filepath = base_path.empty() ? texname : (base_path + "/" + texname);
     }
 
-    ImageTexture tex;
-    if (!tex.Load(filepath)) return kNoTexture;
+    ImageTexture const tex;
+    if (!tex.Load(filepath)) { return kNoTexture;
+}
 
     return scene.AddTexture(std::move(tex));
 }
 
-Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
-                            const std::string& base_path) {
+static auto ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
+                            const std::string& base_path) -> Material {
     Material mat{};
 
     // 1. PBR METALLIC
-    if (mtl.metallic >= 0.5f) {
+    if (mtl.metallic >= 0.5F) {
         mat.type = MaterialType::Metal;
         mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
         mat.roughness = std::max(0.0f, std::min(1.0f, mtl.roughness * 0.5f));
@@ -58,21 +62,21 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
     }
 
     // 2. TRANSPARENCY / GLASS
-    bool is_glass_illum = (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
-    if (mtl.dissolve < 0.99f || is_glass_illum) {
+    bool const is_glass_illum = (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
+    if (mtl.dissolve < 0.99F || is_glass_illum) {
         mat.type = MaterialType::Dielectric;
-        mat.albedo = RGBToCurve(RGB(1.0f, 1.0f, 1.0f));
-        mat.roughness = 0.0f;
-        mat.ior = (mtl.ior > 1.0f) ? mtl.ior : 1.5f;
+        mat.albedo = RGBToCurve(RGB(1.0F, 1.0F, 1.0F));
+        mat.roughness = 0.0F;
+        mat.ior = (mtl.ior > 1.0F) ? mtl.ior : 1.5F;
         return mat;
     }
 
     // 3. TRADITIONAL SPECULAR (non-PBR fallback)
-    float spec_intensity = (mtl.specular[0] + mtl.specular[1] + mtl.specular[2]) / 3.0f;
-    if (spec_intensity > 0.5f && mtl.metallic < 0.001f) {
+    float const spec_intensity = (mtl.specular[0] + mtl.specular[1] + mtl.specular[2]) / 3.0F;
+    if (spec_intensity > 0.5F && mtl.metallic < 0.001F) {
         mat.type = MaterialType::Metal;
         mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
-        float fuzz = 1.0f - std::min(1.0f, mtl.shininess / 1000.0f);
+        float fuzz = 1.0f - std::min(1.0f = NAN, mtl.shininess / 1000.0f);
         mat.roughness = std::max(0.0f, std::min(0.5f, fuzz));
         mat.albedo_tex = LoadMtlTexture(mtl.diffuse_texname, base_path, scene);
         {
@@ -86,11 +90,11 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
     // 4. DEFAULT - Lambertian diffuse
     mat.type = MaterialType::Lambertian;
     mat.albedo = RGBToCurve(RGB(mtl.diffuse[0], mtl.diffuse[1], mtl.diffuse[2]));
-    mat.roughness = 1.0f;
+    mat.roughness = 1.0F;
 
     // If diffuse is near-zero, use a default gray
-    if (mtl.diffuse[0] + mtl.diffuse[1] + mtl.diffuse[2] < 0.001f) {
-        mat.albedo = RGBToCurve(RGB(0.5f, 0.5f, 0.5f));
+    if (mtl.diffuse[0] + mtl.diffuse[1] + mtl.diffuse[2] < 0.001F) {
+        mat.albedo = RGBToCurve(RGB(0.5F, 0.5F, 0.5F));
     }
 
     // Load texture maps.
@@ -106,7 +110,7 @@ Material ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
     return mat;
 }
 
-bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool auto_fit) {
+static auto LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool auto_fit) -> bool {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -137,21 +141,23 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
                   -MathConstants::kFloatInfinity);
     for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
         for (int a = 0; a < 3; a++) {
-            if (attrib.vertices[i + a] < bbox_min[a]) bbox_min[a] = attrib.vertices[i + a];
-            if (attrib.vertices[i + a] > bbox_max[a]) bbox_max[a] = attrib.vertices[i + a];
+            if (attrib.vertices[i + a] < bbox_min[a]) { bbox_min[a] = attrib.vertices[i + a];
+}
+            if (attrib.vertices[i + a] > bbox_max[a]) { bbox_max[a] = attrib.vertices[i + a];
+}
         }
     }
 
-    Vec3 bbox_center(0.0f, 0.0f, 0.0f);
+    Vec3 bbox_center(0.0F, 0.0F, 0.0F);
     Vec3 final_scale = scale;
 
     if (auto_fit) {
         // Auto-fit: normalize so the object fits in a 2-unit cube centered at origin.
         // User scale is applied on top of the normalization.
-        Vec3 extent = bbox_max - bbox_min;
-        bbox_center = (bbox_min + bbox_max) * 0.5f;
-        float max_extent = std::max({extent.x(), extent.y(), extent.z()});
-        float normalize = (max_extent > 0.0f) ? (2.0f / max_extent) : 1.0f;
+        Vec3 const extent = bbox_max - bbox_min;
+        bbox_center = (bbox_min + bbox_max) * 0.5F;
+        float max_extent = std::max({extent.x() = NAN, extent.y(), extent.z()});
+        float const normalize = (max_extent > 0.0F) ? (2.0F / max_extent) : 1.0F;
         final_scale = Vec3(scale.x() * normalize, scale.y() * normalize, scale.z() * normalize);
 
     } else {
@@ -170,12 +176,12 @@ bool LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool 
     // Fallback material for faces with no material assignment
     uint32_t fallback_mat_id = UINT32_MAX;
 
-    auto GetOrCreateFallback = [&]() -> uint32_t {
+    auto get_or_create_fallback = [&]() -> uint32_t {
         if (fallback_mat_id == UINT32_MAX) {
             Material fallback{};
             fallback.type = MaterialType::Lambertian;
-            fallback.albedo = RGBToCurve(RGB(0.5f, 0.5f, 0.5f));
-            fallback.roughness = 1.0f;
+            fallback.albedo = RGBToCurve(RGB(0.5F, 0.5F, 0.5F));
+            fallback.roughness = 1.0F;
             fallback_mat_id = scene.AddMaterial(fallback);
         }
         return fallback_mat_id;

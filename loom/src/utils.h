@@ -54,7 +54,7 @@ class Timer {
     /**
      * Get elapsed time in milliseconds
      */
-    double ElapsedMs() const;
+    static double ElapsedMs() ;
 
     /**
      * Get elapsed time as a formatted string
@@ -62,7 +62,7 @@ class Timer {
     std::string ElapsedString() const;
 
   private:
-    std::chrono::high_resolution_clock::time_point start_;
+    std::chrono::high_resolution_clock::time_point start_{};
 };
 
 /**

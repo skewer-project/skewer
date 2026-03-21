@@ -35,10 +35,10 @@ class Film {
     void AddSample(int x, int y, const RGB& L, float alpha, float weight = 1.0f);
 
     // accumulates both moments for variance tracking.
-    void AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight);
+    static void AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight);
 
     // convergence check, should called every adaptive_step samples.
-    bool IsPixelConverged(int x, int y, float noise_threshold) const;
+    static bool IsPixelConverged(int x, int y, float noise_threshold) ;
 
     void AddDeepSample(int x, int y, const BoundedArray<DeepSegment, kMaxDeepSegments>& segments);
 
@@ -64,7 +64,7 @@ class Film {
                                               int pixel_sample_count) const;
 
     int width_, height_;
-    std::vector<Pixel> pixels_;
+    std::vector<Pixel> pixels_{};
     DeepSegmentPool deep_pool_;
 };
 

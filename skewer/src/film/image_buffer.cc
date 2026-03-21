@@ -1,4 +1,5 @@
 #include "film/image_buffer.h"
+#include <ImfArray.h>
 
 #include <cassert>
 
@@ -10,8 +11,9 @@ ImageBuffer::ImageBuffer(int width, int height) : width_(width), height_(height)
     pixels_.resize(width * height);
 }
 
-void ImageBuffer::SetPixel(int x, int y, const RGB& color) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+void ImageBuffer::SetPixel(int x, int y, const RGB& color) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) { return;
+}
     pixels_[y * width_ + x] = color;
 }
 
@@ -31,15 +33,17 @@ FlatImageBuffer::FlatImageBuffer(int width, int height, std::vector<RGB> pixels)
       pixels_(std::move(pixels)),
       alpha_(static_cast<size_t>(width) * height, 1.0f) {}
 
-void FlatImageBuffer::SetPixel(int x, int y, const RGB& s) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
+void FlatImageBuffer::SetPixel(int x, int y, const RGB& s) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) { return;
+}
     pixels_[static_cast<size_t>(y) * width_ + x] = s;
     // alpha_ stays at its current value (1.0 unless previously set)
 }
 
-void FlatImageBuffer::SetPixel(int x, int y, const RGB& s, float alpha) {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) return;
-    size_t idx = static_cast<size_t>(y) * width_ + x;
+void FlatImageBuffer::SetPixel(int x, int y, const RGB& s, float alpha) const {
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) { return;
+}
+    size_t idx = static_cast<size_t>((y) * width_) + x;
     pixels_[idx] = s;
     alpha_[idx] = alpha;
 }
@@ -67,30 +71,30 @@ void FlatImageBuffer::SetPixel(int x, int y, const RGB& s, float alpha) {
  * ======================================================================================
  */
 
-DeepImageBuffer::DeepImageBuffer(int width, int height, size_t totalSamples,
-                                 const Imf::Array2D<unsigned int>& sampleCounts)
+DeepImageBuffer::DeepImageBuffer(int width, int height, size_t total_samples,
+                                 const Imf::Array2D<unsigned int>& sample_counts)
     : width_(width), height_(height) {
     // At the very least the offsets needs to be allocated
-    size_t numPixels = width * height;
+    size_t num_pixels = width * height;
     pixelOffsets_.resize(numPixels + 1);  // for sentinel
     allSamples_.resize(totalSamples);
 
-    size_t currentOffset = 0;
+    size_t current_offset = 0;
     for (size_t i = 0; i < numPixels; ++i) {
         pixelOffsets_[i] = currentOffset;
-        currentOffset += sampleCounts[i / width][i % width];
+        current_offset += sample_counts[i / width][i % width];
     }
     pixelOffsets_[numPixels] = currentOffset;  // Sentinel
 }
 
-int DeepImageBuffer::GetWidth(void) const { return width_; }
+auto DeepImageBuffer::GetWidth() const -> int { return width_; }
 
-int DeepImageBuffer::GetHeight(void) const { return height_; }
+auto DeepImageBuffer::GetHeight() const -> int { return height_; }
 
-void DeepImageBuffer::SetPixel(int x, int y, const std::vector<DeepSample>& newSamples) {
+void DeepImageBuffer::SetPixel(int x, int y, const std::vector<DeepSample>& new_samples) const {
     assert(x >= 0 && x < width_);  // should crash if out of bounds
 
-    size_t idx = y * width_ + x;
+    size_t idx = (y * width_) + x;
     size_t start = pixelOffsets_[idx];
     [[maybe_unused]] size_t end = pixelOffsets_[idx + 1];
 
@@ -101,10 +105,10 @@ void DeepImageBuffer::SetPixel(int x, int y, const std::vector<DeepSample>& newS
     std::copy(newSamples.begin(), newSamples.end(), allSamples_.begin() + start);
 }
 
-DeepPixelView DeepImageBuffer::GetPixel(int x, int y) const {
+auto DeepImageBuffer::GetPixel(int x, int y) const -> DeepPixelView {
     assert(x >= 0 && x < width_);  // crash if out of bounds
 
-    size_t idx = y * width_ + x;
+    size_t idx = (y * width_) + x;
     size_t start = pixelOffsets_[idx];
     size_t end = pixelOffsets_[idx + 1];
 

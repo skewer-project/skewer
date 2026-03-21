@@ -4,32 +4,33 @@
 #include <exrio/deep_writer.h>
 #include <exrio/utils.h>
 
+#include <cstddef>
 #include <stdexcept>
 #include <string>
 
-#include "deep_info.h"
+#include "deep_options.h"
 #include "utils.h"
 
 namespace exrio {
 
 // Write the results back to disk using exrio's write functions.
-void WriteFlatOutputs(const std::vector<float>& flatRgba, const std::string& outputUri,
-                      bool flatOutput, bool pngOutput, int width, int height) {
+static void WriteFlatOutputs(const std::vector<float>& flat_rgba, const std::string& output_uri,
+                      bool flat_output, bool png_output, int width, int height) {
     log("\nWriting outputs...");
-    Timer writeTimer;
+    Timer const write_timer;
 
     // Use exrio's write functions to write the outputs (deep or flat)
     try {
-        if (flatOutput) {
+        if (flat_output) {
             writeFlatEXR(flatRgba, width, height, outputUri);
             log("  Wrote: " + outputUri);
         }
 
-        if (pngOutput) {
-            std::string pngPath = outputUri;
+        if (png_output) {
+            std::string png_path = outputUri;
             // Ensure we have an extension if not provided
             if (pngPath.find('.') == std::string::npos) {
-                pngPath += ".png";
+                png_path += ".png";
             }
 
             if (hasPNGSupport()) {
@@ -43,11 +44,11 @@ void WriteFlatOutputs(const std::vector<float>& flatRgba, const std::string& out
         throw std::runtime_error("Failed to write output: " + std::string(e.what()));
     }
 
-    logVerbose("  Write time: " + writeTimer.elapsedString());
+    logVerbose("  Write time: " + write_timer.elapsedString());
 }
 
-int SaveImageInfo(const Options& opts,
-                  std::vector<std::unique_ptr<deep_compositor::DeepInfo>>& imagesInfo) {
+static auto SaveImageInfo(const Options& opts,
+                  std::vector<std::unique_ptr<deep_compositor::DeepInfo> /*unused*/>& imagesInfo) -> int {
     for (size_t i = 0; i < opts.input_files.size(); ++i) {
         const std::string& filename = opts.input_files[i];
 

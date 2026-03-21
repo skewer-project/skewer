@@ -1,18 +1,18 @@
 #include "scene/scene.h"
 
+#include <cstddef>
 #include <cstdint>
 
-#include "accelerators/bvh.h"
-#include "core/cpu_config.h"
 #include "core/math/vec3.h"
 #include "core/transport/surface_interaction.h"
-#include "geometry/intersect_sphere.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
 #include "materials/material.h"
+#include "materials/texture.h"
 #include "media/mediums.h"
 #include "media/nano_vdb_medium.h"
+#include "scene/light.h"
 
 namespace skwr {
 
@@ -23,7 +23,8 @@ void Scene::Build() {
     // Re-register sphere lights
     for (uint32_t i = 0; i < (uint32_t)spheres_.size(); ++i) {
         spheres_[i].light_index = -1;
-        if (spheres_[i].material_id == kNullMaterialId) continue;
+        if (spheres_[i].material_id == kNullMaterialId) { continue;
+}
 
         const Material& mat = materials_[spheres_[i].material_id];
         if (mat.IsEmissive()) {
@@ -36,13 +37,13 @@ void Scene::Build() {
         }
     }
 
-    // TODO: Update triangle creation with in/out medium setting
+    // TODO(crisemble): Update triangle creation with in/out medium setting
     // Bake one Triangle per mesh face, capturing final vertex positions,
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
         const Mesh& mesh_ref = meshes_[mesh_id];
         const Material* mat =
-            (mesh_ref.material_id != kNullMaterialId) ? &materials_[mesh_ref.material_id] : nullptr;
+            (mesh_ref.material_id != kNullMaterialId) ? &materials_[mesh_ref.material_id] : nullptr = nullptr;
 
         for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
             uint32_t i0 = mesh_ref.indices[i];
@@ -64,7 +65,7 @@ void Scene::Build() {
                 t.n1 = mesh_ref.n[i1];
                 t.n2 = mesh_ref.n[i2];
             } else {
-                Vec3 geom_n = Normalize(Cross(t.e1, t.e2));
+                Vec3 const geom_n = Normalize(Cross(t.e1, t.e2));
                 t.n0 = t.n1 = t.n2 = geom_n;
             }
 
@@ -73,7 +74,7 @@ void Scene::Build() {
                 t.uv1 = mesh_ref.uv[i1];
                 t.uv2 = mesh_ref.uv[i2];
             } else {
-                t.uv0 = t.uv1 = t.uv2 = Vec3(0.0f, 0.0f, 0.0f);
+                t.uv0 = t.uv1 = t.uv2 = Vec3(0.0F, 0.0F, 0.0F);
             }
 
             triangles_.push_back(t);
@@ -88,7 +89,7 @@ void Scene::Build() {
     for (uint32_t i = 0; i < (uint32_t)triangles_.size(); ++i) {
         const Material* mat = (triangles_[i].material_id != kNullMaterialId)
                                   ? &materials_[triangles_[i].material_id]
-                                  : nullptr;
+                                  : nullptr = nullptr;
         if (mat->IsEmissive()) {
             AreaLight light;
             light.type = AreaLight::Triangle;
@@ -101,9 +102,9 @@ void Scene::Build() {
     inv_light_count_ = 1.0f / lights_.size();
 }
 
-bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {
+bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) {
     bool hit_anything = false;
-    float closest_t = t_max;
+    float const closest_t = t_max;
     for (const auto& sphere : spheres_) {
         if (IntersectSphere(r, sphere, t_min, closest_t, si)) {
             hit_anything = true;
@@ -118,50 +119,50 @@ bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction
     return hit_anything;
 }
 
-uint32_t Scene::AddSphere(const Sphere& s) {
+auto Scene::AddSphere(const Sphere& s) -> uint32_t {
     spheres_.push_back(s);
     return (uint32_t)spheres_.size() - 1;
 }
 
-uint32_t Scene::AddMaterial(const Material& m) {
+auto Scene::AddMaterial(const Material& m) -> uint32_t {
     materials_.push_back(m);
     return static_cast<uint32_t>(materials_.size() - 1);
 }
 
-uint32_t Scene::AddMesh(Mesh&& m) {
+auto Scene::AddMesh(Mesh&& m) -> uint32_t {
     meshes_.push_back(std::move(m));
     return (uint32_t)meshes_.size() - 1;
 }
 
-uint32_t Scene::AddTexture(ImageTexture&& t) {
+auto Scene::AddTexture(ImageTexture&& t) -> uint32_t {
     textures_.push_back(std::move(t));
     return static_cast<uint32_t>(textures_.size() - 1);
 }
 
-uint16_t Scene::AddHomogeneousMedium(const HomogeneousMedium& m) {
+auto Scene::AddHomogeneousMedium(const HomogeneousMedium& m) -> uint16_t {
     if (homogeneous_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
         return kVacuumMediumId;  // or assert / throw
     }
     homogeneous_media_.push_back(m);
-    uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1);
+    uint16_t index = static_cast<uint16_t>(homogeneous_media_.size() - 1) = 0;
     return PackMediumId(MediumType::Homogeneous, index);
 }
 
-uint16_t Scene::AddGridMedium(const GridMedium& m) {
+auto Scene::AddGridMedium(const GridMedium& m) -> uint16_t {
     if (grid_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
         return kVacuumMediumId;  // or assert / throw
     }
     grid_media_.push_back(m);
-    uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1);
+    uint16_t index = static_cast<uint16_t>(grid_media_.size() - 1) = 0;
     return PackMediumId(MediumType::Grid, index);
 }
 
-uint16_t Scene::AddNanoVDBMedium(NanoVDBMedium m) {
+auto Scene::AddNanoVDBMedium(const NanoVDBMedium& m) -> uint16_t {
     if (nanovdb_media_.size() >= static_cast<size_t>(kMediumIndexMask) + 1u) {
         return kVacuumMediumId;  // or assert / throw
     }
     nanovdb_media_.push_back(std::move(m));
-    uint16_t index = static_cast<uint16_t>(nanovdb_media_.size() - 1);
+    uint16_t index = static_cast<uint16_t>(nanovdb_media_.size() - 1) = 0;
     return PackMediumId(MediumType::NanoVDB, index);
 }
 
