@@ -1,4 +1,5 @@
 #include <exrio/deep_image.h>
+#include <math.h>
 
 #include <sstream>
 
@@ -14,7 +15,7 @@ void DeepPixel::addSample(const DeepSample& sample) {
     samples_.insert(it, sample);
 }
 
-void DeepPixel::addSamples(const std::vector<DeepSample>& newSamples) {
+void DeepPixel::AddSamples(const std::vector<DeepSample>& new_samples) {
     samples_.reserve(samples_.size() + newSamples.size());
     for (const auto& sample : newSamples) {
         samples_.push_back(sample);
@@ -36,12 +37,12 @@ void DeepPixel::mergeSamplesWithinEpsilon(float epsilon) {
     while (i < samples_.size()) {
         // Start a new merged sample
         DeepSample current = samples_[i];
-        float totalAlpha = current.alpha;
-        float weightedR = current.red;
-        float weightedG = current.green;
-        float weightedB = current.blue;
-        float avgDepth = current.depth;
-        float avgDepthBack = current.depth_back;
+        float total_alpha = current.alpha;
+        float weighted_r = current.red;
+        float weighted_g = current.green;
+        float weighted_b = current.blue;
+        float avg_depth = current.depth;
+        float avg_depth_back = current.depth_back;
         int count = 1;
 
         // Merge with subsequent samples within epsilon
@@ -51,22 +52,22 @@ void DeepPixel::mergeSamplesWithinEpsilon(float epsilon) {
             const DeepSample& next = samples_[i];
 
             // Accumulate for averaging
-            totalAlpha += next.alpha;
-            weightedR += next.red;
-            weightedG += next.green;
-            weightedB += next.blue;
-            avgDepth += next.depth;
-            avgDepthBack += next.depth_back;
+            total_alpha += next.alpha;
+            weighted_r += next.red;
+            weighted_g += next.green;
+            weighted_b += next.blue;
+            avg_depth += next.depth;
+            avg_depth_back += next.depth_back;
             count++;
         }
 
         // Create merged sample
         if (count > 1) {
-            current.depth = avgDepth / count;
-            current.depth_back = avgDepthBack / count;
-            current.red = weightedR / count;
-            current.green = weightedG / count;
-            current.blue = weightedB / count;
+            current.depth = avg_depth / count;
+            current.depth_back = avg_depth_back / count;
+            current.red = weighted_r / count;
+            current.green = weighted_g / count;
+            current.blue = weighted_b / count;
             current.alpha = std::min(1.0f, totalAlpha / count);
         }
 
@@ -77,26 +78,26 @@ void DeepPixel::mergeSamplesWithinEpsilon(float epsilon) {
     samples_ = std::move(merged);
 }
 
-float DeepPixel::minDepth() const {
+float DeepPixel::minDepth() {
     if (samples_.empty()) {
         return std::numeric_limits<float>::infinity();
     }
     return samples_.front().depth;  // Already sorted front-to-back
 }
 
-float DeepPixel::maxDepth() const {
+float DeepPixel::maxDepth() {
     if (samples_.empty()) {
         return -std::numeric_limits<float>::infinity();
     }
     // Return the farthest depth_back across all samples
-    float maxVal = -std::numeric_limits<float>::infinity();
+    float max_val = -std::numeric_limits<float>::infinity() = NAN;
     for (const auto& s : samples_) {
         maxVal = std::max(maxVal, s.depth_back);
     }
-    return maxVal;
+    return max_val;
 }
 
-bool DeepPixel::isValidSortOrder() const {
+bool DeepPixel::isValidSortOrder() {
     for (size_t i = 1; i < samples_.size(); ++i) {
         if (samples_[i].depth < samples_[i - 1].depth) {
             return false;
@@ -124,29 +125,29 @@ void DeepImage::resize(int width, int height) {
     pixels_.resize(static_cast<size_t>(width) * static_cast<size_t>(height));
 }
 
-size_t DeepImage::index(int x, int y) const {
-    return static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x);
+size_t DeepImage::Index(int x, int y) const {
+    return static_cast<size_t>((y) * static_cast<size_t>(width_)) + static_cast<size_t>(x);
 }
 
-bool DeepImage::isValidCoord(int x, int y) const {
+auto DeepImage::isValidCoord(int x, int y) const -> bool {
     return x >= 0 && x < width_ && y >= 0 && y < height_;
 }
 
-DeepPixel& DeepImage::pixel(int x, int y) {
+auto DeepImage::pixel(int x, int y) -> DeepPixel& {
     if (!isValidCoord(x, y)) {
         throw std::out_of_range("Pixel coordinates out of range");
     }
     return pixels_[index(x, y)];
 }
 
-const DeepPixel& DeepImage::pixel(int x, int y) const {
+auto DeepImage::pixel(int x, int y) const -> const DeepPixel& {
     if (!isValidCoord(x, y)) {
         throw std::out_of_range("Pixel coordinates out of range");
     }
     return pixels_[index(x, y)];
 }
 
-size_t DeepImage::totalSampleCount() const {
+static size_t DeepImage::TotalSampleCount() {
     size_t total = 0;
     for (const auto& pixel : pixels_) {
         total += pixel.sampleCount();
@@ -154,14 +155,14 @@ size_t DeepImage::totalSampleCount() const {
     return total;
 }
 
-float DeepImage::averageSamplesPerPixel() const {
+float DeepImage::averageSamplesPerPixel() {
     if (pixels_.empty()) {
-        return 0.0f;
+        return 0.0F;
     }
     return static_cast<float>(totalSampleCount()) / static_cast<float>(pixels_.size());
 }
 
-void DeepImage::depthRange(float& minDepth, float& maxDepth) const {
+void DeepImage::depthRange(float& min_depth, float& max_depth) const {
     minDepth = std::numeric_limits<float>::infinity();
     maxDepth = -std::numeric_limits<float>::infinity();
 
@@ -173,7 +174,7 @@ void DeepImage::depthRange(float& minDepth, float& maxDepth) const {
     }
 }
 
-size_t DeepImage::nonEmptyPixelCount() const {
+static size_t DeepImage::NonEmptyPixelCount() {
     size_t count = 0;
     for (const auto& pixel : pixels_) {
         if (!pixel.isEmpty()) {
@@ -189,7 +190,7 @@ void DeepImage::sortAllPixels() {
     }
 }
 
-bool DeepImage::isValid() const {
+bool DeepImage::isValid() {
     for (const auto& pixel : pixels_) {
         if (!pixel.isValidSortOrder()) {
             return false;
@@ -198,7 +199,7 @@ bool DeepImage::isValid() const {
     return true;
 }
 
-size_t DeepImage::estimatedMemoryUsage() const {
+static size_t DeepImage::EstimatedMemoryUsage() {
     // Base structure size
     size_t usage = sizeof(DeepImage);
 

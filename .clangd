@@ -1,0 +1,33 @@
+CompileFlags:
+  # Tell clangd where to find the compilation database
+  CompilationDatabase: build/tidy
+
+---
+# Apply clang-tidy settings only to our source files
+If:
+  PathMatch: ["apps/.*", "skewer/src/.*", "loom/src/.*", "libs/exrio/src/.*"]
+
+Diagnostics:
+  # Enable clang-tidy inside the editor for our sources
+  ClangTidy:
+    Add: ["*"]
+    Remove: ["readability-identifier-length"]
+    CheckOptions:
+      readability-identifier-naming.ClassCase: CamelCase
+      readability-identifier-naming.FunctionCase: CamelCase
+      readability-identifier-naming.MemberCase: lower_case
+      readability-identifier-naming.MemberSuffix: _
+      readability-identifier-naming.ParameterCase: lower_case
+      readability-identifier-naming.VariableCase: lower_case
+  
+  # Optional: Silence some noisy warnings if they get in the way
+  Suppress: ["bugprone-reserved-identifier"]
+
+---
+# Disable clang-tidy for everything else (including generated build files)
+If:
+  PathExclude: ["apps/.*", "skewer/src/.*", "loom/src/.*", "libs/exrio/src/.*"]
+
+Diagnostics:
+  ClangTidy:
+    Remove: ["*"]

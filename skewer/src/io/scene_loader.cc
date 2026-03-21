@@ -1,21 +1,19 @@
 #include "io/scene_loader.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <map>
-#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "core/cpu_config.h"
+#include "core/color/color.h"
 #include "core/math/transform.h"
 #include "core/math/vec3.h"
-#include "core/spectral/spectral_curve.h"
 #include "core/spectral/spectral_utils.h"
 #include "geometry/sphere.h"
-#include "io/obj_loader.h"
 #include "materials/material.h"
 #include "materials/texture.h"
 #include "media/mediums.h"
@@ -32,14 +30,14 @@ namespace skwr {
 // Helpers
 //------------------------------------------------------------------------------
 
-static Vec3 ParseVec3(const json& j) {
+static auto ParseVec3(const json& j) -> Vec3 {
     if (!j.is_array() || j.size() != 3) {
         throw std::runtime_error("Expected array of 3 numbers for Vec3");
     }
     return Vec3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
 }
 
-static RGB ParseRGB(const json& j) {
+static auto ParseRGB(const json& j) -> RGB {
     if (!j.is_array() || j.size() != 3) {
         throw std::runtime_error("Expected array of 3 numbers for Spectrum");
     }
@@ -47,21 +45,21 @@ static RGB ParseRGB(const json& j) {
 }
 
 template <typename T>
-static T GetOr(const json& j, const std::string& key, const T& default_value) {
+static auto GetOr(const json& j, const std::string& key, const T& default_value) -> T {
     if (j.contains(key)) {
         return j[key].get<T>();
     }
     return default_value;
 }
 
-static Vec3 GetVec3Or(const json& j, const std::string& key, const Vec3& default_value) {
+static auto GetVec3Or(const json& j, const std::string& key, const Vec3& default_value) -> Vec3 {
     if (j.contains(key)) {
         return ParseVec3(j[key]);
     }
     return default_value;
 }
 
-static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_value) {
+static auto GetRGBOr(const json& j, const std::string& key, const RGB& default_value) -> RGB {
     if (j.contains(key)) {
         return ParseRGB(j[key]);
     }
@@ -92,11 +90,11 @@ static MediaMap ParseMedia(const json& j, Scene& scene, const std::string& scene
             med.sigma_a_base = RGBToCurve(GetRGBOr(m, "sigma_a", RGB(0.0f)));
             med.sigma_s_base = RGBToCurve(GetRGBOr(m, "sigma_s", RGB(0.0f)));
 
-            med.g = GetOr(m, "g", 0.0f);
-            med.density_multiplier = GetOr(m, "density_multiplier", 1.0f);
+            med.g = GetOr(m, "g", 0.0F);
+            med.density_multiplier = GetOr(m, "density_multiplier", 1.0F);
 
             // Spatial overrides
-            med.scale = GetOr(m, "scale", 1.0f);
+            med.scale = GetOr(m, "scale", 1.0F);
             med.translate = GetVec3Or(m, "translate", Vec3(0.0f, 0.0f, 0.0f));
 
             std::string file = m.at("file").get<std::string>();
@@ -131,12 +129,16 @@ using MaterialMap = std::map<std::string, uint32_t>;
 // Helper: load a texture from a path string.
 // Resolves relative paths against scene_dir.
 // Returns kNoTexture if the string is empty or load fails.
-static uint32_t LoadSceneTexture(const json& m, const std::string& key,
-                                 const std::string& scene_dir, Scene& scene) {
-    if (!m.contains(key)) return kNoTexture;
+static auto LoadSceneTexture(const json& m, const std::string& key, const std::string& scene_dir,
+                             Scene& scene) -> uint32_t {
+    if (!m.contains(key)) {
+        return kNoTexture;
+    }
 
     std::string texpath = m[key].get<std::string>();
-    if (texpath.empty()) return kNoTexture;
+    if (texpath.empty()) {
+        return kNoTexture;
+    }
 
     std::string filepath;
     if (!texpath.empty() && texpath[0] == '/') {
@@ -145,8 +147,10 @@ static uint32_t LoadSceneTexture(const json& m, const std::string& key,
         filepath = scene_dir.empty() ? texpath : (scene_dir + "/" + texpath);
     }
 
-    ImageTexture tex;
-    if (!tex.Load(filepath)) return kNoTexture;
+    ImageTexture const tex;
+    if (!tex.Load(filepath)) {
+        return kNoTexture;
+    }
 
     return scene.AddTexture(std::move(tex));
 }
@@ -172,12 +176,12 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
         } else if (type == "metal") {
             mat.type = MaterialType::Metal;
             mat.albedo = RGBToCurve(GetRGBOr(m, "albedo", RGB(1.0f)));
-            mat.roughness = GetOr(m, "roughness", 0.0f);
+            mat.roughness = GetOr(m, "roughness", 0.0F);
         } else if (type == "dielectric") {
             mat.type = MaterialType::Dielectric;
             mat.albedo = RGBToCurve(GetRGBOr(m, "albedo", RGB(1.0f)));
             mat.ior = m.at("ior").get<float>();
-            mat.roughness = GetOr(m, "roughness", 0.0f);
+            mat.roughness = GetOr(m, "roughness", 0.0F);
         } else {
             throw std::runtime_error("Unknown material type: " + type + " (material '" + name +
                                      "')");
@@ -204,8 +208,11 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
 // Object Parsing
 //------------------------------------------------------------------------------
 
-static uint16_t LookupMedium(const json& obj, const MediaMap& media_map, const std::string& key) {
-    if (!obj.contains(key)) return static_cast<uint16_t>(MediumType::Vacuum);
+static auto LookupMedium(const json& obj, const MediaMap& media_map, const std::string& key)
+    -> uint16_t {
+    if (!obj.contains(key)) {
+        return static_cast<uint16_t>(MediumType::Vacuum);
+    }
 
     std::string name = obj[key].get<std::string>();
 
@@ -217,7 +224,7 @@ static uint16_t LookupMedium(const json& obj, const MediaMap& media_map, const s
     return it->second;
 }
 
-static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int obj_index) {
+static auto LookupMaterial(const json& obj, const MaterialMap& mat_map, int obj_index) -> uint32_t {
     if (!obj.contains("material")) {
         throw std::runtime_error("Object at index " + std::to_string(obj_index) +
                                  " missing 'material' field");
@@ -225,7 +232,9 @@ static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int 
 
     std::string mat_name = obj["material"].get<std::string>();
 
-    if (mat_name == "null" || mat_name == "none") return kNullMaterialId;
+    if (mat_name == "null" || mat_name == "none") {
+        return kNullMaterialId;
+    }
 
     auto it = mat_map.find(mat_name);
     if (it == mat_map.end()) {
@@ -239,15 +248,19 @@ static uint32_t LookupMaterial(const json& obj, const MaterialMap& mat_map, int 
 // override.  When the object's visibility differs from the base material's,
 // a one-off clone is registered in the scene so other objects sharing that
 // material are not affected.
-static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap& mat_map,
-                                             Scene& scene, int obj_index) {
-    uint32_t mat_id = LookupMaterial(obj, mat_map, obj_index);
-    if (!obj.contains("visible")) return mat_id;
+static auto LookupMaterialWithVisibility(const json& obj, const MaterialMap& mat_map, Scene& scene,
+                                         int obj_index) -> uint32_t {
+    uint32_t mat_id = LookupMaterial(obj = 0, mat_map, obj_index);
+    if (!obj.contains("visible")) {
+        return mat_id;
+    }
 
     bool want_visible = obj["visible"].get<bool>();
     // Copy before potentially invalidating the reference via AddMaterial.
     Material cloned = scene.GetMaterial(mat_id);
-    if (cloned.visible == want_visible) return mat_id;
+    if (cloned.visible == want_visible) {
+        return mat_id;
+    }
 
     cloned.visible = want_visible;
     return scene.AddMaterial(cloned);
@@ -255,33 +268,39 @@ static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap&
 
 static void ParseSphere(const json& obj, const MaterialMap& mat_map, const MediaMap& media_map,
                         Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
+    uint32_t mat_id = LookupMaterialWithVisibility(obj = 0, mat_map, scene, index);
 
-    uint16_t inside = LookupMedium(obj, media_map, "inside_medium");
-    uint16_t outside = LookupMedium(obj, media_map, "outside_medium");
+    uint16_t inside = LookupMedium(obj = 0, media_map, "inside_medium");
+    uint16_t outside = LookupMedium(obj = 0, media_map, "outside_medium");
 
-    Vec3 center(0.0f, 0.0f, 0.0f);
-    float radius = 1.0f;
+    Vec3 center(0.0F, 0.0F, 0.0F);
+    float radius = 1.0F;
 
-    uint16_t med_index = ExtractMediumIndex(inside);
-    MediumType med_type = ExtractMediumType(inside);
+    uint16_t const med_index = ExtractMediumIndex(inside);
+    MediumType const med_type = ExtractMediumType(inside);
 
     if (inside != kVacuumMediumId && med_type == MediumType::NanoVDB) {
         const NanoVDBMedium& medium = scene.nanovdb_media()[med_index];
         center = medium.Center();
-        radius = medium.BoundingRadius() * 1.05f;  // padding
+        radius = medium.BoundingRadius() * 1.05F;  // padding
     } else {
         center = ParseVec3(obj.at("center"));
         radius = obj.at("radius").get<float>();
     }
-    int32_t light_index = -1;
-    uint16_t priority = 1;
+    int32_t const light_index = -1;
+    uint16_t const priority = 1;
 
-    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority});
+    scene.AddSphere(Sphere{.center = center,
+                           .radius = radius,
+                           .material_id = mat_id,
+                           .light_index = light_index,
+                           .interior_medium = inside,
+                           .exterior_medium = outside,
+                           .priority = priority});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
+    uint32_t mat_id = LookupMaterialWithVisibility(obj = 0, mat_map, scene, index);
 
     const auto& verts = obj.at("vertices");
     if (!verts.is_array() || verts.size() != 4) {
@@ -314,9 +333,9 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
     bool auto_fit = GetOr(obj, "auto_fit", true);
 
     // Parse transform
-    Vec3 translate(0.0f, 0.0f, 0.0f);
-    Vec3 rotate_deg(0.0f, 0.0f, 0.0f);
-    Vec3 obj_scale(1.0f, 1.0f, 1.0f);
+    Vec3 translate(0.0F, 0.0F, 0.0F);
+    Vec3 rotate_deg(0.0F, 0.0F, 0.0F);
+    Vec3 obj_scale(1.0F, 1.0F, 1.0F);
 
     if (obj.contains("transform")) {
         const auto& t = obj["transform"];
@@ -335,7 +354,7 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
     }
 
     // Record mesh count before loading so we can apply transforms to new meshes
-    size_t mesh_count_before = scene.MeshCount();
+    size_t const mesh_count_before = scene.MeshCount();
 
     // Load OBJ — when auto_fit is true, the loader normalizes to 2-unit cube.
     // We pass Vec3(1,1,1) as scale here because we handle scaling ourselves via ApplyTransform.
@@ -346,7 +365,7 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
 
     // Override material if specified (also applies object-level visible override)
     if (obj.contains("material") && !obj["material"].is_null()) {
-        uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
+        uint32_t mat_id = LookupMaterialWithVisibility(obj = 0, mat_map, scene, index);
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             scene.GetMutableMesh(static_cast<uint32_t>(i)).material_id = mat_id;
         }
@@ -358,7 +377,7 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
         std::unordered_map<uint32_t, uint32_t> vis_cache;
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
-            uint32_t orig = mesh.material_id;
+            uint32_t const orig = mesh.material_id;
             auto it = vis_cache.find(orig);
             if (it != vis_cache.end()) {
                 mesh.material_id = it->second;
@@ -376,14 +395,14 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
     }
 
     // Apply transform (Scale -> Rotate -> Translate) to all newly added meshes
-    bool has_transform =
-        (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
-         rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
-         translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
+    bool const has_transform =
+        (obj_scale.x() != 1.0F || obj_scale.y() != 1.0F || obj_scale.z() != 1.0F ||
+         rotate_deg.x() != 0.0F || rotate_deg.y() != 0.0F || rotate_deg.z() != 0.0F ||
+         translate.x() != 0.0F || translate.y() != 0.0F || translate.z() != 0.0F);
 
     if (has_transform) {
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
-            Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
+            Mesh const& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
             ApplyTransform(mesh.p, translate, rotate_deg, obj_scale);
             if (!mesh.n.empty()) {
                 ApplyRotationToNormals(mesh.n, rotate_deg);
@@ -420,7 +439,7 @@ static void ParseObjects(const json& j, const MaterialMap& mat_map, const MediaM
 // Camera & Render Config Parsing
 //------------------------------------------------------------------------------
 
-static SceneConfig ParseConfig(const json& j) {
+static auto ParseConfig(const json& j) -> SceneConfig {
     SceneConfig config{};
 
     // --- Camera ---
@@ -432,9 +451,9 @@ static SceneConfig ParseConfig(const json& j) {
     config.look_from = ParseVec3(cam.at("look_from"));
     config.look_at = ParseVec3(cam.at("look_at"));
     config.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
-    config.vfov = GetOr(cam, "vfov", 90.0f);
-    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
-    config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
+    config.vfov = GetOr(cam, "vfov", 90.0F);
+    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0F);
+    config.focus_distance = GetOr(cam, "focus_distance", 1.0F);
 
     // --- Render ---
     auto& opts = config.render_options;
@@ -475,7 +494,7 @@ static SceneConfig ParseConfig(const json& j) {
         opts.integrator_config.tile_size = GetOr(r, "tile_size", 32);
 
         // Adaptive sampling
-        opts.integrator_config.noise_threshold = GetOr(r, "noise_threshold", 0.0f);
+        opts.integrator_config.noise_threshold = GetOr(r, "noise_threshold", 0.0F);
         opts.integrator_config.min_samples = GetOr(r, "min_samples", 1);
         opts.integrator_config.adaptive_step = GetOr(r, "adaptive_step", 16);
         opts.integrator_config.save_sample_map = GetOr(r, "save_sample_map", false);
@@ -497,7 +516,7 @@ static SceneConfig ParseConfig(const json& j) {
 // Main Entry Point
 //------------------------------------------------------------------------------
 
-SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
+static auto LoadSceneFile(const std::string& filepath, Scene& scene) -> SceneConfig {
     // Open and parse JSON
     std::ifstream file(filepath);
     if (!file.is_open()) {

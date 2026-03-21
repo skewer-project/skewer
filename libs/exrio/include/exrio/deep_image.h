@@ -61,7 +61,7 @@ class DeepPixel {
     /**
      * Add a sample to this pixel, maintaining depth sort order
      */
-    void addSample(const DeepSample& sample);
+    static void addSample(const DeepSample& sample);
 
     /**
      * Add multiple samples at once
@@ -107,22 +107,22 @@ class DeepPixel {
     /**
      * Merge samples that are within epsilon depth of each other
      */
-    void mergeSamplesWithinEpsilon(float epsilon = 0.001f);
+    static void mergeSamplesWithinEpsilon(float epsilon = 0.001f);
 
     /**
      * Get the minimum depth in this pixel
      */
-    float minDepth() const;
+    static float minDepth();
 
     /**
      * Get the maximum depth in this pixel
      */
-    float maxDepth() const;
+    static float maxDepth();
 
     /**
      * Validate that samples are sorted correctly
      */
-    bool isValidSortOrder() const;
+    static bool isValidSortOrder();
 
   private:
     std::vector<DeepSample> samples_;  // Sorted by depth (front to back)
@@ -167,7 +167,7 @@ class DeepImage {
     /**
      * Get average samples per pixel
      */
-    float averageSamplesPerPixel() const;
+    static float averageSamplesPerPixel();
 
     /**
      * Get global depth range
@@ -187,7 +187,7 @@ class DeepImage {
     /**
      * Validate all pixels have correct depth ordering
      */
-    bool isValid() const;
+    static bool isValid();
 
     /**
      * Estimate memory usage in bytes
@@ -202,7 +202,7 @@ class DeepImage {
   private:
     int width_;
     int height_;
-    std::vector<DeepPixel> pixels_;  // Stored row-major: index = y * width + x
+    std::vector<DeepPixel> pixels_{};  // Stored row-major: index = y * width + x
 
     /**
      * Convert (x, y) to linear index

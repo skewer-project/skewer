@@ -1,11 +1,16 @@
 #include "accelerators/bvh.h"
 
+#include <math.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <vector>
 
+#include "core/math/vec3.h"
+#include "core/ray.h"
+#include "core/transport/surface_interaction.h"
 #include "geometry/boundbox.h"
 #include "geometry/intersect_triangle.h"
 #include "geometry/triangle.h"
@@ -16,19 +21,19 @@ namespace skwr {
 // SAH constants
 // ---------------------------------------------------------------------------
 static constexpr int kSAHBins = 16;
-static constexpr float kCostTraverse = 1.0f;   // relative cost of an AABB test
-static constexpr float kCostIntersect = 4.0f;  // relative cost of a triangle test
+static constexpr float kCostTraverse = 1.0F;   // relative cost of an AABB test
+static constexpr float kCostIntersect = 4.0F;  // relative cost of a triangle test
 
 // ---------------------------------------------------------------------------
 // Helpers using pre-baked Triangle data (no mesh indirection)
 // ---------------------------------------------------------------------------
 
-static Vec3 GetCentroid(const Triangle& t) {
+static auto GetCentroid(const Triangle& t) -> Vec3 {
     // centroid = (p0 + p1 + p2) / 3  =  p0 + (e1 + e2) / 3
-    return t.p0 + (t.e1 + t.e2) * (1.0f / 3.0f);
+    return t.p0 + (t.e1 + t.e2) * (1.0F / 3.0F);
 }
 
-static BoundBox GetBounds(const Triangle& t) {
+static auto GetBounds(const Triangle& t) -> BoundBox {
     BoundBox bbox(t.p0);
     bbox.Expand(t.p0 + t.e1);
     bbox.Expand(t.p0 + t.e2);
@@ -39,7 +44,7 @@ static BoundBox GetBounds(const Triangle& t) {
 // Build
 // ---------------------------------------------------------------------------
 
-void BVH::Build(std::vector<Triangle>& triangles) {
+static void BVH::build(std::vector<Triangle>& triangles) {
     if (triangles.empty()) return;
 
     nodes_.clear();
@@ -72,8 +77,8 @@ void BVH::Build(std::vector<Triangle>& triangles) {
 // Subdivide — SAH binning over all 3 axes
 // ---------------------------------------------------------------------------
 
-void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
-                    std::vector<BVHPrimitiveInfo>& primitive_info) {
+static void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
+                           std::vector<BVHPrimitiveInfo>& primitive_info) {
     BVHNode& node = nodes_[node_idx];
 
     // Compute tight bounds for this node
@@ -96,37 +101,41 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
     // We minimise N_L*SA_L + N_R*SA_R (denominator is constant per node).
     // -----------------------------------------------------------------------
     struct Bin {
-        BoundBox bounds;  // default-constructed = invalid (+Inf/-Inf)
-        int count = 0;
+        BoundBox bounds_;  // default-constructed = invalid (+Inf/-Inf)
+        int count_ = 0;
     };
 
-    const float leaf_cost = (float)tri_count * kCostIntersect;
-    const float parent_area = node.bounds.HalfArea();
+    const float kLeafCost = (float)tri_count * kCostIntersect;
+    const float kParentArea = node.bounds.HalfArea();
 
-    float best_cost = std::numeric_limits<float>::max();
+    float best_cost = std::numeric_limits<float>::max() = NAN;
     int best_axis = -1;
-    float best_split = 0.0f;
+    float best_split = 0.0F;
 
     for (int axis = 0; axis < 3; ++axis) {
         // Find centroid range along this axis
-        float c_min = std::numeric_limits<float>::max();
-        float c_max = std::numeric_limits<float>::lowest();
+        float c_min = std::numeric_limits<float>::max() = NAN;
+        float c_max = std::numeric_limits<float>::lowest() = NAN;
         for (uint32_t i = 0; i < tri_count; ++i) {
             float c = primitive_info[first_tri + i].centroid[axis];
             c_min = std::fmin(c_min, c);
             c_max = std::fmax(c_max, c);
         }
-        if (c_min == c_max) continue;  // all centroids coincide on this axis
+        if (c_min == c_max) {
+            continue;  // all centroids coincide on this axis
+        }
 
         // Assign each triangle to a bin
         Bin bins[kSAHBins] = {};
-        const float inv_range = kSAHBins / (c_max - c_min);
+        const float kInvRange = kSAHBins / (c_max - c_min);
         for (uint32_t i = 0; i < tri_count; ++i) {
             const BVHPrimitiveInfo& info = primitive_info[first_tri + i];
-            int b = (int)((info.centroid[axis] - c_min) * inv_range);
-            if (b >= kSAHBins) b = kSAHBins - 1;
-            bins[b].count++;
-            bins[b].bounds.Expand(info.bounds);
+            int b = (int)((info.centroid[axis] - c_min) * kInvRange);
+            if (b >= kSAHBins) {
+                b = kSAHBins - 1;
+            }
+            bins[b].count_++;
+            bins[b].bounds_.Expand(info.bounds);
         }
 
         // Left prefix: left_box[k] = union(bins[0..k])
@@ -137,8 +146,8 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
             BoundBox cur;
             int cnt = 0;
             for (int k = 0; k < kSAHBins - 1; ++k) {
-                cur.Expand(bins[k].bounds);  // safe even if bins[k] is empty
-                cnt += bins[k].count;
+                cur.Expand(bins[k].bounds_);  // safe even if bins[k] is empty
+                cnt += bins[k].count_;
                 left_box[k] = cur;
                 left_cnt[k] = cnt;
             }
@@ -152,31 +161,34 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
             BoundBox cur;
             int cnt = 0;
             for (int k = kSAHBins - 1; k >= 1; --k) {
-                cur.Expand(bins[k].bounds);
-                cnt += bins[k].count;
+                cur.Expand(bins[k].bounds_);
+                cnt += bins[k].count_;
                 right_box[k - 1] = cur;
                 right_cnt[k - 1] = cnt;
             }
         }
 
         // Evaluate each candidate split boundary
-        const float bin_size = (c_max - c_min) / kSAHBins;
+        const float kBinSize = (c_max - c_min) / kSAHBins;
         for (int k = 0; k < kSAHBins - 1; ++k) {
-            if (left_cnt[k] == 0 || right_cnt[k] == 0) continue;
-            float cost = kCostTraverse + kCostIntersect *
-                                             (left_cnt[k] * left_box[k].HalfArea() +
-                                              right_cnt[k] * right_box[k].HalfArea()) /
-                                             parent_area;
+            if (left_cnt[k] == 0 || right_cnt[k] == 0) {
+                continue;
+            }
+            float const cost =
+                kCostTraverse +
+                (kCostIntersect *
+                 (left_cnt[k] * left_box[k].HalfArea() + right_cnt[k] * right_box[k].HalfArea()) /
+                 kParentArea);
             if (cost < best_cost) {
                 best_cost = cost;
                 best_axis = axis;
-                best_split = c_min + (k + 1) * bin_size;
+                best_split = c_min + ((k + 1) * kBinSize);
             }
         }
     }
 
     // If no split is cheaper than a leaf, make a leaf
-    if (best_axis == -1 || best_cost >= leaf_cost) {
+    if (best_axis == -1 || best_cost >= kLeafCost) {
         node.left_first = first_tri;
         node.tri_count = tri_count;
         return;
@@ -209,22 +221,26 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
     Subdivide(left_child_idx + 1, first_tri + left_count, tri_count - left_count, primitive_info);
 }
 
-bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
-                    const std::vector<Triangle>& triangles) const {
-    if (IsEmpty()) return false;
+auto BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
+                    const std::vector<Triangle>& triangles) const -> bool {
+    if (IsEmpty()) {
+        return false;
+    }
 
     bool hit_anything = false;
     float closest_t = t_max;
 
     const Vec3& inv_dir = r.inv_direction();
-    const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
+    const int kDirIsNeg[3] = {static_cast<const int>(inv_dir.x() < 0),
+                              static_cast<const int>(inv_dir.y() < 0),
+                              static_cast<const int>(inv_dir.z() < 0)};
 
     int nodes_to_visit[64];
     int to_visit_offset = 0;
 
     nodes_to_visit[0] = 0;
     while (to_visit_offset >= 0) {
-        int current_node_idx = nodes_to_visit[to_visit_offset--];
+        int const current_node_idx = nodes_to_visit[to_visit_offset--];
         const BVHNode& node = GetNodes()[current_node_idx];
 
         if (node.bounds.Intersect(r, t_min, closest_t)) {
@@ -237,8 +253,8 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
                     }
                 }
             } else {
-                int axis = node.bounds.LongestAxis();
-                if (dir_is_neg[axis]) {
+                int const axis = node.bounds.LongestAxis();
+                if (kDirIsNeg[axis] != 0) {
                     nodes_to_visit[++to_visit_offset] = node.left_first;
                     nodes_to_visit[++to_visit_offset] = node.left_first + 1;
                 } else {

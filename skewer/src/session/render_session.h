@@ -25,7 +25,7 @@ class Film;
 class RenderSession {
   public:
     RenderSession();
-    ~RenderSession();
+    ~RenderSession() = default;
 
     // SETUP: Load scene from a JSON config file.
     // Populates scene, camera, film, and integrator from the config.
@@ -33,27 +33,27 @@ class RenderSession {
     void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
 
     // Update the film buffer if options (like samples_per_pixel) have changed
-    void RebuildFilm();
+    static void RebuildFilm();
 
     // EXECUTE: Run the integrator on the scene
-    void Render();
+    static void Render();
 
     // OUTPUT: Write the rendered image to disk
-    void Save() const;
+    static void Save();
 
     RenderOptions& Options() { return options_; }
     const RenderOptions& Options() const { return options_; }
 
   private:
     // The 'World' (Geometry, Lights, Accelerators)
-    std::unique_ptr<Scene> scene_;
-    std::unique_ptr<Camera> camera_;
+    std::unique_ptr<Scene> scene_{};
+    std::unique_ptr<Camera> camera_{};
 
     // The 'Canvas' (Where pixels end up)
-    std::unique_ptr<Film> film_;
+    std::unique_ptr<Film> film_{};
 
     // The 'Worker' (Path Tracer, Volumetric, etc.)
-    std::unique_ptr<Integrator> integrator_;
+    std::unique_ptr<Integrator> integrator_{};
 
     RenderOptions options_;
 

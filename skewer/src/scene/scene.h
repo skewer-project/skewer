@@ -30,9 +30,10 @@ class Scene {
     uint32_t AddMaterial(const Material& m);
     uint32_t AddMesh(Mesh&& m);             // Returns mesh_id (index in the meshes_ vector)
     uint32_t AddTexture(ImageTexture&& t);  // Returns texture_id
-    uint16_t AddHomogeneousMedium(const HomogeneousMedium& m);
-    uint16_t AddGridMedium(const GridMedium& m);
-    uint16_t AddNanoVDBMedium(NanoVDBMedium m);  // Move f(std::move(m)) or  Pass by copy f(m)
+    static uint16_t AddHomogeneousMedium(const HomogeneousMedium& m);
+    static uint16_t AddGridMedium(const GridMedium& m);
+    static uint16_t AddNanoVDBMedium(
+        const NanoVDBMedium& m);  // Move f(std::move(m)) or  Pass by copy f(m)
     void SetGlobalMedium(uint16_t medium_id) { global_medium_id_ = medium_id; }
     uint16_t GetGlobalMedium() const { return global_medium_id_; }
 
@@ -50,12 +51,12 @@ class Scene {
     const std::vector<NanoVDBMedium>& nanovdb_media() const { return nanovdb_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
 
-    void Build();  // Construct the BVH from the shapes list
+    static void Build();  // Construct the BVH from the shapes list
 
     // THE CRITICAL HOT-PATH FUNCTION
     // The Integrator calls this millions of times.
     // rn loops through linearly, but when BVH is implemented, should be faster
-    bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
+    static bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si);
 
   private:
     std::vector<Sphere> spheres_;

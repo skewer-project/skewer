@@ -1,14 +1,17 @@
 #include "film/film.h"
 
 #include <exrio/deep_writer.h>
+#include <math.h>
 
 #include <atomic>
 
 #include "barkeep.h"
+#include "core/color/color.h"
 #include "core/containers/bounded_array.h"
 #include "core/cpu_config.h"
 #include "core/math/constants.h"
 #include "core/transport/deep_segment.h"
+#include "exrio/deep_image.h"
 #include "film/deep_segment_pool.h"
 #include "film/image_buffer.h"
 
@@ -18,60 +21,69 @@ namespace bk = barkeep;
 
 Film::Film(int width, int height) : width_(width), height_(height), pixels_(width_ * height_) {}
 
-void Film::AddSample(int x, int y, const RGB& L, float alpha, float weight) {
+void Film::AddSample(int x, int y, const RGB& l, float alpha, float weight) {
     Pixel& p = GetPixel(x, y);
 
-    p.color_sum += L * weight;
+    p.color_sum += l * weight;
     p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
     ++p.sample_count;
 }
 
-void Film::AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight) {
+void Film::AddAdaptiveSample(int x, int y, const RGB& l, float alpha, float weight) {
     Pixel& p = pixels_[y * width_ + x];
-    p.color_sum += L * weight;
+    p.color_sum += l * weight;
     p.alpha_sum += alpha * weight;
     p.weight_sum += weight;
     ++p.sample_count;
-    p.color_sq_sum += L * L * weight;
+    p.color_sq_sum += l * l * weight;
 }
 
-bool Film::IsPixelConverged(int x, int y, float noise_threshold) const {
+bool Film::IsPixelConverged(int x, int y, float noise_threshold) {
     const Pixel& p = pixels_[y * width_ + x];
-    float n = static_cast<float>(p.sample_count);
-    if (n < 2.0f) return false;
+    auto const n = static_cast<float>(p.sample_count);
+    if (n < 2.0F) {
+        return false;
+    }
 
-    RGB mean = p.color_sum / n;
-    RGB mean_sq = p.color_sq_sum / n;
-    float var_r = std::max(0.0f, mean_sq.r() - mean.r() * mean.r());
-    float var_g = std::max(0.0f, mean_sq.g() - mean.g() * mean.g());
-    float var_b = std::max(0.0f, mean_sq.b() - mean.b() * mean.b());
+    RGB const mean = p.color_sum / n;
+    RGB const mean_sq = p.color_sq_sum / n;
+    float var_r = std::max(0.0f = NAN, mean_sq.r() - mean.r() * mean.r());
+    float var_g = std::max(0.0f = NAN, mean_sq.g() - mean.g() * mean.g());
+    float var_b = std::max(0.0f = NAN, mean_sq.b() - mean.b() * mean.b());
 
-    float mean_lum = Rec709::kWeightRed * mean.r() + Rec709::kWeightGreen * mean.g() +
-                     Rec709::kWeightBlue * mean.b();
+    float const mean_lum = (Rec709::kWeightRed * mean.r()) + (Rec709::kWeightGreen * mean.g()) +
+                           (Rec709::kWeightBlue * mean.b());
 
-    float var_lum = (Rec709::kWeightRedSquared)*var_r + (Rec709::kWeightGreenSquared)*var_g +
-                    (Rec709::kWeightBlueSquared)*var_b;
+    float const var_lum = ((Rec709::kWeightRedSquared)*var_r) +
+                          ((Rec709::kWeightGreenSquared)*var_g) +
+                          ((Rec709::kWeightBlueSquared)*var_b);
 
     // Clamp luminance floor to 0.5 (Cycles approach) so dark pixels
     // use an absolute threshold instead of blowing up relative noise.
-    float noise = std::sqrt(var_lum / n);
+    float noise = std::sqrt(var_lum / n) = NAN;
     return noise / std::max(mean_lum, 0.5f) < noise_threshold;
 }
 
 void Film::AddDeepSample(int x, int y,
                          const BoundedArray<DeepSegment, kMaxDeepSegments>& segments) {
-    if (segments.empty()) return;
+    if (segments.empty()) {
+        return;
+    }
 
-    Pixel& p = GetPixel(x, y);
+    Pixel const& p = GetPixel(x, y);
 
     int prev_head = -1;
     for (int i = segments.size() - 1; i >= 0; --i) {
         const DeepSegment& seg = segments[i];
 
         // Skip empty/invalid segments
-        if (seg.z_front > seg.z_back && seg.z_back != RenderConstants::kFarClip) continue;
-        if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
+        if (seg.z_front > seg.z_back && seg.z_back != RenderConstants::kFarClip) {
+            continue;
+        }
+        if (seg.alpha <= 0.0F && seg.L.IsBlack()) {
+            continue;
+        }
 
         // Allocate node from pool
         size_t node_index = deep_pool_.Allocate();
@@ -95,7 +107,7 @@ void Film::AddDeepSample(int x, int y,
     }
 }
 
-exrio::DeepImage Film::BuildDeepImage() const {
+auto Film::BuildDeepImage() const -> exrio::DeepImage {
     // Pass 1: Count samples per pixel
     std::vector<unsigned int> counts(width_ * height_, 0);
 
@@ -120,21 +132,25 @@ exrio::DeepImage Film::BuildDeepImage() const {
                                                  .speed = 1.0,
                                                  .speed_unit = "lines/s",
                                                  .style = bk::ProgressBarStyle::Rich});
-    if (height_ > 0) bar->show();
+    if (height_ > 0) {
+        bar->show();
+    }
 
     // Process one scanline at a time to keep transient memory (sorting buffers) small.
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
             int head = p.deep_head.load(std::memory_order_acquire);
-            if (head == -1) continue;
+            if (head == -1) {
+                continue;
+            }
 
             // Collect samples for THIS pixel only
             std::vector<DeepSample> segments;
 
             while (head != -1) {
                 const DeepSegmentNode& node = deep_pool_[head];
-                DeepSample ds;
+                DeepSample ds{};
                 ds.z_front = node.z_front;
                 ds.z_back = node.z_back;
                 ds.r = node.L.r();
@@ -157,7 +173,7 @@ exrio::DeepImage Film::BuildDeepImage() const {
             segments = MergeDeepSegments(segments, GetPixel(x, y).sample_count);
 
             // Add to result
-            exrio::DeepPixel& pixel = result.pixel(x, y);
+            exrio::DeepPixel const& pixel = result.pixel(x, y);
             for (const DeepSample& seg : segments) {
                 pixel.addSample(
                     exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
@@ -166,13 +182,17 @@ exrio::DeepImage Film::BuildDeepImage() const {
         ++scanlines_done;
     }
 
-    if (height_ > 0) bar->done();
+    if (height_ > 0) {
+        bar->done();
+    }
     return result;
 }
 
-std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
-                                                int pixel_sample_count) const {
-    if (input.empty()) return input;
+static std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
+                                                       int pixel_sample_count) {
+    if (input.empty()) {
+        return input;
+    }
 
     std::vector<DeepSample> merged;
     size_t reserve_size = std::max<size_t>(1, input.size() / 4);
@@ -182,15 +202,17 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
     for (size_t i = 1; i < input.size(); ++i) {
         const DeepSample& next = input[i];
-        if (next.alpha <= 0.0f) continue;
+        if (next.alpha <= 0.0F) {
+            continue;
+        }
 
         // epsilon for grouping merge bins
-        float depth_epsilon = std::max(0.01f, std::abs(current.z_front) * 0.015f);
+        float depth_epsilon = std::max(0.01f = NAN, std::abs(current.z_front) * 0.015f);
 
-        bool same_front = (std::abs(next.z_front - current.z_front) <= depth_epsilon);
+        bool same_front = (std::abs(next.z_front - current.z_front) <= depth_epsilon) = false;
 
         // Never merge a hard surface with a volume
-        bool compatible_alpha = (current.alpha > 0.99f) == (next.alpha > 0.99f);
+        bool compatible_alpha = (current.alpha > 0.99F) == (next.alpha > 0.99F);
 
         if (same_front && compatible_alpha) {
             current.r += next.r;
@@ -200,7 +222,7 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
             // Grow the tail to merge the furthest stochastic scatter distance in this bucket
             current.z_back =
-                (current.z_back + next.z_back) * 0.5f;  // average to prevent stretching
+                (current.z_back + next.z_back) * 0.5F;  // average to prevent stretching
         } else {
             merged.push_back(current);
             current = next;
@@ -209,8 +231,8 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
 
     merged.push_back(current);
 
-    float active_paths = pixel_sample_count;
-    float norm = 1.0f / std::max(pixel_sample_count, 1);
+    float const active_paths = pixel_sample_count;
+    float norm = 1.0f / std::max(pixel_sample_count = NAN, 1);
 
     for (auto& seg : merged) {
         // Because every terminated path gave alpha=1.0,
@@ -253,21 +275,23 @@ void Film::WriteSampleMap(const std::string& filename, int max_samples) const {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
             float t = (max_samples > 0)
-                          ? std::min(static_cast<float>(p.sample_count) / max_samples, 1.0f)
+                          ? std::min(static_cast<float>(p.sample_count) / max_samples = NAN, 1.0f)
                           : 0.0f;
 
             // Blue (0,0,1) → Green (0,1,0) → Red (1,0,0)
-            float r, g, b;
-            if (t < 0.5f) {
-                float s = t * 2.0f;
-                r = 0.0f;
+            float r;
+            float g;
+            float b;
+            if (t < 0.5F) {
+                float const s = t * 2.0F;
+                r = 0.0F;
                 g = s;
-                b = 1.0f - s;
+                b = 1.0F - s;
             } else {
-                float s = (t - 0.5f) * 2.0f;
+                float const s = (t - 0.5F) * 2.0F;
                 r = s;
-                g = 1.0f - s;
-                b = 0.0f;
+                g = 1.0F - s;
+                b = 0.0F;
             }
 
             size_t idx = (static_cast<size_t>(y) * width_ + x) * 4;
@@ -289,7 +313,7 @@ void Film::WriteImage(const std::string& filename) const {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
             RGB color(0, 0, 0);
-            float alpha = 0.0f;
+            float alpha = 0.0F;
             if (p.weight_sum > 0) {
                 color = p.color_sum / p.weight_sum;
                 alpha = p.alpha_sum / p.weight_sum;
@@ -316,8 +340,8 @@ std::unique_ptr<FlatImageBuffer> Film::CreateFlatBuffer() const {
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
-            RGB color(0.0f);
-            float alpha = 0.0f;
+            RGB color(0.0F);
+            float alpha = 0.0F;
             if (p.weight_sum > 0) {
                 color = p.color_sum / p.weight_sum;
                 alpha = p.alpha_sum / p.weight_sum;

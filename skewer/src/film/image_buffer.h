@@ -18,12 +18,12 @@ class ImageBuffer {
     ImageBuffer(int width, int height);
 
     // Set a pixel's color (0,0 is top-left usually)
-    void SetPixel(int x, int y, const RGB& color);
+    void SetPixel(int x, int y, const RGB& color) const;
 
   private:
     int width_;
     int height_;
-    std::vector<RGB> pixels_;
+    std::vector<RGB> pixels_{};
 };
 
 struct DeepSample {
@@ -64,8 +64,8 @@ class DeepImageBuffer {
     const int width_;
     const int height_;
 
-    std::vector<DeepSample> allSamples_;
-    std::vector<size_t> pixelOffsets_;
+    std::vector<DeepSample> allSamples_{};
+    std::vector<size_t> pixelOffsets_{};
 };
 
 class FlatImageBuffer {
@@ -77,10 +77,10 @@ class FlatImageBuffer {
     FlatImageBuffer(int width, int height, std::vector<RGB> pixels);
 
     // Set a pixel's RGB only (alpha stays at its initialised value of 1.0).
-    void SetPixel(int x, int y, const RGB& s);
+    void SetPixel(int x, int y, const RGB& s) const;
 
     // Set a pixel with explicit premultiplied alpha.
-    void SetPixel(int x, int y, const RGB& s, float alpha);
+    void SetPixel(int x, int y, const RGB& s, float alpha) const;
 
     int GetWidth() const { return width_; }
     int GetHeight() const { return height_; }
@@ -88,10 +88,10 @@ class FlatImageBuffer {
   private:
     int width_;
     int height_;
-    std::vector<RGB> pixels_;
+    std::vector<RGB> pixels_{};
     // Premultiplied alpha channel. Same size as pixels_, initialised to 1.0
     // (fully opaque) so RGB-only writes remain backward-compatible.
-    std::vector<float> alpha_;
+    std::vector<float> alpha_{};
 };
 
 }  // namespace skwr

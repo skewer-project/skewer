@@ -61,6 +61,15 @@
       "cacheVariables": {
         "SKEWER_BUILD_NATIVE_OPTIMIZATIONS": "OFF"
       }
+    },
+    {
+      "name": "tidy",
+      "displayName": "Clang-Tidy Enforcement",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_CLANG_TIDY": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -68,7 +77,8 @@
     { "name": "release", "configurePreset": "release" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" },
     { "name": "asan",    "configurePreset": "asan" },
-    { "name": "ci",      "configurePreset": "ci" }
+    { "name": "ci",      "configurePreset": "ci" },
+    { "name": "tidy",    "configurePreset": "tidy" }
   ],
   "testPresets": [
     {

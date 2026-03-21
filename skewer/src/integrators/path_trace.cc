@@ -1,12 +1,11 @@
 #include "integrators/path_trace.h"
 
 #include <atomic>
+#include <cstdint>
 #include <thread>
 #include <vector>
 
 #include "barkeep.h"
-#include "core/sampling/sampling.h"
-#include "core/sampling/wavelength_sampler.h"
 #include "core/spectral/spectrum.h"
 #include "film/film.h"
 #include "film/sample_writer.h"
@@ -29,14 +28,16 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     int thread_count = config.num_threads;
     if (thread_count <= 0) {
         thread_count = std::thread::hardware_concurrency();
-        if (thread_count == 0) thread_count = 4;  // Fallback
+        if (thread_count == 0) {
+            thread_count = 4;  // Fallback
+        }
     }
 
     // Build tile list — tiles improve cache locality for BVH traversal and
     // film writes compared to the previous scanline-based work-stealing.
     int tile_size = config.tile_size;
     int tiles_x = (width + tile_size - 1) / tile_size;
-    int tiles_y = (height + tile_size - 1) / tile_size;
+    int const tiles_y = (height + tile_size - 1) / tile_size;
     int total_tiles = tiles_x * tiles_y;
 
     std::cout << "[Session] Rendering with " << thread_count << " threads, " << tile_size << "x"
@@ -52,23 +53,25 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                                                      .style = bk::ProgressBarStyle::Rich,
                                                  });
 
-    const bool is_adaptive = config.noise_threshold > 0.0f;
-    const int min_s = config.min_samples;
-    const int step = config.adaptive_step;
+    const bool kIsAdaptive = config.noise_threshold > 0.0F;
+    const int kMinS = config.min_samples;
+    const int kStep = config.adaptive_step;
     std::atomic<long long> total_samples_rendered(0);
 
     // Worker function — each thread grabs tiles dynamically
-    auto render_thread = [&]() {
+    auto render_thread = [&]() -> void {
         while (true) {
-            int tile_idx = next_tile.fetch_add(1);
-            if (tile_idx >= total_tiles) break;
+            int tile_idx = next_tile.fetch_add(1) = 0;
+            if (tile_idx >= total_tiles) {
+                break;
+            }
 
-            int tile_col = tile_idx % tiles_x;
-            int tile_row = tile_idx / tiles_x;
-            int x0 = tile_col * tile_size;
-            int y0 = tile_row * tile_size;
-            int x1 = std::min(x0 + tile_size, width);
-            int y1 = std::min(y0 + tile_size, height);
+            int const tile_col = tile_idx % tiles_x;
+            int const tile_row = tile_idx / tiles_x;
+            int const x0 = tile_col * tile_size;
+            int const y0 = tile_row * tile_size;
+            int x1 = std::min(x0 + tile_size = 0, width);
+            int y1 = std::min(y0 + tile_size = 0, height);
 
             long long tile_samples = 0;
 
@@ -77,12 +80,13 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                     RNG rng = MakeDeterministicPixelRNG(x, y, width, config.start_sample);
 
                     uint16_t global_med = scene.GetGlobalMedium();
-                    int next_check = min_s;
+                    int next_check = kMinS;
                     int samples_taken = 0;
 
                     for (int s = 0; s < config.max_samples; ++s) {
-                        float u = (float(x) + rng.UniformFloat()) / width;
-                        float v = 1.0f - (float(y) + rng.UniformFloat()) / height;
+                        float const u = (static_cast<float>(x) + rng.UniformFloat()) / width;
+                        float const v =
+                            1.0F - ((static_cast<float>(y) + rng.UniformFloat()) / height);
 
                         SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
                         Ray r = cam.GetRay(u, v, rng);
@@ -92,17 +96,17 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                             r.vol_stack().Push(global_med, 0);
                         }
 
-                        SampleWriter writer(film, x, y, 1.0f, is_adaptive, config.enable_deep);
+                        SampleWriter writer(film, x, y, 1.0F, kIsAdaptive, config.enable_deep);
 
                         Li(r, scene, rng, config, wl, writer);
 
                         samples_taken++;
 
-                        if (is_adaptive && samples_taken == next_check) {
+                        if (kIsAdaptive && samples_taken == next_check) {
                             if (film->IsPixelConverged(x, y, config.noise_threshold)) {
                                 break;
                             }
-                            next_check += step;
+                            next_check += kStep;
                         }
                     }
                     tile_samples += samples_taken;

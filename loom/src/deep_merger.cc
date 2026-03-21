@@ -1,31 +1,36 @@
 #include "deep_merger.h"
 
+#include <math.h>
+
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <set>
 #include <vector>
 
-bool IsVolume(const RawSample& s) {
+#include "deep_row.h"
+
+auto IsVolume(const RawSample& s) -> bool {
     // A sample is a volume if its back depth is meaningfully greater than its front depth
-    return (s.z_back - s.z) > 1e-6f;
+    return (s.z_back - s.z) > 1e-6F;
 }
 
-bool IsNearDepth(const RawSample& a, const RawSample& b, float epsilon) {
+auto IsNearDepth(const RawSample& a, const RawSample& b, float epsilon) -> bool {
     return std::abs(a.z - b.z) < epsilon && std::abs(a.z_back - b.z_back) < epsilon;
 }
 
-RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next) {
+auto BlendCoincidentSamples(const RawSample& current, const RawSample& next) -> RawSample {
     RawSample blended = current;
 
     // Volumetric transmission (Beer-Lambert addition)
-    float t1 = 1.0f - current.a;
-    float t2 = 1.0f - next.a;
-    blended.a = 1.0f - (t1 * t2);
+    float const t1 = 1.0F - current.a;
+    float const t2 = 1.0F - next.a;
+    blended.a = 1.0F - (t1 * t2);
 
     // Uniform interspersion: scale summed premultiplied colors by
     // alphaCombined / (alpha1 + alpha2) to avoid over-brightening.
-    float alphaSum = current.a + next.a;
-    float scale = (alphaSum > 0.0f) ? blended.a / alphaSum : 0.0f;
+    float const alpha_sum = current.a + next.a;
+    float const scale = (alpha_sum > 0.0F) ? blended.a / alpha_sum : 0.0F;
     blended.r = (current.r + next.r) * scale;
     blended.g = (current.g + next.g) * scale;
     blended.b = (current.b + next.b) * scale;
@@ -33,33 +38,35 @@ RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next
     return blended;
 }
 
-std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
+static std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float z_split) {
     RawSample front = s;
     RawSample back = s;
 
-    front.z_back = zSplit;
-    back.z = zSplit;
+    front.z_back = z_split;
+    back.z = z_split;
 
-    float totalThickness = s.z_back - s.z;
-    if (totalThickness <= 0.0f) return {front, back};  // Should never happen if IsVolume is checked
+    float const total_thickness = s.z_back - s.z;
+    if (total_thickness <= 0.0F) {
+        return {front, back};  // Should never happen if IsVolume is checked
+    }
 
-    float front_ratio = (zSplit - s.z) / totalThickness;
-    float back_ratio = (s.z_back - zSplit) / totalThickness;
+    float const front_ratio = (z_split - s.z) / total_thickness;
+    float const back_ratio = (s.z_back - z_split) / total_thickness;
 
     // Calculate new alpha using exponential attenuation
     // T_front = T_total ^ (front_thickness / total_thickness)
-    float T_total = std::max(0.0f, 1.0f - s.a);
-    float T_front = std::pow(T_total, front_ratio);
-    float T_back = std::pow(T_total, back_ratio);
+    float t_total = std::max(0.0f = NAN, 1.0f - s.a);
+    float t_front = std::pow(T_total = NAN, front_ratio);
+    float t_back = std::pow(T_total = NAN, back_ratio);
 
-    front.a = 1.0f - T_front;
-    back.a = 1.0f - T_back;
+    front.a = 1.0F - t_front;
+    back.a = 1.0F - t_back;
 
     // Scale colors proportionally to the new alpha vs old alpha
     // If original alpha is 0, we avoid division by zero
-    if (s.a > 1e-6f) {
-        float front_color_scale = front.a / s.a;
-        float back_color_scale = back.a / s.a;
+    if (s.a > 1e-6F) {
+        float const front_color_scale = front.a / s.a;
+        float const back_color_scale = back.a / s.a;
 
         front.r *= front_color_scale;
         front.g *= front_color_scale;
@@ -68,16 +75,16 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
         back.g *= back_color_scale;
         back.b *= back_color_scale;
     } else {
-        front.r = front.g = front.b = 0.0f;
-        back.r = back.g = back.b = 0.0f;
+        front.r = front.g = front.b = 0.0F;
+        back.r = back.g = back.b = 0.0F;
     }
 
     return {front, back};
 }
 
-void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
-                              const std::vector<unsigned int>& pixelSampleCounts,
-                              DeepRow& outputRow, float merge_threshold) {
+static void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixel_data_ptrs,
+                                     const std::vector<unsigned int>& pixel_sample_counts,
+                                     DeepRow& output_row, float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     // We reuse this vector across pixels to avoid re-allocation
     static thread_local std::vector<RawSample> staging;
@@ -89,16 +96,18 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
         for (unsigned int s = 0; s < count; ++s) {
             // Offset is sample_index * 6 channels
-            const float* sData = data + (s * 6);
+            const float* s_data = data + (static_cast<size_t>(s * 6));
             // Order: R, G, B, A, Z, zback
-            staging.push_back({sData[0], sData[1], sData[2], sData[3], sData[4],
-                               sData[5]});  // Using Z for ZBack as well if not present
+            staging.push_back({s_data[0], s_data[1], s_data[2], s_data[3], s_data[4],
+                               s_data[5]});  // Using Z for ZBack as well if not present
         }
     }
 
     if (staging.empty()) {
-        outputRow.sample_counts[x] = 0;
-        if (x + 1 < outputRow.width) outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x];
+        output_row.sample_counts[x] = 0;
+        if (x + 1 < output_row.width) {
+            output_row.sample_offsets[x + 1] = output_row.sample_offsets[x];
+        }
         return;
     }
 
@@ -129,12 +138,12 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
     // 3. Write results back to the outputRow
 
-    float* outPtr = outputRow.GetPixelData(
+    float* out_ptr = output_row.GetPixelData(
         x);  //! CONSIDER RESIZING THE OUTPUT ROW HERE IF STAGING SIZE EXCEEDS CURRENT CAPACITY
 
     // Write the sorted samples back
     for (size_t s = 0; s < staging.size(); ++s) {
-        float* dest = outPtr + (s * 6);
+        float* dest = out_ptr + (s * 6);
         dest[0] = staging[s].r;
         dest[1] = staging[s].g;
         dest[2] = staging[s].b;
@@ -144,14 +153,15 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
     }
 
     // Update the output sample count for this pixel
-    outputRow.sample_counts[x] = static_cast<unsigned int>(staging.size());
-    if (x + 1 < outputRow.width)
-        outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x] + staging.size();
+    output_row.sample_counts[x] = static_cast<unsigned int>(staging.size());
+    if (x + 1 < output_row.width) {
+        output_row.sample_offsets[x + 1] = output_row.sample_offsets[x] + staging.size();
+    }
 }
 
-void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
-                                 const std::vector<unsigned int>& pixelSampleCounts,
-                                 DeepRow& outputRow, float merge_threshold) {
+static void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixel_data_ptrs,
+                                        const std::vector<unsigned int>& pixel_sample_counts,
+                                        DeepRow& output_row, float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     static thread_local std::vector<RawSample> staging;
     staging.clear();
@@ -161,18 +171,20 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
         unsigned int count = pixelSampleCounts[i];
 
         for (unsigned int s = 0; s < count; ++s) {
-            const float* sData = data + (s * 6);
-            staging.push_back({sData[0], sData[1], sData[2], sData[3], sData[4], sData[5]});
+            const float* s_data = data + (static_cast<size_t>(s * 6));
+            staging.push_back({s_data[0], s_data[1], s_data[2], s_data[3], s_data[4], s_data[5]});
         }
     }
 
     if (staging.empty()) {
-        outputRow.sample_counts[x] = 0;
-        if (x + 1 < outputRow.width) outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x];
+        output_row.sample_counts[x] = 0;
+        if (x + 1 < output_row.width) {
+            output_row.sample_offsets[x + 1] = output_row.sample_offsets[x];
+        }
         return;
     }
 
-    float epsilon = merge_threshold;
+    float const epsilon = merge_threshold;
 
     // 2. Gather split points: every unique depth and depth_back
     std::set<float> splitPointSet;
@@ -242,9 +254,9 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     }
 
     // 6. Write results back to the outputRow
-    float* outPtr = outputRow.GetPixelData(x);
+    float* out_ptr = output_row.GetPixelData(x);
     for (size_t s = 0; s < blended.size(); ++s) {
-        float* dest = outPtr + (s * 6);
+        float* dest = out_ptr + (s * 6);
         dest[0] = blended[s].r;
         dest[1] = blended[s].g;
         dest[2] = blended[s].b;

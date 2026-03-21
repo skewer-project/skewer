@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 
-void print_usage(const char* program_name) {
+static void PrintUsage(const char* program_name) {
     std::cerr << "Usage:\n";
     std::cerr << "  " << program_name << " <scene.json> [num_threads]\n";
     std::cerr << "\n";
@@ -17,16 +17,16 @@ void print_usage(const char* program_name) {
     std::cerr << "  " << program_name << " --help\n";
 }
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
     // Parse positional args: <scene.json> [num_threads]
     if (argc < 2) {
         std::cerr << "Error: missing scene file argument\n\n";
-        print_usage(argv[0]);
+        PrintUsage(argv[0]);
         return 1;
     }
 
     if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
-        print_usage(argv[0]);
+        PrintUsage(argv[0]);
         return 0;
     }
 

@@ -2,25 +2,15 @@
 
 #include <exrio/deep_image.h>
 #include <exrio/deep_writer.h>
+#include <math.h>
 
 #include <cstdint>
 #include <iostream>
 #include <memory>
 
-#include "core/cpu_config.h"
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_utils.h"
-#include "film/film.h"
-#include "film/image_buffer.h"
-#include "geometry/boundbox.h"
-#include "integrators/integrator.h"
-#include "integrators/normals.h"
-#include "integrators/path_trace.h"
-#include "io/image_io.h"
 #include "io/scene_loader.h"
-#include "materials/material.h"
-#include "scene/camera.h"
-#include "scene/scene.h"
 #include "session/render_options.h"
 
 namespace skwr {
@@ -38,7 +28,6 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
 }
 
 RenderSession::RenderSession() { skwr::InitSpectralModel(); }
-RenderSession::~RenderSession() = default;
 
 /**
  * Load a scene from a JSON config file.
@@ -73,7 +62,7 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
 
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
-                   static_cast<float>(options_.image_config.height);
+                   static_cast<float>(options_.image_config.height) = NAN;
     camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
                                        cam_aperture_, cam_focus_dist_);
 
@@ -88,7 +77,7 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     std::cout << "[Session] Ready: " << options_.image_config.width << "x"
               << options_.image_config.height << " | Max Samples: " << ic.max_samples
               << " | Max Depth: " << ic.max_depth << "\n";
-    if (ic.noise_threshold > 0.0f) {
+    if (ic.noise_threshold > 0.0F) {
         std::cout << "[Session] Adaptive: threshold=" << ic.noise_threshold
                   << ", min=" << ic.min_samples << ", step=" << ic.adaptive_step << "\n";
     }
@@ -98,7 +87,7 @@ void RenderSession::RebuildFilm() {
     // Rebuild camera with the (possibly overridden) aspect ratio so that
     // the projection matches the new film dimensions.
     float aspect = static_cast<float>(options_.image_config.width) /
-                   static_cast<float>(options_.image_config.height);
+                   static_cast<float>(options_.image_config.height) = NAN;
     camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
                                        cam_aperture_, cam_focus_dist_);
     options_.integrator_config.cam_w = -camera_->GetW();
@@ -123,7 +112,7 @@ void RenderSession::Render() {
 /**
  * Convert film to image or deep buffer
  */
-void RenderSession::Save() const {
+void RenderSession::Save() {
     if (film_) {
         film_->WriteImage(options_.image_config.outfile);
 

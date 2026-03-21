@@ -1,18 +1,23 @@
 #include "rgb2spec.h"
 
-#include <assert.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <gsl/pointers>
+#include <span>
 
 #define rgb2spec_min(a, b) (((a) < (b)) ? (a) : (b))
 #define rgb2spec_max(a, b) (((a) > (b)) ? (a) : (b))
 
 /// Load a RGB2Spec model from disk
-RGB2Spec* rgb2spec_load(const char* filename) {
-    FILE* f = fopen(filename, "rb");
-    if (!f) return NULL;
+auto rgb2spec_load(const char* filename) -> RGB2Spec* {
+    gsl::owner<FILE*> f = fopen(filename, "rb");
+    if (f == nullptr) {
+        return nullptr;
+    }
 
     char header[4];
     if (fread(header, 4, 1, f) != 1 || memcmp(header, "SPEC", 4) != 0) {
@@ -20,8 +25,8 @@ RGB2Spec* rgb2spec_load(const char* filename) {
         return NULL;
     }
 
-    RGB2Spec* m = (RGB2Spec*)malloc(sizeof(RGB2Spec));
-    if (!m || fread(&m->res, sizeof(uint32_t), 1, f) != 1) {
+    auto* m = (RGB2Spec*)malloc(sizeof(RGB2Spec));
+    if ((m == nullptr) || fread(&m->res, sizeof(uint32_t), 1, f) != 1) {
         fclose(f);
         free(m);
         return NULL;
@@ -33,7 +38,7 @@ RGB2Spec* rgb2spec_load(const char* filename) {
     m->scale = (float*)malloc(size_scale);
     m->data = (float*)malloc(size_data);
 
-    if (!m->data || !m->scale || fread(m->scale, size_scale, 1, f) != 1 ||
+    if ((m->data == nullptr) || (m->scale == nullptr) || fread(m->scale, size_scale, 1, f) != 1 ||
         fread(m->data, size_data, 1, f) != 1) {
         fclose(f);
         rgb2spec_free(m);
@@ -45,7 +50,7 @@ RGB2Spec* rgb2spec_load(const char* filename) {
 }
 
 /// Load a RGB2Spec model directly from a memory buffer
-RGB2Spec* rgb2spec_load_memory(const unsigned char* buffer, size_t length) {
+static auto Rgb2specLoadMemory(const unsigned char* buffer, size_t length) -> RGB2Spec* {
     if (!buffer || length < 8) return NULL;
 
     size_t offset = 0;
@@ -56,7 +61,7 @@ RGB2Spec* rgb2spec_load_memory(const unsigned char* buffer, size_t length) {
     }
     offset += 4;
 
-    RGB2Spec* m = (RGB2Spec*)malloc(sizeof(RGB2Spec));
+    auto* m = (RGB2Spec*)malloc(sizeof(RGB2Spec));
     if (!m) return NULL;
 
     // Read resolution
@@ -75,15 +80,23 @@ RGB2Spec* rgb2spec_load_memory(const unsigned char* buffer, size_t length) {
     m->scale = (float*)malloc(size_scale);
     m->data = (float*)malloc(size_data);
 
-    if (!m->scale || !m->data) {
+    if ((m->scale == nullptr) || (m->data == nullptr)) {
         rgb2spec_free(m);
         return NULL;
     }
 
     // Copy payload
-    memcpy(m->scale, buffer + offset, size_scale);
-    offset += size_scale;
-    memcpy(m->data, buffer + offset, size_data);
+    // Create a master window over the entire incoming data block.
+    std::span<const uint8_t> payload_view(buffer, length);
+
+    // Carve out a safe window for the scale data
+    auto scale_chunk = payload_view.subspan(offset, size_scale);
+    std::memcpy(m->scale, scale_chunk.data(), scale_chunk.size_bytes());
+    offset += scale_chunk.size_bytes();
+
+    // Carve out a safe window for the actual data
+    auto data_chunk = payload_view.subspan(offset, size_data);
+    std::memcpy(m->data, data_chunk.data(), data_chunk.size_bytes());
 
     return m;
 }
@@ -95,11 +108,14 @@ void rgb2spec_free(RGB2Spec* model) {
     free(model);
 }
 
-static int rgb2spec_find_interval(float* values, int size_, float x) {
-    int left = 0, last_interval = size_ - 2, size = last_interval;
+static auto rgb2spec_find_interval(const float* values, int size_, float x) -> int {
+    int left = 0;
+    int last_interval = size_ - 2;
+    int size = last_interval;
 
     while (size > 0) {
-        int half = size >> 1, middle = left + half + 1;
+        int half = size >> 1;
+        int middle = left + half + 1;
 
         if (values[middle] <= x) {
             left = middle;
@@ -113,66 +129,79 @@ static int rgb2spec_find_interval(float* values, int size_, float x) {
 }
 
 /// Convert an RGB value into a RGB2Spec coefficient representation
-void rgb2spec_fetch(RGB2Spec* model, float rgb_[3], float out[RGB2SPEC_N_COEFFS]) {
+void rgb2spec_fetch(RGB2Spec* model, const float rgb[3], float out[RGB2SPEC_N_COEFFS]) {
     /* Determine largest RGB component */
-    int i = 0, res = model->res;
+    int i = 0;
+    int res = model->res;
     float rgb[3];
-    for (int j = 0; j < 3; ++j) rgb[j] = rgb2spec_max(rgb2spec_min(rgb_[j], 1.f), 0.f);
+    for (int j = 0; j < 3; ++j) {
+        rgb[j] = rgb2spec_max(rgb2spec_min(rgb[j], 1.F), 0.F);
+    }
 
-    for (int j = 1; j < 3; ++j)
-        if (rgb[j] >= rgb[i]) i = j;
+    for (int j = 1; j < 3; ++j) {
+        if (rgb[j] >= rgb[i]) {
+            i = j;
+        }
+    }
 
-    float z = rgb[i], scale = (res - 1) / z, x = rgb[(i + 1) % 3] * scale,
-          y = rgb[(i + 2) % 3] * scale;
+    float z = rgb[i];
+    float scale = (res - 1) / z;
+    float x = rgb[(i + 1) % 3] * scale;
+    float y = rgb[(i + 2) % 3] * scale;
 
     /* Trilinearly interpolated lookup */
-    uint32_t xi = rgb2spec_min((uint32_t)x, (uint32_t)(res - 2)),
-             yi = rgb2spec_min((uint32_t)y, (uint32_t)(res - 2)),
-             zi = rgb2spec_find_interval(model->scale, model->res, z),
-             offset = (((i * res + zi) * res + yi) * res + xi) * RGB2SPEC_N_COEFFS,
-             dx = RGB2SPEC_N_COEFFS, dy = RGB2SPEC_N_COEFFS * res,
-             dz = RGB2SPEC_N_COEFFS * res * res;
+    uint32_t xi = rgb2spec_min((uint32_t)x, (uint32_t)(res - 2));
+    uint32_t yi = rgb2spec_min((uint32_t)y, (uint32_t)(res - 2));
+    uint32_t zi = rgb2spec_find_interval(model->scale, model->res, z);
+    uint32_t offset = (((i * res + zi) * res + yi) * res + xi) * RGB2SPEC_N_COEFFS;
+    uint32_t dx = RGB2SPEC_N_COEFFS;
+    uint32_t dy = RGB2SPEC_N_COEFFS * res;
+    uint32_t dz = RGB2SPEC_N_COEFFS * res * res;
 
-    float x1 = x - xi, x0 = 1.f - x1, y1 = y - yi, y0 = 1.f - y1,
-          z1 = (z - model->scale[zi]) / (model->scale[zi + 1] - model->scale[zi]), z0 = 1.f - z1;
+    float x1 = x - xi;
+    float x0 = 1.f - x1;
+    float y1 = y - yi;
+    float y0 = 1.f - y1;
+    float z1 = (z - model->scale[zi]) / (model->scale[zi + 1] - model->scale[zi]);
+    float z0 = 1.f - z1;
 
     for (int j = 0; j < RGB2SPEC_N_COEFFS; ++j) {
         out[j] =
-            ((model->data[offset] * x0 + model->data[offset + dx] * x1) * y0 +
-             (model->data[offset + dy] * x0 + model->data[offset + dy + dx] * x1) * y1) *
-                z0 +
-            ((model->data[offset + dz] * x0 + model->data[offset + dz + dx] * x1) * y0 +
-             (model->data[offset + dz + dy] * x0 + model->data[offset + dz + dy + dx] * x1) * y1) *
-                z1;
+            (((model->data[offset] * x0 + model->data[offset + dx] * x1) * y0 +
+              (model->data[offset + dy] * x0 + model->data[offset + dy + dx] * x1) * y1) *
+             z0) +
+            (((model->data[offset + dz] * x0 + model->data[offset + dz + dx] * x1) * y0 +
+              (model->data[offset + dz + dy] * x0 + model->data[offset + dz + dy + dx] * x1) * y1) *
+             z1);
         offset++;
     }
 }
 
-static inline float rgb2spec_fma(float a, float b, float c) {
-#if defined(__FMA__)
+static inline auto rgb2spec_fma(float a, float b, float c) -> float {
+#ifdef __FMA__
     // Only use fmaf() if implemented in hardware
     return fmaf(a, b, c);
 #else
-    return a * b + c;
+    return (a * b) + c;
 #endif
 }
 
-float rgb2spec_eval_precise(float coeff[RGB2SPEC_N_COEFFS], float lambda) {
-    float x = rgb2spec_fma(rgb2spec_fma(coeff[0], lambda, coeff[1]), lambda, coeff[2]),
-          y = 1.f / sqrtf(rgb2spec_fma(x, x, 1.f));
+auto rgb2spec_eval_precise(float coeff[RGB2SPEC_N_COEFFS], float lambda) -> float {
+    float x = rgb2spec_fma(rgb2spec_fma(coeff[0], lambda, coeff[1]), lambda, coeff[2]);
+    float y = 1.f / sqrtf(rgb2spec_fma(x, x, 1.f));
     return rgb2spec_fma(.5f * x, y, .5f);
 }
 
-float rgb2spec_eval_fast(float coeff[RGB2SPEC_N_COEFFS], float lambda) {
-    float x = rgb2spec_fma(rgb2spec_fma(coeff[0], lambda, coeff[1]), lambda, coeff[2]);
+auto rgb2spec_eval_fast(float coeff[RGB2SPEC_N_COEFFS], float lambda) -> float {
+    float const x = rgb2spec_fma(rgb2spec_fma(coeff[0], lambda, coeff[1]), lambda, coeff[2]);
 
-#if defined(RGB2SPEC_HAS_SIMD)
+#ifdef RGB2SPEC_HAS_SIMD
     // Intel fast reciprocal square root
     float y = _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(rgb2spec_fma(x, x, 1.f))));
 #else
     // Portable fallback (Apple Silicon / ARM / generic)
     // Note: On modern ARM chips, standard sqrtf is heavily optimized anyway
-    float y = 1.f / sqrtf(rgb2spec_fma(x, x, 1.f));
+    float y = 1.F / sqrtf(rgb2spec_fma(x, x, 1.F));
 #endif
 
     return rgb2spec_fma(.5f * x, y, .5f);

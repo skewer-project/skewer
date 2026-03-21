@@ -32,7 +32,7 @@ RGB2Spec* rgb2spec_load_memory(const unsigned char* buffer, size_t length);
 void rgb2spec_free(RGB2Spec* model);
 
 /// Convert an RGB value into a RGB2Spec coefficient representation
-void rgb2spec_fetch(RGB2Spec* model, float rgb[3], float out[RGB2SPEC_N_COEFFS]);
+void rgb2spec_fetch(RGB2Spec* model, const float rgb[3], float out[RGB2SPEC_N_COEFFS]);
 
 /// Evaluate the model for a given wavelength
 float rgb2spec_eval_precise(float coeff[RGB2SPEC_N_COEFFS], float lambda);

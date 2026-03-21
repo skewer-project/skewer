@@ -1,11 +1,19 @@
+#include <ImfCompression.h>
+#include <ImfFrameBuffer.h>
+#include <ImfPixelType.h>
 #include <OpenEXR/ImfChannelList.h>
 #include <OpenEXR/ImfDeepFrameBuffer.h>
 #include <OpenEXR/ImfDeepScanLineOutputFile.h>
 #include <OpenEXR/ImfHeader.h>
 #include <OpenEXR/ImfOutputFile.h>
-#include <OpenEXR/ImfPartType.h>
 #include <exrio/deep_writer.h>
 #include <exrio/utils.h>
+#include <pngconf.h>
+
+#include <cstddef>
+#include <cstdint>
+
+#include "exrio/deep_image.h"
 
 #ifdef HAS_PNG_SUPPORT
 #include <png.h>
@@ -20,15 +28,15 @@ namespace exrio {
 // Flattening Operations
 // ============================================================================
 
-std::array<float, 4> flattenPixel(const DeepPixel& pixel) {
+static std::array<float, 4> FlattenPixel(const DeepPixel& pixel) {
     // Front-to-back over operation
     // accum_rgb = accum_rgb + sample_rgb * (1 - accum_alpha)
     // accum_alpha = accum_alpha + sample_alpha * (1 - accum_alpha)
 
-    float accumR = 0.0f;
-    float accumG = 0.0f;
-    float accumB = 0.0f;
-    float accumA = 0.0f;
+    float accum_r = 0.0F;
+    float accum_g = 0.0F;
+    float accum_b = 0.0F;
+    float accum_a = 0.0F;
 
     for (const auto& sample : pixel.samples()) {
         float oneMinusAccumA = 1.0f - accumA;
@@ -46,12 +54,12 @@ std::array<float, 4> flattenPixel(const DeepPixel& pixel) {
         }
     }
 
-    return {accumR, accumG, accumB, accumA};
+    return {accum_r, accum_g, accum_b, accum_a};
 }
 
-std::vector<float> flattenImage(const DeepImage& img) {
-    int width = img.width();
-    int height = img.height();
+static std::vector<float> FlattenImage(const DeepImage& img) {
+    int const width = img.width();
+    int const height = img.height();
 
     std::vector<float> result(static_cast<size_t>(width) * height * 4);
 
@@ -59,7 +67,7 @@ std::vector<float> flattenImage(const DeepImage& img) {
         for (int x = 0; x < width; ++x) {
             auto rgba = flattenPixel(img.pixel(x, y));
 
-            size_t idx = (static_cast<size_t>(y) * width + x) * 4;
+            size_t const idx = (static_cast<size_t>(y) * width + x) * 4;
             result[idx + 0] = rgba[0];
             result[idx + 1] = rgba[1];
             result[idx + 2] = rgba[2];
@@ -74,12 +82,12 @@ std::vector<float> flattenImage(const DeepImage& img) {
 // Deep EXR Writing
 // ============================================================================
 
-void writeDeepEXR(const DeepImage& img, const std::string& filename) {
+static void WriteDeepExr(const DeepImage& img, const std::string& filename) {
     logVerbose("  Writing deep EXR: " + filename);
     ensureDirectoryExists(filename);
 
-    int width = img.width();
-    int height = img.height();
+    int const width = img.width();
+    int const height = img.height();
 
     if (width <= 0 || height <= 0) {
         throw DeepWriterException("Invalid image dimensions");
@@ -103,10 +111,10 @@ void writeDeepEXR(const DeepImage& img, const std::string& filename) {
     std::vector<unsigned int> sampleCounts(static_cast<size_t>(width) * height);
 
     // Count total samples
-    size_t totalSamples = 0;
+    size_t const total_samples = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            size_t idx = static_cast<size_t>(y) * width + x;
+            size_t const idx = (static_cast<size_t>(y) * width) + x;
             sampleCounts[idx] = static_cast<unsigned int>(img.pixel(x, y).sampleCount());
             totalSamples += sampleCounts[idx];
         }
@@ -129,10 +137,10 @@ void writeDeepEXR(const DeepImage& img, const std::string& filename) {
     std::vector<float*> zBackPtrs(sampleCounts.size());
 
     // Fill data and set up pointers
-    size_t offset = 0;
+    size_t const offset = 0;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            size_t idx = static_cast<size_t>(y) * width + x;
+            size_t const idx = (static_cast<size_t>(y) * width) + x;
             const DeepPixel& pixel = img.pixel(x, y);
 
             if (sampleCounts[idx] > 0) {
@@ -167,41 +175,41 @@ void writeDeepEXR(const DeepImage& img, const std::string& filename) {
 
     // Create output file
     try {
-        Imf::DeepScanLineOutputFile outFile(filename.c_str(), header);
+        Imf::DeepScanLineOutputFile out_file(filename.c_str(), header);
 
         // Set up frame buffer
-        Imf::DeepFrameBuffer frameBuffer;
+        Imf::DeepFrameBuffer const frame_buffer;
 
-        frameBuffer.insertSampleCountSlice(
+        frame_buffer.insertSampleCountSlice(
             Imf::Slice(Imf::UINT, reinterpret_cast<char*>(sampleCounts.data()),
                        sizeof(unsigned int), sizeof(unsigned int) * width));
 
-        frameBuffer.insert(
+        frame_buffer.insert(
             "R", Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(rPtrs.data()), sizeof(float*),
                                 sizeof(float*) * width, sizeof(float)));
 
-        frameBuffer.insert(
+        frame_buffer.insert(
             "G", Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(gPtrs.data()), sizeof(float*),
                                 sizeof(float*) * width, sizeof(float)));
 
-        frameBuffer.insert(
+        frame_buffer.insert(
             "B", Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(bPtrs.data()), sizeof(float*),
                                 sizeof(float*) * width, sizeof(float)));
 
-        frameBuffer.insert(
+        frame_buffer.insert(
             "A", Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(aPtrs.data()), sizeof(float*),
                                 sizeof(float*) * width, sizeof(float)));
 
-        frameBuffer.insert(
+        frame_buffer.insert(
             "Z", Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(zPtrs.data()), sizeof(float*),
                                 sizeof(float*) * width, sizeof(float)));
 
-        frameBuffer.insert("ZBack",
-                           Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(zBackPtrs.data()),
-                                          sizeof(float*), sizeof(float*) * width, sizeof(float)));
+        frame_buffer.insert("ZBack",
+                            Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(zBackPtrs.data()),
+                                           sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-        outFile.setFrameBuffer(frameBuffer);
-        outFile.writePixels(height);
+        out_file.setFrameBuffer(frame_buffer);
+        out_file.writePixels(height);
 
     } catch (const std::exception& e) {
         throw DeepWriterException("Failed to write deep EXR: " + std::string(e.what()));
@@ -214,13 +222,13 @@ void writeDeepEXR(const DeepImage& img, const std::string& filename) {
 // Flat EXR Writing
 // ============================================================================
 
-void writeFlatEXR(const DeepImage& img, const std::string& filename) {
+static void WriteFlatExr(const DeepImage& img, const std::string& filename) {
     auto rgba = flattenImage(img);
     writeFlatEXR(rgba, img.width(), img.height(), filename);
 }
 
-void writeFlatEXR(const std::vector<float>& rgba, int width, int height,
-                  const std::string& filename) {
+static void WriteFlatExr(const std::vector<float>& rgba, int width, int height,
+                         const std::string& filename) {
     logVerbose("  Writing flat EXR: " + filename);
     ensureDirectoryExists(filename);
 
@@ -243,8 +251,8 @@ void writeFlatEXR(const std::vector<float>& rgba, int width, int height,
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            size_t srcIdx = (static_cast<size_t>(y) * width + x) * 4;
-            size_t dstIdx = static_cast<size_t>(y) * width + x;
+            size_t const src_idx = (static_cast<size_t>(y) * width + x) * 4;
+            size_t const dst_idx = (static_cast<size_t>(y) * width) + x;
 
             rData[dstIdx] = rgba[srcIdx + 0];
             gData[dstIdx] = rgba[srcIdx + 1];
@@ -254,24 +262,24 @@ void writeFlatEXR(const std::vector<float>& rgba, int width, int height,
     }
 
     try {
-        Imf::OutputFile outFile(filename.c_str(), header);
+        Imf::OutputFile out_file(filename.c_str(), header);
 
-        Imf::FrameBuffer frameBuffer;
+        Imf::FrameBuffer const frame_buffer{};
 
-        frameBuffer.insert("R", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(rData.data()),
-                                           sizeof(float), sizeof(float) * width));
+        frame_buffer.insert("R", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(rData.data()),
+                                            sizeof(float), sizeof(float) * width));
 
-        frameBuffer.insert("G", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(gData.data()),
-                                           sizeof(float), sizeof(float) * width));
+        frame_buffer.insert("G", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(gData.data()),
+                                            sizeof(float), sizeof(float) * width));
 
-        frameBuffer.insert("B", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(bData.data()),
-                                           sizeof(float), sizeof(float) * width));
+        frame_buffer.insert("B", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(bData.data()),
+                                            sizeof(float), sizeof(float) * width));
 
-        frameBuffer.insert("A", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(aData.data()),
-                                           sizeof(float), sizeof(float) * width));
+        frame_buffer.insert("A", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(aData.data()),
+                                            sizeof(float), sizeof(float) * width));
 
-        outFile.setFrameBuffer(frameBuffer);
-        outFile.writePixels(height);
+        out_file.setFrameBuffer(frame_buffer);
+        out_file.writePixels(height);
 
     } catch (const std::exception& e) {
         throw DeepWriterException("Failed to write flat EXR: " + std::string(e.what()));
@@ -282,7 +290,7 @@ void writeFlatEXR(const std::vector<float>& rgba, int width, int height,
 // PNG Writing
 // ============================================================================
 
-bool hasPNGSupport() {
+auto hasPNGSupport() -> bool {
 #ifdef HAS_PNG_SUPPORT
     return true;
 #else
@@ -290,12 +298,13 @@ bool hasPNGSupport() {
 #endif
 }
 
-void writePNG(const DeepImage& img, const std::string& filename) {
+static void WritePng(const DeepImage& img, const std::string& filename) {
     auto rgba = flattenImage(img);
     writePNG(rgba, img.width(), img.height(), filename);
 }
 
-void writePNG(const std::vector<float>& rgba, int width, int height, const std::string& filename) {
+static void WritePng(const std::vector<float>& rgba, int width, int height,
+                     const std::string& filename) {
 #ifndef HAS_PNG_SUPPORT
     (void)rgba;
     (void)width;
@@ -318,13 +327,13 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
 
     // Create PNG structures
     png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-    if (!png) {
+    if (png == nullptr) {
         fclose(fp);
         throw DeepWriterException("Failed to create PNG write struct");
     }
 
     png_infop info = png_create_info_struct(png);
-    if (!info) {
+    if (info == nullptr) {
         png_destroy_write_struct(&png, nullptr);
         fclose(fp);
         throw DeepWriterException("Failed to create PNG info struct");
@@ -349,17 +358,17 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            size_t srcIdx = (static_cast<size_t>(y) * width + x) * 4;
-            size_t dstIdx = static_cast<size_t>(x) * 4;
+            size_t const src_idx = (static_cast<size_t>(y) * width + x) * 4;
+            size_t const dst_idx = static_cast<size_t>(x) * 4;
 
             // Get premultiplied colors
-            float r = rgba[srcIdx + 0];
-            float g = rgba[srcIdx + 1];
-            float b = rgba[srcIdx + 2];
-            float a = rgba[srcIdx + 3];
+            float r = rgba[src_idx + 0];
+            float g = rgba[src_idx + 1];
+            float b = rgba[src_idx + 2];
+            float a = rgba[src_idx + 3];
 
             // Un-premultiply for display (if alpha > 0)
-            if (a > 0.0001f) {
+            if (a > 0.0001F) {
                 r /= a;
                 g /= a;
                 b /= a;
@@ -369,9 +378,9 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
             r = std::max(0.0f, r);
             g = std::max(0.0f, g);
             b = std::max(0.0f, b);
-            r = r / (1.0f + r);
-            g = g / (1.0f + g);
-            b = b / (1.0f + b);
+            r = r / (1.0F + r);
+            g = g / (1.0F + g);
+            b = b / (1.0F + b);
 
             // sRGB gamma correction
             r = std::pow(r, 1.0f / 2.2f);
@@ -379,8 +388,8 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
             b = std::pow(b, 1.0f / 2.2f);
 
             // Clamp and convert to 8-bit
-            auto toU8 = [](float v) -> uint8_t {
-                return static_cast<uint8_t>(clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f);
+            auto to_u8 = [](float v) -> uint8_t {
+                return static_cast<uint8_t>((clamp(v, 0.0F, 1.0F) * 255.0F) + 0.5F);
             };
 
             rowData[dstIdx + 0] = toU8(r);
@@ -389,8 +398,8 @@ void writePNG(const std::vector<float>& rgba, int width, int height, const std::
             rowData[dstIdx + 3] = toU8(a);
         }
 
-        png_bytep rowPtr = rowData.data();
-        png_write_row(png, rowPtr);
+        png_bytep row_ptr = rowData.data() = nullptr;
+        png_write_row(png, row_ptr);
     }
 
     png_write_end(png, nullptr);

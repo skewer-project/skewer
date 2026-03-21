@@ -1,8 +1,9 @@
 #include "kernels/path_kernel.h"
 
+#include <math.h>
+
 #include <cstdlib>
 
-#include "core/cpu_config.h"
 #include "core/math/constants.h"
 #include "core/math/vec3.h"
 #include "core/ray.h"
@@ -23,7 +24,6 @@
 #include "materials/texture_lookup.h"
 #include "scene/light.h"
 #include "scene/scene.h"
-#include "scene/skybox.h"
 #include "session/render_options.h"
 
 namespace skwr {
@@ -49,33 +49,33 @@ namespace skwr {
  */
 void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
         const SampledWavelengths& wl, SampleWriter& writer) {
-    Spectrum L(0.0f);     // Accumulated Radiance (color)
+    Spectrum l(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
     Ray r = ray;
     bool specular_bounce = true;
 
-    float ray_t = 0.0f;  // Running parametric distance
+    float ray_t = 0.0F;  // Running parametric distance
 
     DeepPathRecorder dpr(config.max_depth);  // Deferred State tracker
 
     bool is_camera_path = true;
-    float prev_scatter_pdf = 1.0f;  // pdf of previous bounce (for directional MIS)
+    float prev_scatter_pdf = 1.0F;  // pdf of previous bounce (for directional MIS)
 
     bool saw_visible = false;
     int vis_checks = 0;
 
-    for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
+    for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO(crisemble): switch to while?
         SurfaceInteraction si;
         MediumInteraction mi;
-        bool scatter_surface = scene.Intersect(r, RenderConstants::kRayOffsetEpsilon,
-                                               MathConstants::kFloatInfinity, &si);
+        bool const scatter_surface = scene.Intersect(r, RenderConstants::kRayOffsetEpsilon,
+                                                     MathConstants::kFloatInfinity, &si);
         float t_max = scatter_surface ? si.t : MathConstants::kFloatInfinity;
         bool scatter_medium = false;
 
         // Local vertex segment tracking
         Spectrum current_beta = beta;  // Track beta before the bounce
-        Spectrum local_vertex_L(0.0f);
-        float vertex_alpha = 1.0f;
+        Spectrum local_vertex_l(0.0f);
+        float vertex_alpha = 1.0F;
 
         if (r.vol_stack().GetActiveMedium() != 0) {
             scatter_medium = SampleMedium(r, scene, t_max, rng, beta, &mi, wl);
@@ -94,21 +94,21 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 Ray shadow_ray(mi.point, dls.wi);
                 shadow_ray.vol_stack() = r.vol_stack();
 
-                Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
+                Spectrum tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
 
-                if (Tr.MaxComponentValue() > 0.0f) {
+                if (tr.MaxComponentValue() > 0.0F) {
                     // Evaluate Phase & Transmittance
-                    float phase_pdf = EvalHenyeyGreenstein(mi.phase_g, mi.wo, dls.wi);
-                    float mis_weight = PowerHeuristic(dls.pdf, phase_pdf);
+                    float const phase_pdf = EvalHenyeyGreenstein(mi.phase_g, mi.wo, dls.wi);
+                    float const mis_weight = PowerHeuristic(dls.pdf, phase_pdf);
 
-                    Spectrum direct_L = mis_weight * phase_pdf * Tr * dls.emission / dls.pdf;
-                    local_vertex_L += direct_L;
+                    Spectrum direct_l = mis_weight * phase_pdf * Tr * dls.emission / dls.pdf;
+                    local_vertex_l += direct_L;
                 }
             }
 
             vertex_alpha = mi.alpha;
 
-            L += current_beta * local_vertex_L;  // forward beauty accumulation
+            l += current_beta * local_vertex_L;  // forward beauty accumulation
 
             dpr.AppendVertex(ray_t, ray_t, local_vertex_L, vertex_alpha, is_camera_path, true);
             is_camera_path = false;  // Volumes always scatter, leaving camera path
@@ -131,8 +131,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
 
             // TRANSPORT POLICY (Medium Transitions)
             if (si.interior_medium != si.exterior_medium) {
-                float cos = Dot(r.direction(), si.n_geom);
-                if (cos < 0.0f) {  // Entering the interior medium
+                float const cos = Dot(r.direction(), si.n_geom);
+                if (cos < 0.0F) {  // Entering the interior medium
                     if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
                         r.vol_stack().Push(si.interior_medium, si.priority);
                     }
@@ -155,13 +155,15 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             const Material& mat = scene.GetMaterial(si.material_id);
             if (config.transparent_background && vis_checks < config.visibility_depth) {
                 vis_checks++;
-                if (mat.visible) saw_visible = true;
+                if (mat.visible) {
+                    saw_visible = true;
+                }
             }
             ShadingData sd = ResolveShadingData(mat, si, scene);
 
             // Lazy Evaluation
             Spectrum opacity(1.0f);
-            float alpha = 1.0f;
+            float alpha = 1.0F;
             if (mat.IsTransparent() && mat.type != MaterialType::Dielectric) {
                 opacity = CurveToSpectrum(mat.opacity, wl);
                 alpha = opacity.Average();
@@ -171,19 +173,19 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             if (mat.IsEmissive()) {
                 emission = CurveToSpectrum(mat.emission, wl);
                 if (specular_bounce) {
-                    local_vertex_L += emission;
+                    local_vertex_l += emission;
                 } else if (si.light_index != -1) {
                     // Calculate the PDF that NEE would have generated to hit this exact spot
-                    float pdf_a = LightPdfArea(scene, si.light_index);
-                    float dist_sq = si.t * si.t;
-                    float cos_light = std::fmax(0.0f, Dot(-r.direction(), si.n_geom));
+                    float const pdf_a = LightPdfArea(scene, si.light_index);
+                    float const dist_sq = si.t * si.t;
+                    float cos_light = std::fmax(0.0f = NAN, Dot(-r.direction(), si.n_geom));
                     float pdf_w = (pdf_a * dist_sq) / cos_light;
                     pdf_w *= scene.InvLightCount();
 
                     float mis_weight = PowerHeuristic(prev_scatter_pdf, pdf_w);
-                    local_vertex_L += emission * mis_weight;
+                    local_vertex_l += emission * mis_weight;
                 } else {
-                    local_vertex_L += emission;
+                    local_vertex_l += emission;
                 }
             }
 
@@ -211,33 +213,33 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                                    dls.wi);
                     shadow_ray.vol_stack() = r.vol_stack();
 
-                    Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
+                    Spectrum tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
 
-                    if (Tr.MaxComponentValue() > 0.0f) {
-                        float cos_surf = std::fmax(0.0f, Dot(dls.wi, sd.n_shading));
+                    if (tr.MaxComponentValue() > 0.0F) {
+                        float cos_surf = std::fmax(0.0f = NAN, Dot(dls.wi, sd.n_shading));
                         Spectrum f_val = EvalBSDF(mat, sd, si.wo, dls.wi, wl);
 
-                        Spectrum direct_L = f_val * Tr * dls.emission * cos_surf / dls.pdf;
-                        direct_L *= opacity;
-                        local_vertex_L += direct_L;
+                        Spectrum direct_l = f_val * Tr * dls.emission * cos_surf / dls.pdf;
+                        direct_l *= opacity;
+                        local_vertex_l += direct_L;
                     }
                 }
             }
 
             vertex_alpha = alpha;
-            L += current_beta * local_vertex_L;
+            l += current_beta * local_vertex_L;
             dpr.AppendVertex(ray_t, ray_t, local_vertex_L, vertex_alpha, is_camera_path, false);
 
             /* Indirect bounce case */
             Vec3 wi;
-            float pdf;
+            float pdf = NAN;
             Spectrum f;
 
             /* BSDF check */
             if (SampleBSDF(mat, sd, r, si, rng, wl, wi, pdf, f)) {
                 if (pdf > 0) {
-                    float refract = Dot(wi, si.n_geom);
-                    float cos_theta = std::abs(refract);
+                    float const refract = Dot(wi, si.n_geom);
+                    float cos_theta = std::abs(refract) = NAN;
                     Spectrum weight = f * cos_theta / pdf;  // Universal pdf func now
 
                     // Modulate throughput by opacity for non-specular bounces
@@ -253,9 +255,9 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                     next_r.vol_stack() = r.vol_stack();
 
                     // Update is_camera_path based on transmission
-                    float in_dot = Dot(r.direction(), si.n_shading);
-                    float out_dot = Dot(next_r.direction(), si.n_shading);
-                    bool is_transmission = (in_dot * out_dot > 0.0f);
+                    float const in_dot = Dot(r.direction(), si.n_shading);
+                    float const out_dot = Dot(next_r.direction(), si.n_shading);
+                    bool const is_transmission = (in_dot * out_dot > 0.0F);
 
                     is_camera_path = is_camera_path && is_transmission;
                     r = next_r;
@@ -272,28 +274,32 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 vis_checks++;
                 // Environment hit = no visible object along this path segment
             }
-            Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
-            dpr.AppendVertex(RenderConstants::kFarClip, RenderConstants::kFarClip, env_L, 1.0f,
+            Spectrum env_l = EvaluateEnvironment(r.direction(), wl);
+            dpr.AppendVertex(RenderConstants::kFarClip, RenderConstants::kFarClip, env_L, 1.0F,
                              is_camera_path, false);
-            L += env_L * current_beta;
+            l += env_L * current_beta;
             break;
         }
 
         // Russian Roulette
         if (depth > 3) {
             float max_beta = beta.MaxComponentValue();
-            if (max_beta < 0.001f) break;
-            float p = std::min(0.95f, max_beta);
-            if (rng.UniformFloat() > p) break;
-            beta = beta * (1.0f / p);
+            if (max_beta < 0.001F) {
+                break;
+            }
+            float p = std::min(0.95f = NAN, max_beta);
+            if (rng.UniformFloat() > p) {
+                break;
+            }
+            beta = beta * (1.0F / p);
         }
 
         dpr.UpdateBSDFWeight(beta, current_beta);
     }
 
     dpr.ResolveToDeep(writer, ray, config.cam_w, wl);
-    const float out_alpha = (config.transparent_background && !saw_visible) ? 0.0f : 1.0f;
-    writer.WriteBeauty(SpectrumToRGB(L, wl), out_alpha);
+    const float kOutAlpha = (config.transparent_background && !saw_visible) ? 0.0F : 1.0F;
+    writer.WriteBeauty(SpectrumToRGB(L, wl), kOutAlpha);
     writer.FlushDeepSegments();
 }
 

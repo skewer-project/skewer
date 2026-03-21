@@ -34,5 +34,9 @@ add_custom_command(
 )
 
 add_library(coordinator_proto STATIC "${PROTO_SRC}" "${GRPC_SRC}")
+
+# Disable clang-tidy for generated proto stubs
+set_target_properties(coordinator_proto PROPERTIES CXX_CLANG_TIDY "")
+
 target_include_directories(coordinator_proto PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(coordinator_proto PUBLIC gRPC::grpc++ protobuf::libprotobuf)

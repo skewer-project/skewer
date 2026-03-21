@@ -1,5 +1,7 @@
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/support/status.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -9,8 +11,7 @@
 #include <thread>
 
 #include "composite_pipeline.h"
-#include "deep_compositor.h"
-#include "deep_info.h"
+#include "deep_options.h"
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
 #include "proto/coordinator/v1/coordinator.pb.h"
 
@@ -26,7 +27,7 @@ using grpc::ClientReader;
 using grpc::Status;
 
 // Starts the loom worker loop.
-void RunLoomWorker(const std::string& coordinator_addr) {
+static void RunLoomWorker(const std::string& coordinator_addr) {
     // Generate a unique worker ID with time epoch and mersenne twister engine
     std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
     std::mt19937 gen(rd());
@@ -51,7 +52,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
     // Main registration loop with coordiantor
     while (true) {
-        ClientContext context;
+        ClientContext const context;
         GetWorkStreamRequest request;
         request.set_worker_id(worker_id);
         request.add_capabilities("loom");
@@ -84,7 +85,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
 
                     Options opts = {
                         inputFiles,
-                        std::vector<float>{0},  // TODO: collect real input_z_offsets
+                        std::vector<float>{0},  // TODO(crisemble): collect real input_z_offsets
                         "",                     // coordinator handles output prefixing and parsing
                     };
 
@@ -153,9 +154,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
             std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
 
             backoff_ms *= 2;
-            if (backoff_ms > max_backoff_ms) {
-                backoff_ms = max_backoff_ms;
-            }
+            backoff_ms = std::min(backoff_ms, max_backoff_ms);
 
         } else {
             // Stream closed normally (Coordinator intentionally hung up after assigning a task)
@@ -165,13 +164,13 @@ void RunLoomWorker(const std::string& coordinator_addr) {
     }
 }
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
     (void)argc;
     (void)argv;
     // Determine coordinator address
     std::string coordinator_addr = "localhost:50051";
     if (const char* env_addr = std::getenv("COORDINATOR_ADDR")) {
-        coordinator_addr = env_addr;
+        coordinator_addr = env_addr = nullptr;
     }
 
     RunLoomWorker(coordinator_addr);

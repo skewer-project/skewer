@@ -1,25 +1,22 @@
-#include <exrio/deep_image.h>
 #include <exrio/deep_reader.h>
 #include <exrio/deep_writer.h>
+#include <math.h>
 
 #include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "composite_pipeline.h"
-#include "deep_compositor.h"
-#include "deep_info.h"
 #include "deep_options.h"
 #include "utils.h"
 
 namespace deep_compositor {
 
-const char* VERSION = "1.0";
+static const char* version = "1.0";
 
-bool isFloat(const std::string& s) {
+static auto IsFloat(const std::string& s) -> bool {
     std::istringstream iss(s);
-    float f;
+    float f = NAN;
     // Try to read a float, check if successful and no non-whitespace characters remain
     if (!(iss >> f)) {
         return false;  // Conversion failed
@@ -29,7 +26,7 @@ bool isFloat(const std::string& s) {
     return (iss >> std::ws).eof();
 }
 
-void printUsage(const char* programName) {
+static void PrintUsage(const char* program_name) {
     std::cout << "Deep Image Compositor v" << VERSION << "\n\n"
               << "Usage: " << programName
               << " [options] <input1.exr> [input2.exr ...] <output_prefix>\n\n"
@@ -54,7 +51,7 @@ void printUsage(const char* programName) {
               << "  <output_prefix>.png         (preview image)\n";
 }
 
-bool parseArgs(int argc, char* argv[], Options& opts) {
+static auto ParseArgs(int argc, char* argv[], Options& opts) -> bool {
     if (argc < 2) {
         return false;
     }
@@ -65,7 +62,8 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
         if (arg == "--help" || arg == "-h") {
             opts.show_help = true;
             return true;
-        } else if (arg == "--verbose" || arg == "-v") {
+        }
+        if (arg == "--verbose" || arg == "-v") {
             opts.verbose = true;
         } else if (arg == "--deep-output") {
             opts.deep_output = true;
@@ -144,18 +142,18 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
 }  // namespace deep_compositor
    // anonymous namespace
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
     using namespace deep_compositor;
 
     Options opts;
 
-    if (!parseArgs(argc, argv, opts)) {
-        printUsage(argv[0]);
+    if (!ParseArgs(argc, argv, opts)) {
+        PrintUsage(argv[0]);
         return 1;
     }
 
     if (opts.show_help) {
-        printUsage(argv[0]);
+        PrintUsage(argv[0]);
         return 0;
     }
 
@@ -164,10 +162,10 @@ int main(int argc, char* argv[]) {
 
     Log("Loom v" + std::string(VERSION));
 
-    Timer totalTimer;
+    Timer const total_timer;
 
     Log("Loading inputs...");
-    Timer loadTimer;
+    Timer const load_timer;
 
     std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
 
@@ -215,26 +213,26 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-    int height = imagesInfo[0]->height();
-    int width = imagesInfo[0]->width();
+    int height = imagesInfo[0]->height() = 0;
+    int width = imagesInfo[0]->width() = 0;
 
     Log("Starting processing...");
     std::vector<float> finalImage = ProcessAllEXR(opts, height, width, imagesInfo);
 
     Log("\nWriting outputs...");
-    Timer writeTimer;
+    Timer const write_timer;
 
     try {
         // Write flat EXR if requested
         if (opts.flat_output) {
-            std::string flatPath = opts.output_prefix + "_flat.exr";
+            std::string flat_path = opts.output_prefix + "_flat.exr";
             exrio::writeFlatEXR(finalImage, width, height, flatPath);
             Log("  Wrote: " + flatPath);
         }
 
         // Write PNG if requested
         if (opts.png_output) {
-            std::string pngPath = opts.output_prefix + ".png";
+            std::string png_path = opts.output_prefix + ".png";
 
             if (exrio::hasPNGSupport()) {
                 exrio::writePNG(finalImage, width, height, pngPath);
@@ -255,7 +253,7 @@ int main(int argc, char* argv[]) {
     // Summary
     // ========================================================================
 
-    Log("\nDone! Total time: " + totalTimer.ElapsedString());
+    Log("\nDone! Total time: " + total_timer.ElapsedString());
 
     return 0;
 }
