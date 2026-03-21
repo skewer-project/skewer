@@ -384,16 +384,6 @@ func (s *Server) translateLocalPath(uri string) (string, error) {
 		return filepath.Join(s.localStorageBase, cleanRel), nil
 	}
 
-	// If the path is relative and starts with "data/", swap it for our storage base.
-	if trimmed, hasPrefix := strings.CutPrefix(uri, "data/"); hasPrefix {
-		// SECURITY: Clean the path and prevent traversal
-		cleanTrimmed := filepath.Clean(trimmed)
-		if relativePathEscapesRoot(cleanTrimmed) || strings.HasPrefix(cleanTrimmed, "/") {
-			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
-		}
-		return filepath.Join(s.localStorageBase, cleanTrimmed), nil
-	}
-
 	// Repo-relative paths (e.g. scenes/foo.json): workspace root is mounted at
 	// localStorageBase (/data in Kubernetes). Without this, workers see a bare
 	// relative path and resolve it from process CWD (/) and the task fails.
