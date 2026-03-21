@@ -18,7 +18,11 @@ std::optional<coordinator_worker::TaskOutcome> HandlePackage(const WorkPackage& 
                                                              int render_threads) {
     if (!package.has_render_task()) {
         std::cerr << "[SKEWER]: Error: Received non-render task. Ignoring.\n";
-        return std::nullopt;
+        coordinator_worker::TaskOutcome out;
+        out.success = false;
+        out.error_message =
+            "Received non-render task; this worker only supports RenderTask payloads.";
+        return out;
     }
 
     const RenderTask& task = package.render_task();
