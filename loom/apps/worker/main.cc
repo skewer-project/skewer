@@ -56,8 +56,12 @@ coordinator_worker::TaskOutcome RunCompositePipeline(const CompositeTask& task) 
 
 std::optional<coordinator_worker::TaskOutcome> HandlePackage(const WorkPackage& package) {
     if (!package.has_composite_task()) {
-        std::cerr << "[LOOM]: Error: Received unsupported task type. Ignoring.\n";
-        return std::nullopt;
+        std::cerr << "[LOOM]: Error: Received unsupported task type for task " << package.task_id()
+                  << ". Failing task.\n";
+        coordinator_worker::TaskOutcome out;
+        out.success = false;
+        out.error_message = "Unsupported task type: expected CompositeTask";
+        return out;
     }
 
     std::cout << "[LOOM]: Starting CompositeTask: " << package.task_id() << " for frame "
