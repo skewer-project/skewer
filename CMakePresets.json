@@ -77,7 +77,8 @@
     { "name": "release", "configurePreset": "release" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" },
     { "name": "asan",    "configurePreset": "asan" },
-    { "name": "ci",      "configurePreset": "ci" }
+    { "name": "ci",      "configurePreset": "ci" },
+    { "name": "tidy",    "configurePreset": "tidy" }
   ],
   "testPresets": [
     {
