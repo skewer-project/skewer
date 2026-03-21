@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <set>
+
 #include "exrio/deep_image.h"
 
 namespace exrio {
@@ -26,8 +27,9 @@ static std::pair<DeepSample, DeepSample> SplitSample(const DeepSample& sample, f
     float alpha = sample.alpha;
 
     // Clamp alpha to avoid log(0)
-    if (alpha >= 1.0F) { alpha = 1.0F - kEpsilon;
-}
+    if (alpha >= 1.0F) {
+        alpha = 1.0F - kEpsilon;
+    }
 
     float const front_thick = z_split - sample.depth;
     float const back_thick = sample.depth_back - z_split;
@@ -95,7 +97,8 @@ auto blendCoincidentSamples(const DeepSample& a, const DeepSample& b) -> DeepSam
 // mergePixelsVolumetric -- main volumetric merge algorithm
 // ============================================================================
 
-static auto MergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels, float epsilon) -> DeepPixel {
+static auto MergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels, float epsilon)
+    -> DeepPixel {
     DeepPixel result;
 
     // 1. Collect all samples
@@ -103,8 +106,9 @@ static auto MergePixelsVolumetric(const std::vector<const DeepPixel*>& pixels, f
     for (const auto* pixel : pixels) {
         totalSamples += pixel->sampleCount();
     }
-    if (total_samples == 0) { return result;
-}
+    if (total_samples == 0) {
+        return result;
+    }
 
     std::vector<DeepSample> allSamples;
     allSamples.reserve(totalSamples);

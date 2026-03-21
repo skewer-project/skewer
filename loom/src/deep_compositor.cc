@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
-#include <cstddef>
 #include <thread>
 #include <vector>
 
@@ -51,8 +50,9 @@ static void LoaderWorker(int start_row, int end_row, PipelineContext& ctx) {
     // printf("LOADING %d , %d \n", start_row, end_row);
     fflush(stdout);
     for (int load_y = start_row; load_y < end_row; load_y++) {
-        if (load_y >= ctx.height_) { break;
-}
+        if (load_y >= ctx.height_) {
+            break;
+        }
 
         int slot = load_y % ctx.window_size_;
 
@@ -101,8 +101,8 @@ static void LoaderWorker(int start_row, int end_row, PipelineContext& ctx) {
                 "A", Imf::DeepSlice(Imf::FLOAT, (char*)aPtrs.data(), xStride, 0, sampleStride));
             frame_buffer.insert(
                 "Z", Imf::DeepSlice(Imf::FLOAT, (char*)zPtrs.data(), xStride, 0, sampleStride));
-            frame_buffer.insert("ZBack", Imf::DeepSlice(Imf::FLOAT, (char*)zbPtrs.data(), xStride, 0,
-                                                       sampleStride));
+            frame_buffer.insert("ZBack", Imf::DeepSlice(Imf::FLOAT, (char*)zbPtrs.data(), xStride,
+                                                        0, sampleStride));
 
             file.setFrameBuffer(frame_buffer);
             file.readPixels(load_y, load_y);
@@ -119,8 +119,9 @@ static void MergerWorker(int start_row, int end_row, PipelineContext& ctx) {
     for (int i = start_row; i < end_row; i++) {  // For loop for single threading support
         int merge_y = ctx.current_row.fetch_add(1);
 
-        if (merge_y >= ctx.height_ || merge_y >= end_row) { break;  // conditional to end;
-}
+        if (merge_y >= ctx.height_ || merge_y >= end_row) {
+            break;  // conditional to end;
+        }
 
         while (ctx.row_status[merge_y].load() < LOADED) {
             std::this_thread::yield();
@@ -164,8 +165,9 @@ static void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
     // printf("WRITING %d , %d \n", start_row, end_row);
     fflush(stdout);
     for (int write_y = start_row; write_y < end_row; write_y++) {
-        if (write_y >= ctx.height_ || write_y >= end_row) { break;
-}
+        if (write_y >= ctx.height_ || write_y >= end_row) {
+            break;
+        }
 
         while (ctx.row_status[write_y].load() < MERGED) {
             std::this_thread::yield();
@@ -182,7 +184,8 @@ static void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
                 for (unsigned int s = 0; s < num_samples; ++s) {
                     const float* sp = pixel_data + (static_cast<size_t>(s * 6));
                     // DeepRow layout: [R, G, B, A, Z, ZBack]
-                    out_pixel.addSample(exrio::DeepSample(sp[4], sp[5], sp[0], sp[1], sp[2], sp[3]));
+                    out_pixel.addSample(
+                        exrio::DeepSample(sp[4], sp[5], sp[0], sp[1], sp[2], sp[3]));
                 }
                 pixel_data += static_cast<size_t>(num_samples * 6);
             }
@@ -199,8 +202,9 @@ static void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
     }
 }
 
-static std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
-                                 std::vector<std::unique_ptr<DeepInfo> /*unused*/>& images_info) {
+static std::vector<float> ProcessAllEXR(
+    const Options& opts, int height, int width,
+    std::vector<std::unique_ptr<DeepInfo> /*unused*/>& images_info) {
     const int kWindowSize = 48;
     int num_files = opts.input_files.size();
 

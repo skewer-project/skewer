@@ -17,8 +17,9 @@ auto SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spe
                   MediumInteraction* mi, const SampledWavelengths& wl) -> bool {
     uint16_t active_id = ray.vol_stack().GetActiveMedium();
 
-    if (active_id == 0 || active_id == kVacuumMediumId) { return false;
-}
+    if (active_id == 0 || active_id == kVacuumMediumId) {
+        return false;
+    }
 
     // Decode the Bit-Packed ID
     uint16_t const type = active_id >> kMediumTypeShift;
@@ -30,18 +31,21 @@ auto SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spe
             return false;
 
         case static_cast<int>(MediumType::Homogeneous):
-            if (index >= scene.homogeneous_media().size()) { return false;
-}
+            if (index >= scene.homogeneous_media().size()) {
+                return false;
+            }
             return SampleHomogeneous(scene.homogeneous_media()[index], ray, t_max, rng, beta, mi);
 
         case static_cast<int>(MediumType::Grid):
-            if (index >= scene.grid_media().size()) { return false;
-}
+            if (index >= scene.grid_media().size()) {
+                return false;
+            }
             return SampleGrid(scene.grid_media()[index], ray, t_max, rng, beta, mi);
 
         case static_cast<int>(MediumType::NanoVDB):
-            if (index >= scene.nanovdb_media().size()) { return false;
-}
+            if (index >= scene.nanovdb_media().size()) {
+                return false;
+            }
             return SampleNanoVDB(scene.nanovdb_media()[index], ray, t_max, rng, beta, mi, wl);
 
         default:

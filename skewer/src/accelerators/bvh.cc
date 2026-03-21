@@ -78,7 +78,7 @@ static void BVH::build(std::vector<Triangle>& triangles) {
 // ---------------------------------------------------------------------------
 
 static void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
-                    std::vector<BVHPrimitiveInfo>& primitive_info) {
+                           std::vector<BVHPrimitiveInfo>& primitive_info) {
     BVHNode& node = nodes_[node_idx];
 
     // Compute tight bounds for this node
@@ -121,8 +121,9 @@ static void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_c
             c_min = std::fmin(c_min, c);
             c_max = std::fmax(c_max, c);
         }
-        if (c_min == c_max) { continue;  // all centroids coincide on this axis
-}
+        if (c_min == c_max) {
+            continue;  // all centroids coincide on this axis
+        }
 
         // Assign each triangle to a bin
         Bin bins[kSAHBins] = {};
@@ -130,8 +131,9 @@ static void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_c
         for (uint32_t i = 0; i < tri_count; ++i) {
             const BVHPrimitiveInfo& info = primitive_info[first_tri + i];
             int b = (int)((info.centroid[axis] - c_min) * kInvRange);
-            if (b >= kSAHBins) { b = kSAHBins - 1;
-}
+            if (b >= kSAHBins) {
+                b = kSAHBins - 1;
+            }
             bins[b].count_++;
             bins[b].bounds_.Expand(info.bounds);
         }
@@ -169,12 +171,14 @@ static void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_c
         // Evaluate each candidate split boundary
         const float kBinSize = (c_max - c_min) / kSAHBins;
         for (int k = 0; k < kSAHBins - 1; ++k) {
-            if (left_cnt[k] == 0 || right_cnt[k] == 0) { continue;
-}
-            float const cost = kCostTraverse + (kCostIntersect *
-                                             (left_cnt[k] * left_box[k].HalfArea() +
-                                              right_cnt[k] * right_box[k].HalfArea()) /
-                                             kParentArea);
+            if (left_cnt[k] == 0 || right_cnt[k] == 0) {
+                continue;
+            }
+            float const cost =
+                kCostTraverse +
+                (kCostIntersect *
+                 (left_cnt[k] * left_box[k].HalfArea() + right_cnt[k] * right_box[k].HalfArea()) /
+                 kParentArea);
             if (cost < best_cost) {
                 best_cost = cost;
                 best_axis = axis;
@@ -219,14 +223,17 @@ static void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_c
 
 auto BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
                     const std::vector<Triangle>& triangles) const -> bool {
-    if (IsEmpty()) { return false;
-}
+    if (IsEmpty()) {
+        return false;
+    }
 
     bool hit_anything = false;
     float closest_t = t_max;
 
     const Vec3& inv_dir = r.inv_direction();
-    const int kDirIsNeg[3] = {static_cast<const int>(inv_dir.x() < 0), static_cast<const int>(inv_dir.y() < 0), static_cast<const int>(inv_dir.z() < 0)};
+    const int kDirIsNeg[3] = {static_cast<const int>(inv_dir.x() < 0),
+                              static_cast<const int>(inv_dir.y() < 0),
+                              static_cast<const int>(inv_dir.z() < 0)};
 
     int nodes_to_visit[64];
     int to_visit_offset = 0;

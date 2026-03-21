@@ -54,7 +54,7 @@ class Timer {
     /**
      * Get elapsed time in milliseconds
      */
-    static double elapsedMs() ;
+    static double elapsedMs();
 
     /**
      * Get elapsed time as a formatted string

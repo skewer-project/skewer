@@ -29,7 +29,6 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
 
 RenderSession::RenderSession() { skwr::InitSpectralModel(); }
 
-
 /**
  * Load a scene from a JSON config file.
  * Sets up everything: scene geometry, materials, camera, film, and integrator.

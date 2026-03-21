@@ -12,7 +12,7 @@
 namespace skwr {
 
 auto EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& rng,
-                            const SampledWavelengths& wl) -> Spectrum {
+                        const SampledWavelengths& wl) -> Spectrum {
     Spectrum tr(1.0f);
     float remaining_dist = max_dist;
     Ray shadow_ray = ray;
@@ -62,8 +62,9 @@ auto EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& rng,
             next_ray.vol_stack() = shadow_ray.vol_stack();
             shadow_ray = next_ray;
             remaining_dist -= shadow_si.t;
-            if (remaining_dist <= 0.0F) { break;
-}
+            if (remaining_dist <= 0.0F) {
+                break;
+            }
         } else {
             tr *= CalculateTransmittance(scene, rng, shadow_ray, remaining_dist, wl);
             break;

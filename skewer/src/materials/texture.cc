@@ -3,12 +3,11 @@
 #include "core/color/color.h"
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
-#include "materials/texture.h"
-
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 
+#include "materials/texture.h"
 #include "stb_image.h"
 
 namespace skwr {
@@ -30,8 +29,9 @@ auto ImageTexture::Load(const std::string& filepath) -> bool {
 }
 
 auto ImageTexture::Sample(float u, float v) const -> RGB {
-    if (data.empty()) { return {1.0F, 0.0F, 1.0F};  // Magenta = missing texture
-}
+    if (data.empty()) {
+        return {1.0F, 0.0F, 1.0F};  // Magenta = missing texture
+    }
 
     // Repeat (tiling) wrapping
     u = u - std::floor(u);

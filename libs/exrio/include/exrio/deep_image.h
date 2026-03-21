@@ -112,17 +112,17 @@ class DeepPixel {
     /**
      * Get the minimum depth in this pixel
      */
-    static float minDepth() ;
+    static float minDepth();
 
     /**
      * Get the maximum depth in this pixel
      */
-    static float maxDepth() ;
+    static float maxDepth();
 
     /**
      * Validate that samples are sorted correctly
      */
-    static bool isValidSortOrder() ;
+    static bool isValidSortOrder();
 
   private:
     std::vector<DeepSample> samples_;  // Sorted by depth (front to back)
@@ -167,7 +167,7 @@ class DeepImage {
     /**
      * Get average samples per pixel
      */
-    static float averageSamplesPerPixel() ;
+    static float averageSamplesPerPixel();
 
     /**
      * Get global depth range
@@ -187,7 +187,7 @@ class DeepImage {
     /**
      * Validate all pixels have correct depth ordering
      */
-    static bool isValid() ;
+    static bool isValid();
 
     /**
      * Estimate memory usage in bytes

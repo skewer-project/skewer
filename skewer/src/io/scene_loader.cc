@@ -129,14 +129,16 @@ using MaterialMap = std::map<std::string, uint32_t>;
 // Helper: load a texture from a path string.
 // Resolves relative paths against scene_dir.
 // Returns kNoTexture if the string is empty or load fails.
-static auto LoadSceneTexture(const json& m, const std::string& key,
-                                 const std::string& scene_dir, Scene& scene) -> uint32_t {
-    if (!m.contains(key)) { return kNoTexture;
-}
+static auto LoadSceneTexture(const json& m, const std::string& key, const std::string& scene_dir,
+                             Scene& scene) -> uint32_t {
+    if (!m.contains(key)) {
+        return kNoTexture;
+    }
 
     std::string texpath = m[key].get<std::string>();
-    if (texpath.empty()) { return kNoTexture;
-}
+    if (texpath.empty()) {
+        return kNoTexture;
+    }
 
     std::string filepath;
     if (!texpath.empty() && texpath[0] == '/') {
@@ -146,8 +148,9 @@ static auto LoadSceneTexture(const json& m, const std::string& key,
     }
 
     ImageTexture const tex;
-    if (!tex.Load(filepath)) { return kNoTexture;
-}
+    if (!tex.Load(filepath)) {
+        return kNoTexture;
+    }
 
     return scene.AddTexture(std::move(tex));
 }
@@ -205,9 +208,11 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
 // Object Parsing
 //------------------------------------------------------------------------------
 
-static auto LookupMedium(const json& obj, const MediaMap& media_map, const std::string& key) -> uint16_t {
-    if (!obj.contains(key)) { return static_cast<uint16_t>(MediumType::Vacuum);
-}
+static auto LookupMedium(const json& obj, const MediaMap& media_map, const std::string& key)
+    -> uint16_t {
+    if (!obj.contains(key)) {
+        return static_cast<uint16_t>(MediumType::Vacuum);
+    }
 
     std::string name = obj[key].get<std::string>();
 
@@ -227,8 +232,9 @@ static auto LookupMaterial(const json& obj, const MaterialMap& mat_map, int obj_
 
     std::string mat_name = obj["material"].get<std::string>();
 
-    if (mat_name == "null" || mat_name == "none") { return kNullMaterialId;
-}
+    if (mat_name == "null" || mat_name == "none") {
+        return kNullMaterialId;
+    }
 
     auto it = mat_map.find(mat_name);
     if (it == mat_map.end()) {
@@ -242,17 +248,19 @@ static auto LookupMaterial(const json& obj, const MaterialMap& mat_map, int obj_
 // override.  When the object's visibility differs from the base material's,
 // a one-off clone is registered in the scene so other objects sharing that
 // material are not affected.
-static auto LookupMaterialWithVisibility(const json& obj, const MaterialMap& mat_map,
-                                             Scene& scene, int obj_index) -> uint32_t {
+static auto LookupMaterialWithVisibility(const json& obj, const MaterialMap& mat_map, Scene& scene,
+                                         int obj_index) -> uint32_t {
     uint32_t mat_id = LookupMaterial(obj = 0, mat_map, obj_index);
-    if (!obj.contains("visible")) { return mat_id;
-}
+    if (!obj.contains("visible")) {
+        return mat_id;
+    }
 
     bool want_visible = obj["visible"].get<bool>();
     // Copy before potentially invalidating the reference via AddMaterial.
     Material cloned = scene.GetMaterial(mat_id);
-    if (cloned.visible == want_visible) { return mat_id;
-}
+    if (cloned.visible == want_visible) {
+        return mat_id;
+    }
 
     cloned.visible = want_visible;
     return scene.AddMaterial(cloned);
@@ -282,7 +290,13 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, const Media
     int32_t const light_index = -1;
     uint16_t const priority = 1;
 
-    scene.AddSphere(Sphere{.center=center, .radius=radius, .material_id=mat_id, .light_index=light_index, .interior_medium=inside, .exterior_medium=outside, .priority=priority});
+    scene.AddSphere(Sphere{.center = center,
+                           .radius = radius,
+                           .material_id = mat_id,
+                           .light_index = light_index,
+                           .interior_medium = inside,
+                           .exterior_medium = outside,
+                           .priority = priority});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {

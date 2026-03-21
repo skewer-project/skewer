@@ -62,7 +62,8 @@ static auto ParseArgs(int argc, char* argv[], Options& opts) -> bool {
         if (arg == "--help" || arg == "-h") {
             opts.show_help = true;
             return true;
-        } if (arg == "--verbose" || arg == "-v") {
+        }
+        if (arg == "--verbose" || arg == "-v") {
             opts.verbose = true;
         } else if (arg == "--deep-output") {
             opts.deep_output = true;

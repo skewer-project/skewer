@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <set>
 #include <vector>
+
 #include "deep_row.h"
 
 auto IsVolume(const RawSample& s) -> bool {
@@ -45,8 +46,9 @@ static std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float z_s
     back.z = z_split;
 
     float const total_thickness = s.z_back - s.z;
-    if (total_thickness <= 0.0F) { return {front, back};  // Should never happen if IsVolume is checked
-}
+    if (total_thickness <= 0.0F) {
+        return {front, back};  // Should never happen if IsVolume is checked
+    }
 
     float const front_ratio = (z_split - s.z) / total_thickness;
     float const back_ratio = (s.z_back - z_split) / total_thickness;
@@ -81,8 +83,8 @@ static std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float z_s
 }
 
 static void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixel_data_ptrs,
-                              const std::vector<unsigned int>& pixel_sample_counts,
-                              DeepRow& output_row, float merge_threshold) {
+                                     const std::vector<unsigned int>& pixel_sample_counts,
+                                     DeepRow& output_row, float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     // We reuse this vector across pixels to avoid re-allocation
     static thread_local std::vector<RawSample> staging;
@@ -103,8 +105,9 @@ static void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pix
 
     if (staging.empty()) {
         output_row.sample_counts[x] = 0;
-        if (x + 1 < output_row.width) { output_row.sample_offsets[x + 1] = output_row.sample_offsets[x];
-}
+        if (x + 1 < output_row.width) {
+            output_row.sample_offsets[x + 1] = output_row.sample_offsets[x];
+        }
         return;
     }
 
@@ -153,12 +156,12 @@ static void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pix
     output_row.sample_counts[x] = static_cast<unsigned int>(staging.size());
     if (x + 1 < output_row.width) {
         output_row.sample_offsets[x + 1] = output_row.sample_offsets[x] + staging.size();
-}
+    }
 }
 
 static void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixel_data_ptrs,
-                                 const std::vector<unsigned int>& pixel_sample_counts,
-                                 DeepRow& output_row, float merge_threshold) {
+                                        const std::vector<unsigned int>& pixel_sample_counts,
+                                        DeepRow& output_row, float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     static thread_local std::vector<RawSample> staging;
     staging.clear();
@@ -175,8 +178,9 @@ static void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& 
 
     if (staging.empty()) {
         output_row.sample_counts[x] = 0;
-        if (x + 1 < output_row.width) { output_row.sample_offsets[x + 1] = output_row.sample_offsets[x];
-}
+        if (x + 1 < output_row.width) {
+            output_row.sample_offsets[x + 1] = output_row.sample_offsets[x];
+        }
         return;
     }
 

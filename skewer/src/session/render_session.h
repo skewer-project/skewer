@@ -39,7 +39,7 @@ class RenderSession {
     static void Render();
 
     // OUTPUT: Write the rendered image to disk
-    static void Save() ;
+    static void Save();
 
     RenderOptions& Options() { return options_; }
     const RenderOptions& Options() const { return options_; }

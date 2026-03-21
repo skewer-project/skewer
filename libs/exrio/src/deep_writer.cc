@@ -8,10 +8,12 @@
 #include <OpenEXR/ImfOutputFile.h>
 #include <exrio/deep_writer.h>
 #include <exrio/utils.h>
-#include "exrio/deep_image.h"
+#include <pngconf.h>
+
 #include <cstddef>
 #include <cstdint>
-#include <pngconf.h>
+
+#include "exrio/deep_image.h"
 
 #ifdef HAS_PNG_SUPPORT
 #include <png.h>
@@ -203,8 +205,8 @@ static void WriteDeepExr(const DeepImage& img, const std::string& filename) {
                                 sizeof(float*) * width, sizeof(float)));
 
         frame_buffer.insert("ZBack",
-                           Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(zBackPtrs.data()),
-                                          sizeof(float*), sizeof(float*) * width, sizeof(float)));
+                            Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(zBackPtrs.data()),
+                                           sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
         out_file.setFrameBuffer(frame_buffer);
         out_file.writePixels(height);
@@ -226,7 +228,7 @@ static void WriteFlatExr(const DeepImage& img, const std::string& filename) {
 }
 
 static void WriteFlatExr(const std::vector<float>& rgba, int width, int height,
-                  const std::string& filename) {
+                         const std::string& filename) {
     logVerbose("  Writing flat EXR: " + filename);
     ensureDirectoryExists(filename);
 
@@ -265,16 +267,16 @@ static void WriteFlatExr(const std::vector<float>& rgba, int width, int height,
         Imf::FrameBuffer const frame_buffer{};
 
         frame_buffer.insert("R", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(rData.data()),
-                                           sizeof(float), sizeof(float) * width));
+                                            sizeof(float), sizeof(float) * width));
 
         frame_buffer.insert("G", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(gData.data()),
-                                           sizeof(float), sizeof(float) * width));
+                                            sizeof(float), sizeof(float) * width));
 
         frame_buffer.insert("B", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(bData.data()),
-                                           sizeof(float), sizeof(float) * width));
+                                            sizeof(float), sizeof(float) * width));
 
         frame_buffer.insert("A", Imf::Slice(Imf::FLOAT, reinterpret_cast<char*>(aData.data()),
-                                           sizeof(float), sizeof(float) * width));
+                                            sizeof(float), sizeof(float) * width));
 
         out_file.setFrameBuffer(frame_buffer);
         out_file.writePixels(height);
@@ -301,7 +303,8 @@ static void WritePng(const DeepImage& img, const std::string& filename) {
     writePNG(rgba, img.width(), img.height(), filename);
 }
 
-static void WritePng(const std::vector<float>& rgba, int width, int height, const std::string& filename) {
+static void WritePng(const std::vector<float>& rgba, int width, int height,
+                     const std::string& filename) {
 #ifndef HAS_PNG_SUPPORT
     (void)rgba;
     (void)width;

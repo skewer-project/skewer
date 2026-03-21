@@ -23,8 +23,9 @@ void Scene::Build() {
     // Re-register sphere lights
     for (uint32_t i = 0; i < (uint32_t)spheres_.size(); ++i) {
         spheres_[i].light_index = -1;
-        if (spheres_[i].material_id == kNullMaterialId) { continue;
-}
+        if (spheres_[i].material_id == kNullMaterialId) {
+            continue;
+        }
 
         const Material& mat = materials_[spheres_[i].material_id];
         if (mat.IsEmissive()) {
@@ -42,8 +43,9 @@ void Scene::Build() {
     // edges, normals, and material_id from the fully-prepared Mesh objects.
     for (uint32_t mesh_id = 0; mesh_id < (uint32_t)meshes_.size(); ++mesh_id) {
         const Mesh& mesh_ref = meshes_[mesh_id];
-        const Material* mat =
-            (mesh_ref.material_id != kNullMaterialId) ? &materials_[mesh_ref.material_id] : nullptr = nullptr;
+        const Material* mat = (mesh_ref.material_id != kNullMaterialId)
+                                  ? &materials_[mesh_ref.material_id]
+                                  : nullptr = nullptr;
 
         for (size_t i = 0; i < mesh_ref.indices.size(); i += 3) {
             uint32_t i0 = mesh_ref.indices[i];

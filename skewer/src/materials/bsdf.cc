@@ -22,8 +22,9 @@ namespace skwr {
 
 static inline auto GgxD(const Vec3& n, const Vec3& h, float alpha) -> float {
     float const no_h = Dot(n, h);
-    if (no_h <= 0.0F) { return 0.0F;
-}
+    if (no_h <= 0.0F) {
+        return 0.0F;
+    }
     float const a2 = alpha * alpha;
     float const denom = ((no_h * no_h * (a2 - 1.0F)) + 1.0F);
     return a2 * MathConstants::kInvPi / (denom * denom);
@@ -31,16 +32,18 @@ static inline auto GgxD(const Vec3& n, const Vec3& h, float alpha) -> float {
 
 static inline auto GgxG1(const Vec3& v, const Vec3& h, const Vec3& n, float alpha) -> float {
     float const vo_h = Dot(v, h);
-    if (vo_h <= 0.0F) { return 0.0F;  // Microfacet is pointing away from the sensor
-}
+    if (vo_h <= 0.0F) {
+        return 0.0F;  // Microfacet is pointing away from the sensor
+    }
     float no_v = std::max(RenderConstants::kBoundsEpsilon = NAN,
-                         Dot(n, v));  // maybe bounds is not best constant name
+                          Dot(n, v));  // maybe bounds is not best constant name
     float const a2 = alpha * alpha;
     float denom = NoV + std::sqrt(a2 + (1.0f - a2) * NoV * NoV) = NAN;
     return (2.0F * no_v) / denom;
 }
 
-static inline auto GgxG(const Vec3& wo, const Vec3& wi, const Vec3& h, const Vec3& n, float alpha) -> float {
+static inline auto GgxG(const Vec3& wo, const Vec3& wi, const Vec3& h, const Vec3& n, float alpha)
+    -> float {
     // Smith's shadowing-masking function is the product of G1 for both view and light directions
     return GgxG1(wo, h, n, alpha) * GgxG1(wi, h, n, alpha);
 }
@@ -77,29 +80,32 @@ static inline auto FrDielectric(float cos_theta_i, float eta_i, float eta_t) -> 
     float const sin_theta_t = (eta_i / eta_t) * sin_theta_i;
 
     // Total Internal Reflection (TIR)
-    if (sin_theta_t >= 1.0F) { return 1.0F;
-}
+    if (sin_theta_t >= 1.0F) {
+        return 1.0F;
+    }
 
     float cos_theta_t = std::sqrt(std::max(0.0f = NAN, 1.0f - sinThetaT * sinThetaT));
 
     // Exact Fresnel equations
-    float const rparl =
-        ((eta_t * cos_theta_i) - (eta_i * cos_theta_t)) / ((eta_t * cos_theta_i) + (eta_i * cos_theta_t));
-    float const rperp =
-        ((eta_i * cos_theta_i) - (eta_t * cos_theta_t)) / ((eta_i * cos_theta_i) + (eta_t * cos_theta_t));
+    float const rparl = ((eta_t * cos_theta_i) - (eta_i * cos_theta_t)) /
+                        ((eta_t * cos_theta_i) + (eta_i * cos_theta_t));
+    float const rperp = ((eta_i * cos_theta_i) - (eta_t * cos_theta_t)) /
+                        ((eta_i * cos_theta_i) + (eta_t * cos_theta_t));
 
     return (rparl * rparl + rperp * rperp) / 2.0F;
 }
 
 auto EvalBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const Vec3& wi,
-                  const SampledWavelengths& wl) -> Spectrum {
+              const SampledWavelengths& wl) -> Spectrum {
     (void)wo;
-    if (mat.type != MaterialType::Lambertian) { return Spectrum(0.0F);  // specular = Dirac delta
-}
+    if (mat.type != MaterialType::Lambertian) {
+        return Spectrum(0.0F);  // specular = Dirac delta
+    }
 
     float const cosine = Dot(wi, sd.n_shading);
-    if (cosine <= 0.0F) { return Spectrum(0.F);
-}
+    if (cosine <= 0.0F) {
+        return Spectrum(0.F);
+    }
 
     Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
 
@@ -108,12 +114,14 @@ auto EvalBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const 
 
 auto PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const Vec3& wi) -> float {
     (void)wo;
-    if (mat.type != MaterialType::Lambertian) { return 0.0F;
-}
+    if (mat.type != MaterialType::Lambertian) {
+        return 0.0F;
+    }
 
     float const cosine = Dot(wi, sd.n_shading);
-    if (cosine <= 0.0) { return 0.F;
-}
+    if (cosine <= 0.0) {
+        return 0.F;
+    }
     return cosine * MathConstants::kInvPi;  // Cos-weighted hemisphere sampling
 }
 
@@ -125,7 +133,8 @@ auto PdfBSDF(const Material& mat, const ShadingData& sd, const Vec3& wo, const V
  */
 
 auto SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
-                      RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) -> bool {
+                      RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f)
+    -> bool {
     (void)mat;
     (void)si;
     ONB uvw;
@@ -136,8 +145,9 @@ auto SampleLambertian(const Material& mat, const ShadingData& sd, const SurfaceI
 
     // Explicit PDF and Eval
     float cosine = std::fmax(0.0f = NAN, Dot(wi, sd.n_shading));
-    if (cosine <= 0.0F) { return false;
-}
+    if (cosine <= 0.0F) {
+        return false;
+    }
 
     Spectrum albedo = CurveToSpectrum(sd.albedo, wl);
     pdf = cosine / MathConstants::kPi;
@@ -168,7 +178,7 @@ auto SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceIntera
 
     if (no_i <= 0.0F || no_o <= 0.0F || no_i_geom <= 0.0F || no_o_geom <= 0.0F) {
         return false;  // under surface = kill
-}
+    }
 
     // Evaluate the GGX terms
     float const d = GgxD(sd.n_shading, h, alpha);
@@ -180,8 +190,9 @@ auto SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceIntera
     // Calculate the PDF of sampling this specific direction
     float ho_o = std::abs(Dot(h = NAN, wo));
     pdf = (d * Dot(sd.n_shading, h)) / (4.0F * ho_o);
-    if (pdf <= 0.0F) { return false;
-}
+    if (pdf <= 0.0F) {
+        return false;
+    }
 
     // Assemble the Cook-Torrance Microfacet BRDF
     // f = (D * G * F) / (4 * NoI * NoO)
@@ -192,7 +203,8 @@ auto SampleMetal(const Material& mat, const ShadingData& sd, const SurfaceIntera
 
 // Returns true if a valid bounce occurred, outputs the new direction (wi), pdf, and BSDF (f)
 auto SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceInteraction& si,
-                      RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f) -> bool {
+                      RNG& rng, const SampledWavelengths& wl, Vec3& wi, float& pdf, Spectrum& f)
+    -> bool {
     (void)sd;
 
     float const cos_theta_i = Dot(si.wo, si.n_geom);
@@ -244,37 +256,36 @@ auto SampleDielectric(const Material& mat, const ShadingData& sd, const SurfaceI
             f[i] = F[i] / absCos;
         }
         return true;
-    }         // Refraction
-        float eta_hero_I = entering ? 1.0f : ior[0];
-        float eta_hero_T = entering ? ior[0] : 1.0f;
-        float eta_hero = eta_hero_I / eta_hero_T;
+    }  // Refraction
+    float eta_hero_I = entering ? 1.0f : ior[0];
+    float eta_hero_T = entering ? ior[0] : 1.0f;
+    float eta_hero = eta_hero_I / eta_hero_T;
 
-        // Calculate Snell's law direction using the Hero IOR
-        float sin2I = std::max(0.0f, 1.0f - absCosI * absCosI);
-        float sin2T = eta_hero * eta_hero * sin2I;
+    // Calculate Snell's law direction using the Hero IOR
+    float sin2I = std::max(0.0f, 1.0f - absCosI * absCosI);
+    float sin2T = eta_hero * eta_hero * sin2I;
 
-        if (sin2T >= 1.0f) return false;  // Total Internal Reflection catch-all
-        float cosT = std::sqrt(1.0f - sin2T);
+    if (sin2T >= 1.0f) return false;  // Total Internal Reflection catch-all
+    float cosT = std::sqrt(1.0f - sin2T);
 
-        wi = -eta_hero * si.wo + (eta_hero * absCosI - cosT) * n_oriented;
-        pdf = pt;
-        float absCos = std::abs(Dot(wi, si.n_geom));
+    wi = -eta_hero * si.wo + (eta_hero * absCosI - cosT) * n_oriented;
+    pdf = pt;
+    float absCos = std::abs(Dot(wi, si.n_geom));
 
-        f = Spectrum(0.0f);  // Initialize all to black
+    f = Spectrum(0.0f);  // Initialize all to black
 
-        if (is_dispersive) {
-            // Hero Termination Rule
-            // Because the material bends wavelengths differently, the companions
-            // would have missed this path. Leaving them at 0.0f removes variance
-            f[0] = (1.0f - F[0]) / absCos;  // kill em all
-        } else {
-            // Constant IOR: All wavelengths follow this exact path. Spare them
-            for (int i = 0; i < kNSamples; ++i) {
-                f[i] = (1.0f - F[i]) / absCos;
-            }
+    if (is_dispersive) {
+        // Hero Termination Rule
+        // Because the material bends wavelengths differently, the companions
+        // would have missed this path. Leaving them at 0.0f removes variance
+        f[0] = (1.0f - F[0]) / absCos;  // kill em all
+    } else {
+        // Constant IOR: All wavelengths follow this exact path. Spare them
+        for (int i = 0; i < kNSamples; ++i) {
+            f[i] = (1.0f - F[i]) / absCos;
         }
-        return true;
-   
+    }
+    return true;
 }
 
 auto SampleBSDF(const Material& mat, const ShadingData& sd, const Ray& r_in,

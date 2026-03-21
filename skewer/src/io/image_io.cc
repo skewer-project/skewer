@@ -25,7 +25,7 @@ namespace skwr {
 // Helper to compute the base pointer offset for OpenEXR frame buffers
 template <typename T>
 static auto MakeBasePointer(T* data, int min_x, int min_y, [[maybe_unused]] int width,
-                             size_t x_stride, size_t y_stride) -> char* {
+                            size_t x_stride, size_t y_stride) -> char* {
     return reinterpret_cast<char*>(data) - (static_cast<ptrdiff_t>(min_x) * x_stride) -
            (static_cast<ptrdiff_t>(min_y) * y_stride);
 }
@@ -37,9 +37,9 @@ static void InsertDeepSlice(Imf::DeepFrameBuffer& fb, const char* name, void* pt
     size_t const x_stride = sizeof(float*);
     size_t const y_stride = x_stride * width;
 
-    fb.insert(name,
-              Imf::DeepSlice(pixel_type, makeBasePointer(ptrs, min_x, min_y, width, x_stride, y_stride),
-                             x_stride, y_stride, sample_stride));
+    fb.insert(name, Imf::DeepSlice(pixel_type,
+                                   makeBasePointer(ptrs, min_x, min_y, width, x_stride, y_stride),
+                                   x_stride, y_stride, sample_stride));
 }
 
 // =============================================================================================
@@ -86,11 +86,16 @@ static auto ImageIO::LoadEXR(const std::string& filename) -> DeepImageBuffer {
 
     size_t sample_stride = sizeof(DeepSample);
 
-    insertDeepSlice(frame_buffer, "R", &rPtrs[0][0], Imf::FLOAT, min_x, min_y, width, sample_stride);
-    insertDeepSlice(frame_buffer, "G", &gPtrs[0][0], Imf::FLOAT, min_x, min_y, width, sample_stride);
-    insertDeepSlice(frame_buffer, "B", &bPtrs[0][0], Imf::FLOAT, min_x, min_y, width, sample_stride);
-    insertDeepSlice(frame_buffer, "A", &aPtrs[0][0], Imf::FLOAT, min_x, min_y, width, sample_stride);
-    insertDeepSlice(frame_buffer, "Z", &zPtrs[0][0], Imf::FLOAT, min_x, min_y, width, sample_stride);
+    insertDeepSlice(frame_buffer, "R", &rPtrs[0][0], Imf::FLOAT, min_x, min_y, width,
+                    sample_stride);
+    insertDeepSlice(frame_buffer, "G", &gPtrs[0][0], Imf::FLOAT, min_x, min_y, width,
+                    sample_stride);
+    insertDeepSlice(frame_buffer, "B", &bPtrs[0][0], Imf::FLOAT, min_x, min_y, width,
+                    sample_stride);
+    insertDeepSlice(frame_buffer, "A", &aPtrs[0][0], Imf::FLOAT, min_x, min_y, width,
+                    sample_stride);
+    insertDeepSlice(frame_buffer, "Z", &zPtrs[0][0], Imf::FLOAT, min_x, min_y, width,
+                    sample_stride);
 
     if (kHasZBack) {
         insertDeepSlice(frame_buffer, "ZBack", &zBackPtrs[0][0], Imf::FLOAT, min_x, min_y, width,

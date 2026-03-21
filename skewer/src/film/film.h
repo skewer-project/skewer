@@ -38,7 +38,7 @@ class Film {
     static void AddAdaptiveSample(int x, int y, const RGB& L, float alpha, float weight);
 
     // convergence check, should called every adaptive_step samples.
-    static bool IsPixelConverged(int x, int y, float noise_threshold) ;
+    static bool IsPixelConverged(int x, int y, float noise_threshold);
 
     void AddDeepSample(int x, int y, const BoundedArray<DeepSegment, kMaxDeepSegments>& segments);
 

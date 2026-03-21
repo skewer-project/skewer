@@ -15,7 +15,7 @@ namespace exrio {
 
 // Write the results back to disk using exrio's write functions.
 static void WriteFlatOutputs(const std::vector<float>& flat_rgba, const std::string& output_uri,
-                      bool flat_output, bool png_output, int width, int height) {
+                             bool flat_output, bool png_output, int width, int height) {
     log("\nWriting outputs...");
     Timer const write_timer;
 
@@ -47,8 +47,9 @@ static void WriteFlatOutputs(const std::vector<float>& flat_rgba, const std::str
     logVerbose("  Write time: " + write_timer.elapsedString());
 }
 
-static auto SaveImageInfo(const Options& opts,
-                  std::vector<std::unique_ptr<deep_compositor::DeepInfo> /*unused*/>& imagesInfo) -> int {
+static auto SaveImageInfo(
+    const Options& opts,
+    std::vector<std::unique_ptr<deep_compositor::DeepInfo> /*unused*/>& imagesInfo) -> int {
     for (size_t i = 0; i < opts.input_files.size(); ++i) {
         const std::string& filename = opts.input_files[i];
 

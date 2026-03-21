@@ -1,4 +1,5 @@
 #include "film/image_buffer.h"
+
 #include <ImfArray.h>
 
 #include <cassert>
@@ -12,8 +13,9 @@ ImageBuffer::ImageBuffer(int width, int height) : width_(width), height_(height)
 }
 
 void ImageBuffer::SetPixel(int x, int y, const RGB& color) const {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) { return;
-}
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) {
+        return;
+    }
     pixels_[y * width_ + x] = color;
 }
 
@@ -34,16 +36,18 @@ FlatImageBuffer::FlatImageBuffer(int width, int height, std::vector<RGB> pixels)
       alpha_(static_cast<size_t>(width) * height, 1.0f) {}
 
 void FlatImageBuffer::SetPixel(int x, int y, const RGB& s) const {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) { return;
-}
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) {
+        return;
+    }
     pixels_[static_cast<size_t>(y) * width_ + x] = s;
     // alpha_ stays at its current value (1.0 unless previously set)
 }
 
 void FlatImageBuffer::SetPixel(int x, int y, const RGB& s, float alpha) const {
-    if (x < 0 || x >= width_ || y < 0 || y >= height_) { return;
-}
-    size_t idx = static_cast<size_t>((y) * width_) + x;
+    if (x < 0 || x >= width_ || y < 0 || y >= height_) {
+        return;
+    }
+    size_t idx = static_cast<size_t>((y)*width_) + x;
     pixels_[idx] = s;
     alpha_[idx] = alpha;
 }

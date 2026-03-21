@@ -2,7 +2,6 @@
 
 #include <mutex>
 
-
 using namespace skwr;
 
 DeepSegmentPool::DeepSegmentPool(size_t initial_chunks) {

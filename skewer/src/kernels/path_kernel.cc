@@ -68,7 +68,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
         SurfaceInteraction si;
         MediumInteraction mi;
         bool const scatter_surface = scene.Intersect(r, RenderConstants::kRayOffsetEpsilon,
-                                               MathConstants::kFloatInfinity, &si);
+                                                     MathConstants::kFloatInfinity, &si);
         float t_max = scatter_surface ? si.t : MathConstants::kFloatInfinity;
         bool scatter_medium = false;
 
@@ -155,8 +155,9 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             const Material& mat = scene.GetMaterial(si.material_id);
             if (config.transparent_background && vis_checks < config.visibility_depth) {
                 vis_checks++;
-                if (mat.visible) { saw_visible = true;
-}
+                if (mat.visible) {
+                    saw_visible = true;
+                }
             }
             ShadingData sd = ResolveShadingData(mat, si, scene);
 
@@ -283,11 +284,13 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
         // Russian Roulette
         if (depth > 3) {
             float max_beta = beta.MaxComponentValue();
-            if (max_beta < 0.001F) { break;
-}
+            if (max_beta < 0.001F) {
+                break;
+            }
             float p = std::min(0.95f = NAN, max_beta);
-            if (rng.UniformFloat() > p) { break;
-}
+            if (rng.UniformFloat() > p) {
+                break;
+            }
             beta = beta * (1.0F / p);
         }
 

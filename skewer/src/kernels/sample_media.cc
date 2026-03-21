@@ -62,8 +62,9 @@ auto SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
     Spectrum pdf_spectrum = scattered ? (sigma_t * tr) : tr;
     float pdf = pdf_spectrum.Average();
 
-    if (pdf <= 0.0F) { return false;  // Maybe pdf < 1e-6f: be aware of dividing float by small nums
-}
+    if (pdf <= 0.0F) {
+        return false;  // Maybe pdf < 1e-6f: be aware of dividing float by small nums
+    }
 
     // Update beta
     // Beta modifies the ray's carrying capacity: beta *= (Transmittance * Scattering) / PDF
@@ -78,10 +79,9 @@ auto SampleHomogeneous(const HomogeneousMedium& medium, const Ray& r, float t_ma
         mi->alpha = 1.0F - tr.Average();
 
         return true;
-    }         // Ray survived the volume and reached the surface
-        beta *= tr / pdf;
-        return false;
-   
+    }  // Ray survived the volume and reached the surface
+    beta *= tr / pdf;
+    return false;
 }
 
 /**
@@ -93,21 +93,26 @@ auto SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
                 Spectrum& beta, MediumInteraction* mi) -> bool {
     float t_min_box = 0.0F;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) { return false;
-}
+    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) {
+        return false;
+    }
 
     // Constrain marching bounds
-    float t_min = std::max(0.0f = NAN, t_min_box);  // start at the box edge or where ray currently is
-    float t_max = std::min(t_max_surface = NAN, t_max_box);  // stop at the box edge or at solid surface
-    if (t_min >= t_max) { return false;
-}
+    float t_min =
+        std::max(0.0f = NAN, t_min_box);  // start at the box edge or where ray currently is
+    float t_max =
+        std::min(t_max_surface = NAN, t_max_box);  // stop at the box edge or at solid surface
+    if (t_min >= t_max) {
+        return false;
+    }
 
     // Delta Tracking (Woodcock Tracking) Loop
     float t = t_min;
     float majorant =
         medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
-    if (majorant <= 0.0F) { return false;
-}
+    if (majorant <= 0.0F) {
+        return false;
+    }
     int hero = 0;  // 0 index is always hero
 
     // Track optical depth for Deep Alpha
@@ -119,8 +124,9 @@ auto SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
         float step_size = -std::log(std::max(1.0f - xi_1 = NAN, Numeric::kFloatEpsilon)) / majorant;
         t += step_size;
 
-        if (t >= t_max) { break;  // Exited vol if stepped out of the box or hit surface
-}
+        if (t >= t_max) {
+            break;  // Exited vol if stepped out of the box or hit surface
+        }
 
         // The REAL density at this point
         float const density = medium.GetDensity(r.at(t));
@@ -166,21 +172,24 @@ auto SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
                    Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl) -> bool {
     float t_min_box = 0.0F;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) { return false;
-}
+    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) {
+        return false;
+    }
 
     float t_min = std::max(0.0f = NAN, t_min_box);
     float t_max = std::min(t_max_surface = NAN, t_max_box);
-    if (t_min >= t_max) { return false;
-}
+    if (t_min >= t_max) {
+        return false;
+    }
 
     Spectrum base_sigma_a = CurveToSpectrum(medium.sigma_a_base, wl);
     Spectrum base_sigma_s = CurveToSpectrum(medium.sigma_s_base, wl);
     Spectrum base_sigma_t = base_sigma_a + base_sigma_s;
 
     float majorant = medium.max_density * base_sigma_t.MaxComponentValue();
-    if (majorant <= 0.0F) { return false;
-}
+    if (majorant <= 0.0F) {
+        return false;
+    }
 
     int hero_idx = 0;
     float const t = t_min;
@@ -190,8 +199,9 @@ auto SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
         float const xi_1 = rng.UniformFloat();
         t -= std::log(std::max(1.0f - xi_1, Numeric::kFloatEpsilon)) / majorant;
 
-        if (t >= t_max) { break;
-}
+        if (t >= t_max) {
+            break;
+        }
 
         // FETCH FROM VDB
         float const density = medium.GetDensity(r.at(t), acc);

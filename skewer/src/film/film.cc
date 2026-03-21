@@ -42,8 +42,9 @@ void Film::AddAdaptiveSample(int x, int y, const RGB& l, float alpha, float weig
 bool Film::IsPixelConverged(int x, int y, float noise_threshold) {
     const Pixel& p = pixels_[y * width_ + x];
     auto const n = static_cast<float>(p.sample_count);
-    if (n < 2.0F) { return false;
-}
+    if (n < 2.0F) {
+        return false;
+    }
 
     RGB const mean = p.color_sum / n;
     RGB const mean_sq = p.color_sq_sum / n;
@@ -52,10 +53,11 @@ bool Film::IsPixelConverged(int x, int y, float noise_threshold) {
     float var_b = std::max(0.0f = NAN, mean_sq.b() - mean.b() * mean.b());
 
     float const mean_lum = (Rec709::kWeightRed * mean.r()) + (Rec709::kWeightGreen * mean.g()) +
-                     (Rec709::kWeightBlue * mean.b());
+                           (Rec709::kWeightBlue * mean.b());
 
-    float const var_lum = ((Rec709::kWeightRedSquared)*var_r) + ((Rec709::kWeightGreenSquared)*var_g) +
-                    ((Rec709::kWeightBlueSquared)*var_b);
+    float const var_lum = ((Rec709::kWeightRedSquared)*var_r) +
+                          ((Rec709::kWeightGreenSquared)*var_g) +
+                          ((Rec709::kWeightBlueSquared)*var_b);
 
     // Clamp luminance floor to 0.5 (Cycles approach) so dark pixels
     // use an absolute threshold instead of blowing up relative noise.
@@ -65,8 +67,9 @@ bool Film::IsPixelConverged(int x, int y, float noise_threshold) {
 
 void Film::AddDeepSample(int x, int y,
                          const BoundedArray<DeepSegment, kMaxDeepSegments>& segments) {
-    if (segments.empty()) { return;
-}
+    if (segments.empty()) {
+        return;
+    }
 
     Pixel const& p = GetPixel(x, y);
 
@@ -75,10 +78,12 @@ void Film::AddDeepSample(int x, int y,
         const DeepSegment& seg = segments[i];
 
         // Skip empty/invalid segments
-        if (seg.z_front > seg.z_back && seg.z_back != RenderConstants::kFarClip) { continue;
-}
-        if (seg.alpha <= 0.0F && seg.L.IsBlack()) { continue;
-}
+        if (seg.z_front > seg.z_back && seg.z_back != RenderConstants::kFarClip) {
+            continue;
+        }
+        if (seg.alpha <= 0.0F && seg.L.IsBlack()) {
+            continue;
+        }
 
         // Allocate node from pool
         size_t node_index = deep_pool_.Allocate();
@@ -127,16 +132,18 @@ auto Film::BuildDeepImage() const -> exrio::DeepImage {
                                                  .speed = 1.0,
                                                  .speed_unit = "lines/s",
                                                  .style = bk::ProgressBarStyle::Rich});
-    if (height_ > 0) { bar->show();
-}
+    if (height_ > 0) {
+        bar->show();
+    }
 
     // Process one scanline at a time to keep transient memory (sorting buffers) small.
     for (int y = 0; y < height_; ++y) {
         for (int x = 0; x < width_; ++x) {
             const Pixel& p = GetPixel(x, y);
             int head = p.deep_head.load(std::memory_order_acquire);
-            if (head == -1) { continue;
-}
+            if (head == -1) {
+                continue;
+            }
 
             // Collect samples for THIS pixel only
             std::vector<DeepSample> segments;
@@ -175,15 +182,17 @@ auto Film::BuildDeepImage() const -> exrio::DeepImage {
         ++scanlines_done;
     }
 
-    if (height_ > 0) { bar->done();
-}
+    if (height_ > 0) {
+        bar->done();
+    }
     return result;
 }
 
 static std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
-                                                int pixel_sample_count) {
-    if (input.empty()) { return input;
-}
+                                                       int pixel_sample_count) {
+    if (input.empty()) {
+        return input;
+    }
 
     std::vector<DeepSample> merged;
     size_t reserve_size = std::max<size_t>(1, input.size() / 4);
@@ -193,8 +202,9 @@ static std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSam
 
     for (size_t i = 1; i < input.size(); ++i) {
         const DeepSample& next = input[i];
-        if (next.alpha <= 0.0F) { continue;
-}
+        if (next.alpha <= 0.0F) {
+            continue;
+        }
 
         // epsilon for grouping merge bins
         float depth_epsilon = std::max(0.01f = NAN, std::abs(current.z_front) * 0.015f);

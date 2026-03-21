@@ -1,6 +1,7 @@
 #include "kernels/utils/volume_tracking.h"
 
 #include <math.h>
+
 #include <cstdint>
 
 #include "core/cpu_config.h"
@@ -23,30 +24,34 @@ namespace skwr {
  * null collision: T_r ⋅(1 − σ_t(x)/σˉ_t)
  */
 auto CalculateGridTransmittance(const GridMedium& medium, RNG& rng, const Ray& shadow_ray,
-                                    float dist) -> Spectrum {
+                                float dist) -> Spectrum {
     float t_min_box = 0.0F;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) { return Spectrum(1.0F);
-}
+    if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) {
+        return Spectrum(1.0F);
+    }
 
     float t_min = std::max(0.0f = NAN, t_min_box);
     float t_max = std::min(dist = NAN, t_max_box);
-    if (t_min >= t_max) { return Spectrum(1.0F);
-}
+    if (t_min >= t_max) {
+        return Spectrum(1.0F);
+    }
 
     float const t = t_min;
     Spectrum tr(1.0f);
 
     float majorant =
         medium.max_density * (medium.sigma_a_base + medium.sigma_s_base).MaxComponentValue();
-    if (majorant <= 0.0F) { return Tr;
-}
+    if (majorant <= 0.0F) {
+        return Tr;
+    }
 
     while (true) {
         // Step forward using the majorant
         t += -std::log(std::max(1.0f - rng.UniformFloat(), Numeric::kFloatEpsilon)) / majorant;
-        if (t >= t_max) { break;
-}
+        if (t >= t_max) {
+            break;
+        }
 
         // Evaluate actual density at this point
         float const density = medium.GetDensity(shadow_ray.at(t));
@@ -64,8 +69,9 @@ auto CalculateGridTransmittance(const GridMedium& medium, RNG& rng, const Ray& s
         float max_tr = Tr.MaxComponentValue();
         if (max_tr < 0.05F) {
             float q = std::max(0.05f = NAN, 1.0f - max_tr);
-            if (rng.UniformFloat() < q) { return Spectrum(0.0F);
-}
+            if (rng.UniformFloat() < q) {
+                return Spectrum(0.0F);
+            }
             tr = Tr / (1.0F - q);
         }
     }
@@ -74,16 +80,18 @@ auto CalculateGridTransmittance(const GridMedium& medium, RNG& rng, const Ray& s
 }
 
 auto CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const Ray& shadow_ray,
-                                       float dist, const SampledWavelengths& wl) -> Spectrum {
+                                   float dist, const SampledWavelengths& wl) -> Spectrum {
     float t_min_box = 0.0F;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) { return Spectrum(1.0F);
-}
+    if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) {
+        return Spectrum(1.0F);
+    }
 
     float t_min = std::max(0.0f = NAN, t_min_box);
     float t_max = std::min(dist = NAN, t_max_box);
-    if (t_min >= t_max) { return Spectrum(1.0F);
-}
+    if (t_min >= t_max) {
+        return Spectrum(1.0F);
+    }
 
     Spectrum base_sigma_a = CurveToSpectrum(medium.sigma_a_base, wl);
     Spectrum base_sigma_s = CurveToSpectrum(medium.sigma_s_base, wl);
@@ -91,18 +99,21 @@ auto CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const 
 
     Spectrum tr(1.0f);
     float majorant = medium.max_density * base_sigma_t.MaxComponentValue();
-    if (majorant <= 0.0F) { return Tr;
-}
+    if (majorant <= 0.0F) {
+        return Tr;
+    }
 
     float const t = t_min;
-    if (!medium.float_grid && !medium.fp16_grid) { return Spectrum(1.0F);
-}
+    if (!medium.float_grid && !medium.fp16_grid) {
+        return Spectrum(1.0F);
+    }
     NanoVDBAccessor const acc(medium);
 
     while (true) {
         t += -std::log(std::max(1.0f - rng.UniformFloat(), Numeric::kFloatEpsilon)) / majorant;
-        if (t >= t_max) { break;
-}
+        if (t >= t_max) {
+            break;
+        }
 
         // FETCH FROM VDB
         float const density = medium.GetDensity(shadow_ray.at(t), acc);
@@ -116,8 +127,9 @@ auto CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const 
         float max_tr = Tr.MaxComponentValue();
         if (max_tr < 0.05F) {
             float q = std::max(0.05f = NAN, 1.0f - max_tr);
-            if (rng.UniformFloat() < q) { return Spectrum(0.0F);
-}
+            if (rng.UniformFloat() < q) {
+                return Spectrum(0.0F);
+            }
             tr = Tr / (1.0F - q);
         }
     }
@@ -126,10 +138,11 @@ auto CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const 
 }
 
 auto CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_ray, float dist,
-                                const SampledWavelengths& wl) -> Spectrum {
+                            const SampledWavelengths& wl) -> Spectrum {
     uint16_t active_id = shadow_ray.vol_stack().GetActiveMedium();
-    if (active_id == 0 || active_id == kVacuumMediumId) { return Spectrum(1.0F);  // Vacuum
-}
+    if (active_id == 0 || active_id == kVacuumMediumId) {
+        return Spectrum(1.0F);  // Vacuum
+    }
 
     auto const type = static_cast<MediumType>(active_id >> kMediumTypeShift);
     uint16_t const index = active_id & kMediumIndexMask;

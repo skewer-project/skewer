@@ -2,18 +2,22 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cstdint>
+#include <gsl/pointers>
+#include <span>
 
 #define rgb2spec_min(a, b) (((a) < (b)) ? (a) : (b))
 #define rgb2spec_max(a, b) (((a) > (b)) ? (a) : (b))
 
 /// Load a RGB2Spec model from disk
 auto rgb2spec_load(const char* filename) -> RGB2Spec* {
-    FILE* f = fopen(filename, "rb");
-    if (!f) return NULL;
+    gsl::owner<FILE*> f = fopen(filename, "rb");
+    if (f == nullptr) {
+        return nullptr;
+    }
 
     char header[4];
     if (fread(header, 4, 1, f) != 1 || memcmp(header, "SPEC", 4) != 0) {
@@ -82,9 +86,17 @@ static auto Rgb2specLoadMemory(const unsigned char* buffer, size_t length) -> RG
     }
 
     // Copy payload
-    memcpy(m->scale, buffer + offset, size_scale);
-    offset += size_scale;
-    memcpy(m->data, buffer + offset, size_data);
+    // Create a master window over the entire incoming data block.
+    std::span<const uint8_t> payload_view(buffer, length);
+
+    // Carve out a safe window for the scale data
+    auto scale_chunk = payload_view.subspan(offset, size_scale);
+    std::memcpy(m->scale, scale_chunk.data(), scale_chunk.size_bytes());
+    offset += scale_chunk.size_bytes();
+
+    // Carve out a safe window for the actual data
+    auto data_chunk = payload_view.subspan(offset, size_data);
+    std::memcpy(m->data, data_chunk.data(), data_chunk.size_bytes());
 
     return m;
 }
@@ -122,13 +134,15 @@ void rgb2spec_fetch(RGB2Spec* model, const float rgb[3], float out[RGB2SPEC_N_CO
     int i = 0;
     int res = model->res;
     float rgb[3];
-    for (int j = 0; j < 3; ++j) { rgb[j] = rgb2spec_max(rgb2spec_min(rgb[j], 1.F), 0.F);
-}
+    for (int j = 0; j < 3; ++j) {
+        rgb[j] = rgb2spec_max(rgb2spec_min(rgb[j], 1.F), 0.F);
+    }
 
     for (int j = 1; j < 3; ++j) {
-        if (rgb[j] >= rgb[i]) { i = j;
-}
-}
+        if (rgb[j] >= rgb[i]) {
+            i = j;
+        }
+    }
 
     float z = rgb[i];
     float scale = (res - 1) / z;
@@ -154,11 +168,11 @@ void rgb2spec_fetch(RGB2Spec* model, const float rgb[3], float out[RGB2SPEC_N_CO
     for (int j = 0; j < RGB2SPEC_N_COEFFS; ++j) {
         out[j] =
             (((model->data[offset] * x0 + model->data[offset + dx] * x1) * y0 +
-             (model->data[offset + dy] * x0 + model->data[offset + dy + dx] * x1) * y1) *
-                z0) +
+              (model->data[offset + dy] * x0 + model->data[offset + dy + dx] * x1) * y1) *
+             z0) +
             (((model->data[offset + dz] * x0 + model->data[offset + dz + dx] * x1) * y0 +
-             (model->data[offset + dz + dy] * x0 + model->data[offset + dz + dy + dx] * x1) * y1) *
-                z1);
+              (model->data[offset + dz + dy] * x0 + model->data[offset + dz + dy + dx] * x1) * y1) *
+             z1);
         offset++;
     }
 }

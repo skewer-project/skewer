@@ -11,6 +11,7 @@
 #include <fstream>
 #include <memory>
 #include <vector>
+
 #include "exrio/deep_image.h"
 
 namespace exrio {
@@ -19,13 +20,14 @@ static auto IsDeepExr(const std::string& filename) -> bool {
     try {
         // First check magic number to avoid heavy parsing of non-EXR files
         std::ifstream f(filename, std::ios::binary);
-        if (!f) { return false;
-}
+        if (!f) {
+            return false;
+        }
         char magic[4];
         f.read(magic, 4);
         if (magic[0] != 0x76 || magic[1] != 0x2f || magic[2] != 0x31 || magic[3] != 0x01) {
             return false;
-}
+        }
         f.close();
 
         // Try opening as a deep scanline file
@@ -36,8 +38,9 @@ static auto IsDeepExr(const std::string& filename) -> bool {
         // Fallback for multi-part deep files
         try {
             Imf::MultiPartInputFile file(filename.c_str());
-            if (file.parts() < 1) { return false;
-}
+            if (file.parts() < 1) {
+                return false;
+            }
             const Imf::Header& header = file.header(0);
             return header.hasType() && Imf::isDeepData(header.type());
         } catch (...) {
@@ -46,7 +49,8 @@ static auto IsDeepExr(const std::string& filename) -> bool {
     }
 }
 
-static auto GetDeepExrInfo(const std::string& filename, int& width, int& height, bool& is_deep) -> bool {
+static auto GetDeepExrInfo(const std::string& filename, int& width, int& height, bool& is_deep)
+    -> bool {
     try {
         Imf::MultiPartInputFile file(filename.c_str());
         if (file.parts() < 1) {
@@ -109,16 +113,21 @@ static auto LoadDeepExr(const std::string& filename) -> DeepImage {
 
     if (!has_r || !has_g || !has_b || !has_a || !has_z) {
         std::string missing;
-        if (!has_r) { missing += "R ";
-}
-        if (!has_g) { missing += "G ";
-}
-        if (!has_b) { missing += "B ";
-}
-        if (!has_a) { missing += "A ";
-}
-        if (!has_z) { missing += "Z ";
-}
+        if (!has_r) {
+            missing += "R ";
+        }
+        if (!has_g) {
+            missing += "G ";
+        }
+        if (!has_b) {
+            missing += "B ";
+        }
+        if (!has_a) {
+            missing += "A ";
+        }
+        if (!has_z) {
+            missing += "Z ";
+        }
         throw DeepReaderException("Missing required channels: " + missing);
     }
 
@@ -148,40 +157,45 @@ static auto LoadDeepExr(const std::string& filename) -> DeepImage {
         sizeof(unsigned int) * width  // yStride
         ));
 
-    frame_buffer.insert("R", Imf::DeepSlice(Imf::FLOAT,
-                                           reinterpret_cast<char*>(rPtrs.data() - minX -
-                                                                   static_cast<long>(minY) * width),
-                                           sizeof(float*),          // xStride for pointer array
-                                           sizeof(float*) * width,  // yStride for pointer array
-                                           sizeof(float)            // sample stride
-                                           ));
+    frame_buffer.insert(
+        "R", Imf::DeepSlice(
+                 Imf::FLOAT,
+                 reinterpret_cast<char*>(rPtrs.data() - minX - static_cast<long>(minY) * width),
+                 sizeof(float*),          // xStride for pointer array
+                 sizeof(float*) * width,  // yStride for pointer array
+                 sizeof(float)            // sample stride
+                 ));
 
-    frame_buffer.insert("G", Imf::DeepSlice(Imf::FLOAT,
-                                           reinterpret_cast<char*>(gPtrs.data() - minX -
-                                                                   static_cast<long>(minY) * width),
-                                           sizeof(float*), sizeof(float*) * width, sizeof(float)));
+    frame_buffer.insert(
+        "G", Imf::DeepSlice(
+                 Imf::FLOAT,
+                 reinterpret_cast<char*>(gPtrs.data() - minX - static_cast<long>(minY) * width),
+                 sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-    frame_buffer.insert("B", Imf::DeepSlice(Imf::FLOAT,
-                                           reinterpret_cast<char*>(bPtrs.data() - minX -
-                                                                   static_cast<long>(minY) * width),
-                                           sizeof(float*), sizeof(float*) * width, sizeof(float)));
+    frame_buffer.insert(
+        "B", Imf::DeepSlice(
+                 Imf::FLOAT,
+                 reinterpret_cast<char*>(bPtrs.data() - minX - static_cast<long>(minY) * width),
+                 sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-    frame_buffer.insert("A", Imf::DeepSlice(Imf::FLOAT,
-                                           reinterpret_cast<char*>(aPtrs.data() - minX -
-                                                                   static_cast<long>(minY) * width),
-                                           sizeof(float*), sizeof(float*) * width, sizeof(float)));
+    frame_buffer.insert(
+        "A", Imf::DeepSlice(
+                 Imf::FLOAT,
+                 reinterpret_cast<char*>(aPtrs.data() - minX - static_cast<long>(minY) * width),
+                 sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
-    frame_buffer.insert("Z", Imf::DeepSlice(Imf::FLOAT,
-                                           reinterpret_cast<char*>(zPtrs.data() - minX -
-                                                                   static_cast<long>(minY) * width),
-                                           sizeof(float*), sizeof(float*) * width, sizeof(float)));
+    frame_buffer.insert(
+        "Z", Imf::DeepSlice(
+                 Imf::FLOAT,
+                 reinterpret_cast<char*>(zPtrs.data() - minX - static_cast<long>(minY) * width),
+                 sizeof(float*), sizeof(float*) * width, sizeof(float)));
 
     if (has_z_back) {
         frame_buffer.insert("ZBack",
-                           Imf::DeepSlice(Imf::FLOAT,
-                                          reinterpret_cast<char*>(zBackPtrs.data() - minX -
-                                                                  static_cast<long>(minY) * width),
-                                          sizeof(float*), sizeof(float*) * width, sizeof(float)));
+                            Imf::DeepSlice(Imf::FLOAT,
+                                           reinterpret_cast<char*>(zBackPtrs.data() - minX -
+                                                                   static_cast<long>(minY) * width),
+                                           sizeof(float*), sizeof(float*) * width, sizeof(float)));
     }
 
     file->setFrameBuffer(frameBuffer);

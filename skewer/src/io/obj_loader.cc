@@ -23,10 +23,11 @@ namespace skwr {
 
 // Helper: load a texture from an .mtl texture name if non-empty.
 // Returns kNoTexture if the name is empty or load fails.
-static auto LoadMtlTexture(const std::string& texname, const std::string& base_path,
-                               Scene& scene) -> uint32_t {
-    if (texname.empty()) { return kNoTexture;
-}
+static auto LoadMtlTexture(const std::string& texname, const std::string& base_path, Scene& scene)
+    -> uint32_t {
+    if (texname.empty()) {
+        return kNoTexture;
+    }
 
     std::string filepath;
     if (!texname.empty() && texname[0] == '/') {
@@ -36,14 +37,15 @@ static auto LoadMtlTexture(const std::string& texname, const std::string& base_p
     }
 
     ImageTexture const tex;
-    if (!tex.Load(filepath)) { return kNoTexture;
-}
+    if (!tex.Load(filepath)) {
+        return kNoTexture;
+    }
 
     return scene.AddTexture(std::move(tex));
 }
 
 static auto ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
-                            const std::string& base_path) -> Material {
+                               const std::string& base_path) -> Material {
     Material mat{};
 
     // 1. PBR METALLIC
@@ -62,7 +64,8 @@ static auto ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
     }
 
     // 2. TRANSPARENCY / GLASS
-    bool const is_glass_illum = (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
+    bool const is_glass_illum =
+        (mtl.illum == 4 || mtl.illum == 6 || mtl.illum == 7 || mtl.illum == 9);
     if (mtl.dissolve < 0.99F || is_glass_illum) {
         mat.type = MaterialType::Dielectric;
         mat.albedo = RGBToCurve(RGB(1.0F, 1.0F, 1.0F));
@@ -110,7 +113,8 @@ static auto ConvertObjMaterial(const tinyobj::material_t& mtl, Scene& scene,
     return mat;
 }
 
-static auto LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool auto_fit) -> bool {
+static auto LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale, bool auto_fit)
+    -> bool {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -141,10 +145,12 @@ static auto LoadOBJ(const std::string& filename, Scene& scene, const Vec3& scale
                   -MathConstants::kFloatInfinity);
     for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
         for (int a = 0; a < 3; a++) {
-            if (attrib.vertices[i + a] < bbox_min[a]) { bbox_min[a] = attrib.vertices[i + a];
-}
-            if (attrib.vertices[i + a] > bbox_max[a]) { bbox_max[a] = attrib.vertices[i + a];
-}
+            if (attrib.vertices[i + a] < bbox_min[a]) {
+                bbox_min[a] = attrib.vertices[i + a];
+            }
+            if (attrib.vertices[i + a] > bbox_max[a]) {
+                bbox_max[a] = attrib.vertices[i + a];
+            }
         }
     }
 

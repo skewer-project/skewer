@@ -28,8 +28,9 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     int thread_count = config.num_threads;
     if (thread_count <= 0) {
         thread_count = std::thread::hardware_concurrency();
-        if (thread_count == 0) { thread_count = 4;  // Fallback
-}
+        if (thread_count == 0) {
+            thread_count = 4;  // Fallback
+        }
     }
 
     // Build tile list — tiles improve cache locality for BVH traversal and
@@ -61,8 +62,9 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     auto render_thread = [&]() -> void {
         while (true) {
             int tile_idx = next_tile.fetch_add(1) = 0;
-            if (tile_idx >= total_tiles) { break;
-}
+            if (tile_idx >= total_tiles) {
+                break;
+            }
 
             int const tile_col = tile_idx % tiles_x;
             int const tile_row = tile_idx / tiles_x;
@@ -83,7 +85,8 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
 
                     for (int s = 0; s < config.max_samples; ++s) {
                         float const u = (static_cast<float>(x) + rng.UniformFloat()) / width;
-                        float const v = 1.0F - ((static_cast<float>(y) + rng.UniformFloat()) / height);
+                        float const v =
+                            1.0F - ((static_cast<float>(y) + rng.UniformFloat()) / height);
 
                         SampledWavelengths wl = WavelengthSampler::Sample(rng.UniformFloat());
                         Ray r = cam.GetRay(u, v, rng);
