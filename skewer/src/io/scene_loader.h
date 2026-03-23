@@ -8,6 +8,7 @@
 //==============================================================================================
 
 #include <string>
+#include <vector>
 
 #include "core/math/vec3.h"
 #include "session/render_options.h"
@@ -17,25 +18,41 @@ namespace skwr {
 // Forward declarations
 class Scene;
 
-// Result of loading a scene file — camera and render parameters
-// that the RenderSession uses to configure itself.
-struct SceneConfig {
+// Per-layer render config extracted from a layer JSON
+struct LayerConfig {
     RenderOptions render_options;
+    bool visible = true;  // layer-level visibility
+};
 
-    // Camera parameters
+// Full scene config parsed from scene.json — camera and layer/context file paths.
+// Does NOT contain geometry; caller loads layers individually via LoadLayerFile.
+struct SceneConfig {
+    // Camera (inline in scene.json, required)
     Vec3 look_from;
     Vec3 look_at;
     Vec3 vup = Vec3(0.0f, 1.0f, 0.0f);
     float vfov = 90.0f;
     float aperture_radius = 0.0f;
     float focus_distance = 1.0f;
+
+    // Context layer paths (resolved to absolute paths)
+    std::vector<std::string> context_paths;
+
+    // Render layer paths (resolved to absolute paths, ordered back-to-front)
+    std::vector<std::string> layer_paths;
 };
 
-// Load a JSON scene file. Populates the Scene with geometry and materials,
-// and returns a SceneConfig with camera and render parameters.
-// The Scene's BVH is NOT built — caller must call scene.Build() after.
-// Throws std::runtime_error on parse failure.
-SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene);
+// Load a scene.json file. Parses camera, context refs, and layer refs.
+// Does NOT load any geometry — caller loads layers individually.
+// Throws std::runtime_error if "camera" or "layers" is missing.
+SceneConfig LoadSceneFile(const std::string& filepath);
+
+// Load a single layer file into a Scene (materials + objects, NO camera).
+// Throws std::runtime_error if the file contains a "camera" key.
+LayerConfig LoadLayerFile(const std::string& filepath, Scene& scene);
+
+// Merge context layer files into a Scene (adds their materials + objects/lights).
+void LoadContextIntoScene(const std::vector<std::string>& context_paths, Scene& scene);
 
 }  // namespace skwr
 

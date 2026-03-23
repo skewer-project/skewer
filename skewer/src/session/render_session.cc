@@ -47,22 +47,30 @@ RenderSession::~RenderSession() = default;
 void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_override) {
     std::cout << "[Session] Loading scene from: " << scene_file << "\n";
 
-    // 1. Create scene and load from JSON
-    scene_ = std::make_unique<Scene>();
-    SceneConfig config = LoadSceneFile(scene_file, *scene_);
+    // 1. Parse scene.json (camera + layer/context paths; no geometry)
+    SceneConfig config = LoadSceneFile(scene_file);
 
-    // 2. Build BVH acceleration structure
+    // 2. Create scene, load context + first layer
+    scene_ = std::make_unique<Scene>();
+    LoadContextIntoScene(config.context_paths, *scene_);
+
+    if (config.layer_paths.empty()) {
+        throw std::runtime_error("Scene file has no layers: " + scene_file);
+    }
+    LayerConfig lcfg = LoadLayerFile(config.layer_paths[0], *scene_);
+
+    // 3. Build BVH acceleration structure
     scene_->Build();
 
-    // 3. Apply thread override if specified
+    // 4. Apply thread override if specified
     if (thread_override > 0) {
-        config.render_options.integrator_config.num_threads = thread_override;
+        lcfg.render_options.integrator_config.num_threads = thread_override;
     }
 
-    // 4. Store render options
-    options_ = config.render_options;
+    // 5. Store render options
+    options_ = lcfg.render_options;
 
-    // 5. Store camera parameters so RebuildFilm() can recreate the camera
+    // 6. Store camera parameters so RebuildFilm() can recreate the camera
     // with the correct aspect ratio if the resolution is later overridden.
     cam_look_from_ = config.look_from;
     cam_look_at_ = config.look_at;
