@@ -68,6 +68,19 @@ static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_va
     return default_value;
 }
 
+static std::string ExtractDir(const std::string& filepath) {
+    size_t last_slash = filepath.find_last_of("/\\");
+    if (last_slash != std::string::npos) {
+        return filepath.substr(0, last_slash);
+    }
+    return "";
+}
+
+static std::string ResolvePath(const std::string& path, const std::string& base_dir) {
+    if (!path.empty() && path[0] == '/') return path;
+    return base_dir.empty() ? path : (base_dir + "/" + path);
+}
+
 // Media Parsing
 using MediaMap = std::map<std::string, uint16_t>;
 
@@ -100,13 +113,7 @@ static MediaMap ParseMedia(const json& j, Scene& scene, const std::string& scene
             med.translate = GetVec3Or(m, "translate", Vec3(0.0f, 0.0f, 0.0f));
 
             std::string file = m.at("file").get<std::string>();
-
-            std::string filepath;
-            if (!file.empty() && file[0] == '/') {
-                filepath = file;
-            } else {
-                filepath = scene_dir.empty() ? file : (scene_dir + "/" + file);
-            }
+            std::string filepath = ResolvePath(file, scene_dir);
 
             if (!med.Load(filepath)) {
                 throw std::runtime_error("Failed to load NanoVDB: " + filepath);
@@ -138,12 +145,7 @@ static uint32_t LoadSceneTexture(const json& m, const std::string& key,
     std::string texpath = m[key].get<std::string>();
     if (texpath.empty()) return kNoTexture;
 
-    std::string filepath;
-    if (!texpath.empty() && texpath[0] == '/') {
-        filepath = texpath;
-    } else {
-        filepath = scene_dir.empty() ? texpath : (scene_dir + "/" + texpath);
-    }
+    std::string filepath = ResolvePath(texpath, scene_dir);
 
     ImageTexture tex;
     if (!tex.Load(filepath)) return kNoTexture;
@@ -151,7 +153,9 @@ static uint32_t LoadSceneTexture(const json& m, const std::string& key,
     return scene.AddTexture(std::move(tex));
 }
 
-static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string& scene_dir) {
+// layer_visible: if false, forces mat.visible = false on all materials regardless of per-mat JSON.
+static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string& scene_dir,
+                                  bool layer_visible = true) {
     MaterialMap mat_map;
 
     if (!j.contains("materials")) {
@@ -186,7 +190,8 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
         // Optional emission and opacity (apply to any material type)
         mat.emission = RGBToCurve(GetRGBOr(m, "emission", RGB(0.0f)));
         mat.opacity = RGBToCurve(GetRGBOr(m, "opacity", RGB(1.0f)));
-        mat.visible = GetOr(m, "visible", true);
+        // Layer-level visibility overrides per-material visibility
+        mat.visible = layer_visible ? GetOr(m, "visible", true) : false;
 
         // Optional texture maps (paths resolved relative to scene file directory)
         mat.albedo_tex = LoadSceneTexture(m, "albedo_texture", scene_dir, scene);
@@ -302,14 +307,7 @@ static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene,
 static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, int index,
                      const std::string& scene_dir) {
     std::string file = obj.at("file").get<std::string>();
-
-    // Resolve path relative to scene file directory
-    std::string filepath;
-    if (!file.empty() && file[0] == '/') {
-        filepath = file;  // Absolute path
-    } else {
-        filepath = scene_dir.empty() ? file : (scene_dir + "/" + file);
-    }
+    std::string filepath = ResolvePath(file, scene_dir);
 
     bool auto_fit = GetOr(obj, "auto_fit", true);
 
@@ -417,27 +415,11 @@ static void ParseObjects(const json& j, const MaterialMap& mat_map, const MediaM
 }
 
 //------------------------------------------------------------------------------
-// Camera & Render Config Parsing
+// Render Options Parsing
 //------------------------------------------------------------------------------
 
-static SceneConfig ParseConfig(const json& j) {
-    SceneConfig config{};
-
-    // --- Camera ---
-    if (!j.contains("camera")) {
-        throw std::runtime_error("Scene file missing 'camera' section");
-    }
-
-    const auto& cam = j["camera"];
-    config.look_from = ParseVec3(cam.at("look_from"));
-    config.look_at = ParseVec3(cam.at("look_at"));
-    config.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
-    config.vfov = GetOr(cam, "vfov", 90.0f);
-    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
-    config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
-
-    // --- Render ---
-    auto& opts = config.render_options;
+static RenderOptions ParseRenderOptions(const json& j) {
+    RenderOptions opts{};
 
     // Defaults
     opts.integrator_type = IntegratorType::PathTrace;
@@ -490,20 +472,18 @@ static SceneConfig ParseConfig(const json& j) {
         }
     }
 
-    return config;
+    return opts;
 }
 
 //------------------------------------------------------------------------------
-// Main Entry Point
+// Open + Parse JSON helper
 //------------------------------------------------------------------------------
 
-SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
-    // Open and parse JSON
+static json OpenJSON(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        throw std::runtime_error("Cannot open scene file: " + filepath);
+        throw std::runtime_error("Cannot open file: " + filepath);
     }
-
     json j;
     try {
         file >> j;
@@ -511,26 +491,86 @@ SceneConfig LoadSceneFile(const std::string& filepath, Scene& scene) {
         throw std::runtime_error("JSON parse error in '" + filepath +
                                  "': " + std::string(e.what()));
     }
+    return j;
+}
 
-    // Extract scene file directory for resolving relative paths
-    std::string scene_dir;
-    size_t last_slash = filepath.find_last_of("/\\");
-    if (last_slash != std::string::npos) {
-        scene_dir = filepath.substr(0, last_slash);
+//------------------------------------------------------------------------------
+// Public API
+//------------------------------------------------------------------------------
+
+SceneConfig LoadSceneFile(const std::string& filepath) {
+    json j = OpenJSON(filepath);
+
+    if (!j.contains("camera")) {
+        throw std::runtime_error("Scene file missing 'camera' section: " + filepath);
+    }
+    if (!j.contains("layers")) {
+        throw std::runtime_error("Scene file missing 'layers' section: " + filepath);
     }
 
-    // 1. Parse materials first (objects reference them by name)
-    MaterialMap mat_map = ParseMaterials(j, scene, scene_dir);
+    std::string scene_dir = ExtractDir(filepath);
 
-    MediaMap media_map = ParseMedia(j, scene, scene_dir);
+    SceneConfig config{};
 
-    // 2. Parse objects (geometry)
-    ParseObjects(j, mat_map, media_map, scene, scene_dir);
+    // Parse camera
+    const auto& cam = j["camera"];
+    config.look_from = ParseVec3(cam.at("look_from"));
+    config.look_at = ParseVec3(cam.at("look_at"));
+    config.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
+    config.vfov = GetOr(cam, "vfov", 90.0f);
+    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
+    config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
 
-    // 3. Parse camera and render config
-    SceneConfig config = ParseConfig(j);
+    // Resolve context paths
+    if (j.contains("context")) {
+        for (const auto& p : j["context"]) {
+            config.context_paths.push_back(ResolvePath(p.get<std::string>(), scene_dir));
+        }
+    }
+
+    // Resolve layer paths
+    for (const auto& p : j["layers"]) {
+        config.layer_paths.push_back(ResolvePath(p.get<std::string>(), scene_dir));
+    }
 
     return config;
+}
+
+LayerConfig LoadLayerFile(const std::string& filepath, Scene& scene) {
+    json j = OpenJSON(filepath);
+
+    if (j.contains("camera")) {
+        throw std::runtime_error("Layer file must not contain a 'camera' key: " + filepath);
+    }
+
+    std::string scene_dir = ExtractDir(filepath);
+
+    // Layer-level visibility: if false, all materials in this layer become invisible
+    bool layer_visible = GetOr(j, "visible", true);
+
+    MaterialMap mat_map = ParseMaterials(j, scene, scene_dir, layer_visible);
+    MediaMap media_map = ParseMedia(j, scene, scene_dir);
+    ParseObjects(j, mat_map, media_map, scene, scene_dir);
+
+    LayerConfig lcfg{};
+    lcfg.visible = layer_visible;
+    lcfg.render_options = ParseRenderOptions(j);
+    return lcfg;
+}
+
+void LoadContextIntoScene(const std::vector<std::string>& context_paths, Scene& scene) {
+    for (const auto& path : context_paths) {
+        json j = OpenJSON(path);
+
+        if (j.contains("camera")) {
+            throw std::runtime_error("Context file must not contain a 'camera' key: " + path);
+        }
+
+        std::string ctx_dir = ExtractDir(path);
+        MaterialMap mat_map = ParseMaterials(j, scene, ctx_dir);
+        MediaMap media_map = ParseMedia(j, scene, ctx_dir);
+        ParseObjects(j, mat_map, media_map, scene, ctx_dir);
+    }
 }
 
 }  // namespace skwr
