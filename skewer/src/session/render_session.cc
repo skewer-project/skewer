@@ -40,6 +40,87 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
 RenderSession::RenderSession() { skwr::InitSpectralModel(); }
 RenderSession::~RenderSession() = default;
 
+// Derive PNG + EXR output paths from a layer file path.
+// e.g. "/scenes/foo/layer_ball.json" → ("layer_ball.png", "layer_ball.exr")
+static std::pair<std::string, std::string> LayerOutputPaths(const std::string& layer_path) {
+    // Strip directory
+    size_t slash = layer_path.find_last_of("/\\");
+    std::string base = (slash != std::string::npos) ? layer_path.substr(slash + 1) : layer_path;
+
+    // Strip extension
+    size_t dot = base.rfind('.');
+    std::string stem = (dot != std::string::npos) ? base.substr(0, dot) : base;
+
+    return {stem + ".png", stem + ".exr"};
+}
+
+void RenderSession::RenderScene(const std::string& scene_file, int thread_override) {
+    std::cout << "[Session] Rendering scene: " << scene_file << "\n";
+
+    SceneConfig config = LoadSceneFile(scene_file);
+
+    // Store shared camera params (used by RebuildFilm)
+    cam_look_from_ = config.look_from;
+    cam_look_at_ = config.look_at;
+    cam_vup_ = config.vup;
+    cam_vfov_ = config.vfov;
+    cam_aperture_ = config.aperture_radius;
+    cam_focus_dist_ = config.focus_distance;
+
+    const bool multi_layer = config.layer_paths.size() > 1;
+
+    for (size_t i = 0; i < config.layer_paths.size(); ++i) {
+        const std::string& layer_path = config.layer_paths[i];
+        std::cout << "[Session] Layer " << (i + 1) << "/" << config.layer_paths.size() << ": "
+                  << layer_path << "\n";
+
+        // Fresh scene per layer
+        auto layer_scene = std::make_unique<Scene>();
+        LoadContextIntoScene(config.context_paths, *layer_scene);
+        LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
+        layer_scene->Build();
+
+        auto& opts = lcfg.render_options;
+        auto& ic = opts.integrator_config;
+
+        // Multi-layer renders always produce deep EXRs with transparent backgrounds
+        if (multi_layer) {
+            ic.enable_deep = true;
+            ic.transparent_background = true;
+        }
+        if (thread_override > 0) ic.num_threads = thread_override;
+
+        // Output filenames derived from layer filename
+        auto [png_out, exr_out] = LayerOutputPaths(layer_path);
+        opts.image_config.outfile = png_out;
+        opts.image_config.exrfile = exr_out;
+
+        float aspect = static_cast<float>(opts.image_config.width) /
+                       static_cast<float>(opts.image_config.height);
+        auto cam = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
+                                            aspect, cam_aperture_, cam_focus_dist_);
+        ic.cam_w = -cam->GetW();
+
+        auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
+        auto integ = CreateIntegrator(opts.integrator_type);
+
+        const auto& lic = opts.integrator_config;
+        std::cout << "[Session] " << opts.image_config.width << "x" << opts.image_config.height
+                  << " | Samples: " << lic.max_samples << " | Depth: " << lic.max_depth << "\n";
+
+        integ->Render(*layer_scene, *cam, film.get(), ic);
+
+        film->WriteImage(opts.image_config.outfile);
+        std::cout << "[Session] Wrote " << opts.image_config.outfile << "\n";
+
+        if (ic.enable_deep) {
+            exrio::DeepImage img = film->BuildDeepImage();
+            exrio::writeDeepEXR(img, opts.image_config.exrfile);
+            std::cout << "[Session] Wrote " << opts.image_config.exrfile << "\n";
+        }
+    }
+}
+
 /**
  * Load a scene from a JSON config file.
  * Sets up everything: scene geometry, materials, camera, film, and integrator.
