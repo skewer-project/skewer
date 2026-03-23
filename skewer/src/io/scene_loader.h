@@ -40,6 +40,11 @@ struct SceneConfig {
 
     // Render layer paths (resolved to absolute paths, ordered back-to-front)
     std::vector<std::string> layer_paths;
+
+    // Output directory for all layer renders (local path or cloud URI).
+    // Layer stems are appended: "gs://bucket/renders/" + "layer_foo" + ".exr"
+    // Empty string means outputs are written to the current working directory.
+    std::string output_dir;
 };
 
 // Load a scene.json file. Parses camera, context refs, and layer refs.

@@ -40,10 +40,14 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
 RenderSession::RenderSession() { skwr::InitSpectralModel(); }
 RenderSession::~RenderSession() = default;
 
-// Derive PNG + EXR output paths from a layer file path.
-// e.g. "/scenes/foo/layer_ball.json" → ("layer_ball.png", "layer_ball.exr")
-static std::pair<std::string, std::string> LayerOutputPaths(const std::string& layer_path) {
-    // Strip directory
+// Derive PNG + EXR output paths from a layer file path and optional output_dir.
+// e.g. layer_path="scenes/foo/layer_ball.json", output_dir="images/foo/"
+//   → ("images/foo/layer_ball.png", "images/foo/layer_ball.exr")
+// output_dir may be a local path or a cloud URI (e.g. "gs://bucket/renders/").
+// A trailing separator is added automatically if output_dir doesn't end with one.
+static std::pair<std::string, std::string> LayerOutputPaths(const std::string& layer_path,
+                                                            const std::string& output_dir) {
+    // Strip directory from layer_path to get the bare filename
     size_t slash = layer_path.find_last_of("/\\");
     std::string base = (slash != std::string::npos) ? layer_path.substr(slash + 1) : layer_path;
 
@@ -51,7 +55,14 @@ static std::pair<std::string, std::string> LayerOutputPaths(const std::string& l
     size_t dot = base.rfind('.');
     std::string stem = (dot != std::string::npos) ? base.substr(0, dot) : base;
 
-    return {stem + ".png", stem + ".exr"};
+    std::string prefix;
+    if (!output_dir.empty()) {
+        prefix = output_dir;
+        char last = prefix.back();
+        if (last != '/' && last != '\\') prefix += '/';
+    }
+
+    return {prefix + stem + ".png", prefix + stem + ".exr"};
 }
 
 void RenderSession::RenderScene(const std::string& scene_file, int thread_override) {
@@ -90,8 +101,8 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
         }
         if (thread_override > 0) ic.num_threads = thread_override;
 
-        // Output filenames derived from layer filename
-        auto [png_out, exr_out] = LayerOutputPaths(layer_path);
+        // Output filenames derived from layer filename + scene-level output_dir
+        auto [png_out, exr_out] = LayerOutputPaths(layer_path, config.output_dir);
         opts.image_config.outfile = png_out;
         opts.image_config.exrfile = exr_out;
 
