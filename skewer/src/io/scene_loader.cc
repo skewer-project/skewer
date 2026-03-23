@@ -521,6 +521,9 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
     config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
     config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
 
+    // Output directory (local path or cloud URI — used as-is, not resolved)
+    config.output_dir = GetOr<std::string>(j, "output_dir", "");
+
     // Resolve context paths
     if (j.contains("context")) {
         for (const auto& p : j["context"]) {
