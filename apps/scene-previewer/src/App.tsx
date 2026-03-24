@@ -6,7 +6,13 @@ import type { ResolvedScene } from "./types/scene";
 
 function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
+	const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
 	const [error, setError] = useState<string>("");
+
+	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
+		setScene(s);
+		setDirHandle(dir);
+	}
 
 	return (
 		<div
@@ -28,7 +34,7 @@ function App() {
 				}}
 			>
 				<strong>Skewer</strong>
-				<OpenFolderButton onSceneLoaded={setScene} onError={setError} />
+				<OpenFolderButton onSceneLoaded={handleSceneLoaded} onError={setError} />
 				{error && <span style={{ color: "red" }}>{error}</span>}
 				{scene && (
 					<span style={{ color: "#888" }}>
@@ -60,7 +66,7 @@ function App() {
 
 				{/* Viewport */}
 				<div style={{ flex: 1, position: "relative" }}>
-					<Viewport />
+					<Viewport scene={scene} dirHandle={dirHandle} />
 				</div>
 			</div>
 		</div>

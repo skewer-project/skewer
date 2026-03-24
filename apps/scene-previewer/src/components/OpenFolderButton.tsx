@@ -4,7 +4,7 @@ import { loadScene } from "../services/scene-parser";
 import type { ResolvedScene } from "../types/scene";
 
 interface Props {
-	onSceneLoaded: (scene: ResolvedScene) => void;
+	onSceneLoaded: (scene: ResolvedScene, dir: FileSystemDirectoryHandle) => void;
 	onError: (error: string) => void;
 }
 
@@ -16,7 +16,7 @@ export function OpenFolderButton({ onSceneLoaded, onError }: Props) {
 		try {
 			const dir = await openSceneFolder();
 			const scene = await loadScene(dir);
-			onSceneLoaded(scene);
+			onSceneLoaded(scene, dir);
 			onError("");
 		} catch (err) {
 			// DOMException with name "AbortError" means the user cancelled the picker — ignore silently.
