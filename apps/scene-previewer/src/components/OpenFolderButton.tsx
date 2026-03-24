@@ -17,9 +17,7 @@ export function OpenFolderButton({ onSceneLoaded, onError }: Props) {
 			const dir = await openSceneFolder();
 			const scene = await loadScene(dir);
 			onSceneLoaded(scene, dir);
-			onError("");
 		} catch (err) {
-			// DOMException with name "AbortError" means the user cancelled the picker — ignore silently.
 			if (err instanceof DOMException && err.name === "AbortError") return;
 			onError(err instanceof Error ? err.message : String(err));
 		} finally {
@@ -28,7 +26,12 @@ export function OpenFolderButton({ onSceneLoaded, onError }: Props) {
 	}
 
 	return (
-		<button type="button" onClick={handleClick} disabled={loading}>
+		<button
+			type="button"
+			onClick={handleClick}
+			disabled={loading}
+			className={`open-btn${loading ? " loading" : ""}`}
+		>
 			{loading ? "Loading…" : "Open Scene Folder"}
 		</button>
 	);

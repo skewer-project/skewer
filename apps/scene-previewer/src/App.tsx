@@ -12,62 +12,63 @@ function App() {
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
 		setScene(s);
 		setDirHandle(dir);
+		setError("");
 	}
 
+	const totalObjects = scene
+		? [...scene.contexts, ...scene.layers].reduce((s, l) => s + l.data.objects.length, 0)
+		: 0;
+
 	return (
-		<div
-			style={{
-				display: "flex",
-				flexDirection: "column",
-				height: "100dvh",
-				fontFamily: "monospace",
-			}}
-		>
-			{/* Toolbar */}
-			<div
-				style={{
-					padding: "0.5rem 1rem",
-					borderBottom: "1px solid #333",
-					display: "flex",
-					alignItems: "center",
-					gap: "1rem",
-				}}
-			>
-				<strong>Skewer</strong>
-				<OpenFolderButton onSceneLoaded={handleSceneLoaded} onError={setError} />
-				{error && <span style={{ color: "red" }}>{error}</span>}
-				{scene && (
-					<span style={{ color: "#888" }}>
-						{scene.contexts.length}c / {scene.layers.length}L /{" "}
-						{[...scene.contexts, ...scene.layers].reduce(
-							(s, l) => s + l.data.objects.length,
-							0,
-						)}{" "}
-						objects
-					</span>
-				)}
+		<div className="app-root">
+			{/* Full-screen viewport */}
+			<div className="viewport-fill">
+				<Viewport scene={scene} dirHandle={dirHandle} />
 			</div>
 
-			{/* Main area */}
-			<div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-				{/* Left panel: scene inspector */}
+			{/* HUD overlay */}
+			<div className="hud">
+				<div className="vignette" aria-hidden="true" />
+
+				{/* Top-left: header panel */}
+				<div className="panel hud-header">
+					<span className="wordmark">Skewer</span>
+					<OpenFolderButton onSceneLoaded={handleSceneLoaded} onError={setError} />
+					{error && <span className="error-msg">{error}</span>}
+				</div>
+
+				{/* Left sidebar: scene inspector */}
 				{scene && (
-					<div
-						style={{
-							width: "280px",
-							overflowY: "auto",
-							borderRight: "1px solid #333",
-							padding: "0.5rem",
-						}}
-					>
+					<div className="panel hud-sidebar">
 						<SceneInspector scene={scene} />
 					</div>
 				)}
 
-				{/* Viewport */}
-				<div style={{ flex: 1, position: "relative" }}>
-					<Viewport scene={scene} dirHandle={dirHandle} />
-				</div>
+				{/* Bottom-right: stats */}
+				{scene && (
+					<div className="panel hud-stats">
+						<span className="stat-tag stat-ctx">{scene.contexts.length}c</span>
+						<span className="stat-sep">/</span>
+						<span className="stat-tag stat-lyr">{scene.layers.length}L</span>
+						<span className="stat-sep">/</span>
+						<span className="stat-num">{totalObjects} obj</span>
+						{scene.output_dir && (
+							<>
+								<span className="stat-sep">→</span>
+								<span className="stat-dir">{scene.output_dir}</span>
+							</>
+						)}
+					</div>
+				)}
+
+				{/* Empty state */}
+				{!scene && (
+					<div className="empty-state">
+						<div className="empty-wordmark">Skewer</div>
+						<div className="empty-sub">Spectral Scene Previewer</div>
+						<div className="empty-hint">open a scene folder above to begin</div>
+					</div>
+				)}
 			</div>
 		</div>
 	);

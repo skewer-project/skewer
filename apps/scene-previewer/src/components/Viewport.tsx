@@ -29,7 +29,7 @@ export function Viewport({ scene, dirHandle }: Props) {
 		container.appendChild(renderer.domElement);
 
 		const sc = new THREE.Scene();
-		sc.background = new THREE.Color(0x1a1a1a);
+		sc.background = new THREE.Color(0x0c0d0f);
 		threeScene.current = sc;
 
 		const cam = new THREE.PerspectiveCamera(
@@ -53,7 +53,7 @@ export function Viewport({ scene, dirHandle }: Props) {
 		sc.add(axes);
 
 		// XZ grid
-		sc.add(new THREE.GridHelper(10, 10, 0x444444, 0x2a2a2a));
+		sc.add(new THREE.GridHelper(10, 10, 0x1e2229, 0x141619));
 
 		// Lights (needed for Lambert / Standard / Physical materials)
 		sc.add(new THREE.AmbientLight(0xffffff, 0.4));

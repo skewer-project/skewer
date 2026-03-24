@@ -11,131 +11,178 @@ function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
 }
 
+function materialValueStr(mat: Material): string {
+	switch (mat.type) {
+		case "lambertian":
+			if (mat.albedo_texture) {
+				const file = mat.albedo_texture.split("/").pop() ?? mat.albedo_texture;
+				return `tex:${file}`;
+			}
+			return vec3(mat.albedo);
+		case "metal":
+			return `${vec3(mat.albedo)}  r=${mat.roughness}`;
+		case "dielectric":
+			return `ior=${mat.ior}  r=${mat.roughness}`;
+	}
+}
+
+function objectValueStr(obj: SceneObject): string {
+	switch (obj.type) {
+		case "sphere":
+			return `${vec3(obj.center)}  r=${obj.radius}  "${obj.material}"`;
+		case "quad":
+			return `"${obj.material}"`;
+		case "obj": {
+			const file = obj.file.split("/").pop() ?? obj.file;
+			return `${file}${obj.material ? `  "${obj.material}"` : ""}`;
+		}
+	}
+}
+
 function CameraSection({ camera }: { camera: Camera }) {
 	return (
-		<section>
-			<h3>Camera</h3>
-			<pre>
-				{`from:     ${vec3(camera.look_from)}
-at:       ${vec3(camera.look_at)}
-vup:      ${vec3(camera.vup)}
-vfov:     ${camera.vfov}°${camera.aperture_radius > 0 ? `\naperture: ${camera.aperture_radius}\nfocus:    ${camera.focus_distance}` : ""}`}
-			</pre>
-		</section>
+		<>
+			<div className="inspector-section-head">Camera</div>
+			<div className="camera-block">
+				<div className="kv-table">
+					<div className="kv-row">
+						<span className="kv-key">from</span>
+						<span className="kv-val">{vec3(camera.look_from)}</span>
+					</div>
+					<div className="kv-row">
+						<span className="kv-key">at</span>
+						<span className="kv-val">{vec3(camera.look_at)}</span>
+					</div>
+					<div className="kv-row">
+						<span className="kv-key">vup</span>
+						<span className="kv-val">{vec3(camera.vup)}</span>
+					</div>
+					<div className="kv-row">
+						<span className="kv-key">vfov</span>
+						<span className="kv-val">{camera.vfov}°</span>
+					</div>
+					{camera.aperture_radius > 0 && (
+						<>
+							<div className="kv-row">
+								<span className="kv-key">aper</span>
+								<span className="kv-val">{camera.aperture_radius}</span>
+							</div>
+							<div className="kv-row">
+								<span className="kv-key">focus</span>
+								<span className="kv-val">{camera.focus_distance}</span>
+							</div>
+						</>
+					)}
+				</div>
+			</div>
+		</>
 	);
 }
 
-function materialSummary(name: string, mat: Material): string {
-	switch (mat.type) {
-		case "lambertian":
-			return `${name} [lambertian] albedo=${vec3(mat.albedo)}${mat.albedo_texture ? ` tex:${mat.albedo_texture}` : ""}`;
-		case "metal":
-			return `${name} [metal] albedo=${vec3(mat.albedo)} roughness=${mat.roughness}`;
-		case "dielectric":
-			return `${name} [dielectric] ior=${mat.ior} roughness=${mat.roughness}`;
-	}
-}
-
-function objectSummary(obj: SceneObject, i: number): string {
-	switch (obj.type) {
-		case "sphere":
-			return `sphere #${i} center=${vec3(obj.center)} r=${obj.radius} mat="${obj.material}"`;
-		case "quad":
-			return `quad #${i} mat="${obj.material}"`;
-		case "obj":
-			return `obj #${i} file="${obj.file}"${obj.material ? ` mat="${obj.material}"` : ""}${obj.auto_fit === false ? " auto_fit=false" : ""}`;
-	}
-}
-
-function LayerCard({
-	layer,
-	tag,
-}: {
-	layer: ResolvedLayer;
-	tag: "context" | "layer";
-}) {
+function LayerCard({ layer, tag }: { layer: ResolvedLayer; tag: "context" | "layer" }) {
 	const { name, data } = layer;
 	const matNames = Object.keys(data.materials);
 	const render = data.render;
 
 	return (
-		<details open>
-			<summary>
-				<strong>[{tag}]</strong> {name}
-				{" — "}
-				{matNames.length} material{matNames.length !== 1 ? "s" : ""},{" "}
-				{data.objects.length} object{data.objects.length !== 1 ? "s" : ""}
-				{data.visible === false ? " (hidden)" : ""}
+		<details className="layer-card">
+			<summary className="layer-summary">
+				<svg className="layer-chevron" viewBox="0 0 9 9" fill="none" aria-hidden="true">
+					<path
+						d="M2.5 1.5 6 4.5l-3.5 3"
+						stroke="currentColor"
+						strokeWidth="1.4"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					/>
+				</svg>
+				<span className={`layer-tag ${tag === "context" ? "layer-tag-ctx" : "layer-tag-lyr"}`}>
+					{tag === "context" ? "CTX" : "LYR"}
+				</span>
+				<span className="layer-name">{name}{data.visible === false ? " ·hidden" : ""}</span>
+				<span className="layer-counts">{matNames.length}m · {data.objects.length}o</span>
 			</summary>
-			{matNames.length > 0 && (
-				<div>
-					<h4>Materials</h4>
-					<ul>
+
+			<div className="layer-body">
+				{matNames.length > 0 && (
+					<>
+						<div className="layer-sub-head">Materials</div>
 						{matNames.map((n) => (
-							<li key={n}>
-								<code>{materialSummary(n, data.materials[n])}</code>
-							</li>
+							<div key={n} className="data-row">
+								<span className="data-name">{n}</span>
+								{" "}
+								<span className="data-type">[{data.materials[n].type}]</span>
+								{" "}
+								{materialValueStr(data.materials[n])}
+							</div>
 						))}
-					</ul>
-				</div>
-			)}
-			{data.objects.length > 0 && (
-				<div>
-					<h4>Objects</h4>
-					<ul>
+					</>
+				)}
+
+				{data.objects.length > 0 && (
+					<>
+						<div className="layer-sub-head">Objects</div>
 						{data.objects.map((obj, i) => (
-							// biome-ignore lint/suspicious/noArrayIndexKey: not a huge deal
-							<li key={i}>
-								<code>{objectSummary(obj, i)}</code>
-							</li>
+							// biome-ignore lint/suspicious/noArrayIndexKey: order is stable
+							<div key={i} className="data-row">
+								<span className="data-type">#{i} {obj.type}</span>
+								{" "}
+								{objectValueStr(obj)}
+							</div>
 						))}
-					</ul>
-				</div>
-			)}
-			{render && (
-				<div>
-					<h4>Render</h4>
-					<pre>
-						{`${render.integrator}  ${render.image.width}×${render.image.height}  samples=${render.max_samples}  depth=${render.max_depth}`}
-					</pre>
-				</div>
-			)}
+					</>
+				)}
+
+				{render && (
+					<>
+						<div className="layer-sub-head">Render</div>
+						<div className="render-row">
+							<span className="render-kv">
+								<span className="render-k">int </span>
+								{render.integrator}
+							</span>
+							<span className="render-kv">
+								<span className="render-k">res </span>
+								{render.image.width}×{render.image.height}
+							</span>
+							<span className="render-kv">
+								<span className="render-k">spp </span>
+								{render.max_samples}
+							</span>
+							<span className="render-kv">
+								<span className="render-k">d </span>
+								{render.max_depth}
+							</span>
+						</div>
+					</>
+				)}
+			</div>
 		</details>
 	);
 }
 
 export function SceneInspector({ scene }: { scene: ResolvedScene }) {
-	const totalObjects = [...scene.contexts, ...scene.layers].reduce(
-		(sum, l) => sum + l.data.objects.length,
-		0,
-	);
-
 	return (
-		<div>
-			<p>
-				{scene.contexts.length} context{scene.contexts.length !== 1 ? "s" : ""},{" "}
-				{scene.layers.length} layer{scene.layers.length !== 1 ? "s" : ""},{" "}
-				{totalObjects} object{totalObjects !== 1 ? "s" : ""}
-				{scene.output_dir ? ` → ${scene.output_dir}` : ""}
-			</p>
-
+		<div className="inspector">
 			<CameraSection camera={scene.camera} />
 
 			{scene.contexts.length > 0 && (
-				<section>
-					<h3>Contexts</h3>
+				<>
+					<div className="inspector-section-head">Contexts</div>
 					{scene.contexts.map((ctx) => (
 						<LayerCard key={ctx.path} layer={ctx} tag="context" />
 					))}
-				</section>
+				</>
 			)}
 
-			<section>
-				<h3>Layers</h3>
-				{scene.layers.map((layer) => (
-					<LayerCard key={layer.path} layer={layer} tag="layer" />
-				))}
-			</section>
+			{scene.layers.length > 0 && (
+				<>
+					<div className="inspector-section-head">Layers</div>
+					{scene.layers.map((layer) => (
+						<LayerCard key={layer.path} layer={layer} tag="layer" />
+					))}
+				</>
+			)}
 		</div>
 	);
 }
