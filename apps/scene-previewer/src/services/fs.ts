@@ -45,6 +45,14 @@ export async function readTextFile(
 	return await file.text();
 }
 
+export async function getFile(
+	dir: FileSystemDirectoryHandle,
+	relativePath: string,
+): Promise<File> {
+	const fileHandle = await resolveHandle(dir, relativePath);
+	return await fileHandle.getFile();
+}
+
 export async function readJsonFile(
 	dir: FileSystemDirectoryHandle,
 	relativePath: string,

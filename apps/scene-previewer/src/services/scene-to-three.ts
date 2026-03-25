@@ -1,7 +1,8 @@
 // Converts a ResolvedScene into ThreeJS objects.
-// OBJ files are read from disk via the File System Access API.
+// OBJ files (and their MTL/texture dependencies) are read via the File System Access API.
 
 import * as THREE from "three";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type {
 	Material,
@@ -9,7 +10,27 @@ import type {
 	SceneObject,
 	Transform,
 } from "../types/scene";
-import { readTextFile } from "./fs";
+import { getFile, readTextFile } from "./fs";
+
+// Extracts `mtllib <name>` lines from OBJ text.
+function parseMtllibNames(objText: string): string[] {
+	const names: string[] = [];
+	for (const line of objText.split("\n")) {
+		const match = line.trim().match(/^mtllib\s+(.+)$/);
+		if (match) names.push(match[1].trim());
+	}
+	return names;
+}
+
+// Extracts `map_Kd <path>` lines from MTL text.
+function parseMtlTexturePaths(mtlText: string): string[] {
+	const paths: string[] = [];
+	for (const line of mtlText.split("\n")) {
+		const match = line.trim().match(/^map_Kd\s+(.+)$/i);
+		if (match) paths.push(match[1].trim());
+	}
+	return paths;
+}
 
 function makeThreeMaterial(mat: Material): THREE.Material {
 	const color = new THREE.Color(mat.albedo[0], mat.albedo[1], mat.albedo[2]);
@@ -94,18 +115,59 @@ async function buildObject(
 		}
 
 		case "obj": {
-			let text: string;
+			let objText: string;
 			try {
-				text = await readTextFile(dir, obj.file);
+				objText = await readTextFile(dir, obj.file);
 			} catch {
 				console.warn(`[scene-to-three] OBJ load failed: ${obj.file}`);
 				return null;
 			}
 
-			const loader = new OBJLoader();
-			const group = loader.parse(text);
+			// Base directory of the OBJ file — MTL and textures live alongside it.
+			const objBaseDir = obj.file.includes("/")
+				? obj.file.split("/").slice(0, -1).join("/") + "/"
+				: "";
 
-			// Override all sub-mesh materials if specified
+			// Load MTL materials and any referenced textures.
+			let materialCreator: MTLLoader.MaterialCreator | null = null;
+			for (const mtlName of parseMtllibNames(objText)) {
+				let mtlText: string;
+				try {
+					mtlText = await readTextFile(dir, objBaseDir + mtlName);
+				} catch {
+					continue;
+				}
+
+				// Pre-load textures as blob URLs so MTLLoader can resolve them
+				// without needing HTTP. Maps bare filename → blob URL.
+				const urlMap = new Map<string, string>();
+				for (const texName of parseMtlTexturePaths(mtlText)) {
+					if (urlMap.has(texName)) continue;
+					try {
+						const file = await getFile(dir, objBaseDir + texName);
+						urlMap.set(texName, URL.createObjectURL(file));
+					} catch {
+						// texture missing — MTLLoader will use a default color
+					}
+				}
+
+				const manager = new THREE.LoadingManager();
+				manager.setURLModifier((url) => {
+					const bare = url.split("/").pop() ?? url;
+					return urlMap.get(bare) ?? urlMap.get(url) ?? url;
+				});
+
+				const mtlLoader = new MTLLoader(manager);
+				materialCreator = mtlLoader.parse(mtlText, "");
+				materialCreator.preload();
+				break; // use first MTL file only
+			}
+
+			const objLoader = new OBJLoader();
+			if (materialCreator) objLoader.setMaterials(materialCreator);
+			const group = objLoader.parse(objText);
+
+			// Scene JSON material override takes precedence over MTL materials.
 			const mat = obj.material ? (materials[obj.material] ?? null) : null;
 			if (mat) {
 				group.traverse((child) => {
