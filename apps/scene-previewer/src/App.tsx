@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { OpenFolderButton } from "./components/OpenFolderButton";
+import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SceneInspector } from "./components/SceneInspector";
 import { Viewport } from "./components/Viewport";
 import type { ResolvedScene } from "./types/scene";
@@ -8,11 +9,13 @@ function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
 	const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
 	const [error, setError] = useState<string>("");
+	const [selectedObjectKey, setSelectedObjectKey] = useState<string | null>(null);
 
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
 		setScene(s);
 		setDirHandle(dir);
 		setError("");
+		setSelectedObjectKey(null);
 	}
 
 	const totalObjects = scene
@@ -23,7 +26,12 @@ function App() {
 		<div className="app-root">
 			{/* Full-screen viewport */}
 			<div className="viewport-fill">
-				<Viewport scene={scene} dirHandle={dirHandle} />
+				<Viewport
+					scene={scene}
+					dirHandle={dirHandle}
+					selectedObjectKey={selectedObjectKey}
+					onSelectObject={setSelectedObjectKey}
+				/>
 			</div>
 
 			{/* HUD overlay */}
@@ -38,7 +46,18 @@ function App() {
 				{/* Left sidebar: scene inspector */}
 				{scene && (
 					<div className="panel hud-sidebar">
-						<SceneInspector scene={scene} />
+						<SceneInspector
+							scene={scene}
+							selectedObjectKey={selectedObjectKey}
+							onSelectObject={setSelectedObjectKey}
+						/>
+					</div>
+				)}
+
+				{/* Right sidebar: properties panel */}
+				{scene && selectedObjectKey && (
+					<div className="panel hud-properties">
+						<PropertiesPanel scene={scene} objectKey={selectedObjectKey} />
 					</div>
 				)}
 
