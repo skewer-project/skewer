@@ -111,7 +111,10 @@ async function buildObject(
 				),
 			);
 			geo.computeVertexNormals();
-			return new THREE.Mesh(geo, materials[obj.material] ?? fallback);
+			const baseMat = materials[obj.material] ?? fallback;
+			const quadMat = baseMat.clone();
+			quadMat.side = THREE.DoubleSide;
+			return new THREE.Mesh(geo, quadMat);
 		}
 
 		case "obj": {
