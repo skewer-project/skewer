@@ -28,9 +28,7 @@ function App() {
 
 			{/* HUD overlay */}
 			<div className="hud">
-				<div className="vignette" aria-hidden="true" />
-
-				{/* Top-left: header panel */}
+		{/* Top-left: header panel */}
 				<div className="panel hud-header">
 					<span className="wordmark">Skewer</span>
 					<OpenFolderButton onSceneLoaded={handleSceneLoaded} onError={setError} />

@@ -73,18 +73,6 @@ html, body {
   pointer-events: auto;
 }
 
-.vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse 80% 80% at center,
-    transparent 38%,
-    rgba(6, 7, 10, 0.6) 100%
-  );
-  /* biome-ignore lint/complexity/noImportantStyles: required here */
-  pointer-events: none !important;
-}
-
 /* ── Glass panel base ─────────────────── */
 
 .panel {
