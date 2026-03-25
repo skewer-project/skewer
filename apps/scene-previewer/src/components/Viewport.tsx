@@ -52,9 +52,6 @@ export function Viewport({ scene, dirHandle }: Props) {
 		axes.renderOrder = 1;
 		sc.add(axes);
 
-		// XZ grid
-		sc.add(new THREE.GridHelper(10, 10, 0x1e2229, 0x141619));
-
 		// Lights (needed for Lambert / Standard / Physical materials)
 		sc.add(new THREE.AmbientLight(0xffffff, 0.4));
 		const sun = new THREE.DirectionalLight(0xffffff, 1.2);
