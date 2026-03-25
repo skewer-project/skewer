@@ -79,15 +79,33 @@ function CameraSection({ camera }: { camera: Camera }) {
 	);
 }
 
-function LayerCard({ layer, tag }: { layer: ResolvedLayer; tag: "context" | "layer" }) {
+function LayerCard({
+	layer,
+	tag,
+	layerIdx,
+	selectedObjectKey,
+	onSelectObject,
+}: {
+	layer: ResolvedLayer;
+	tag: "context" | "layer";
+	layerIdx: number;
+	selectedObjectKey: string | null;
+	onSelectObject: (key: string | null) => void;
+}) {
 	const { name, data } = layer;
 	const matNames = Object.keys(data.materials);
 	const render = data.render;
+	const keyPrefix = tag === "context" ? "ctx" : "lyr";
 
 	return (
 		<details className="layer-card">
 			<summary className="layer-summary">
-				<svg className="layer-chevron" viewBox="0 0 9 9" fill="none" aria-hidden="true">
+				<svg
+					className="layer-chevron"
+					viewBox="0 0 9 9"
+					fill="none"
+					aria-hidden="true"
+				>
 					<path
 						d="M2.5 1.5 6 4.5l-3.5 3"
 						stroke="currentColor"
@@ -96,11 +114,18 @@ function LayerCard({ layer, tag }: { layer: ResolvedLayer; tag: "context" | "lay
 						strokeLinejoin="round"
 					/>
 				</svg>
-				<span className={`layer-tag ${tag === "context" ? "layer-tag-ctx" : "layer-tag-lyr"}`}>
+				<span
+					className={`layer-tag ${tag === "context" ? "layer-tag-ctx" : "layer-tag-lyr"}`}
+				>
 					{tag === "context" ? "CTX" : "LYR"}
 				</span>
-				<span className="layer-name">{name}{data.visible === false ? " ·hidden" : ""}</span>
-				<span className="layer-counts">{matNames.length}m · {data.objects.length}o</span>
+				<span className="layer-name">
+					{name}
+					{data.visible === false ? " ·hidden" : ""}
+				</span>
+				<span className="layer-counts">
+					{matNames.length}m · {data.objects.length}o
+				</span>
 			</summary>
 
 			<div className="layer-body">
@@ -109,10 +134,8 @@ function LayerCard({ layer, tag }: { layer: ResolvedLayer; tag: "context" | "lay
 						<div className="layer-sub-head">Materials</div>
 						{matNames.map((n) => (
 							<div key={n} className="data-row">
-								<span className="data-name">{n}</span>
-								{" "}
-								<span className="data-type">[{data.materials[n].type}]</span>
-								{" "}
+								<span className="data-name">{n}</span>{" "}
+								<span className="data-type">[{data.materials[n].type}]</span>{" "}
 								{materialValueStr(data.materials[n])}
 							</div>
 						))}
@@ -122,14 +145,26 @@ function LayerCard({ layer, tag }: { layer: ResolvedLayer; tag: "context" | "lay
 				{data.objects.length > 0 && (
 					<>
 						<div className="layer-sub-head">Objects</div>
-						{data.objects.map((obj, i) => (
-							// biome-ignore lint/suspicious/noArrayIndexKey: order is stable
-							<div key={i} className="data-row">
-								<span className="data-type">#{i} {obj.type}</span>
-								{" "}
-								{objectValueStr(obj)}
-							</div>
-						))}
+						{data.objects.map((obj, i) => {
+							const key = `${keyPrefix}:${layerIdx}:${i}`;
+							const isSelected = key === selectedObjectKey;
+							return (
+								<div
+									role="button"
+									key={i}
+									className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+									onClick={(e) => {
+										e.stopPropagation();
+										onSelectObject(isSelected ? null : key);
+									}}
+								>
+									<span className="data-type">
+										#{i} {obj.type}
+									</span>{" "}
+									{objectValueStr(obj)}
+								</div>
+							);
+						})}
 					</>
 				)}
 
@@ -161,7 +196,15 @@ function LayerCard({ layer, tag }: { layer: ResolvedLayer; tag: "context" | "lay
 	);
 }
 
-export function SceneInspector({ scene }: { scene: ResolvedScene }) {
+export function SceneInspector({
+	scene,
+	selectedObjectKey,
+	onSelectObject,
+}: {
+	scene: ResolvedScene;
+	selectedObjectKey: string | null;
+	onSelectObject: (key: string | null) => void;
+}) {
 	return (
 		<div className="inspector">
 			<CameraSection camera={scene.camera} />
@@ -169,8 +212,15 @@ export function SceneInspector({ scene }: { scene: ResolvedScene }) {
 			{scene.contexts.length > 0 && (
 				<>
 					<div className="inspector-section-head">Contexts</div>
-					{scene.contexts.map((ctx) => (
-						<LayerCard key={ctx.path} layer={ctx} tag="context" />
+					{scene.contexts.map((ctx, i) => (
+						<LayerCard
+							key={ctx.path}
+							layer={ctx}
+							tag="context"
+							layerIdx={i}
+							selectedObjectKey={selectedObjectKey}
+							onSelectObject={onSelectObject}
+						/>
 					))}
 				</>
 			)}
@@ -178,8 +228,15 @@ export function SceneInspector({ scene }: { scene: ResolvedScene }) {
 			{scene.layers.length > 0 && (
 				<>
 					<div className="inspector-section-head">Layers</div>
-					{scene.layers.map((layer) => (
-						<LayerCard key={layer.path} layer={layer} tag="layer" />
+					{scene.layers.map((layer, i) => (
+						<LayerCard
+							key={layer.path}
+							layer={layer}
+							tag="layer"
+							layerIdx={i}
+							selectedObjectKey={selectedObjectKey}
+							onSelectObject={onSelectObject}
+						/>
 					))}
 				</>
 			)}

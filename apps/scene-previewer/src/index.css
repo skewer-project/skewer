@@ -427,3 +427,87 @@ details[open] .layer-chevron {
 .render-k {
   color: var(--t3);
 }
+
+/* ── Clickable object rows in inspector ── */
+
+.data-row-clickable {
+  cursor: pointer;
+  padding: 1px 4px;
+  margin: 0 -4px;
+  border-radius: 2px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.data-row-clickable:hover {
+  background: rgba(232, 165, 60, 0.06);
+  color: var(--t0);
+}
+
+.data-row-selected {
+  background: rgba(232, 165, 60, 0.1);
+  color: var(--amber);
+  border-left: 2px solid var(--amber);
+  padding-left: 6px;
+}
+
+.data-row-selected:hover {
+  background: rgba(232, 165, 60, 0.14);
+  color: var(--amber);
+}
+
+/* ── Right sidebar: properties panel ─────── */
+
+.hud-properties {
+  position: absolute;
+  top: 62px;
+  right: 16px;
+  width: 284px;
+  max-height: calc(100dvh - 94px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-mid) transparent;
+}
+
+.hud-properties::-webkit-scrollbar {
+  width: 3px;
+}
+.hud-properties::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hud-properties::-webkit-scrollbar-thumb {
+  background: var(--border-mid);
+}
+
+.properties-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.properties-title {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--t0);
+}
+
+.properties-layer {
+  font-size: 10px;
+  color: var(--t3);
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.properties-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.properties-body {
+  padding: 8px 14px 10px;
+}
