@@ -204,8 +204,12 @@ export async function buildSceneGraph(
 ): Promise<THREE.Group> {
 	const root = new THREE.Group();
 
-	for (const layer of [...scene.contexts, ...scene.layers]) {
+	const allLayers = [...scene.contexts, ...scene.layers];
+	for (let li = 0; li < allLayers.length; li++) {
 		if (signal.aborted) break;
+		const layer = allLayers[li];
+		const tag = li < scene.contexts.length ? "ctx" : "lyr";
+		const idx = li < scene.contexts.length ? li : li - scene.contexts.length;
 
 		const layerGroup = new THREE.Group();
 		layerGroup.name = layer.name;
@@ -222,8 +226,16 @@ export async function buildSceneGraph(
 		);
 		if (signal.aborted) break;
 
-		for (const obj of built) {
-			if (obj) layerGroup.add(obj);
+		for (let oi = 0; oi < built.length; oi++) {
+			const obj = built[oi];
+			if (obj) {
+				obj.userData.objectKey = `${tag}:${idx}:${oi}`;
+				// Tag all descendant meshes too so raycaster can find the key
+				obj.traverse((child) => {
+					child.userData.objectKey = `${tag}:${idx}:${oi}`;
+				});
+				layerGroup.add(obj);
+			}
 		}
 		root.add(layerGroup);
 	}
