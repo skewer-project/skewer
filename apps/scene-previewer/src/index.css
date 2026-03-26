@@ -511,3 +511,123 @@ details[open] .layer-chevron {
 .properties-body {
   padding: 8px 14px 10px;
 }
+
+/* ── Editable controls ───────────────── */
+
+.num-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-mid);
+  border-radius: 2px;
+  color: var(--t0);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 5px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.num-input:focus {
+  border-color: var(--amber-border);
+}
+
+/* Hide spin buttons */
+.num-input::-webkit-inner-spin-button,
+.num-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.num-input {
+  -moz-appearance: textfield;
+}
+
+.num-label {
+  cursor: ew-resize;
+  user-select: none;
+  transition: color 0.1s;
+}
+
+.num-label:hover {
+  color: var(--t1);
+}
+
+.num-label:active {
+  color: var(--amber);
+}
+
+/* Vec3 row: label + 3 number inputs */
+.vec3-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 1fr;
+  gap: 0 4px;
+  align-items: start;
+  min-height: 1.7lh;
+}
+
+.vec3-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.vec3-component {
+  font-size: 7.5px;
+  font-weight: 500;
+  color: var(--t3);
+  text-align: center;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding-bottom: 1px;
+}
+
+/* Material dropdown */
+.mat-select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-mid);
+  border-radius: 2px;
+  color: var(--t0);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 5px;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.12s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mat-select:focus {
+  border-color: var(--amber-border);
+}
+
+.mat-select option {
+  background: var(--bg);
+  color: var(--t0);
+}
+
+/* Toggle button */
+.toggle-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-mid);
+  border-radius: 2px;
+  color: var(--t3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 1px 10px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  text-align: left;
+}
+
+.toggle-btn:hover {
+  color: var(--t1);
+}
+
+.toggle-btn.active {
+  background: var(--amber-lo);
+  border-color: var(--amber-border);
+  color: var(--amber);
+}

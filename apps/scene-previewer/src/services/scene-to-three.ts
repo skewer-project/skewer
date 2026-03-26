@@ -32,7 +32,7 @@ function parseMtlTexturePaths(mtlText: string): string[] {
 	return paths;
 }
 
-function makeThreeMaterial(mat: Material): THREE.Material {
+export function makeThreeMaterial(mat: Material): THREE.Material {
 	const color = new THREE.Color(mat.albedo[0], mat.albedo[1], mat.albedo[2]);
 	const emissive = new THREE.Color(
 		mat.emission[0],
@@ -65,7 +65,7 @@ function makeThreeMaterial(mat: Material): THREE.Material {
 	}
 }
 
-function applyTransform(obj: THREE.Object3D, transform: Transform) {
+export function applyTransform(obj: THREE.Object3D, transform: Transform) {
 	if (transform.translate) obj.position.set(...transform.translate);
 	if (transform.rotate) {
 		obj.rotation.order = "YXZ";

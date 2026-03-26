@@ -1,25 +1,48 @@
-import { useState } from "react";
-import { OpenFolderButton } from "./components/OpenFolderButton";
+import { useRef, useState } from "react";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SceneInspector } from "./components/SceneInspector";
+import { OpenFolderButton } from "./components/OpenFolderButton";
 import { Viewport } from "./components/Viewport";
+import type { ViewportHandle } from "./components/Viewport";
 import type { ResolvedScene } from "./types/scene";
 
 function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
-	const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
+	const [dirHandle, setDirHandle] =
+		useState<FileSystemDirectoryHandle | null>(null);
 	const [error, setError] = useState<string>("");
-	const [selectedObjectKey, setSelectedObjectKey] = useState<string | null>(null);
+	const [selectedObjectKey, setSelectedObjectKey] = useState<string | null>(
+		null,
+	);
+	const [sceneVersion, setSceneVersion] = useState(0);
+	const viewportRef = useRef<ViewportHandle>(null);
 
-	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
+	function handleSceneLoaded(
+		s: ResolvedScene,
+		dir: FileSystemDirectoryHandle,
+	) {
 		setScene(s);
 		setDirHandle(dir);
 		setError("");
 		setSelectedObjectKey(null);
+		setSceneVersion((v) => v + 1);
+	}
+
+	/** Update scene data without triggering a full Three.js rebuild. */
+	function handleSceneEdit(
+		updater: (s: ResolvedScene) => ResolvedScene,
+	) {
+		setScene((prev) => {
+			if (!prev) return prev;
+			return updater(prev);
+		});
 	}
 
 	const totalObjects = scene
-		? [...scene.contexts, ...scene.layers].reduce((s, l) => s + l.data.objects.length, 0)
+		? [...scene.contexts, ...scene.layers].reduce(
+				(s, l) => s + l.data.objects.length,
+				0,
+			)
 		: 0;
 
 	return (
@@ -27,8 +50,10 @@ function App() {
 			{/* Full-screen viewport */}
 			<div className="viewport-fill">
 				<Viewport
+					ref={viewportRef}
 					scene={scene}
 					dirHandle={dirHandle}
+					sceneVersion={sceneVersion}
 					selectedObjectKey={selectedObjectKey}
 					onSelectObject={setSelectedObjectKey}
 				/>
@@ -36,10 +61,13 @@ function App() {
 
 			{/* HUD overlay */}
 			<div className="hud">
-		{/* Top-left: header panel */}
+				{/* Top-left: header panel */}
 				<div className="panel hud-header">
 					<span className="wordmark">Skewer</span>
-					<OpenFolderButton onSceneLoaded={handleSceneLoaded} onError={setError} />
+					<OpenFolderButton
+						onSceneLoaded={handleSceneLoaded}
+						onError={setError}
+					/>
 					{error && <span className="error-msg">{error}</span>}
 				</div>
 
@@ -57,22 +85,33 @@ function App() {
 				{/* Right sidebar: properties panel */}
 				{scene && selectedObjectKey && (
 					<div className="panel hud-properties">
-						<PropertiesPanel scene={scene} objectKey={selectedObjectKey} />
+						<PropertiesPanel
+							scene={scene}
+							objectKey={selectedObjectKey}
+							onSceneEdit={handleSceneEdit}
+							viewportRef={viewportRef}
+						/>
 					</div>
 				)}
 
 				{/* Bottom-right: stats */}
 				{scene && (
 					<div className="panel hud-stats">
-						<span className="stat-tag stat-ctx">{scene.contexts.length}c</span>
+						<span className="stat-tag stat-ctx">
+							{scene.contexts.length}c
+						</span>
 						<span className="stat-sep">/</span>
-						<span className="stat-tag stat-lyr">{scene.layers.length}L</span>
+						<span className="stat-tag stat-lyr">
+							{scene.layers.length}L
+						</span>
 						<span className="stat-sep">/</span>
 						<span className="stat-num">{totalObjects} obj</span>
 						{scene.output_dir && (
 							<>
-								<span className="stat-sep">→</span>
-								<span className="stat-dir">{scene.output_dir}</span>
+								<span className="stat-sep">&rarr;</span>
+								<span className="stat-dir">
+									{scene.output_dir}
+								</span>
 							</>
 						)}
 					</div>
@@ -82,8 +121,12 @@ function App() {
 				{!scene && (
 					<div className="empty-state">
 						<div className="empty-wordmark">Skewer</div>
-						<div className="empty-sub">Spectral Scene Previewer</div>
-						<div className="empty-hint">open a scene folder above to begin</div>
+						<div className="empty-sub">
+							Spectral Scene Previewer
+						</div>
+						<div className="empty-hint">
+							open a scene folder above to begin
+						</div>
 					</div>
 				)}
 			</div>
