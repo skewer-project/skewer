@@ -4,6 +4,7 @@ import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SceneInspector } from "./components/SceneInspector";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
+import { saveScene } from "./services/scene-serializer";
 import type { ResolvedScene } from "./types/scene";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
 		null,
 	);
 	const [sceneVersion, setSceneVersion] = useState(0);
+	const [saving, setSaving] = useState(false);
 	const viewportRef = useRef<ViewportHandle>(null);
 
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
@@ -32,6 +34,20 @@ function App() {
 			if (!prev) return prev;
 			return updater(prev);
 		});
+	}
+
+	async function handleSave() {
+		if (!scene || !dirHandle) return;
+		setSaving(true);
+		setError("");
+		try {
+			await saveScene(dirHandle, scene);
+		} catch (err) {
+			if (err instanceof DOMException && err.name === "AbortError") return;
+			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setSaving(false);
+		}
 	}
 
 	const totalObjects = scene
@@ -64,6 +80,14 @@ function App() {
 						onSceneLoaded={handleSceneLoaded}
 						onError={setError}
 					/>
+					<button
+						type="button"
+						className={`open-btn${saving ? " loading" : ""}`}
+						disabled={!scene || !dirHandle || saving}
+						onClick={handleSave}
+					>
+						{saving ? "Saving…" : "Save"}
+					</button>
 					{error && <span className="error-msg">{error}</span>}
 				</div>
 
