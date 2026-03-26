@@ -1,15 +1,16 @@
 import { useRef, useState } from "react";
+import { OpenFolderButton } from "./components/OpenFolderButton";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SceneInspector } from "./components/SceneInspector";
-import { OpenFolderButton } from "./components/OpenFolderButton";
-import { Viewport } from "./components/Viewport";
 import type { ViewportHandle } from "./components/Viewport";
+import { Viewport } from "./components/Viewport";
 import type { ResolvedScene } from "./types/scene";
 
 function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
-	const [dirHandle, setDirHandle] =
-		useState<FileSystemDirectoryHandle | null>(null);
+	const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(
+		null,
+	);
 	const [error, setError] = useState<string>("");
 	const [selectedObjectKey, setSelectedObjectKey] = useState<string | null>(
 		null,
@@ -17,10 +18,7 @@ function App() {
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const viewportRef = useRef<ViewportHandle>(null);
 
-	function handleSceneLoaded(
-		s: ResolvedScene,
-		dir: FileSystemDirectoryHandle,
-	) {
+	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
 		setScene(s);
 		setDirHandle(dir);
 		setError("");
@@ -29,9 +27,7 @@ function App() {
 	}
 
 	/** Update scene data without triggering a full Three.js rebuild. */
-	function handleSceneEdit(
-		updater: (s: ResolvedScene) => ResolvedScene,
-	) {
+	function handleSceneEdit(updater: (s: ResolvedScene) => ResolvedScene) {
 		setScene((prev) => {
 			if (!prev) return prev;
 			return updater(prev);
@@ -97,21 +93,15 @@ function App() {
 				{/* Bottom-right: stats */}
 				{scene && (
 					<div className="panel hud-stats">
-						<span className="stat-tag stat-ctx">
-							{scene.contexts.length}c
-						</span>
+						<span className="stat-tag stat-ctx">{scene.contexts.length}c</span>
 						<span className="stat-sep">/</span>
-						<span className="stat-tag stat-lyr">
-							{scene.layers.length}L
-						</span>
+						<span className="stat-tag stat-lyr">{scene.layers.length}L</span>
 						<span className="stat-sep">/</span>
 						<span className="stat-num">{totalObjects} obj</span>
 						{scene.output_dir && (
 							<>
 								<span className="stat-sep">&rarr;</span>
-								<span className="stat-dir">
-									{scene.output_dir}
-								</span>
+								<span className="stat-dir">{scene.output_dir}</span>
 							</>
 						)}
 					</div>
@@ -121,12 +111,8 @@ function App() {
 				{!scene && (
 					<div className="empty-state">
 						<div className="empty-wordmark">Skewer</div>
-						<div className="empty-sub">
-							Spectral Scene Previewer
-						</div>
-						<div className="empty-hint">
-							open a scene folder above to begin
-						</div>
+						<div className="empty-sub">Spectral Scene Previewer</div>
+						<div className="empty-hint">open a scene folder above to begin</div>
 					</div>
 				)}
 			</div>

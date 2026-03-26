@@ -10,8 +10,8 @@ import type {
 	Transform,
 	Vec3,
 } from "../types/scene";
-import type { ViewportHandle } from "./Viewport";
 import { MaterialDropdown, NumberField, Toggle, Vec3Field } from "./controls";
+import type { ViewportHandle } from "./Viewport";
 
 // ── Props ───────────────────────────────────────────────────
 
@@ -231,8 +231,7 @@ function ObjEditor({
 	const transform = obj.transform ?? {};
 	const pos: Vec3 = transform.translate ?? [0, 0, 0];
 	const rot: Vec3 = transform.rotate ?? [0, 0, 0];
-	const scale =
-		typeof transform.scale === "number" ? transform.scale : 1;
+	const scale = typeof transform.scale === "number" ? transform.scale : 1;
 	const file = obj.file.split("/").pop() ?? obj.file;
 
 	function patchTransform(partial: Partial<Transform>) {
@@ -332,10 +331,16 @@ function MaterialEditor({
 }) {
 	function patchMat(partial: Partial<Material>) {
 		onSceneEdit((s) =>
-			updateMaterial(s, objectKey, matName, (m) => ({
-				...m,
-				...partial,
-			} as Material)),
+			updateMaterial(
+				s,
+				objectKey,
+				matName,
+				(m) =>
+					({
+						...m,
+						...partial,
+					}) as Material,
+			),
 		);
 		// Build the full updated material for Three.js — updates ALL objects using this material
 		const updated = { ...mat, ...partial } as Material;
@@ -366,9 +371,7 @@ function MaterialEditor({
 			{mat.albedo_texture && (
 				<div className="kv-row">
 					<span className="kv-key">a.tex</span>
-					<span className="kv-val">
-						{mat.albedo_texture.split("/").pop()}
-					</span>
+					<span className="kv-val">{mat.albedo_texture.split("/").pop()}</span>
 				</div>
 			)}
 			{(mat.type === "metal" || mat.type === "dielectric") && (
@@ -444,15 +447,9 @@ export function PropertiesPanel({
 			<div className="properties-section">
 				<div className="inspector-section-head">Geometry</div>
 				<div className="properties-body">
-					{obj.type === "sphere" && (
-						<SphereEditor obj={obj} {...editorProps} />
-					)}
-					{obj.type === "quad" && (
-						<QuadEditor obj={obj} {...editorProps} />
-					)}
-					{obj.type === "obj" && (
-						<ObjEditor obj={obj} {...editorProps} />
-					)}
+					{obj.type === "sphere" && <SphereEditor obj={obj} {...editorProps} />}
+					{obj.type === "quad" && <QuadEditor obj={obj} {...editorProps} />}
+					{obj.type === "obj" && <ObjEditor obj={obj} {...editorProps} />}
 				</div>
 			</div>
 

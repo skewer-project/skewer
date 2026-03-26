@@ -16,12 +16,7 @@ import {
 	buildSceneGraph,
 	makeThreeMaterial,
 } from "../services/scene-to-three";
-import type {
-	Material,
-	ResolvedScene,
-	Transform,
-	Vec3,
-} from "../types/scene";
+import type { Material, ResolvedScene, Transform, Vec3 } from "../types/scene";
 
 // ── Patch types for incremental Three.js updates ────────────
 
@@ -30,7 +25,13 @@ export type ThreePatch =
 	| { kind: "sphere-radius"; value: number }
 	| { kind: "quad-vertices"; value: [Vec3, Vec3, Vec3, Vec3] }
 	| { kind: "obj-transform"; value: Transform }
-	| { kind: "material"; matData: Material; matName: string; layerTag: string; layerIdx: number }
+	| {
+			kind: "material";
+			matData: Material;
+			matName: string;
+			layerTag: string;
+			layerIdx: number;
+	  }
 	| { kind: "assign-material"; matData: Material }
 	| { kind: "rebuild" };
 
@@ -123,11 +124,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					for (const m of meshes) {
 						if (m instanceof THREE.Mesh) {
 							m.geometry.dispose();
-							m.geometry = new THREE.SphereGeometry(
-								patch.value,
-								32,
-								16,
-							);
+							m.geometry = new THREE.SphereGeometry(patch.value, 32, 16);
 						}
 					}
 				} else if (patch.kind === "quad-vertices") {
@@ -165,7 +162,10 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					// Update ALL objects in the layer that use this material name
 					const currentScene = sceneRef.current;
 					if (!currentScene) return;
-					const list = patch.layerTag === "ctx" ? currentScene.contexts : currentScene.layers;
+					const list =
+						patch.layerTag === "ctx"
+							? currentScene.contexts
+							: currentScene.layers;
 					const layer = list[patch.layerIdx];
 					if (!layer) return;
 
