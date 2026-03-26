@@ -128,7 +128,7 @@ async function buildObject(
 
 			// Base directory of the OBJ file — MTL and textures live alongside it.
 			const objBaseDir = obj.file.includes("/")
-				? obj.file.split("/").slice(0, -1).join("/") + "/"
+				? `${obj.file.split("/").slice(0, -1).join("/")}/`
 				: "";
 
 			// Load MTL materials and any referenced textures.

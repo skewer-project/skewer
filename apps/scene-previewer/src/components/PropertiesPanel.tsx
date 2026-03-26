@@ -186,13 +186,15 @@ function QuadEditor({
 		});
 	};
 
+	const VERT_LABELS = ["p0", "p1", "p2", "p3"] as const;
+
 	return (
 		<div className="kv-table">
-			{obj.vertices.map((v, i) => (
+			{VERT_LABELS.map((label, i) => (
 				<Vec3Field
-					key={`p${i}`}
-					label={`p${i}`}
-					value={v}
+					key={label}
+					label={label}
+					value={obj.vertices[i]}
 					onChange={(nv) => handleVertex(i, nv)}
 				/>
 			))}

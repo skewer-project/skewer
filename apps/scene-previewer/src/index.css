@@ -417,6 +417,18 @@ details[open] .layer-chevron {
 	transition: color 0.1s;
 }
 
+button.data-row {
+	display: block;
+	width: 100%;
+	font: inherit;
+	color: inherit;
+	text-align: left;
+	border: none;
+	background: none;
+	margin: 0;
+	cursor: pointer;
+}
+
 .data-row:hover {
 	color: var(--t1);
 }

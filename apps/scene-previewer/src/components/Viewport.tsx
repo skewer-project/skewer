@@ -92,7 +92,13 @@ function findTopLevelObject(
 }
 
 export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{ scene, dirHandle, sceneVersion, selectedObjectKey, onSelectObject },
+	{
+		scene,
+		dirHandle,
+		sceneVersion: _sceneVersion,
+		selectedObjectKey,
+		onSelectObject,
+	},
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -354,9 +360,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		return () => {
 			abortController.abort();
 		};
-		// sceneVersion triggers full rebuild; scene ref is read inside, not a dep
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [sceneVersion, dirHandle]);
+	}, [dirHandle]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {
@@ -431,6 +435,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	return (
 		<div
 			ref={containerRef}
+			role="application"
+			aria-label="3D scene viewport"
 			style={{ width: "100%", height: "100%" }}
 			onMouseDown={handleMouseDown}
 			onMouseUp={handleMouseUp}

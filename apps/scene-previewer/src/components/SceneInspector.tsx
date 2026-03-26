@@ -149,9 +149,9 @@ function LayerCard({
 							const key = `${keyPrefix}:${layerIdx}:${i}`;
 							const isSelected = key === selectedObjectKey;
 							return (
-								<div
-									role="button"
-									key={i}
+								<button
+									type="button"
+									key={key}
 									className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
 									onClick={(e) => {
 										e.stopPropagation();
@@ -162,7 +162,7 @@ function LayerCard({
 										#{i} {obj.type}
 									</span>{" "}
 									{objectValueStr(obj)}
-								</div>
+								</button>
 							);
 						})}
 					</>

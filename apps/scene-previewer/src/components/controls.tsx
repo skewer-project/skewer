@@ -23,45 +23,50 @@ export function NumberField({
 	step = 0.1,
 	inline,
 }: NumberFieldProps) {
+	const format = useCallback((n: number) => `${+n.toFixed(4)}`, []);
+
+	const clamp = useCallback(
+		(n: number) => {
+			if (min !== undefined && n < min) return min;
+			if (max !== undefined && n > max) return max;
+			return n;
+		},
+		[min, max],
+	);
+
 	const [draft, setDraft] = useState(() => format(value));
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const latestOnChange = useRef(onChange);
 	latestOnChange.current = onChange;
 
-	// Sync draft when external value changes (e.g. from another control)
 	const prevExternal = useRef(value);
+
+	const cancelDebounce = useCallback(() => {
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+			debounceRef.current = null;
+		}
+	}, []);
+
+	const flush = useCallback(
+		(raw: string) => {
+			const n = Number.parseFloat(raw);
+			if (Number.isNaN(n)) return;
+			const clamped = clamp(n);
+			setDraft(format(clamped));
+			prevExternal.current = clamped;
+			latestOnChange.current(clamped);
+		},
+		[clamp, format],
+	);
+
+	// Sync draft when external value changes (e.g. from another control)
 	useEffect(() => {
 		if (value !== prevExternal.current) {
 			setDraft(format(value));
 			prevExternal.current = value;
 		}
-	}, [value]);
-
-	function format(n: number): string {
-		return +n.toFixed(4) + "";
-	}
-
-	function clamp(n: number): number {
-		if (min !== undefined && n < min) return min;
-		if (max !== undefined && n > max) return max;
-		return n;
-	}
-
-	function flush(raw: string) {
-		const n = Number.parseFloat(raw);
-		if (Number.isNaN(n)) return;
-		const clamped = clamp(n);
-		setDraft(format(clamped));
-		prevExternal.current = clamped;
-		latestOnChange.current(clamped);
-	}
-
-	function cancelDebounce() {
-		if (debounceRef.current) {
-			clearTimeout(debounceRef.current);
-			debounceRef.current = null;
-		}
-	}
+	}, [value, format]);
 
 	const handleChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,15 +75,13 @@ export function NumberField({
 			cancelDebounce();
 			debounceRef.current = setTimeout(() => flush(raw), 150);
 		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[min, max],
+		[cancelDebounce, flush],
 	);
 
 	const handleBlur = useCallback(() => {
 		cancelDebounce();
 		flush(draft);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [draft, min, max]);
+	}, [draft, cancelDebounce, flush]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -97,8 +100,7 @@ export function NumberField({
 				latestOnChange.current(clamped);
 			}
 		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[draft, step, min, max],
+		[draft, step, cancelDebounce, clamp, flush, format],
 	);
 
 	// ── Drag-to-scrub on label ──
@@ -114,7 +116,7 @@ export function NumberField({
 				val: Number.parseFloat(draft) || 0,
 			};
 		},
-		[draft],
+		[draft, cancelDebounce],
 	);
 
 	const handlePointerMove = useCallback(
@@ -126,8 +128,7 @@ export function NumberField({
 			prevExternal.current = newVal;
 			latestOnChange.current(newVal);
 		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[step, min, max],
+		[step, clamp, format],
 	);
 
 	const handlePointerUp = useCallback(() => {
