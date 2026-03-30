@@ -1,11 +1,6 @@
 // File System Access API wrapper.
 // Targets Chrome/Edge/Safari only
 
-// TypeScript's bundled DOM lib doesn't include File System Access API types yet.
-declare function showDirectoryPicker(options?: {
-	mode?: "read" | "readwrite";
-}): Promise<FileSystemDirectoryHandle>;
-
 export async function openSceneFolder(): Promise<FileSystemDirectoryHandle> {
 	return await showDirectoryPicker({ mode: "readwrite" });
 }

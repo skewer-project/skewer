@@ -109,7 +109,6 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const sceneGroup = useRef<THREE.Group | null>(null);
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
-
 	// Keep a ref to scene so Effect 2 can read current data without depending on it
 	const sceneRef = useRef(scene);
 	sceneRef.current = scene;
