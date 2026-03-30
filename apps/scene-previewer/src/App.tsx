@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import { OpenFolderButton } from "./components/OpenFolderButton";
+import { LandingPage } from "./components/LandingPage";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { SceneInspector } from "./components/SceneInspector";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
+import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import type { ResolvedScene } from "./types/scene";
 
@@ -18,6 +19,7 @@ function App() {
 	);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
+	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const viewportRef = useRef<ViewportHandle>(null);
 
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
@@ -26,12 +28,15 @@ function App() {
 		setError("");
 		setSelectedObjectKey(null);
 		setSceneVersion((v) => v + 1);
+		setHasUnsavedChanges(false);
+		addRecentScene(dir.name, dir);
 	}
 
 	/** Update scene data without triggering a full Three.js rebuild. */
 	function handleSceneEdit(updater: (s: ResolvedScene) => ResolvedScene) {
 		setScene((prev) => {
 			if (!prev) return prev;
+			setHasUnsavedChanges(true);
 			return updater(prev);
 		});
 	}
@@ -42,12 +47,29 @@ function App() {
 		setError("");
 		try {
 			await saveScene(dirHandle, scene);
+			setHasUnsavedChanges(false);
 		} catch (err) {
 			if (err instanceof DOMException && err.name === "AbortError") return;
 			setError(err instanceof Error ? err.message : String(err));
 		} finally {
 			setSaving(false);
 		}
+	}
+
+	function handleNavigateHome() {
+		if (
+			hasUnsavedChanges &&
+			!window.confirm(
+				"You have unsaved changes. Go back to the landing page and discard them?",
+			)
+		) {
+			return;
+		}
+		setScene(null);
+		setDirHandle(null);
+		setSelectedObjectKey(null);
+		setHasUnsavedChanges(false);
+		setError("");
 	}
 
 	const totalObjects = scene
@@ -75,19 +97,24 @@ function App() {
 			<div className="hud">
 				{/* Top-left: header panel */}
 				<div className="panel hud-header">
-					<span className="wordmark">Skewer</span>
-					<OpenFolderButton
-						onSceneLoaded={handleSceneLoaded}
-						onError={setError}
-					/>
 					<button
 						type="button"
-						className={`open-btn${saving ? " loading" : ""}`}
-						disabled={!scene || !dirHandle || saving}
-						onClick={handleSave}
+						className={`wordmark${scene ? " wordmark-link" : ""}`}
+						onClick={handleNavigateHome}
+						disabled={!scene}
 					>
-						{saving ? "Saving…" : "Save"}
+						Skewer
 					</button>
+					{scene && hasUnsavedChanges && (
+						<button
+							type="button"
+							className={`open-btn${saving ? " loading" : ""}`}
+							disabled={saving}
+							onClick={handleSave}
+						>
+							{saving ? "Saving…" : "Save"}
+						</button>
+					)}
 					{error && <span className="error-msg">{error}</span>}
 				</div>
 
@@ -131,13 +158,9 @@ function App() {
 					</div>
 				)}
 
-				{/* Empty state */}
+				{/* Landing page */}
 				{!scene && (
-					<div className="empty-state">
-						<div className="empty-wordmark">Skewer</div>
-						<div className="empty-sub">Spectral Scene Previewer</div>
-						<div className="empty-hint">open a scene folder above to begin</div>
-					</div>
+					<LandingPage onSceneLoaded={handleSceneLoaded} onError={setError} />
 				)}
 			</div>
 		</div>
