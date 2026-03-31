@@ -52,6 +52,13 @@ spec:
           ports:
             - containerPort: 50051
               name: grpc
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
           env:
             - name: LOCAL_STORAGE_BASE
               value: "/data"
