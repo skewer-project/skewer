@@ -137,23 +137,26 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                     session.Options().integrator_config.adaptive_step = task.adaptive_step();
                 }
 
-                std::cout << "[SKEWER]: Rendering " << session.Options().image_config.width << "x" 
-                          << session.Options().image_config.height << " (Threads: " << task_threads << ")\n";
+                std::cout << "[SKEWER]: Rendering " << session.Options().image_config.width << "x"
+                          << session.Options().image_config.height << " (Threads: " << task_threads
+                          << ")\n";
 
                 // 1) Spawn heartbeat thread before rendering begins
                 std::atomic<bool> heartbeat_active(true);
                 std::thread heartbeat_thread([&]() {
                     while (heartbeat_active.load()) {
-                        for (int i = 0; i < 30; ++i) { // Sleep for 30s but check exit condition every second
+                        for (int i = 0; i < 30;
+                             ++i) {  // Sleep for 30s but check exit condition every second
                             if (!heartbeat_active.load()) return;
                             std::this_thread::sleep_for(std::chrono::seconds(1));
                         }
-                        
+
                         ClientContext hb_context;
                         ReportTaskProgressRequest hb_req;
                         hb_req.set_task_id(package.task_id());
                         hb_req.set_worker_id(worker_id);
-                        hb_req.set_progress_percent(0.0); // Polling real progress can go here later
+                        hb_req.set_progress_percent(
+                            0.0);  // Polling real progress can go here later
 
                         ReportTaskProgressResponse hb_res;
                         stub->ReportTaskProgress(&hb_context, hb_req, &hb_res);
