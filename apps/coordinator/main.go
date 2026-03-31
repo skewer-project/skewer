@@ -31,7 +31,7 @@ func main() {
 
 	ctx := context.Background()
 
-	go scheduler.StartSweeper(ctx, time.Hour, time.Minute)
+	go scheduler.StartSweeper(ctx, 2*time.Minute, 30*time.Second)
 
 	// Create Cloud Manager (passing an empty string for local testing if credentials aren't explicitly provided yet)
 	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")
