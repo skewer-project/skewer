@@ -19,11 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CoordinatorService_SubmitJob_FullMethodName        = "/api.proto.coordinator.v1.CoordinatorService/SubmitJob"
-	CoordinatorService_GetJobStatus_FullMethodName     = "/api.proto.coordinator.v1.CoordinatorService/GetJobStatus"
-	CoordinatorService_CancelJob_FullMethodName        = "/api.proto.coordinator.v1.CoordinatorService/CancelJob"
-	CoordinatorService_GetWorkStream_FullMethodName    = "/api.proto.coordinator.v1.CoordinatorService/GetWorkStream"
-	CoordinatorService_ReportTaskResult_FullMethodName = "/api.proto.coordinator.v1.CoordinatorService/ReportTaskResult"
+	CoordinatorService_SubmitJob_FullMethodName          = "/api.proto.coordinator.v1.CoordinatorService/SubmitJob"
+	CoordinatorService_GetJobStatus_FullMethodName       = "/api.proto.coordinator.v1.CoordinatorService/GetJobStatus"
+	CoordinatorService_CancelJob_FullMethodName          = "/api.proto.coordinator.v1.CoordinatorService/CancelJob"
+	CoordinatorService_GetWorkStream_FullMethodName      = "/api.proto.coordinator.v1.CoordinatorService/GetWorkStream"
+	CoordinatorService_ReportTaskResult_FullMethodName   = "/api.proto.coordinator.v1.CoordinatorService/ReportTaskResult"
+	CoordinatorService_ReportTaskProgress_FullMethodName = "/api.proto.coordinator.v1.CoordinatorService/ReportTaskProgress"
 )
 
 // CoordinatorServiceClient is the client API for CoordinatorService service.
@@ -37,6 +38,7 @@ type CoordinatorServiceClient interface {
 	// Internal API for Skewer and Loom GKE Workers
 	GetWorkStream(ctx context.Context, in *GetWorkStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkPackage], error)
 	ReportTaskResult(ctx context.Context, in *ReportTaskResultRequest, opts ...grpc.CallOption) (*ReportTaskResultResponse, error)
+	ReportTaskProgress(ctx context.Context, in *ReportTaskProgressRequest, opts ...grpc.CallOption) (*ReportTaskProgressResponse, error)
 }
 
 type coordinatorServiceClient struct {
@@ -106,6 +108,16 @@ func (c *coordinatorServiceClient) ReportTaskResult(ctx context.Context, in *Rep
 	return out, nil
 }
 
+func (c *coordinatorServiceClient) ReportTaskProgress(ctx context.Context, in *ReportTaskProgressRequest, opts ...grpc.CallOption) (*ReportTaskProgressResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReportTaskProgressResponse)
+	err := c.cc.Invoke(ctx, CoordinatorService_ReportTaskProgress_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CoordinatorServiceServer is the server API for CoordinatorService service.
 // All implementations must embed UnimplementedCoordinatorServiceServer
 // for forward compatibility.
@@ -117,6 +129,7 @@ type CoordinatorServiceServer interface {
 	// Internal API for Skewer and Loom GKE Workers
 	GetWorkStream(*GetWorkStreamRequest, grpc.ServerStreamingServer[WorkPackage]) error
 	ReportTaskResult(context.Context, *ReportTaskResultRequest) (*ReportTaskResultResponse, error)
+	ReportTaskProgress(context.Context, *ReportTaskProgressRequest) (*ReportTaskProgressResponse, error)
 	mustEmbedUnimplementedCoordinatorServiceServer()
 }
 
@@ -141,6 +154,9 @@ func (UnimplementedCoordinatorServiceServer) GetWorkStream(*GetWorkStreamRequest
 }
 func (UnimplementedCoordinatorServiceServer) ReportTaskResult(context.Context, *ReportTaskResultRequest) (*ReportTaskResultResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReportTaskResult not implemented")
+}
+func (UnimplementedCoordinatorServiceServer) ReportTaskProgress(context.Context, *ReportTaskProgressRequest) (*ReportTaskProgressResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReportTaskProgress not implemented")
 }
 func (UnimplementedCoordinatorServiceServer) mustEmbedUnimplementedCoordinatorServiceServer() {}
 func (UnimplementedCoordinatorServiceServer) testEmbeddedByValue()                            {}
@@ -246,6 +262,24 @@ func _CoordinatorService_ReportTaskResult_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CoordinatorService_ReportTaskProgress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportTaskProgressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoordinatorServiceServer).ReportTaskProgress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CoordinatorService_ReportTaskProgress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoordinatorServiceServer).ReportTaskProgress(ctx, req.(*ReportTaskProgressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CoordinatorService_ServiceDesc is the grpc.ServiceDesc for CoordinatorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -268,6 +302,10 @@ var CoordinatorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReportTaskResult",
 			Handler:    _CoordinatorService_ReportTaskResult_Handler,
+		},
+		{
+			MethodName: "ReportTaskProgress",
+			Handler:    _CoordinatorService_ReportTaskProgress_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
