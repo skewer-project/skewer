@@ -99,7 +99,8 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     std::vector<float> z_offsets(inputFiles.size() > 1 ? inputFiles.size() - 1 : 0,
                                                  0.0f);
                     Options opts = {
-                        inputFiles, z_offsets,
+                        inputFiles,
+                        z_offsets,
                         "",  // coordinator handles output prefixing and parsing
                     };
 
