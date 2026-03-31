@@ -16,9 +16,10 @@ type Task struct {
 	FrameID string
 	Payload any // *pb.RenderTask or *pb.CompositeTask
 
-	CreatedAt time.Time
-	StartedAt time.Time // WHEN the worker pulled it
-	Retries   int32     // How many times it has been requeued
+	CreatedAt     time.Time
+	StartedAt     time.Time // WHEN the worker pulled it
+	LastHeartbeat time.Time // WHEN the worker last checked in
+	Retries       int32     // How many times it has been requeued
 }
 
 type Scheduler struct {
@@ -93,6 +94,7 @@ func (s *Scheduler) GetNextTask(ctx context.Context, capabilities []string) (*Ta
 
 				s.mu.Lock()
 				task.StartedAt = time.Now()
+				task.LastHeartbeat = time.Now()
 				s.activeTasks[task.ID] = task
 				s.mu.Unlock()
 
@@ -108,6 +110,7 @@ func (s *Scheduler) GetNextTask(ctx context.Context, capabilities []string) (*Ta
 
 				s.mu.Lock()
 				task.StartedAt = time.Now()
+				task.LastHeartbeat = time.Now()
 				s.activeTasks[task.ID] = task
 				s.mu.Unlock()
 
@@ -137,6 +140,16 @@ func (s *Scheduler) popActiveTask(taskID string) (*Task, bool) {
 		delete(s.activeTasks, taskID)
 	}
 	return task, exists
+}
+
+// Safely updates the heartbeat time
+func (s *Scheduler) UpdateHeartbeat(taskID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	task, exists := s.Task(taskID)
+	if exists {
+		task.LastHeartbeat = time.Now()
+	}
 }
 
 func (s *Scheduler) RequeueTask(taskID string) {
@@ -242,8 +255,8 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 	// Lock just long enough to scan the map and remove the bad entries
 	s.mu.Lock()
 	for id, task := range s.activeTasks {
-		// TODO: Change StartedAt to LastHeartbeat if we implement
-		if now.Sub(task.StartedAt) > timeout {
+		// Use LastHeartbeat to determine if worker died (OOM)
+		if now.Sub(task.LastHeartbeat) > timeout {
 			deadTasks = append(deadTasks, task)
 			delete(s.activeTasks, id) // Remove it from active tracking
 		}
@@ -264,24 +277,23 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 			continue
 		}
 
-		// Push it back to the queue
-		// Figure out which queue the dead task belongs to!
-		switch task.Payload.(type) {
+		// Push it back to the queue asynchronously to prevent locking the sweeper ticker
+		go func(t *Task) {
+			switch t.Payload.(type) {
+			case *pb.RenderTask:
+				s.skewerQueue <- t
+				fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", t.ID, t.Retries)
 
-		case *pb.RenderTask:
-			s.skewerQueue <- task
-			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", task.ID, task.Retries)
-
-		case *pb.CompositeTask:
-			s.loomQueue <- task
-			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", task.ID, task.Retries)
-		}
+			case *pb.CompositeTask:
+				s.loomQueue <- t
+				fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", t.ID, t.Retries)
+			}
+		}(task)
 	}
 }
 
 func (s *Scheduler) PurgeJobTasks(jobID string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	// Purge all active tasks
 	for taskID, task := range s.activeTasks {
@@ -289,6 +301,7 @@ func (s *Scheduler) PurgeJobTasks(jobID string) error {
 			delete(s.activeTasks, taskID)
 		}
 	}
+	s.mu.Unlock() // Release lock BEFORE draining channels to prevent deadlock
 
 	// Helper to filter tasks for a given job ID out of a queue channel.
 	// The safest way to filter a channel is to separate good ones and purge in place.

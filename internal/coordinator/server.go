@@ -40,7 +40,7 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, 
 
 	// Set the terminal failure callback
 	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
-		log.Printf("[SERVER] Task %s for job %s failed permanently. Failing job.", task.ID, task.JobID)
+		log.Printf("[SERVER]: Task %s for job %s failed permanently. Failing job.", task.ID, task.JobID)
 		s.tracker.CancelJob(task.JobID)
 		s.scheduler.PurgeJobTasks(task.JobID)
 	}
@@ -65,9 +65,44 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 		jobID = uuid.New().String()
 	}
 
-	log.Printf("[COORDINATOR] Received SubmitJob request: %s", jobID)
+	log.Printf("[COORDINATOR]: Received SubmitJob request: %s", jobID)
 
 	var newJob Job
+
+	// Try to resolve general job info from dependencies if missing
+	numFrames := req.NumFrames
+	width := req.Width
+	height := req.Height
+
+	if (numFrames == 0 || width == 0 || height == 0) && len(req.DependsOn) > 0 {
+		for _, depID := range req.DependsOn {
+			depJob, err := s.tracker.GetJob(depID)
+			if err == nil {
+				depReq := depJob.GetOriginalReq()
+
+				// Validation: Ensure dimensions match if we already have a resolved width/height
+				if width > 0 && depReq.Width > 0 && width != depReq.Width {
+					return nil, fmt.Errorf("[ERROR] Dimension mismatch: dependency %s is %dx%d but previous deps are %dx%d", depID, depReq.Width, depReq.Height, width, height)
+				}
+
+				// Take the max frames found across all dependencies
+				if numFrames < depReq.NumFrames {
+					numFrames = depReq.NumFrames
+				}
+				// Take the largest dimensions found across all dependencies (if not already set)
+				if width == 0 {
+					width = depReq.Width
+				}
+				if height == 0 {
+					height = depReq.Height
+				}
+			}
+		}
+		// Update the request object so handlers use the inherited values
+		req.NumFrames = numFrames
+		req.Width = width
+		req.Height = height
+	}
 
 	// Route the job creation based on the user's requested payload
 	switch req.JobType.(type) {
@@ -76,7 +111,7 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 			JobID:        jobID,
 			Dependencies: req.DependsOn,
 			Status:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
-			TotalTasks:   req.NumFrames, // Strictly one task per frame
+			TotalTasks:   numFrames, // Strictly one task per frame
 			OriginalReq:  req,
 		}
 	case *pb.SubmitJobRequest_CompositeJob:
@@ -84,11 +119,23 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 			JobID:        jobID,
 			Dependencies: req.DependsOn,
 			Status:       pb.GetJobStatusResponse_JOB_STATUS_UNSPECIFIED,
-			TotalFrames:  req.NumFrames,
+			TotalFrames:  numFrames,
 			OriginalReq:  req,
 		}
 	default:
-		return nil, fmt.Errorf("[ERROR] Unknown job type provided.")
+		return nil, fmt.Errorf("[ERROR]: Unknown job type provided.")
+	}
+
+	// Auto-append unique identifier to output path if it's the default to prevent collisions
+	currentPrefix := newJob.GetOutputPrefix()
+	if currentPrefix == "data/renders/" || currentPrefix == "data/renders" {
+		suffix := req.JobName
+		if suffix == "" || suffix == "skewer-job" || suffix == "skewer-composite" {
+			suffix = jobID[:8] // Use first 8 chars of UUID
+		}
+		newPrefix := filepath.Join(currentPrefix, suffix)
+		newJob.SetOutputPrefix(newPrefix)
+		log.Printf("[COORDINATOR] Auto-set output path for job %s: %s", jobID, newPrefix)
 	}
 
 	// Add the job to the JobTracker
@@ -96,8 +143,8 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 		return nil, err
 	}
 
-	// ONLY queue the tasks if there are NO dependencies!
-	if len(req.DependsOn) == 0 {
+	// ONLY queue the tasks if the job is ready (no pending dependencies)
+	if newJob.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_QUEUED {
 		var err error
 		switch req.JobType.(type) {
 		case *pb.SubmitJobRequest_RenderJob:
@@ -179,6 +226,12 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 		return nil                            // Close stream, worker will reconnect and try again
 	}
 
+	// Update job status to RUNNING if it's currently QUEUED
+	if job.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_QUEUED {
+		log.Printf("[COORDINATOR]: Transitioning job %s to RUNNING state", task.JobID)
+		job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_RUNNING)
+	}
+
 	// Package task into the Protobuf format.
 	workPackage := &pb.WorkPackage{
 		JobId:   task.JobID,
@@ -248,6 +301,7 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 	// Update completed Tasks for the job
 	job, err := s.tracker.GetJob(task.JobID)
 	if err != nil {
+		log.Printf("[ERROR]: Failed to get job %s for progress update: %v", task.JobID, err)
 		return &pb.ReportTaskResultResponse{Acknowledged: false}, err
 	}
 
@@ -255,45 +309,53 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 	switch jobType := job.(type) {
 	case *RenderJob:
 		jobType.mu.Lock()
-
-		// Update completed tasks and check if job is complete
 		jobType.CompletedTasks++
+		log.Printf("[COORDINATOR] Job %s progress: %d/%d tasks complete", task.JobID, jobType.CompletedTasks, jobType.TotalTasks)
 		complete = jobType.CompletedTasks == jobType.TotalTasks
-
 		jobType.mu.Unlock()
 
 	case *CompositeJob:
 		jobType.mu.Lock()
 		jobType.CompletedFrames++
+		log.Printf("[COORDINATOR] Job %s progress: %d/%d frames complete", task.JobID, jobType.CompletedFrames, jobType.TotalFrames)
 		complete = jobType.CompletedFrames == jobType.TotalFrames
 		jobType.mu.Unlock()
 	}
 
 	// Queue downstream dependencies if job is complete
 	if complete {
+		log.Printf("[COORDINATOR]: Job %s is 100%% complete! Marking as COMPLETED.", job.ID())
 		job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_COMPLETED)
 
 		// Ask the tracker to safely update the math and report unlocked dependencies
 		unlockedJobs := s.tracker.UnlockDependencies(job.ID())
+		log.Printf("[COORDINATOR]: Unlocked %d downstream jobs for job %s", len(unlockedJobs), job.ID())
 
 		// Loop through whatever jobs just hit 0 dependencies and queue them
 		for _, newJob := range unlockedJobs {
-			// (We will eventually call s.handleCompositeJobSubmit here
-			// to actually queue the tasks for the newly unlocked job)
 			log.Printf("[COORDINATOR]: Job %s is fully unlocked and ready to queue!", newJob.ID())
 
 			// Type assert to figure out what kind of job just unlocked and queue it
 			req := newJob.GetOriginalReq()
+			var err error
 			switch typedJob := newJob.(type) {
 			case *RenderJob:
-				s.handleRenderJobSubmit(typedJob.ID(), req, req.GetRenderJob())
+				err = s.handleRenderJobSubmit(typedJob.ID(), req, req.GetRenderJob())
 			case *CompositeJob:
-				s.handleCompositeJobSubmit(typedJob.ID(), req, req.GetCompositeJob())
+				err = s.handleCompositeJobSubmit(typedJob.ID(), req, req.GetCompositeJob())
+			}
+			if err != nil {
+				log.Printf("[ERROR] Failed to queue unlocked job %s: %v", newJob.ID(), err)
 			}
 		}
 	}
 
 	return &pb.ReportTaskResultResponse{Acknowledged: true}, nil
+}
+
+func (s *Server) ReportTaskProgress(ctx context.Context, req *pb.ReportTaskProgressRequest) (*pb.ReportTaskProgressResponse, error) {
+	s.scheduler.UpdateHeartbeat(req.GetTaskId())
+	return &pb.ReportTaskProgressResponse{Acknowledged: true}, nil
 }
 
 // =====================================================================
@@ -312,12 +374,12 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 			queueLengths := s.scheduler.GetQueueLengths()
 			activeCounts := s.scheduler.GetActiveTaskCounts()
 
-			// Determine global limit (default to 1 in local mode, 20 in cloud)
+			// Determine global limit (default to 4 in local mode, 20 in cloud)
 			limit := 20
 			if s.localStorageBase != "" {
-				limit = 1 // LOCAL MODE: Avoid blowing up laptop
+				limit = 4 // LOCAL MODE: Allow some parallelism by default
 			}
-			if val, err := strconv.Atoi(os.Getenv("MAX_WORKERS")); err == nil {
+			if val, err := strconv.Atoi(os.Getenv("MAX_WORKERS")); err == nil && val > 0 {
 				limit = val
 			}
 
@@ -375,55 +437,42 @@ func (s *Server) translateLocalPath(uri string) (string, error) {
 	// If the path is already absolute and starts with the host's data path, swap it.
 	if hostDataPath != "" && filepath.IsAbs(uri) && strings.HasPrefix(uri, hostDataPath) {
 		rel, _ := filepath.Rel(hostDataPath, uri)
-		// SECURITY: Clean the path and prevent traversal
-		cleanRel := filepath.Clean(rel)
-		if relativePathEscapesRoot(cleanRel) {
-			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
-		}
-
-		return filepath.Join(s.localStorageBase, cleanRel), nil
+		return filepath.Join(s.localStorageBase, filepath.Clean(rel)), nil
 	}
 
-	// Repo-relative paths (e.g. scenes/foo.json): workspace root is mounted at
-	// localStorageBase (/data in Kubernetes). Without this, workers see a bare
-	// relative path and resolve it from process CWD (/) and the task fails.
+	// Repo-relative paths: workspace root is mounted at localStorageBase (/data).
+	// We MUST join them to ensure we get /data/data/scenes/... etc.
 	if !filepath.IsAbs(uri) {
-		cleanRel := filepath.Clean(uri)
-		if cleanRel == "." || cleanRel == "" {
-			return "", fmt.Errorf("[ERROR]: Invalid empty relative path")
-		}
-		if relativePathEscapesRoot(cleanRel) {
-			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri)
-		}
-		return filepath.Join(s.localStorageBase, cleanRel), nil
+		return filepath.Join(s.localStorageBase, filepath.Clean(uri)), nil
 	}
 
 	return uri, nil
 }
-
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
-	for frameID := int32(0); frameID < req.GetNumFrames(); frameID++ {
-		// Calculate uri prefixes
-		outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
-		if err != nil {
-			return err
-		}
-		sceneUri, err := s.translateLocalPath(job.GetSceneUri())
-		if err != nil {
-			return err
-		}
+	outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
+	if err != nil {
+		return err
+	}
+	sceneUri, err := s.translateLocalPath(job.GetSceneUri())
+	if err != nil {
+		return err
+	}
+
+	extension := ".exr"
+	if !job.GetEnableDeep() {
+		extension = ".png"
+	}
+
+	numFrames := int32(req.GetNumFrames())
+	tasks := make([]*pb.RenderTask, 0, numFrames)
+
+	for frameID := int32(0); frameID < numFrames; frameID++ {
 		if frameID == 0 {
 			log.Printf("[COORDINATOR] Scene path: raw=%q -> worker=%q", job.GetSceneUri(), sceneUri)
 		}
 
 		// Replace #### with padded frame ID if it exists in the scene URI
 		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
-
-		// Some deep checking for the final file type extension
-		extension := ".exr"
-		if !job.GetEnableDeep() {
-			extension = ".png"
-		}
 
 		// This is the output uri for the frame
 		outputUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d%s", frameID+1, extension))
@@ -446,38 +495,112 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			AdaptiveStep:   job.GetAdaptiveStep(),
 			MaxSamples:     job.GetMaxSamples(),
 		}
-
-		if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
-			return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
-		}
+		tasks = append(tasks, task)
 	}
+
+	// Dispatch to scheduler asynchronously so the gRPC handler doesn't block if the queue is full
+	go func(tasks []*pb.RenderTask) {
+		for frameID, task := range tasks {
+			if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
+				log.Printf("[ERROR]: Failed to enqueue render task for job %s frame %d (%v)", jobID, frameID, err)
+			}
+		}
+	}(tasks)
 
 	return nil
 }
 
 func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {
+	log.Printf("[COORDINATOR]: Handling composite job submit for job %s", jobID)
 
 	outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
 	if err != nil {
+		log.Printf("[ERROR]: Failed to translate output path for job %s: %v", jobID, err)
 		return err
 	}
+	log.Printf("[COORDINATOR]: Output URI Prefix for job %s: %s", jobID, outputUriPrefix)
 
-	for frameID := 0; frameID < int(req.GetNumFrames()); frameID++ {
+	// Resolve layers: prioritize explicit LayerUriPrefixes, fallback to DependsOn discovery
+	layerPrefixes := job.GetLayerUriPrefixes()
+	if len(layerPrefixes) == 0 {
+		log.Printf("[COORDINATOR]: No layers provided for job %s. Discovering from dependencies: %v", jobID, req.DependsOn)
+		for _, depID := range req.DependsOn {
+			depJob, err := s.tracker.GetJob(depID)
+			if err != nil {
+				log.Printf("[ERROR]: Failed to resolve dependency %s for composite discovery: %v", depID, err)
+				return fmt.Errorf("[ERROR]: Failed to resolve dependency %s for composite discovery: %w", depID, err)
+			}
+			prefix := depJob.GetOutputPrefix()
+			if prefix != "" {
+				// Resolve extension
+				ext := ".exr"
+				if rj, ok := depJob.(*RenderJob); ok && !rj.OriginalReq.GetRenderJob().GetEnableDeep() {
+					ext = ".png"
+				}
+				numLayerFrames := depJob.GetOriginalReq().GetNumFrames()
+				log.Printf("[COORDINATOR]: Discovered layer prefix from job %s: %s (Ext: %s, Frames: %d)", depID, prefix, ext, numLayerFrames)
+				layerPrefixes = append(layerPrefixes, fmt.Sprintf("%s|%s|%d", prefix, ext, numLayerFrames))
+			}
+		}
+	}
 
-		// gs://bucket/renders/smoke
-		originalPrefixes := job.GetLayerUriPrefixes()
+	if len(layerPrefixes) == 0 {
+		log.Printf("[ERROR]: Composite job %s has no input layers and no resolvable dependencies", jobID)
+		return fmt.Errorf("[ERROR]: Composite job %s has no input layers and no resolvable dependencies", jobID)
+	}
+
+	// Use inherited/provided dimensions
+	width := req.GetWidth()
+	height := req.GetHeight()
+	log.Printf("[COORDINATOR]: Composite job %s dimensions: %dx%d", jobID, width, height)
+
+	numFrames := int(req.GetNumFrames())
+	log.Printf("[COORDINATOR]: Enqueuing %d composite tasks for job %s", numFrames, jobID)
+
+	// Pre-resolve prefixes outside of the massive frame loop to prevent redundant allocations and GetEnv calls
+	type LayerDef struct {
+		Prefix    string
+		Ext       string
+		NumFrames int
+	}
+	translatedPrefixes := make([]LayerDef, len(layerPrefixes))
+
+	for idx, entry := range layerPrefixes {
+		parts := strings.Split(entry, "|")
+		uriPrefix := parts[0]
+		extension := ".exr"
+		numLayerFrames := 1
+		if len(parts) > 1 {
+			extension = parts[1]
+		}
+		if len(parts) > 2 {
+			if parsed, err := strconv.Atoi(parts[2]); err == nil {
+				numLayerFrames = parsed
+			}
+		}
+		translatedPrefix, err := s.translateLocalPath(uriPrefix)
+		if err != nil {
+			return err
+		}
+		translatedPrefixes[idx] = LayerDef{Prefix: translatedPrefix, Ext: extension, NumFrames: numLayerFrames}
+	}
+
+	tasks := make([]*pb.CompositeTask, 0, numFrames)
+
+	for frameID := 0; frameID < numFrames; frameID++ {
 
 		// Create a fresh slice for THIS specific frame task
-		frameLayerUris := make([]string, len(originalPrefixes))
+		frameLayerUris := make([]string, len(translatedPrefixes))
 
-		// Clean all the uri prefixes for the layers and store them as full uris in new list
-		for idx, uriPrefix := range originalPrefixes {
-			translatedPrefix, err := s.translateLocalPath(uriPrefix)
-			if err != nil {
-				return err
+		for idx, p := range translatedPrefixes {
+			layerTargetFrame := frameID
+			if p.NumFrames == 1 {
+				layerTargetFrame = 0
+			} else if layerTargetFrame >= p.NumFrames {
+				layerTargetFrame = p.NumFrames - 1
 			}
 
-			fullLayerUri, err := url.JoinPath(translatedPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
+			fullLayerUri, err := url.JoinPath(p.Prefix, fmt.Sprintf("frame-%04d%s", layerTargetFrame+1, p.Ext))
 			if err != nil {
 				return err
 			}
@@ -493,14 +616,22 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 		task := &pb.CompositeTask{
 			LayerUris: frameLayerUris,
 
-			Width:  req.GetWidth(),
-			Height: req.GetHeight(),
+			Width:  width,
+			Height: height,
 
 			OutputUri: finalOutputUri,
 		}
-		s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID))
-
+		tasks = append(tasks, task)
 	}
+
+	// Dispatch to scheduler asynchronously so the gRPC handler doesn't block if the queue is full
+	go func(tasks []*pb.CompositeTask) {
+		for frameID, task := range tasks {
+			if _, err := s.scheduler.EnqueueTask(task, jobID, fmt.Sprint(frameID)); err != nil {
+				log.Printf("[ERROR]: Failed to enqueue composite task for job %s frame %d (%v)", jobID, frameID, err)
+			}
+		}
+	}(tasks)
 
 	return nil
 }

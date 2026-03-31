@@ -1,5 +1,6 @@
 #include <grpcpp/grpcpp.h>
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -13,9 +14,22 @@
 #include "session/render_options.h"
 #include "session/render_session.h"
 
+struct HeartbeatGuard {
+    std::atomic<bool>& active;
+    std::thread& th;
+    ~HeartbeatGuard() {
+        active.store(false);
+        if (th.joinable()) {
+            th.join();
+        }
+    }
+};
+
 using api::proto::coordinator::v1::CoordinatorService;
 using api::proto::coordinator::v1::GetWorkStreamRequest;
 using api::proto::coordinator::v1::RenderTask;
+using api::proto::coordinator::v1::ReportTaskProgressRequest;
+using api::proto::coordinator::v1::ReportTaskProgressResponse;
 using api::proto::coordinator::v1::ReportTaskResultRequest;
 using api::proto::coordinator::v1::ReportTaskResultResponse;
 using api::proto::coordinator::v1::WorkPackage;
@@ -123,10 +137,34 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                     session.Options().integrator_config.adaptive_step = task.adaptive_step();
                 }
 
-                std::cout << "[SKEWER]: Rendering " << task.width() << "x" << task.height()
-                          << " (Threads: " << task_threads << ")\n";
+                std::cout << "[SKEWER]: Rendering " << session.Options().image_config.width << "x"
+                          << session.Options().image_config.height << " (Threads: " << task_threads
+                          << ")\n";
 
-                // Now render the task
+                // 1) Spawn heartbeat thread before rendering begins
+                std::atomic<bool> heartbeat_active(true);
+                std::thread heartbeat_thread([&]() {
+                    while (heartbeat_active.load()) {
+                        for (int i = 0; i < 30;
+                             ++i) {  // Sleep for 30s but check exit condition every second
+                            if (!heartbeat_active.load()) return;
+                            std::this_thread::sleep_for(std::chrono::seconds(1));
+                        }
+
+                        ClientContext hb_context;
+                        ReportTaskProgressRequest hb_req;
+                        hb_req.set_task_id(package.task_id());
+                        hb_req.set_worker_id(worker_id);
+                        hb_req.set_progress_percent(
+                            0.0);  // Polling real progress can go here later
+
+                        ReportTaskProgressResponse hb_res;
+                        stub->ReportTaskProgress(&hb_context, hb_req, &hb_res);
+                    }
+                });
+                HeartbeatGuard hb_guard{heartbeat_active, heartbeat_thread};
+
+                // Now render the task (blocking)
                 session.Render();
                 session.Save();
 

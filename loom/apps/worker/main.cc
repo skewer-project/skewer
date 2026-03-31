@@ -1,5 +1,6 @@
 #include <grpcpp/grpcpp.h>
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -14,9 +15,22 @@
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
 #include "proto/coordinator/v1/coordinator.pb.h"
 
+struct HeartbeatGuard {
+    std::atomic<bool>& active;
+    std::thread& th;
+    ~HeartbeatGuard() {
+        active.store(false);
+        if (th.joinable()) {
+            th.join();
+        }
+    }
+};
+
 using api::proto::coordinator::v1::CompositeTask;
 using api::proto::coordinator::v1::CoordinatorService;
 using api::proto::coordinator::v1::GetWorkStreamRequest;
+using api::proto::coordinator::v1::ReportTaskProgressRequest;
+using api::proto::coordinator::v1::ReportTaskProgressResponse;
 using api::proto::coordinator::v1::ReportTaskResultRequest;
 using api::proto::coordinator::v1::ReportTaskResultResponse;
 using api::proto::coordinator::v1::WorkPackage;
@@ -82,10 +96,12 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                         std::cout << "  - " << uri << "\n";
                     }
 
+                    std::vector<float> z_offsets(inputFiles.size() > 1 ? inputFiles.size() - 1 : 0,
+                                                 0.0f);
                     Options opts = {
                         inputFiles,
-                        std::vector<float>{0},  // TODO: collect real input_z_offsets
-                        "",                     // coordinator handles output prefixing and parsing
+                        z_offsets,
+                        "",  // coordinator handles output prefixing and parsing
                     };
 
                     // Populate image info using opts
@@ -99,12 +115,42 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     // Process and write image in different formats
                     std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
 
+                    // 1) Spawn heartbeat thread before expensive compositing begins
+                    std::atomic<bool> heartbeat_active(true);
+                    std::thread heartbeat_thread([&]() {
+                        while (heartbeat_active.load()) {
+                            for (int i = 0; i < 30;
+                                 ++i) {  // Sleep for 30s but check exit condition every second
+                                if (!heartbeat_active.load()) return;
+                                std::this_thread::sleep_for(std::chrono::seconds(1));
+                            }
+
+                            ClientContext hb_context;
+                            ReportTaskProgressRequest hb_req;
+                            hb_req.set_task_id(package.task_id());
+                            hb_req.set_worker_id(worker_id);
+                            hb_req.set_progress_percent(
+                                0.0);  // Polling real progress can go here later
+
+                            ReportTaskProgressResponse hb_res;
+                            stub->ReportTaskProgress(&hb_context, hb_req, &hb_res);
+                        }
+                    });
+                    HeartbeatGuard hb_guard{heartbeat_active, heartbeat_thread};
+
+                    int real_width = task.width();
+                    int real_height = task.height();
+                    if ((real_width == 0 || real_height == 0) && !imagesInfo.empty()) {
+                        real_width = imagesInfo[0]->width();
+                        real_height = imagesInfo[0]->height();
+                    }
+
                     // Write deep EXR (handles if deep output is wanted)
-                    std::vector<float> finalImage = deep_compositor::ProcessAllEXR(
-                        opts, task.height(), task.width(), imagesInfo);
+                    std::vector<float> finalImage =
+                        deep_compositor::ProcessAllEXR(opts, real_height, real_width, imagesInfo);
                     // Writes flat outputs if needed
                     exrio::WriteFlatOutputs(finalImage, output_uri, opts.flat_output,
-                                            opts.png_output, task.width(), task.height());
+                                            opts.png_output, real_width, real_height);
 
                     std::cout << "[Loom] -> Engine Composite execution completed.\n";
 
