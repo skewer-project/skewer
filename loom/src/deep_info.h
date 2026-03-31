@@ -5,14 +5,9 @@
 #include <OpenEXR/ImfDeepScanLineInputFile.h>  // For reading deep EXR files
 #include <OpenEXR/ImfMultiPartInputFile.h>
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <stdexcept>
 #include <vector>
 
 namespace deep_compositor {
-
 class DeepInfo {
   public:
     DeepInfo();
@@ -21,6 +16,8 @@ class DeepInfo {
     {
         // Once the file is open, we extract the metadata (width/height)
         Imath::Box2i dw = file_.header().dataWindow();
+        min_x_ = dw.min.x;
+        min_y_ = dw.min.y;
         width_ = dw.max.x - dw.min.x + 1;
         height_ = dw.max.y - dw.min.y + 1;
         printf("Loaded Deep EXR: %s (%dx%d)\n", filename.c_str(), width_, height_);
@@ -31,6 +28,8 @@ class DeepInfo {
 
     int width() const { return width_; }
     int height() const { return height_; }
+    int min_x() const { return min_x_; }
+    int min_y() const { return min_y_; }
     // bool isDeep() const { return isDeep_; }
 
     Imf::DeepScanLineInputFile& GetFile() { return file_; }
@@ -58,13 +57,10 @@ class DeepInfo {
         // Resize buffer to fit one row of integers
         temp_sample_counts.resize(width_);
 
-        Imath::Box2i dw = file_.header().dataWindow();
-        int minX = dw.min.x;
-
         Imf::DeepFrameBuffer countBuffer;
         // We point to the start of our vector, but tell OpenEXR
-        // that this memory represents pixel (minX, y)
-        char* base = (char*)(temp_sample_counts.data()) - (minX * sizeof(unsigned int));
+        // that this memory represents pixel (min_x_, y)
+        char* base = (char*)(temp_sample_counts.data()) - (min_x_ * sizeof(unsigned int));
         // Note: We don't subtract y because we only read one row (y, y)
 
         countBuffer.insertSampleCountSlice(Imf::Slice(Imf::UINT, base,
@@ -73,7 +69,8 @@ class DeepInfo {
                                                       ));
 
         file_.setFrameBuffer(countBuffer);
-        file_.readPixelSampleCounts(y, y);
+        int exr_y = y + min_y_;
+        file_.readPixelSampleCounts(exr_y, exr_y);
     }
 
     // 2. Explicitly forbid Copying (Since the EXR file handle can't be duplicated)
@@ -86,6 +83,8 @@ class DeepInfo {
   private:
     int width_;
     int height_;
+    int min_x_;
+    int min_y_;
 
     std::vector<unsigned int> temp_sample_counts;
 
