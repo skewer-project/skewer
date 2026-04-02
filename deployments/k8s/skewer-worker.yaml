@@ -30,12 +30,7 @@ spec:
               value: "skewer-coordinator.default.svc.cluster.local:50051"
             - name: RENDER_THREADS
               value: "2"
-            - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: "/etc/secrets/credentials.json"
           volumeMounts:
-            - name: gcp-credentials
-              mountPath: "/etc/secrets"
-              readOnly: true
             - name: skewer-data
               mountPath: "/data"
           resources:
@@ -46,10 +41,6 @@ spec:
               cpu: "2000m"
               memory: "4Gi"
       volumes:
-        - name: gcp-credentials
-          secret:
-            secretName: skewer-gcp-creds
-            optional: true
         - name: skewer-data
           hostPath:
             path: "{{SKEWER_DATA_PATH}}"

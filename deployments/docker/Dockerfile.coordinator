@@ -1,5 +1,9 @@
+# Target image tag: us-west2-docker.pkg.dev/deft-sight-487822-q9/skewer/coordinator:latest
+
 # Stage 1: Build the Go Coordinator
-FROM golang:1.25.0-alpine AS builder
+FROM golang:1.24.0-alpine AS builder
+
+ENV GOTOOLCHAIN=go1.25.0
 
 # Install required build tools (if any CGO/SSL needed)
 RUN apk add --no-cache git ca-certificates tzdata

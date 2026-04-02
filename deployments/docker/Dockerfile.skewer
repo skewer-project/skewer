@@ -1,3 +1,5 @@
+# Target image tag: us-west2-docker.pkg.dev/deft-sight-487822-q9/skewer/skewer-worker:latest
+
 # Stage 1: Build the C++ Renderer Worker
 FROM ubuntu:24.04 AS builder
 
@@ -28,9 +30,9 @@ WORKDIR /app
 # Copy the entire source tree
 COPY . .
 
-# Run the CMake build specifically for the Skewer target
+# Run the CMake build specifically for the Skewer cloud-worker target
 RUN cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF
-RUN cmake --build --preset release --target skewer-worker --parallel 1
+RUN cmake --build --preset release --target skewer-cloud-worker --parallel 1
 
 # Stage 2: Create a minimal runner image
 FROM ubuntu:24.04
@@ -48,13 +50,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/build/release/skewer/skewer-worker /usr/local/bin/skewer-worker
+COPY --from=builder /app/build/release/skewer/skewer-cloud-worker /usr/local/bin/skewer-worker
 
 # Create a dedicated, non-root system user and group; prepare /data for WORKDIR
-# (K8s mounts the repo here — image /data is replaced at runtime, but WORKDIR
-# must be /data so repo-relative scene paths from the coordinator resolve).
-# Fixed uid/gid 1001 + numeric USER for Kubernetes/containerd (username resolution
-# during config can yield CreateContainerConfigError on some runtimes).
+# (In cloud mode, GCSFuse mounts buckets here at runtime).
 RUN groupadd -g 1001 appgroup && useradd -u 1001 -g appgroup --no-create-home appuser \
     && mkdir -p /data && chown 1001:1001 /data
 

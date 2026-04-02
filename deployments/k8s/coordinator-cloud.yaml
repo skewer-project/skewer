@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: skewer-coordinator
+  namespace: default
+  annotations:
+    iam.gke.io/gcp-service-account: skewer-coordinator@deft-sight-487822-q9.iam.gserviceaccount.com
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skewer-coordinator
+  namespace: default
+  labels:
+    app: skewer-coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skewer-coordinator
+  template:
+    metadata:
+      labels:
+        app: skewer-coordinator
+    spec:
+      serviceAccountName: skewer-coordinator
+      containers:
+        - name: coordinator
+          image: us-west2-docker.pkg.dev/deft-sight-487822-q9/skewer/coordinator:latest
+          ports:
+            - containerPort: 50051
+              name: grpc
+          env:
+            - name: CLOUD_RUN_SKEWER_JOB
+              value: "projects/deft-sight-487822-q9/locations/us-west2/jobs/skewer-worker"
+            - name: CLOUD_RUN_LOOM_JOB
+              value: "projects/deft-sight-487822-q9/locations/us-west2/jobs/loom-worker"
+            - name: COORDINATOR_GRPC_ADDR
+              value: "34.94.62.66:50051"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skewer-coordinator
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: skewer-coordinator
+  ports:
+    - port: 50051
+      targetPort: 50051
+      name: grpc
