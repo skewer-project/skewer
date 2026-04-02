@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -147,7 +148,7 @@ func (s *Scheduler) RequeueTask(taskID string) {
 		task.Retries++
 
 		if task.Retries > 3 {
-			fmt.Printf("[SCHEDULER] Task %s failed %d times. Dropping it permanently.\n", task.ID, task.Retries)
+			slog.Warn("task dropped permanently", "task_id", task.ID, "retries", task.Retries)
 
 			if s.OnTaskFailedPermanently != nil {
 				s.OnTaskFailedPermanently(task)
@@ -162,12 +163,12 @@ func (s *Scheduler) RequeueTask(taskID string) {
 			// Route to Skewer Queue
 			case *pb.RenderTask:
 				s.skewerQueue <- t
-				fmt.Printf("[SCHEDULER] Requeued Skewer task %s\n", t.ID)
+				slog.Info("requeued skewer task", "task_id", t.ID)
 
 			// Route to Loom Queue
 			case *pb.CompositeTask:
 				s.loomQueue <- t
-				fmt.Printf("[SCHEDULER] Requeued Loom task %s\n", t.ID)
+				slog.Info("requeued loom task", "task_id", t.ID)
 			}
 		}(task)
 	}
@@ -256,7 +257,7 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 		task.Retries++
 
 		if task.Retries > 3 {
-			fmt.Printf("[SCHEDULER] Task %s failed %d times. Dropping it permanently.\n", task.ID, task.Retries)
+			slog.Warn("task dropped permanently", "task_id", task.ID, "retries", task.Retries)
 
 			if s.OnTaskFailedPermanently != nil {
 				s.OnTaskFailedPermanently(task)
@@ -270,11 +271,11 @@ func (s *Scheduler) sweep(timeout time.Duration) {
 
 		case *pb.RenderTask:
 			s.skewerQueue <- task
-			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Skewer task %s (Retry %d/3)\n", task.ID, task.Retries)
+			slog.Warn("worker timeout, requeued skewer task", "task_id", task.ID, "retry", task.Retries)
 
 		case *pb.CompositeTask:
 			s.loomQueue <- task
-			fmt.Printf("[SCHEDULER] Worker timeout! Requeued Loom task %s (Retry %d/3)\n", task.ID, task.Retries)
+			slog.Warn("worker timeout, requeued loom task", "task_id", task.ID, "retry", task.Retries)
 		}
 	}
 }

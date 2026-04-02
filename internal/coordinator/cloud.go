@@ -3,7 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -62,14 +62,14 @@ func NewK8sCloudManager(ctx context.Context, credentialsFile string) (*K8sCloudM
 
 	var storageClient *storage.Client
 	if credentialsFile != "" {
-		log.Printf("[CLOUD]: Initializing GCP Storage client with provided credentials: %s", credentialsFile)
+		slog.Info("initializing GCP storage client", "credentials_file", credentialsFile)
 		// Use the modern WithAuthCredentialsFile option
 		storageClient, err = storage.NewClient(ctx, option.WithAuthCredentialsFile(option.ServiceAccount, credentialsFile))
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize GCP storage client: %w", err)
 		}
 	} else {
-		log.Printf("[CLOUD]: Warning: No GCP credentials provided. Storage provisioning will fail.")
+		slog.Warn("no GCP credentials provided, storage provisioning will fail")
 	}
 
 	return &K8sCloudManager{
@@ -81,7 +81,7 @@ func NewK8sCloudManager(ctx context.Context, credentialsFile string) (*K8sCloudM
 
 // EnsureCapacity creates or updates a Kubernetes Deployment for the C++ workers.
 func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, deploymentName string, workerCount int) error {
-	log.Printf("[CLOUD]: Ensuring capacity for %s: configuring %d workers...", deploymentName, workerCount)
+	slog.Info("ensuring worker capacity", "deployment", deploymentName, "count", workerCount)
 
 	deploymentsClient := c.k8sClient.AppsV1().Deployments("default")
 
@@ -182,7 +182,7 @@ func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, deploymentName str
 		if err != nil {
 			return fmt.Errorf("[ERROR]: Failed to create deployment %s: %w", deploymentName, err)
 		}
-		log.Printf("[CLOUD]: Created new deployment %s with %d replicas.", deploymentName, workerCount)
+		slog.Info("created deployment", "deployment", deploymentName, "replicas", workerCount)
 	} else if err != nil {
 		return fmt.Errorf("[ERROR]: Failed to get deployment %s: %w", deploymentName, err)
 	} else {
@@ -193,9 +193,9 @@ func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, deploymentName str
 			if err != nil {
 				return fmt.Errorf("[ERROR]: Failed to update deployment %s replicas: %w", deploymentName, err)
 			}
-			log.Printf("[CLOUD]: Updated deployment %s to %d replicas.", deploymentName, workerCount)
+			slog.Info("updated deployment replicas", "deployment", deploymentName, "replicas", workerCount)
 		} else {
-			log.Printf("[CLOUD]: Deployment %s already at %d replicas. No change needed.", deploymentName, workerCount)
+			slog.Debug("deployment replicas unchanged", "deployment", deploymentName, "replicas", workerCount)
 		}
 	}
 
@@ -208,7 +208,7 @@ func (c *K8sCloudManager) ProvisionStorage(ctx context.Context, bucketName strin
 		return fmt.Errorf("[ERROR]: GCP storage client not initialized; missing credentials")
 	}
 
-	log.Printf("[CLOUD]: Verifying storage access to bucket: gs://%s", bucketName)
+	slog.Info("verifying GCS bucket access", "bucket", bucketName)
 
 	// A simple check to ensure we can list objects or get bucket metadata.
 	bucket := c.storageClient.Bucket(bucketName)
@@ -217,6 +217,6 @@ func (c *K8sCloudManager) ProvisionStorage(ctx context.Context, bucketName strin
 		return fmt.Errorf("[ERROR]: Failed to access user bucket (gs://%s): %w", bucketName, err)
 	}
 
-	log.Printf("[CLOUD]: Successfully verified access to target bucket gs://%s (Location: %s)", attrs.Name, attrs.Location)
+	slog.Info("GCS bucket verified", "bucket", attrs.Name, "location", attrs.Location)
 	return nil
 }

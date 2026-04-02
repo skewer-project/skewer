@@ -3,7 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -37,7 +37,7 @@ func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) 
 
 	// Set the terminal failure callback
 	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
-		log.Printf("[SERVER] Task %s for job %s failed permanently. Failing job.", task.ID, task.JobID)
+		slog.Warn("task failed permanently, failing job", "task_id", task.ID, "job_id", task.JobID)
 		s.tracker.CancelJob(task.JobID)
 		s.scheduler.PurgeJobTasks(task.JobID)
 	}
@@ -62,7 +62,7 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 		jobID = uuid.New().String()
 	}
 
-	log.Printf("[COORDINATOR] Received SubmitJob request: %s", jobID)
+	slog.Info("received SubmitJob", "job_id", jobID)
 
 	var newJob Job
 
@@ -156,13 +156,13 @@ func (s *Server) CancelJob(ctx context.Context, req *pb.CancelJobRequest) (*pb.C
 func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.CoordinatorService_GetWorkStreamServer) error {
 	workerID := req.WorkerId
 	capabilities := req.Capabilities
-	log.Printf("[COORDINATOR] Worker %s connected. Capabilities: %v", workerID, capabilities)
+	slog.Info("worker connected", "worker_id", workerID, "capabilities", capabilities)
 
 	// Block and wait for the Scheduler to hand us a task.
 	task, err := s.scheduler.GetNextTask(stream.Context(), capabilities)
 	if err != nil {
 		// If the context is cancelled (worker disconnected), exit cleanly
-		log.Printf("[SERVER]: Worker %s stream closed: %v", workerID, err)
+		slog.Info("worker stream closed", "worker_id", workerID, "error", err)
 		return err
 	}
 
@@ -171,7 +171,7 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 
 	// If the job is marked as FAILED or was deleted, throw this task in the trash!
 	if err != nil || job.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_FAILED {
-		log.Printf("[COORDINATOR]: Skipping cancelled/deleted task %s for job %s", task.ID, task.JobID)
+		slog.Info("skipping task for cancelled job", "task_id", task.ID, "job_id", task.JobID)
 		s.scheduler.MarkTaskComplete(task.ID) // Remove from active memory
 		return nil                            // Close stream, worker will reconnect and try again
 	}
@@ -190,18 +190,18 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 	case *pb.CompositeTask:
 		workPackage.Payload = &pb.WorkPackage_CompositeTask{CompositeTask: t}
 	default:
-		log.Printf("[ERROR]: Unknown task payload type for task %s", task.ID)
+		slog.Error("unknown task payload type", "task_id", task.ID)
 		return nil
 	}
 
 	// Send workPackage down the wire
 	if err := stream.Send(workPackage); err != nil {
-		log.Printf("[ERROR]: Failed to send task to worker %s: %v", workerID, err)
+		slog.Error("failed to send task to worker", "worker_id", workerID, "task_id", task.ID, "error", err)
 		s.scheduler.RequeueTask(task.ID)
 		return err
 	}
 
-	log.Printf("[COORDINATOR]: Assigned task %s to worker %s", task.ID, workerID)
+	slog.Info("assigned task to worker", "task_id", task.ID, "worker_id", workerID)
 	return nil // Close the stream after one task to ensure fair distribution
 }
 
@@ -209,12 +209,12 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 	taskID := req.GetTaskId()
 	jobID := req.GetJobId()
 
-	log.Printf("[COORDINATOR]: Task %s completed by worker %s: success=%v", taskID, req.WorkerId, req.Success)
+	slog.Info("task result received", "task_id", taskID, "worker_id", req.WorkerId, "success", req.Success)
 
 	// Tell the scheduler the worker is officially done with it (stops the Sweeper timeout)
 	task, exists := s.scheduler.Task(taskID)
 	if !exists {
-		log.Printf("[ERROR]: Task %s not found in active tasks", taskID)
+		slog.Error("task not found in active tasks", "task_id", taskID)
 		return &pb.ReportTaskResultResponse{Acknowledged: false}, fmt.Errorf("[ERROR]: Task %s not found in active tasks", taskID)
 	}
 
@@ -223,12 +223,12 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 		// in the JobTracker and fail the whole job if it exceeds max retries.
 		task.Retries++
 		if task.Retries > 3 {
-			log.Printf("[COORDINATOR]: Task %s failed too many times. Failing Job %s", taskID, jobID)
+			slog.Warn("task exceeded max retries, failing job", "task_id", taskID, "job_id", jobID)
 
 			// Mark the job as failed
 			err := s.tracker.CancelJob(jobID)
 			if err != nil {
-				log.Printf("[ERROR]: Failed to retrieve job %s to mark as failed (%v)", jobID, err)
+				slog.Error("failed to cancel job after task failure", "job_id", jobID, "error", err)
 				return &pb.ReportTaskResultResponse{Acknowledged: false}, err
 			}
 
@@ -277,7 +277,7 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 		for _, newJob := range unlockedJobs {
 			// (We will eventually call s.handleCompositeJobSubmit here
 			// to actually queue the tasks for the newly unlocked job)
-			log.Printf("[COORDINATOR]: Job %s is fully unlocked and ready to queue!", newJob.ID())
+			slog.Info("job unlocked and queuing", "job_id", newJob.ID())
 
 			// Type assert to figure out what kind of job just unlocked and queue it
 			req := newJob.GetOriginalReq()
@@ -324,7 +324,7 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 				skewerTarget = 0
 			}
 			if err := s.manager.EnsureCapacity(ctx, "skewer-worker", skewerTarget); err != nil {
-				log.Printf("[SERVER]: Failed to ensure skewer capacity: %v", err)
+				slog.Error("failed to ensure skewer capacity", "error", err)
 			}
 
 			// Handle loom-worker
@@ -334,7 +334,7 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 				loomTarget = 0
 			}
 			if err := s.manager.EnsureCapacity(ctx, "loom-worker", loomTarget); err != nil {
-				log.Printf("[SERVER]: Failed to ensure loom capacity: %v", err)
+				slog.Error("failed to ensure loom capacity", "error", err)
 			}
 		}
 	}
@@ -361,7 +361,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 			return err
 		}
 		if frameID == 0 {
-			log.Printf("[COORDINATOR] Scene path: raw=%q -> worker=%q", job.GetSceneUri(), sceneUri)
+			slog.Debug("resolved scene path", "raw", job.GetSceneUri(), "fuse", sceneUri)
 		}
 
 		// Replace #### with padded frame ID if it exists in the scene URI

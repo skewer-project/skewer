@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -15,12 +16,14 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	// Listen on a TCP port
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("[ERROR] Failed to listen: %v", err)
 	}
-	log.Printf("Coordinator listening on :50051")
+	slog.Info("coordinator listening", "addr", ":50051")
 
 	grpcServer := grpc.NewServer() // Generic gRPC server
 
@@ -58,8 +61,8 @@ func main() {
 	<-c // This will block until the signal is received
 
 	// Stop background capacity manager loop and grpc server
-	log.Println("[SERVER]: Shutting down gracefully...")
+	slog.Info("shutting down gracefully")
 	myServer.Stop()
 	grpcServer.GracefulStop()
-	log.Println("[SERVER]: Shutdown complete.")
+	slog.Info("shutdown complete")
 }
