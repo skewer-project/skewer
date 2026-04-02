@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,19 +17,17 @@ import (
 // Server implements the gRPC CoordinatorService
 type Server struct {
 	pb.UnimplementedCoordinatorServiceServer
-	scheduler        *Scheduler
-	manager          CloudManager
-	tracker          *JobTracker
-	localStorageBase string
-	cancel           context.CancelFunc
+	scheduler *Scheduler
+	manager   CloudManager
+	tracker   *JobTracker
+	cancel    context.CancelFunc
 }
 
-func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, localStorageBase string) *Server {
+func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker) *Server {
 	s := &Server{
-		scheduler:        scheduler,
-		manager:          manager,
-		tracker:          tracker,
-		localStorageBase: localStorageBase,
+		scheduler: scheduler,
+		manager:   manager,
+		tracker:   tracker,
 	}
 
 	// Start a background loop to manage worker capacity
@@ -312,11 +309,8 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 			queueLengths := s.scheduler.GetQueueLengths()
 			activeCounts := s.scheduler.GetActiveTaskCounts()
 
-			// Determine global limit (default to 1 in local mode, 20 in cloud)
+			// Determine global limit (override with MAX_WORKERS env var)
 			limit := 20
-			if s.localStorageBase != "" {
-				limit = 1 // LOCAL MODE: Avoid blowing up laptop
-			}
 			if val, err := strconv.Atoi(os.Getenv("MAX_WORKERS")); err == nil {
 				limit = val
 			}
@@ -346,69 +340,23 @@ func (s *Server) runCapacityManager(ctx context.Context) {
 	}
 }
 
-// relativePathEscapesRoot is true for cleaned relative paths that step outside
-// their base directory (".." or "../..."). Segment names like "..foo" are allowed.
-func relativePathEscapesRoot(clean string) bool {
-	if clean == ".." {
-		return true
+// gcsURIToFusePath converts a gs:// URI to the GCSFuse local mount path (/gcs/...).
+// All URIs in cloud mode must be gs:// — local and relative paths are rejected.
+func gcsURIToFusePath(uri string) (string, error) {
+	if !strings.HasPrefix(uri, "gs://") {
+		return "", fmt.Errorf("cloud mode requires gs:// URIs, got: %s", uri)
 	}
-	return strings.HasPrefix(clean, ".."+string(filepath.Separator))
-}
-
-func (s *Server) translateLocalPath(uri string) (string, error) {
-	if s.localStorageBase == "" {
-		return uri, nil
-	}
-
-	// Handle Cloud URIs (gs://)
-	if trimmed, hasPrefix := strings.CutPrefix(uri, "gs://"); hasPrefix {
-		parts := strings.SplitN(trimmed, "/", 2)
-		if len(parts) == 1 {
-			return filepath.Join(s.localStorageBase, parts[0]), nil
-		}
-		return filepath.Join(s.localStorageBase, parts[0], parts[1]), nil
-	}
-
-	// Handle Local Paths (Mapping host paths to container paths)
-	hostDataPath := os.Getenv("LOCAL_DATA_PATH")
-
-	// If the path is already absolute and starts with the host's data path, swap it.
-	if hostDataPath != "" && filepath.IsAbs(uri) && strings.HasPrefix(uri, hostDataPath) {
-		rel, _ := filepath.Rel(hostDataPath, uri)
-		// SECURITY: Clean the path and prevent traversal
-		cleanRel := filepath.Clean(rel)
-		if relativePathEscapesRoot(cleanRel) {
-			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri) // Will propogate and be rejected by job submit
-		}
-
-		return filepath.Join(s.localStorageBase, cleanRel), nil
-	}
-
-	// Repo-relative paths (e.g. scenes/foo.json): workspace root is mounted at
-	// localStorageBase (/data in Kubernetes). Without this, workers see a bare
-	// relative path and resolve it from process CWD (/) and the task fails.
-	if !filepath.IsAbs(uri) {
-		cleanRel := filepath.Clean(uri)
-		if cleanRel == "." || cleanRel == "" {
-			return "", fmt.Errorf("[ERROR]: Invalid empty relative path")
-		}
-		if relativePathEscapesRoot(cleanRel) {
-			return "", fmt.Errorf("[ERROR]: Blocked dangerous traversal to uri: %s", uri)
-		}
-		return filepath.Join(s.localStorageBase, cleanRel), nil
-	}
-
-	return uri, nil
+	return "/gcs/" + strings.TrimPrefix(uri, "gs://"), nil
 }
 
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
 	for frameID := int32(0); frameID < req.GetNumFrames(); frameID++ {
 		// Calculate uri prefixes
-		outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
+		outputUriPrefix, err := gcsURIToFusePath(job.GetOutputUriPrefix())
 		if err != nil {
 			return err
 		}
-		sceneUri, err := s.translateLocalPath(job.GetSceneUri())
+		sceneUri, err := gcsURIToFusePath(job.GetSceneUri())
 		if err != nil {
 			return err
 		}
@@ -457,7 +405,7 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 
 func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {
 
-	outputUriPrefix, err := s.translateLocalPath(job.GetOutputUriPrefix())
+	outputUriPrefix, err := gcsURIToFusePath(job.GetOutputUriPrefix())
 	if err != nil {
 		return err
 	}
@@ -472,7 +420,7 @@ func (s *Server) handleCompositeJobSubmit(jobID string, req *pb.SubmitJobRequest
 
 		// Clean all the uri prefixes for the layers and store them as full uris in new list
 		for idx, uriPrefix := range originalPrefixes {
-			translatedPrefix, err := s.translateLocalPath(uriPrefix)
+			translatedPrefix, err := gcsURIToFusePath(uriPrefix)
 			if err != nil {
 				return err
 			}

@@ -33,20 +33,13 @@ func main() {
 
 	go scheduler.StartSweeper(ctx, time.Hour, time.Minute)
 
-	// Create Cloud Manager (passing an empty string for local testing if credentials aren't explicitly provided yet)
+	// Create Cloud Manager
 	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")
 	if err != nil {
 		log.Fatalf("[ERROR] Failed to initialize Cloud Manager: %v", err)
 	}
 
-	// Get local storage base path or use /data if it doesn't exist
-	localStorageBase := os.Getenv("LOCAL_STORAGE_BASE")
-	if localStorageBase == "" && os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
-		localStorageBase = "/data"
-		log.Printf("[SERVER]: No storage credentials found. Defaulting to local storage at: %s", localStorageBase)
-	}
-
-	myServer := coordinator.NewServer(scheduler, cloudManager, tracker, localStorageBase) // Logical server
+	myServer := coordinator.NewServer(scheduler, cloudManager, tracker) // Logical server
 
 	// Register logical server with gRPC engine
 	pb.RegisterCoordinatorServiceServer(grpcServer, myServer)
