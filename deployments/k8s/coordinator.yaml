@@ -48,10 +48,12 @@ spec:
       containers:
         - name: coordinator
           image: skewer-coordinator:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 50051
               name: grpc
+            - containerPort: 9090
+              name: metrics
           resources:
             requests:
               cpu: "200m"
@@ -66,14 +68,23 @@ spec:
               value: "{{SKEWER_DATA_PATH}}"
             - name: MAX_WORKERS
               value: "{{MAX_WORKERS}}"
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: "/etc/secrets/credentials.json"
           volumeMounts:
             - name: skewer-data
               mountPath: "/data"
+            - name: gcp-credentials
+              mountPath: "/etc/secrets"
+              readOnly: true
       volumes:
         - name: skewer-data
           hostPath:
             path: "{{SKEWER_DATA_PATH}}"
             type: DirectoryOrCreate
+        - name: gcp-credentials
+          secret:
+            secretName: skewer-gcp-creds
+            optional: true
 ---
 apiVersion: v1
 kind: Service
@@ -87,3 +98,6 @@ spec:
     - port: 50051
       targetPort: 50051
       name: grpc
+    - port: 9090
+      targetPort: 9090
+      name: metrics

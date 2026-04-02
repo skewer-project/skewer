@@ -24,7 +24,7 @@ spec:
             allowPrivilegeEscalation: false
           # NOTE: Replace this with Google Artifact Registry URI
           image: loom-worker:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: COORDINATOR_ADDR
               value: "skewer-coordinator.default.svc.cluster.local:50051"
