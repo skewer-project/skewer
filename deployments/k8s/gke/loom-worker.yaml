@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loom-worker
+  namespace: default
+  labels:
+    app: loom-worker
+spec:
+  replicas: 0 # Scaled dynamically by the Coordinator
+  selector:
+    matchLabels:
+      app: loom-worker
+  template:
+    metadata:
+      labels:
+        app: loom-worker
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: worker
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            allowPrivilegeEscalation: false
+          image: us-west2-docker.pkg.dev/deft-sight-487822-q9/skewer/loom-worker:latest
+          imagePullPolicy: Always
+          env:
+            - name: COORDINATOR_ADDR
+              value: "skewer-coordinator.default.svc.cluster.local:50051"
+          volumeMounts:
+            - name: skewer-data
+              mountPath: "/data"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+      volumes:
+        - name: skewer-data
+          persistentVolumeClaim:
+            claimName: skewer-data-pvc

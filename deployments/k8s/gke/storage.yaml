@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: skewer-data-pvc
+  namespace: default
+spec:
+  # ReadWriteOnce: all pods sharing this PVC must be on the same node.
+  # If you need multi-node access, switch to a Filestore-backed
+  # StorageClass with ReadWriteMany (more expensive).
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard-rwo

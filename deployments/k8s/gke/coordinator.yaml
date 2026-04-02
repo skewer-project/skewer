@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: skewer-coordinator
+  namespace: default
+  annotations:
+    iam.gke.io/gcp-service-account: skewer-gsa@deft-sight-487822-q9.iam.gserviceaccount.com
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: skewer-coordinator-role
+  namespace: default
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: skewer-coordinator-rolebinding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: skewer-coordinator
+roleRef:
+  kind: Role
+  name: skewer-coordinator-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skewer-coordinator
+  namespace: default
+  labels:
+    app: skewer-coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skewer-coordinator
+  template:
+    metadata:
+      labels:
+        app: skewer-coordinator
+    spec:
+      serviceAccountName: skewer-coordinator
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: coordinator
+          image: us-west2-docker.pkg.dev/deft-sight-487822-q9/skewer/skewer-coordinator:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 50051
+              name: grpc
+          env:
+            - name: LOCAL_STORAGE_BASE
+              value: "/data"
+            - name: MAX_WORKERS
+              value: "4"
+          volumeMounts:
+            - name: skewer-data
+              mountPath: "/data"
+      volumes:
+        - name: skewer-data
+          persistentVolumeClaim:
+            claimName: skewer-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skewer-coordinator
+  namespace: default
+spec:
+  selector:
+    app: skewer-coordinator
+  ports:
+    - port: 50051
+      targetPort: 50051
+      name: grpc

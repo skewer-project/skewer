@@ -401,6 +401,26 @@ func (s *Server) translateLocalPath(uri string) (string, error) {
 	return uri, nil
 }
 
+// downloadGCSIfNeeded checks if the original URI is a gs:// path and downloads
+// the file to localPath so workers can read it from the shared volume.
+func (s *Server) downloadGCSIfNeeded(ctx context.Context, originalURI, localPath string) error {
+	trimmed, isGCS := strings.CutPrefix(originalURI, "gs://")
+	if !isGCS {
+		return nil
+	}
+	if !s.manager.HasStorageClient() {
+		return fmt.Errorf("scene URI is a GCS path (%s) but no GCS client is available", originalURI)
+	}
+
+	parts := strings.SplitN(trimmed, "/", 2)
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid GCS URI (no object path): %s", originalURI)
+	}
+	bucket, object := parts[0], parts[1]
+
+	return s.manager.DownloadFile(ctx, bucket, object, localPath)
+}
+
 func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
 	for frameID := int32(0); frameID < req.GetNumFrames(); frameID++ {
 		// Calculate uri prefixes
@@ -414,6 +434,11 @@ func (s *Server) handleRenderJobSubmit(jobID string, req *pb.SubmitJobRequest, j
 		}
 		if frameID == 0 {
 			log.Printf("[COORDINATOR] Scene path: raw=%q -> worker=%q", job.GetSceneUri(), sceneUri)
+
+			// Download scene file from GCS if needed (only once, before first frame)
+			if err := s.downloadGCSIfNeeded(context.Background(), job.GetSceneUri(), sceneUri); err != nil {
+				return fmt.Errorf("failed to download scene file: %w", err)
+			}
 		}
 
 		// Replace #### with padded frame ID if it exists in the scene URI

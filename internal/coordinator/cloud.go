@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -21,6 +22,8 @@ import (
 type CloudManager interface {
 	EnsureCapacity(ctx context.Context, workerType string, workerCount int) error
 	ProvisionStorage(ctx context.Context, bucketName string) error
+	DownloadFile(ctx context.Context, bucket, object, destPath string) error
+	HasStorageClient() bool
 }
 
 type K8sCloudManager struct {
@@ -63,13 +66,19 @@ func NewK8sCloudManager(ctx context.Context, credentialsFile string) (*K8sCloudM
 	var storageClient *storage.Client
 	if credentialsFile != "" {
 		log.Printf("[CLOUD]: Initializing GCP Storage client with provided credentials: %s", credentialsFile)
-		// Use the modern WithAuthCredentialsFile option
-		storageClient, err = storage.NewClient(ctx, option.WithAuthCredentialsFile(option.ServiceAccount, credentialsFile))
+		storageClient, err = storage.NewClient(ctx, option.WithCredentialsFile(credentialsFile))
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize GCP storage client: %w", err)
 		}
 	} else {
-		log.Printf("[CLOUD]: Warning: No GCP credentials provided. Storage provisioning will fail.")
+		// Try Application Default Credentials (works on GKE with Workload Identity
+		// or node service account)
+		log.Printf("[CLOUD]: No explicit credentials provided. Trying Application Default Credentials...")
+		storageClient, err = storage.NewClient(ctx)
+		if err != nil {
+			log.Printf("[CLOUD]: Warning: Could not initialize GCP storage client with ADC: %v", err)
+			log.Printf("[CLOUD]: GCS downloads will not be available.")
+		}
 	}
 
 	return &K8sCloudManager{
@@ -199,6 +208,49 @@ func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, deploymentName str
 		}
 	}
 
+	return nil
+}
+
+// HasStorageClient returns true if GCS operations are available.
+func (c *K8sCloudManager) HasStorageClient() bool {
+	return c.storageClient != nil
+}
+
+// DownloadFile downloads a single object from GCS to a local path.
+// It creates parent directories as needed and skips the download if the file already exists.
+func (c *K8sCloudManager) DownloadFile(ctx context.Context, bucket, object, destPath string) error {
+	if c.storageClient == nil {
+		return fmt.Errorf("GCS storage client not initialized")
+	}
+
+	// Skip if already downloaded
+	if _, err := os.Stat(destPath); err == nil {
+		log.Printf("[CLOUD]: File already exists locally, skipping download: %s", destPath)
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory for %s: %w", destPath, err)
+	}
+
+	reader, err := c.storageClient.Bucket(bucket).Object(object).NewReader(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read gs://%s/%s: %w", bucket, object, err)
+	}
+	defer reader.Close()
+
+	f, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("failed to create local file %s: %w", destPath, err)
+	}
+	defer f.Close()
+
+	written, err := io.Copy(f, reader)
+	if err != nil {
+		return fmt.Errorf("failed to download gs://%s/%s: %w", bucket, object, err)
+	}
+
+	log.Printf("[CLOUD]: Downloaded gs://%s/%s -> %s (%d bytes)", bucket, object, destPath, written)
 	return nil
 }
 

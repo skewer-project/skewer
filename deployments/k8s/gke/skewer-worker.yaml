@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skewer-worker
+  namespace: default
+  labels:
+    app: skewer-worker
+spec:
+  replicas: 0 # Scaled dynamically by the Coordinator
+  selector:
+    matchLabels:
+      app: skewer-worker
+  template:
+    metadata:
+      labels:
+        app: skewer-worker
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: worker
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            allowPrivilegeEscalation: false
+          image: us-west2-docker.pkg.dev/deft-sight-487822-q9/skewer/skewer-worker:latest
+          imagePullPolicy: Always
+          env:
+            - name: COORDINATOR_ADDR
+              value: "skewer-coordinator.default.svc.cluster.local:50051"
+            - name: RENDER_THREADS
+              value: "2"
+          volumeMounts:
+            - name: skewer-data
+              mountPath: "/data"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+      volumes:
+        - name: skewer-data
+          persistentVolumeClaim:
+            claimName: skewer-data-pvc
