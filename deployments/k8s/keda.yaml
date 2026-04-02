@@ -9,7 +9,7 @@ spec:
   minReplicaCount: 0
   maxReplicaCount: 20
   # cooldownPeriod is the time to wait after the queue empties before scaling back to 0
-  cooldownPeriod: 30
+  cooldownPeriod: 120
   triggers:
     - type: metrics-api
       metadata:
@@ -28,7 +28,7 @@ spec:
     name: loom-worker
   minReplicaCount: 0
   maxReplicaCount: 5
-  cooldownPeriod: 30
+  cooldownPeriod: 120
   triggers:
     - type: metrics-api
       metadata:

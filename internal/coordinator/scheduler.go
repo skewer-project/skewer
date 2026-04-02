@@ -197,9 +197,10 @@ func (s *Scheduler) GetQueueLength() int {
 }
 
 func (s *Scheduler) GetQueueLengths() map[string]int {
+	activeCounts := s.GetActiveTaskCounts()
 	return map[string]int{
-		"skewer": len(s.skewerQueue),
-		"loom":   len(s.loomQueue),
+		"skewer": len(s.skewerQueue) + activeCounts["skewer"],
+		"loom":   len(s.loomQueue) + activeCounts["loom"],
 	}
 }
 
