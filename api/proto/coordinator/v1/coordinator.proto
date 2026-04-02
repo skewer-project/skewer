@@ -21,8 +21,7 @@ service CoordinatorService {
   rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
 
-  // Internal API for Skewer and Loom GKE Workers
-  rpc GetWorkStream(GetWorkStreamRequest) returns (stream WorkPackage);
+  // Internal API for Skewer and Loom workers (Cloud Run Jobs report via gRPC)
   rpc ReportTaskResult(ReportTaskResultRequest) returns (ReportTaskResultResponse);
 }
 
@@ -97,14 +96,6 @@ message CancelJobResponse {
 }
 
 ///* Worker Execution *///
-message GetWorkStreamRequest {
-  string worker_id = 1; // UUID of skewer/loom pod
-
-  // Any tags to ensure workers only get tasks they can handle
-  // e.g., ["gpu", "skewer"] or ["high-mem", "loom"]
-  repeated string capabilities = 2;
-}
-
 message WorkPackage {
   string job_id = 1;
   string task_id = 2;

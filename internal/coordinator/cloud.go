@@ -5,218 +5,208 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
+	"sync"
+	"time"
 
+	"cloud.google.com/go/run/apiv2"
+	"cloud.google.com/go/run/apiv2/runpb"
 	"cloud.google.com/go/storage"
-	"google.golang.org/api/option"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
+// CloudManager launches one Cloud Run Job execution per task and tracks executions for cancel.
 type CloudManager interface {
-	EnsureCapacity(ctx context.Context, workerType string, workerCount int) error
+	LaunchTask(ctx context.Context, workerType string, taskID string, env map[string]string) error
+	CancelTask(ctx context.Context, taskID string) error
 	ProvisionStorage(ctx context.Context, bucketName string) error
 }
 
-type K8sCloudManager struct {
-	k8sClient       *kubernetes.Clientset
-	storageClient   *storage.Client
-	credentialsFile string
+// CloudRunManager triggers pre-defined Cloud Run Jobs with per-task environment overrides.
+type CloudRunManager struct {
+	jobsClient *run.JobsClient
+	execClient *run.ExecutionsClient
+
+	skewerJobName string
+	loomJobName   string
+
+	storageClient *storage.Client
+
+	mu              sync.Mutex
+	executionByTask map[string]string // task ID -> Cloud Run Execution resource name
 }
 
-// NewK8sCloudManager initializes a new CloudManager using Kubernetes and GCP.
-// It detects whether it is running inside a cluster (GKE) or outside (Minikube).
-// It also takes a path to a user-provided GCP Service Account JSON key file.
-func NewK8sCloudManager(ctx context.Context, credentialsFile string) (*K8sCloudManager, error) {
-	var config *rest.Config
-	var err error
-
-	// Try in-cluster configuration first (e.g. running inside GKE)
-	config, err = rest.InClusterConfig()
+// NewCloudRunManager builds a manager using Application Default Credentials.
+// Set CLOUD_RUN_SKEWER_JOB and CLOUD_RUN_LOOM_JOB to full resource names, e.g.
+// projects/PROJECT_ID/locations/us-central1/jobs/skewer-cloud-worker
+func NewCloudRunManager(ctx context.Context) (*CloudRunManager, error) {
+	jobsClient, err := run.NewJobsClient(ctx)
 	if err != nil {
-		// Fallback to out-of-cluster config (e.g. Minikube on laptop)
-		kubeconfig := os.Getenv("KUBECONFIG")
-		if kubeconfig == "" {
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return nil, fmt.Errorf("[ERROR]: Failed to get user home dir: %w", err)
-			}
-			kubeconfig = filepath.Join(homeDir, ".kube", "config")
-		}
-
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			return nil, fmt.Errorf("[ERROR]: Failed to build kubeconfig: %w", err)
-		}
+		return nil, fmt.Errorf("run Jobs client: %w", err)
 	}
-
-	clientset, err := kubernetes.NewForConfig(config)
+	execClient, err := run.NewExecutionsClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR]: Failed to create k8s clientset: %w", err)
+		_ = jobsClient.Close()
+		return nil, fmt.Errorf("run Executions client: %w", err)
 	}
 
-	var storageClient *storage.Client
-	if credentialsFile != "" {
-		slog.Info("initializing GCP storage client", "credentials_file", credentialsFile)
-		// Use the modern WithAuthCredentialsFile option
-		storageClient, err = storage.NewClient(ctx, option.WithAuthCredentialsFile(option.ServiceAccount, credentialsFile))
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize GCP storage client: %w", err)
-		}
-	} else {
-		slog.Warn("no GCP credentials provided, storage provisioning will fail")
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		_ = jobsClient.Close()
+		_ = execClient.Close()
+		return nil, fmt.Errorf("storage client: %w", err)
 	}
 
-	return &K8sCloudManager{
-		k8sClient:       clientset,
+	return &CloudRunManager{
+		jobsClient:      jobsClient,
+		execClient:      execClient,
+		skewerJobName:   os.Getenv("CLOUD_RUN_SKEWER_JOB"),
+		loomJobName:     os.Getenv("CLOUD_RUN_LOOM_JOB"),
 		storageClient:   storageClient,
-		credentialsFile: credentialsFile,
+		executionByTask: make(map[string]string),
 	}, nil
 }
 
-// EnsureCapacity creates or updates a Kubernetes Deployment for the C++ workers.
-func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, deploymentName string, workerCount int) error {
-	slog.Info("ensuring worker capacity", "deployment", deploymentName, "count", workerCount)
-
-	deploymentsClient := c.k8sClient.AppsV1().Deployments("default")
-
-	// Look up the existing deployment
-	deployment, err := deploymentsClient.Get(ctx, deploymentName, metav1.GetOptions{})
-
-	replicas := int32(workerCount)
-
-	// Define volumes and mounts dynamically based on whether we are local or in the cloud.
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-	var envVars []corev1.EnvVar
-
-	envVars = append(envVars, corev1.EnvVar{
-		Name:  "COORDINATOR_ADDR",
-		Value: "skewer-coordinator.default.svc.cluster.local:50051",
-	})
-	envVars = append(envVars, corev1.EnvVar{
-		Name:  "COORDINATOR_ADDRESS",
-		Value: "skewer-coordinator.default.svc.cluster.local:50051",
-	})
-
-	if c.credentialsFile == "" {
-		// LOCAL MODE: Mount a local hostPath directory to /data
-		localDataPath := os.Getenv("LOCAL_DATA_PATH")
-		if localDataPath == "" {
-			localDataPath = "/data" // fallback
-		}
-		volumes = append(volumes, corev1.Volume{
-			Name: "skewer-data",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: localDataPath,
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "skewer-data",
-			MountPath: "/data",
-		})
-	} else {
-		// CLOUD MODE: Mount the secret to /etc/secrets
-		volumes = append(volumes, corev1.Volume{
-			Name: "gcp-credentials",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: "skewer-gcp-creds",
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "gcp-credentials",
-			MountPath: "/etc/secrets",
-			ReadOnly:  true,
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "GOOGLE_APPLICATION_CREDENTIALS",
-			Value: "/etc/secrets/credentials.json",
-		})
-	}
-
-	if k8serrors.IsNotFound(err) {
-		// Create a new Deployment if it doesn't exist
-		newDeployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: deploymentName,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": deploymentName,
-					},
-				},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": deploymentName,
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:            "worker",
-								Image:           deploymentName + ":latest",
-								ImagePullPolicy: corev1.PullIfNotPresent,
-								Env:             envVars,
-								VolumeMounts:    volumeMounts,
-							},
-						},
-						Volumes: volumes,
-					},
-				},
-			},
-		}
-
-		_, err = deploymentsClient.Create(ctx, newDeployment, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("[ERROR]: Failed to create deployment %s: %w", deploymentName, err)
-		}
-		slog.Info("created deployment", "deployment", deploymentName, "replicas", workerCount)
-	} else if err != nil {
-		return fmt.Errorf("[ERROR]: Failed to get deployment %s: %w", deploymentName, err)
-	} else {
-		// Update existing Deployment
-		if *deployment.Spec.Replicas != replicas {
-			deployment.Spec.Replicas = &replicas
-			_, err = deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{})
-			if err != nil {
-				return fmt.Errorf("[ERROR]: Failed to update deployment %s replicas: %w", deploymentName, err)
-			}
-			slog.Info("updated deployment replicas", "deployment", deploymentName, "replicas", workerCount)
-		} else {
-			slog.Debug("deployment replicas unchanged", "deployment", deploymentName, "replicas", workerCount)
+func (c *CloudRunManager) Close() error {
+	var firstErr error
+	if c.jobsClient != nil {
+		if err := c.jobsClient.Close(); err != nil {
+			firstErr = err
 		}
 	}
+	if c.execClient != nil {
+		if err := c.execClient.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if c.storageClient != nil {
+		if err := c.storageClient.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
 
+func (c *CloudRunManager) jobNameForWorkerType(workerType string) (string, error) {
+	switch workerType {
+	case "skewer", "skewer-worker":
+		if c.skewerJobName == "" {
+			return "", fmt.Errorf("CLOUD_RUN_SKEWER_JOB is not set")
+		}
+		return c.skewerJobName, nil
+	case "loom", "loom-worker":
+		if c.loomJobName == "" {
+			return "", fmt.Errorf("CLOUD_RUN_LOOM_JOB is not set")
+		}
+		return c.loomJobName, nil
+	default:
+		return "", fmt.Errorf("unknown worker type %q", workerType)
+	}
+}
+
+func envMapToRunPB(m map[string]string) []*runpb.EnvVar {
+	out := make([]*runpb.EnvVar, 0, len(m))
+	for k, v := range m {
+		out = append(out, &runpb.EnvVar{
+			Name: k,
+			Values: &runpb.EnvVar_Value{
+				Value: v,
+			},
+		})
+	}
+	return out
+}
+
+// LaunchTask starts a Cloud Run Job execution with the given environment overrides.
+func (c *CloudRunManager) LaunchTask(ctx context.Context, workerType string, taskID string, env map[string]string) error {
+	jobName, err := c.jobNameForWorkerType(workerType)
+	if err != nil {
+		return err
+	}
+
+	req := &runpb.RunJobRequest{
+		Name: jobName,
+		Overrides: &runpb.RunJobRequest_Overrides{
+			ContainerOverrides: []*runpb.RunJobRequest_Overrides_ContainerOverride{
+				{
+					Env: envMapToRunPB(env),
+				},
+			},
+		},
+	}
+
+	op, err := c.jobsClient.RunJob(ctx, req)
+	if err != nil {
+		return fmt.Errorf("RunJob: %w", err)
+	}
+
+	c.trackRunJobOperation(op, taskID)
+	slog.Info("launched cloud run job execution", "task_id", taskID, "job", jobName)
 	return nil
 }
 
-// ProvisionStorage verifies access to the user's GCP bucket and configures storage.
-func (c *K8sCloudManager) ProvisionStorage(ctx context.Context, bucketName string) error {
-	if c.storageClient == nil {
-		return fmt.Errorf("[ERROR]: GCP storage client not initialized; missing credentials")
+func (c *CloudRunManager) trackRunJobOperation(op *run.RunJobOperation, taskID string) {
+	go func() {
+		bg, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		for {
+			select {
+			case <-bg.Done():
+				return
+			default:
+			}
+			ex, err := op.Poll(bg)
+			if err != nil {
+				slog.Warn("RunJob poll failed", "task_id", taskID, "error", err)
+				return
+			}
+			if meta, err := op.Metadata(); err == nil && meta != nil && meta.GetName() != "" {
+				c.mu.Lock()
+				c.executionByTask[taskID] = meta.GetName()
+				c.mu.Unlock()
+				return
+			}
+			if op.Done() && ex != nil && ex.GetName() != "" {
+				c.mu.Lock()
+				c.executionByTask[taskID] = ex.GetName()
+				c.mu.Unlock()
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}()
+}
+
+// CancelTask deletes the Cloud Run execution for a task, if known.
+func (c *CloudRunManager) CancelTask(ctx context.Context, taskID string) error {
+	c.mu.Lock()
+	name, ok := c.executionByTask[taskID]
+	delete(c.executionByTask, taskID)
+	c.mu.Unlock()
+	if !ok || name == "" {
+		slog.Debug("cancel task: no execution mapped yet", "task_id", taskID)
+		return nil
 	}
 
-	slog.Info("verifying GCS bucket access", "bucket", bucketName)
+	op, err := c.execClient.DeleteExecution(ctx, &runpb.DeleteExecutionRequest{Name: name})
+	if err != nil {
+		return fmt.Errorf("DeleteExecution: %w", err)
+	}
+	go func() {
+		_, _ = op.Wait(ctx)
+	}()
+	return nil
+}
 
-	// A simple check to ensure we can list objects or get bucket metadata.
+// ProvisionStorage verifies access to the GCS bucket.
+func (c *CloudRunManager) ProvisionStorage(ctx context.Context, bucketName string) error {
+	if c.storageClient == nil {
+		return fmt.Errorf("GCP storage client not initialized")
+	}
+	slog.Info("verifying GCS bucket access", "bucket", bucketName)
 	bucket := c.storageClient.Bucket(bucketName)
 	attrs, err := bucket.Attrs(ctx)
 	if err != nil {
-		return fmt.Errorf("[ERROR]: Failed to access user bucket (gs://%s): %w", bucketName, err)
+		return fmt.Errorf("access user bucket (gs://%s): %w", bucketName, err)
 	}
-
 	slog.Info("GCS bucket verified", "bucket", attrs.Name, "location", attrs.Location)
 	return nil
 }

@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
 	"github.com/skewer-project/skewer/internal/coordinator"
@@ -18,49 +17,45 @@ import (
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
-	// Listen on a TCP port
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("[ERROR] Failed to listen: %v", err)
 	}
 	slog.Info("coordinator listening", "addr", ":50051")
 
-	grpcServer := grpc.NewServer() // Generic gRPC server
+	grpcServer := grpc.NewServer()
 
-	// Create dependencies
-	// TODO: Make these configurable and make arguments for skewer and loom queue sizes separate
-	scheduler := coordinator.NewScheduler(10000) // Increase queue size to handle large jobs without blocking
-	tracker := coordinator.NewJobTracker()
+	coordAddr := os.Getenv("COORDINATOR_GRPC_ADDR")
+	if coordAddr == "" {
+		coordAddr = "skewer-coordinator.default.svc.cluster.local:50051"
+	}
 
 	ctx := context.Background()
 
-	go scheduler.StartSweeper(ctx, time.Hour, time.Minute)
-
-	// Create Cloud Manager
-	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")
+	cloudManager, err := coordinator.NewCloudRunManager(ctx)
 	if err != nil {
-		log.Fatalf("[ERROR] Failed to initialize Cloud Manager: %v", err)
+		log.Fatalf("[ERROR] Failed to initialize Cloud Run manager: %v", err)
 	}
+	defer func() { _ = cloudManager.Close() }()
 
-	myServer := coordinator.NewServer(scheduler, cloudManager, tracker) // Logical server
+	scheduler := coordinator.NewScheduler(cloudManager, coordAddr)
+	tracker := coordinator.NewJobTracker()
 
-	// Register logical server with gRPC engine
+	myServer := coordinator.NewServer(scheduler, tracker)
+
 	pb.RegisterCoordinatorServiceServer(grpcServer, myServer)
 
-	// Serve the server as a background goroutine
 	go func() {
 		if err := grpcServer.Serve(lis); err == grpc.ErrServerStopped {
 			grpcServer.GracefulStop()
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shut down the server
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM) // SIGINT (Ctrl+C) and SIGTERM (Docker/K8s stop)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-	<-c // This will block until the signal is received
+	<-c
 
-	// Stop background capacity manager loop and grpc server
 	slog.Info("shutting down gracefully")
 	myServer.Stop()
 	grpcServer.GracefulStop()

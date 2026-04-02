@@ -88,7 +88,8 @@ find_package(ZLIB REQUIRED)
 
 # Create Executables
 add_executable(skewer-render apps/cli/main.cc ${SKEWER_CORE_SOURCES})
-add_executable(skewer-worker apps/worker/main.cc ${SKEWER_CORE_SOURCES})
+add_executable(skewer-worker apps/cloud_worker/main.cc ${SKEWER_CORE_SOURCES})
+add_executable(skewer-cloud-worker apps/cloud_worker/main.cc ${SKEWER_CORE_SOURCES})
 
 # Include directories tell CMake where to look for header files
 target_include_directories(skewer-render
@@ -97,6 +98,12 @@ target_include_directories(skewer-render
         ${PROJECT_SOURCE_DIR}/external
 )
 target_include_directories(skewer-worker
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/external
+        ${CMAKE_BINARY_DIR}
+)
+target_include_directories(skewer-cloud-worker
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/external
@@ -125,9 +132,20 @@ target_link_libraries(skewer-worker
     ZLIB::ZLIB
     coordinator_worker
 )
+target_link_libraries(skewer-cloud-worker
+    PRIVATE
+    nlohmann_json::nlohmann_json
+    exrio::exrio
+    nanovdb
+    Imath::Imath
+    OpenEXR::OpenEXR
+    ZLIB::ZLIB
+    coordinator_worker
+)
 
 # Enable NanoVDB SIMD optimizations
 target_compile_definitions(skewer-worker PRIVATE NANOVDB_USE_INTRINSICS)
+target_compile_definitions(skewer-cloud-worker PRIVATE NANOVDB_USE_INTRINSICS)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(skewer-render PRIVATE -ffast-math)

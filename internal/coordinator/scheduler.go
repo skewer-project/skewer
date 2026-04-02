@@ -2,7 +2,6 @@ package coordinator
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -18,29 +17,30 @@ type Task struct {
 	Payload any // *pb.RenderTask or *pb.CompositeTask
 
 	CreatedAt time.Time
-	StartedAt time.Time // WHEN the worker pulled it
-	Retries   int32     // How many times it has been requeued
+	StartedAt time.Time
+	Retries   int32
 }
 
 type Scheduler struct {
 	mu          sync.Mutex
-	skewerQueue chan *Task       // Only for Render Tasks (thread safe)
-	loomQueue   chan *Task       // Only for Merge/Composite Tasks (thread safe)
-	activeTasks map[string]*Task // Tasks currently being worked on
+	manager     CloudManager
+	activeTasks map[string]*Task
 
-	OnTaskFailedPermanently func(task *Task) // Callback when a task is lost
+	coordinatorAddr string
+
+	OnTaskFailedPermanently func(task *Task)
 }
 
-func NewScheduler(maxQueueSize int) *Scheduler {
+func NewScheduler(manager CloudManager, coordinatorAddr string) *Scheduler {
 	return &Scheduler{
-		skewerQueue: make(chan *Task, maxQueueSize),
-		loomQueue:   make(chan *Task, maxQueueSize),
-		activeTasks: make(map[string]*Task),
+		manager:         manager,
+		activeTasks:     make(map[string]*Task),
+		coordinatorAddr: coordinatorAddr,
 	}
 }
 
-// EnqueueTask adds a new task to the queue
-func (s *Scheduler) EnqueueTask(payload any, jobID string, frameID string) (string, error) {
+// EnqueueTask registers the task and launches a Cloud Run Job execution.
+func (s *Scheduler) EnqueueTask(ctx context.Context, payload any, jobID string, frameID string) (string, error) {
 	taskID := uuid.New().String()
 	task := &Task{
 		ID:        taskID,
@@ -50,144 +50,94 @@ func (s *Scheduler) EnqueueTask(payload any, jobID string, frameID string) (stri
 		CreatedAt: time.Now(),
 	}
 
-	// Figure out which queue to put it in, and do it atomically
-	switch payload.(type) {
-	case *pb.RenderTask:
-		s.skewerQueue <- task
-		return taskID, nil
-
-	case *pb.CompositeTask:
-		s.loomQueue <- task
-		return taskID, nil
-
-	default:
-		return "", fmt.Errorf("[Error] Unknown task payload type")
+	workerType, env, err := buildWorkerLaunch(task, s.coordinatorAddr)
+	if err != nil {
+		return "", err
 	}
 
+	s.mu.Lock()
+	task.StartedAt = time.Now()
+	s.activeTasks[task.ID] = task
+	s.mu.Unlock()
+
+	if err := s.manager.LaunchTask(ctx, workerType, taskID, env); err != nil {
+		s.popActiveTask(taskID)
+		return "", err
+	}
+
+	return taskID, nil
 }
 
-// gRPC streaming handlers will just call this in a loop.
-func (s *Scheduler) GetNextTask(ctx context.Context, capabilities []string) (*Task, error) {
-
-	if len(capabilities) == 0 {
-		return nil, fmt.Errorf("[ERROR] No capabilities provided")
-	}
-
-	workerType := "none"
-	for _, capability := range capabilities {
-		if capability == "skewer" || capability == "loom" {
-			workerType = capability
-			break
-		}
-	}
-
-	if workerType == "none" {
-		return nil, fmt.Errorf("[ERROR] No compatible worker type found")
-	}
-
-	// Get next type based on workerType
-	for {
-		switch workerType {
-		case "skewer":
-			select {
-			case task := <-s.skewerQueue: // Pull ONLY from Skewer Queue
-
-				s.mu.Lock()
-				task.StartedAt = time.Now()
-				s.activeTasks[task.ID] = task
-				s.mu.Unlock()
-
-				return task, nil
-
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-
-		case "loom":
-			select {
-			case task := <-s.loomQueue: // Pull ONLY from Loom Queue
-
-				s.mu.Lock()
-				task.StartedAt = time.Now()
-				s.activeTasks[task.ID] = task
-				s.mu.Unlock()
-
-				return task, nil
-
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-		}
-	}
-}
-
-// Returns task pointer with given ID from activeTasks
 func (s *Scheduler) Task(taskID string) (*Task, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	task, exists := s.activeTasks[taskID]
-
 	return task, exists
 }
 
-// Safely removes and returns the task
 func (s *Scheduler) popActiveTask(taskID string) (*Task, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	task, exists := s.Task(taskID)
+	task, exists := s.activeTasks[taskID]
 	if exists {
 		delete(s.activeTasks, taskID)
 	}
 	return task, exists
 }
 
-func (s *Scheduler) RequeueTask(taskID string) {
+func (s *Scheduler) RequeueTask(ctx context.Context, taskID string) {
 	task, exists := s.popActiveTask(taskID)
+	if !exists {
+		return
+	}
+	task.CreatedAt = time.Now()
+	task.Retries++
 
-	if exists {
-		task.CreatedAt = time.Now()
-		task.Retries++
-
-		if task.Retries > 3 {
-			slog.Warn("task dropped permanently", "task_id", task.ID, "retries", task.Retries)
-
-			if s.OnTaskFailedPermanently != nil {
-				s.OnTaskFailedPermanently(task)
-			}
-			return
+	if task.Retries > 3 {
+		slog.Warn("task dropped permanently", "task_id", task.ID, "retries", task.Retries)
+		if s.OnTaskFailedPermanently != nil {
+			s.OnTaskFailedPermanently(task)
 		}
+		return
+	}
 
-		// Push it back onto the correct queue in a goroutine
-		go func(t *Task) {
-			switch t.Payload.(type) {
+	workerType, env, err := buildWorkerLaunch(task, s.coordinatorAddr)
+	if err != nil {
+		slog.Error("requeue build env failed", "task_id", task.ID, "error", err)
+		if s.OnTaskFailedPermanently != nil {
+			s.OnTaskFailedPermanently(task)
+		}
+		return
+	}
 
-			// Route to Skewer Queue
-			case *pb.RenderTask:
-				s.skewerQueue <- t
-				slog.Info("requeued skewer task", "task_id", t.ID)
+	s.mu.Lock()
+	task.StartedAt = time.Now()
+	s.activeTasks[task.ID] = task
+	s.mu.Unlock()
 
-			// Route to Loom Queue
-			case *pb.CompositeTask:
-				s.loomQueue <- t
-				slog.Info("requeued loom task", "task_id", t.ID)
-			}
-		}(task)
+	if err := s.manager.LaunchTask(ctx, workerType, taskID, env); err != nil {
+		slog.Error("requeue launch failed", "task_id", task.ID, "error", err)
+		s.popActiveTask(taskID)
+		if s.OnTaskFailedPermanently != nil {
+			s.OnTaskFailedPermanently(task)
+		}
 	}
 }
 
-// MarkTaskComplete removes it from active tracking without doing anything with the values
+// MarkTaskComplete removes it from active tracking.
 func (s *Scheduler) MarkTaskComplete(taskID string) (*Task, bool) {
 	return s.popActiveTask(taskID)
 }
 
-// GetQueueLength returns current total queue size for KEDA. NO LOCKS NEEDED.
+// GetQueueLength is always zero (push-based dispatch).
 func (s *Scheduler) GetQueueLength() int {
-	return len(s.skewerQueue) + len(s.loomQueue)
+	return 0
 }
 
 func (s *Scheduler) GetQueueLengths() map[string]int {
 	return map[string]int{
-		"skewer": len(s.skewerQueue),
-		"loom":   len(s.loomQueue),
+		"skewer": 0,
+		"loom":   0,
 	}
 }
 
@@ -218,109 +168,21 @@ func (s *Scheduler) GetActiveTaskCounts() map[string]int {
 	return counts
 }
 
-// StartSweeper runs a background loop to reclaim tasks from dead workers (that may have segfaulted).
-// Call this once right after creating the Scheduler: `go scheduler.StartSweeper(ctx, ...)`
-func (s *Scheduler) StartSweeper(ctx context.Context, timeout time.Duration, checkInterval time.Duration) {
-	ticker := time.NewTicker(checkInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return // Server is shutting down, stop sweeping
-		case <-ticker.C:
-			s.sweep(timeout)
-		}
-	}
-}
-
-func (s *Scheduler) sweep(timeout time.Duration) {
-	now := time.Now()
-
-	// Create a temporary list to hold tasks we need to recover
-	var deadTasks []*Task
-
-	// Lock just long enough to scan the map and remove the bad entries
+func (s *Scheduler) PurgeJobTasks(ctx context.Context, jobID string) error {
 	s.mu.Lock()
+	var ids []string
 	for id, task := range s.activeTasks {
-		// TODO: Change StartedAt to LastHeartbeat if we implement
-		if now.Sub(task.StartedAt) > timeout {
-			deadTasks = append(deadTasks, task)
-			delete(s.activeTasks, id) // Remove it from active tracking
+		if task.JobID == jobID {
+			ids = append(ids, id)
 		}
 	}
 	s.mu.Unlock()
 
-	// Now we are outside the lock. The rest of the server can keep running.
-	// We can safely process the requeues without freezing the scheduler.
-	for _, task := range deadTasks {
-		task.Retries++
-
-		if task.Retries > 3 {
-			slog.Warn("task dropped permanently", "task_id", task.ID, "retries", task.Retries)
-
-			if s.OnTaskFailedPermanently != nil {
-				s.OnTaskFailedPermanently(task)
-			}
-			continue
+	for _, taskID := range ids {
+		if err := s.manager.CancelTask(ctx, taskID); err != nil {
+			slog.Warn("cancel cloud execution", "task_id", taskID, "error", err)
 		}
-
-		// Push it back to the queue
-		// Figure out which queue the dead task belongs to!
-		switch task.Payload.(type) {
-
-		case *pb.RenderTask:
-			s.skewerQueue <- task
-			slog.Warn("worker timeout, requeued skewer task", "task_id", task.ID, "retry", task.Retries)
-
-		case *pb.CompositeTask:
-			s.loomQueue <- task
-			slog.Warn("worker timeout, requeued loom task", "task_id", task.ID, "retry", task.Retries)
-		}
-	}
-}
-
-func (s *Scheduler) PurgeJobTasks(jobID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Purge all active tasks
-	for taskID, task := range s.activeTasks {
-		if task.JobID == jobID {
-			delete(s.activeTasks, taskID)
-		}
-	}
-
-	// Helper to filter tasks for a given job ID out of a queue channel.
-	// The safest way to filter a channel is to separate good ones and purge in place.
-	filterQueue := func(ch chan *Task, jobID string) {
-		var kept []*Task
-
-		// Drain everything from channel and keep track of tasks to keep
-	DrainLoop:
-		for len(ch) > 0 {
-			select {
-			case task := <-ch:
-				if task != nil && task.JobID != jobID {
-					kept = append(kept, task) // Keep tasks from other jobs
-				}
-			default: // Channel drained by worker in meantime
-				break DrainLoop
-			}
-		}
-
-		// Put kept tasks back into the channel
-		for _, task := range kept {
-			ch <- task
-		}
-	}
-
-	// Use helper function to purge
-	if s.skewerQueue != nil {
-		filterQueue(s.skewerQueue, jobID)
-	}
-	if s.loomQueue != nil {
-		filterQueue(s.loomQueue, jobID)
+		s.popActiveTask(taskID)
 	}
 
 	return nil

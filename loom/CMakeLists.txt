@@ -56,13 +56,19 @@ target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(loom src/main.cc)
 target_link_libraries(loom PRIVATE loom_compositor)
 
-# Worker executable
-add_executable(loom-worker apps/worker/main.cc)
+# Worker executables (Cloud Run one-shot + legacy target name)
+add_executable(loom-worker apps/cloud_worker/main.cc)
+add_executable(loom-cloud-worker apps/cloud_worker/main.cc)
 target_include_directories(loom-worker PRIVATE
     ${PROJECT_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}
 )
+target_include_directories(loom-cloud-worker PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
+    ${CMAKE_BINARY_DIR}
+)
 target_link_libraries(loom-worker PRIVATE loom_compositor coordinator_worker)
+target_link_libraries(loom-cloud-worker PRIVATE loom_compositor coordinator_worker)
 
 # Create output directory
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
