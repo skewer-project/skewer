@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -13,6 +14,57 @@
 #include "proto/coordinator/v1/coordinator.pb.h"
 #include "session/render_options.h"
 #include "session/render_session.h"
+
+// ---------------------------------------------------------------------------
+// GCS helpers: sync bucket + translate URIs (gsutil installed in runner image)
+// ---------------------------------------------------------------------------
+
+// Sync gs://bucket/* to /tmp/gcs/bucket/ once per worker lifetime so that
+// relative asset paths inside the scene JSON (e.g. ../objects/Po/Po.obj)
+// resolve correctly from the local mirror.
+static std::string g_last_synced_bucket;
+
+std::string SyncBucketFromGCS(const std::string& gs_uri) {
+    std::string trimmed = gs_uri.substr(5);  // strip "gs://"
+    std::string bucket = trimmed.substr(0, trimmed.find('/'));
+    std::string local_root = "/tmp/gcs/" + bucket;
+
+    if (g_last_synced_bucket == bucket) return local_root;
+    g_last_synced_bucket = bucket;
+
+    std::filesystem::create_directories(local_root);
+    std::string cmd = "gsutil -m -q rsync -r gs://" + bucket + "/ " + local_root + "/";
+    std::cout << "[GCS]: Syncing bucket gs://" << bucket << " -> " << local_root << "\n";
+    int rc = std::system(cmd.c_str());
+    if (rc != 0) {
+        throw std::runtime_error("Failed to sync GCS bucket (exit " + std::to_string(rc) +
+                                 "): gs://" + bucket);
+    }
+    std::cout << "[GCS]: Bucket sync complete.\n";
+    return local_root;
+}
+
+// Translate gs://bucket/path -> /tmp/gcs/bucket/path (syncing bucket first).
+std::string MaybeDownloadFromGCS(const std::string& uri) {
+    if (uri.rfind("gs://", 0) != 0) return uri;
+    std::string local_root = SyncBucketFromGCS(uri);
+    std::string trimmed = uri.substr(5);
+    std::string path = trimmed.substr(trimmed.find('/') + 1);
+    return local_root + "/" + path;
+}
+
+// Upload a local file to GCS if dest_uri is a gs:// URI.
+void MaybeUploadToGCS(const std::string& src_local, const std::string& dest_uri) {
+    if (dest_uri.rfind("gs://", 0) != 0) return;
+    std::string cmd = "gsutil -q cp \"" + src_local + "\" \"" + dest_uri + "\"";
+    std::cout << "[GCS]: Uploading " << src_local << " -> " << dest_uri << "\n";
+    int rc = std::system(cmd.c_str());
+    if (rc != 0) {
+        std::cerr << "[GCS]: Warning: upload failed (exit " << rc << ")\n";
+    } else {
+        std::filesystem::remove(src_local);
+    }
+}
 
 struct HeartbeatGuard {
     std::atomic<bool>& active;
@@ -108,7 +160,9 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 }
 
                 // Adapt integrator config to sample range
-                session.LoadSceneFromFile(task.scene_uri(), 0);
+                // Download scene JSON from GCS if needed, else use as-is
+                std::string local_scene = MaybeDownloadFromGCS(task.scene_uri());
+                session.LoadSceneFromFile(local_scene, 0);
 
                 // Check for overrides from the coordinator
                 if (task.width() > 0 && task.height() > 0) {
@@ -122,8 +176,23 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 }
 
                 session.Options().integrator_config.num_threads = task_threads;
-                session.Options().image_config.outfile = task.output_uri();
-                session.Options().image_config.exrfile = task.output_uri();
+                // Render to a local temp path if the output is a GCS URI,
+                // then upload afterwards.
+                std::string local_output = task.output_uri();
+                std::string gcs_output;  // empty = pure local render
+                if (task.output_uri().rfind("gs://", 0) == 0) {
+                    std::string ext = task.output_uri().substr(task.output_uri().rfind('.'));
+                    local_output = "/tmp/skewer_out_" + package.task_id() + ext;
+                    gcs_output = task.output_uri();
+                    // Also redirect EXR to same temp base
+                    std::string exr_local = "/tmp/skewer_out_" + package.task_id() + ".exr";
+                    session.Options().image_config.outfile = local_output;
+                    session.Options().image_config.exrfile = exr_local;
+                } else {
+                    session.Options().image_config.outfile = task.output_uri();
+                    session.Options().image_config.exrfile = task.output_uri();
+                }
+
                 session.Options().integrator_config.enable_deep = task.enable_deep();
 
                 // Apply adaptive sampling if the job specifies it (overrides scene JSON)
@@ -168,8 +237,16 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
                 session.Render();
                 session.Save();
 
-                // std::cout << "[SKEWER]: Engine execution placeholder completed.\n";
-
+                // Upload renders to GCS if the destination was a gs:// URI
+                if (!gcs_output.empty()) {
+                    MaybeUploadToGCS(local_output, gcs_output);
+                    // Also upload the EXR if deep compositing was enabled
+                    if (task.enable_deep()) {
+                        std::string exr_local = "/tmp/skewer_out_" + package.task_id() + ".exr";
+                        std::string gcs_exr = gcs_output.substr(0, gcs_output.rfind('.')) + ".exr";
+                        MaybeUploadToGCS(exr_local, gcs_exr);
+                    }
+                }
             } catch (const std::exception& e) {
                 success = false;
                 error_message = e.what();

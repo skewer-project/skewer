@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -14,6 +15,42 @@
 #include "deep_info.h"
 #include "proto/coordinator/v1/coordinator.grpc.pb.h"
 #include "proto/coordinator/v1/coordinator.pb.h"
+
+static std::string g_last_synced_bucket;
+
+std::string SyncBucketFromGCS(const std::string& gs_uri) {
+    std::string trimmed = gs_uri.substr(5);
+    std::string bucket = trimmed.substr(0, trimmed.find('/'));
+    std::string local_root = "/tmp/gcs/" + bucket;
+    if (g_last_synced_bucket == bucket) return local_root;
+    g_last_synced_bucket = bucket;
+    std::filesystem::create_directories(local_root);
+    std::string cmd = "gsutil -m -q rsync -r gs://" + bucket + "/ " + local_root + "/";
+    std::cout << "[GCS]: Syncing bucket gs://" << bucket << " -> " << local_root << "\n";
+    int rc = std::system(cmd.c_str());
+    if (rc != 0) throw std::runtime_error("Failed to sync GCS bucket: gs://" + bucket);
+    std::cout << "[GCS]: Bucket sync complete.\n";
+    return local_root;
+}
+
+std::string MaybeDownloadFromGCS(const std::string& uri) {
+    if (uri.rfind("gs://", 0) != 0) return uri;
+    std::string local_root = SyncBucketFromGCS(uri);
+    std::string trimmed = uri.substr(5);
+    std::string path = trimmed.substr(trimmed.find('/') + 1);
+    return local_root + "/" + path;
+}
+
+void MaybeUploadToGCS(const std::string& src_local, const std::string& dest_uri) {
+    if (dest_uri.rfind("gs://", 0) != 0) return;
+    std::string cmd = "gsutil -q cp \"" + src_local + "\" \"" + dest_uri + "\"";
+    std::cout << "[GCS]: Uploading " << src_local << " -> " << dest_uri << "\n";
+    int rc = std::system(cmd.c_str());
+    if (rc != 0)
+        std::cerr << "[GCS]: Warning: upload failed (exit " << rc << ")\n";
+    else
+        std::filesystem::remove(src_local);
+}
 
 struct HeartbeatGuard {
     std::atomic<bool>& active;
@@ -86,9 +123,21 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     std::cout << "[LOOM]: Starting CompositeTask: " << package.task_id()
                               << " for frame " << package.frame_id() << "\n";
 
-                    // Load Phase
-                    std::vector<std::string> inputFiles(task.layer_uris().begin(),
-                                                        task.layer_uris().end());
+                    // Translate gs:// layer URIs to local mirrored paths
+                    std::vector<std::string> inputFiles;
+                    inputFiles.reserve(task.layer_uris().size());
+                    for (const auto& raw_uri : task.layer_uris()) {
+                        inputFiles.push_back(MaybeDownloadFromGCS(raw_uri));
+                    }
+
+                    // Determine local output path (may need upload afterwards)
+                    std::string local_output = output_uri;
+                    std::string gcs_output;
+                    if (output_uri.rfind("gs://", 0) == 0) {
+                        std::string ext = output_uri.substr(output_uri.rfind('.'));
+                        local_output = "/tmp/loom_out_" + package.task_id() + ext;
+                        gcs_output = output_uri;
+                    }
 
                     std::cout << "[Loom] -> Composite Inputs (" << inputFiles.size()
                               << " files):\n";
@@ -99,8 +148,7 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     std::vector<float> z_offsets(inputFiles.size() > 1 ? inputFiles.size() - 1 : 0,
                                                  0.0f);
                     Options opts = {
-                        inputFiles,
-                        z_offsets,
+                        inputFiles, z_offsets,
                         "",  // coordinator handles output prefixing and parsing
                     };
 
@@ -146,11 +194,17 @@ void RunLoomWorker(const std::string& coordinator_addr) {
                     }
 
                     // Write deep EXR (handles if deep output is wanted)
+                    std::cout << "[Loom] -> Writing result to: " << local_output << "\n";
                     std::vector<float> finalImage =
                         deep_compositor::ProcessAllEXR(opts, real_height, real_width, imagesInfo);
                     // Writes flat outputs if needed
-                    exrio::WriteFlatOutputs(finalImage, output_uri, opts.flat_output,
+                    exrio::WriteFlatOutputs(finalImage, local_output, opts.flat_output,
                                             opts.png_output, real_width, real_height);
+
+                    // Upload to GCS if needed
+                    if (!gcs_output.empty()) {
+                        MaybeUploadToGCS(local_output, gcs_output);
+                    }
 
                     std::cout << "[Loom] -> Engine Composite execution completed.\n";
 

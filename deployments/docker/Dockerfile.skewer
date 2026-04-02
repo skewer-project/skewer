@@ -1,5 +1,5 @@
 # Stage 1: Build the C++ Renderer Worker
-FROM ubuntu:24.04 AS builder
+FROM --platform=linux/amd64 ubuntu:24.04 AS builder
 
 # Prevent tzdata apt-get prompt from hanging
 ENV DEBIAN_FRONTEND=noninteractive
@@ -30,7 +30,7 @@ RUN cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF
 RUN cmake --build --preset release --target skewer-worker --parallel 1
 
 # Stage 2: Create a minimal runner image
-FROM ubuntu:24.04
+FROM --platform=linux/amd64 ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -42,6 +42,11 @@ RUN apt-get update && apt-get install -y \
     libpng16-16t64 \
     libgrpc++1.51t64 \
     ca-certificates \
+    curl \
+    gnupg \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update && apt-get install -y google-cloud-cli \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
