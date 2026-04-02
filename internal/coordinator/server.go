@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
@@ -19,24 +19,19 @@ import (
 type Server struct {
 	pb.UnimplementedCoordinatorServiceServer
 	scheduler        *Scheduler
-	manager          CloudManager
+	manager          CloudStorageManager
 	tracker          *JobTracker
 	localStorageBase string
 	cancel           context.CancelFunc
 }
 
-func NewServer(scheduler *Scheduler, manager CloudManager, tracker *JobTracker, localStorageBase string) *Server {
+func NewServer(scheduler *Scheduler, manager CloudStorageManager, tracker *JobTracker, localStorageBase string) *Server {
 	s := &Server{
 		scheduler:        scheduler,
 		manager:          manager,
 		tracker:          tracker,
 		localStorageBase: localStorageBase,
 	}
-
-	// Start a background loop to manage worker capacity
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancel = cancel // cancellation context for server
-	go s.runCapacityManager(ctx)
 
 	// Set the terminal failure callback
 	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
@@ -133,7 +128,23 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 		if suffix == "" || suffix == "skewer-job" || suffix == "skewer-composite" {
 			suffix = jobID[:8] // Use first 8 chars of UUID
 		}
-		newPrefix := filepath.Join(currentPrefix, suffix)
+
+		var newPrefix string
+		if s.manager != nil && s.manager.IsCloudMode() {
+			// In cloud mode: derive bucket from the scene URI (gs://<bucket>/...) and write renders there
+			sceneURI := newJob.GetOriginalReq().GetRenderJob().GetSceneUri()
+			if strings.HasPrefix(sceneURI, "gs://") {
+				trimmed := strings.TrimPrefix(sceneURI, "gs://")
+				bucket := strings.SplitN(trimmed, "/", 2)[0]
+				newPrefix = fmt.Sprintf("gs://%s/renders/%s", bucket, suffix)
+			} else {
+				// Fallback: just use the relative path (will be translated later)
+				newPrefix = filepath.Join(currentPrefix, suffix)
+			}
+		} else {
+			newPrefix = filepath.Join(currentPrefix, suffix)
+		}
+
 		newJob.SetOutputPrefix(newPrefix)
 		log.Printf("[COORDINATOR] Auto-set output path for job %s: %s", jobID, newPrefix)
 	}
@@ -362,50 +373,39 @@ func (s *Server) ReportTaskProgress(ctx context.Context, req *pb.ReportTaskProgr
 // STUBBED HELPERS
 // =====================================================================
 
-func (s *Server) runCapacityManager(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+func (s *Server) StartMetricsServer() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+		queueLengths := s.scheduler.GetQueueLengths()
+		
+		fmt.Fprintf(w, "# HELP skewer_pending_tasks Number of pending compute tasks\n")
+		fmt.Fprintf(w, "# TYPE skewer_pending_tasks gauge\n")
+		fmt.Fprintf(w, "skewer_pending_tasks %d\n", queueLengths["skewer"])
+		
+		fmt.Fprintf(w, "# HELP loom_pending_tasks Number of pending composite tasks\n")
+		fmt.Fprintf(w, "# TYPE loom_pending_tasks gauge\n")
+		fmt.Fprintf(w, "loom_pending_tasks %d\n", queueLengths["loom"])
+	})
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			queueLengths := s.scheduler.GetQueueLengths()
-			activeCounts := s.scheduler.GetActiveTaskCounts()
-
-			// Determine global limit (default to 4 in local mode, 20 in cloud)
-			limit := 20
-			if s.localStorageBase != "" {
-				limit = 4 // LOCAL MODE: Allow some parallelism by default
-			}
-			if val, err := strconv.Atoi(os.Getenv("MAX_WORKERS")); err == nil && val > 0 {
-				limit = val
-			}
-
-			// Handle skewer-worker
-			skewerTarget := queueLengths["skewer"] + activeCounts["skewer"]
-			if skewerTarget > limit {
-				skewerTarget = limit
-			}
-			if queueLengths["skewer"] == 0 && activeCounts["skewer"] == 0 {
-				skewerTarget = 0
-			}
-			if err := s.manager.EnsureCapacity(ctx, "skewer-worker", skewerTarget); err != nil {
-				log.Printf("[SERVER]: Failed to ensure skewer capacity: %v", err)
-			}
-
-			// Handle loom-worker
-			loomTarget := queueLengths["loom"] + activeCounts["loom"]
-			loomTarget = min(loomTarget, limit)
-			if queueLengths["loom"] == 0 && activeCounts["loom"] == 0 {
-				loomTarget = 0
-			}
-			if err := s.manager.EnsureCapacity(ctx, "loom-worker", loomTarget); err != nil {
-				log.Printf("[SERVER]: Failed to ensure loom capacity: %v", err)
-			}
+	mux.HandleFunc("/api/metrics", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		queueLengths := s.scheduler.GetQueueLengths()
+		fmt.Fprintf(w, `{"skewer_pending_tasks": %d, "loom_pending_tasks": %d}`, queueLengths["skewer"], queueLengths["loom"])
+	})
+	
+	log.Printf("[SERVER]: Starting Prometheus metrics server on :9090/metrics")
+	srv := &http.Server{Addr: ":9090", Handler: mux}
+	
+	// Wait for context cancellation to stop the metric server cleanly
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("[ERROR]: Metrics server failed: %v", err)
 		}
-	}
+	}()
+	
+	// Tie server shutdown to our context cancelation
+	<-context.Background().Done() // In a real shutdown flow, listening for context
 }
 
 // relativePathEscapesRoot is true for cleaned relative paths that step outside
@@ -418,17 +418,23 @@ func relativePathEscapesRoot(clean string) bool {
 }
 
 func (s *Server) translateLocalPath(uri string) (string, error) {
-	if s.localStorageBase == "" {
-		return uri, nil
-	}
-
-	// Handle Cloud URIs (gs://)
-	if trimmed, hasPrefix := strings.CutPrefix(uri, "gs://"); hasPrefix {
+	// If in Cloud Mode, all gs:// paths are strictly considered final and valid.
+	if strings.HasPrefix(uri, "gs://") {
+		if s.manager != nil && s.manager.IsCloudMode() {
+			return uri, nil
+		}
+		
+		// If NOT in Cloud Mode (local dev), we translate gs:// to local paths for Orbstack mapping
+		trimmed, _ := strings.CutPrefix(uri, "gs://")
 		parts := strings.SplitN(trimmed, "/", 2)
 		if len(parts) == 1 {
 			return filepath.Join(s.localStorageBase, parts[0]), nil
 		}
 		return filepath.Join(s.localStorageBase, parts[0], parts[1]), nil
+	}
+
+	if s.localStorageBase == "" {
+		return uri, nil
 	}
 
 	// Handle Local Paths (Mapping host paths to container paths)
