@@ -1,0 +1,37 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: skewer-worker-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: skewer-worker
+  minReplicaCount: 0
+  maxReplicaCount: 20
+  # cooldownPeriod is the time to wait after the queue empties before scaling back to 0
+  cooldownPeriod: 30
+  triggers:
+    - type: metrics-api
+      metadata:
+        targetValue: "1"
+        url: "http://skewer-coordinator.default.svc.cluster.local:9090/api/metrics"
+        valueLocation: "skewer_pending_tasks"
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: loom-worker-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: loom-worker
+  minReplicaCount: 0
+  maxReplicaCount: 5
+  cooldownPeriod: 30
+  triggers:
+    - type: metrics-api
+      metadata:
+        targetValue: "1"
+        url: "http://skewer-coordinator.default.svc.cluster.local:9090/api/metrics"
+        valueLocation: "loom_pending_tasks"
