@@ -34,3 +34,6 @@ renders/
 *.ppm
 
 .claude/
+
+# Keys
+gcp-key.json
