@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
+	"golang.org/x/time/rate"
 )
 
 type Task struct {
@@ -24,31 +25,90 @@ type Task struct {
 	Retries   int32
 }
 
+// queuedTask is an internal dispatch unit sent to the background launch goroutine.
+type queuedTask struct {
+	task       *Task
+	workerType string
+	env        map[string]string
+}
+
 type Scheduler struct {
 	mu          sync.Mutex
 	manager     CloudManager
 	activeTasks map[string]*Task
 
+	dispatchQueue chan *queuedTask
+
 	coordinatorAddr string
+	launchLimiter   *rate.Limiter
 
 	OnTaskFailedPermanently func(task *Task)
 }
 
-func NewScheduler(manager CloudManager, coordinatorAddr string) *Scheduler {
-	return &Scheduler{
+// NewScheduler creates a Scheduler that rate-limits Cloud Run launches to
+// launchesPerSecond (use 0 for unlimited). A value of 1 keeps submissions
+// safely under the default Cloud Run quota of 60 job-run requests/min/region.
+//
+// Tasks are dispatched asynchronously by a background goroutine so that
+// EnqueueTask / EnqueueTaskWithMeta return immediately regardless of the
+// rate limit.
+func NewScheduler(manager CloudManager, coordinatorAddr string, launchesPerSecond float64) *Scheduler {
+	var limiter *rate.Limiter
+	if launchesPerSecond > 0 {
+		limiter = rate.NewLimiter(rate.Limit(launchesPerSecond), 1)
+	}
+	s := &Scheduler{
 		manager:         manager,
 		activeTasks:     make(map[string]*Task),
+		dispatchQueue:   make(chan *queuedTask, 1024),
 		coordinatorAddr: coordinatorAddr,
+		launchLimiter:   limiter,
+	}
+	go s.dispatchLoop()
+	return s
+}
+
+// dispatchLoop runs in the background, rate-limits, and calls LaunchTask.
+func (s *Scheduler) dispatchLoop() {
+	for qt := range s.dispatchQueue {
+		// If the task was purged (job cancelled) before we got to it, skip.
+		if _, alive := s.Task(qt.task.ID); !alive {
+			slog.Debug("skipping dispatch for purged task", "task_id", qt.task.ID)
+			continue
+		}
+
+		if s.launchLimiter != nil {
+			if err := s.launchLimiter.Wait(context.Background()); err != nil {
+				slog.Error("rate limiter error, dropping task", "task_id", qt.task.ID, "error", err)
+				s.popActiveTask(qt.task.ID)
+				if s.OnTaskFailedPermanently != nil {
+					s.OnTaskFailedPermanently(qt.task)
+				}
+				continue
+			}
+		}
+
+		s.mu.Lock()
+		qt.task.StartedAt = time.Now()
+		s.mu.Unlock()
+
+		if err := s.manager.LaunchTask(context.Background(), qt.workerType, qt.task.ID, qt.env); err != nil {
+			slog.Error("launch failed", "task_id", qt.task.ID, "error", err)
+			s.popActiveTask(qt.task.ID)
+			if s.OnTaskFailedPermanently != nil {
+				s.OnTaskFailedPermanently(qt.task)
+			}
+		}
 	}
 }
 
-// EnqueueTask registers the task and launches a Cloud Run Job execution.
+// EnqueueTask registers the task and queues it for async Cloud Run dispatch.
 func (s *Scheduler) EnqueueTask(ctx context.Context, payload any, jobID string, frameID string) (string, error) {
 	return s.EnqueueTaskWithMeta(ctx, payload, jobID, frameID, "", "")
 }
 
-// EnqueueTaskWithMeta is like EnqueueTask but attaches a cache key and sentinel URI to the task.
-// On successful completion the caller is responsible for writing the sentinel via CloudManager.
+// EnqueueTaskWithMeta is like EnqueueTask but attaches a cache key and sentinel URI.
+// Returns the task ID immediately; the actual Cloud Run launch happens in the background.
 func (s *Scheduler) EnqueueTaskWithMeta(ctx context.Context, payload any, jobID string, frameID string, cacheKey string, sentinelURI string) (string, error) {
 	taskID := uuid.New().String()
 	task := &Task{
@@ -67,15 +127,10 @@ func (s *Scheduler) EnqueueTaskWithMeta(ctx context.Context, payload any, jobID 
 	}
 
 	s.mu.Lock()
-	task.StartedAt = time.Now()
 	s.activeTasks[task.ID] = task
 	s.mu.Unlock()
 
-	if err := s.manager.LaunchTask(ctx, workerType, taskID, env); err != nil {
-		s.popActiveTask(taskID)
-		return "", err
-	}
-
+	s.dispatchQueue <- &queuedTask{task: task, workerType: workerType, env: env}
 	return taskID, nil
 }
 
@@ -122,17 +177,10 @@ func (s *Scheduler) RequeueTask(ctx context.Context, taskID string) {
 	}
 
 	s.mu.Lock()
-	task.StartedAt = time.Now()
 	s.activeTasks[task.ID] = task
 	s.mu.Unlock()
 
-	if err := s.manager.LaunchTask(ctx, workerType, taskID, env); err != nil {
-		slog.Error("requeue launch failed", "task_id", task.ID, "error", err)
-		s.popActiveTask(taskID)
-		if s.OnTaskFailedPermanently != nil {
-			s.OnTaskFailedPermanently(task)
-		}
-	}
+	s.dispatchQueue <- &queuedTask{task: task, workerType: workerType, env: env}
 }
 
 // MarkTaskComplete removes it from active tracking.

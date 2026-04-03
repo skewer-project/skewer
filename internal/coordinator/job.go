@@ -141,13 +141,24 @@ func (jt *JobTracker) AddJob(job Job) error {
 
 		jt.activeJobs[job.ID()] = job // ALWAYS add it to active jobs!
 
-		// Add the job to the live tracker
-		if len(jobDeps) == 0 {
+		// Count how many dependencies are still pending (not yet completed).
+		// A dependency may have already completed if it finished before this job
+		// was submitted (e.g. a single-frame cache-hit render). Pre-decrement so
+		// we don't block forever waiting for a signal that already fired.
+		pendingCount := 0
+		for _, depID := range jobDeps {
+			dep := jt.activeJobs[depID]
+			if dep.GetStatus() != pb.GetJobStatusResponse_JOB_STATUS_COMPLETED {
+				pendingCount++
+			}
+		}
+
+		if pendingCount == 0 {
 			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_QUEUED)
 		} else {
 			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_PENDING_DEPENDENCIES)
 		}
-		jt.pendingDeps[job.ID()] = len(jobDeps)
+		jt.pendingDeps[job.ID()] = pendingCount
 
 		// Add the job and dependencies to the graph
 		jt.graph.AddNode(job)

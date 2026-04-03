@@ -79,7 +79,9 @@ func (s *Server) SubmitJob(ctx context.Context, req *pb.SubmitJobRequest) (*pb.S
 		return nil, err
 	}
 
-	if len(req.DependsOn) == 0 {
+	// Dispatch immediately if there are no dependencies, OR if all dependencies
+	// were already complete when this job was added (AddJob pre-decrements in that case).
+	if newJob.GetStatus() == pb.GetJobStatusResponse_JOB_STATUS_QUEUED {
 		var err error
 		switch req.JobType.(type) {
 		case *pb.SubmitJobRequest_RenderJob:
@@ -243,6 +245,8 @@ func (s *Server) handleRenderJobSubmit(ctx context.Context, jobID string, req *p
 		}
 
 		frameSceneUri := strings.ReplaceAll(sceneUri, "####", fmt.Sprintf("%04d", frameID+1))
+		// GCS URI for this specific frame (#### expanded) — needed for cache key hashing.
+		frameSceneGCSURI := strings.ReplaceAll(job.GetSceneUri(), "####", fmt.Sprintf("%04d", frameID+1))
 
 		extension := ".exr"
 		if !job.GetEnableDeep() {
@@ -254,7 +258,7 @@ func (s *Server) handleRenderJobSubmit(ctx context.Context, jobID string, req *p
 		}
 
 		// Cache check: compute a sentinel key from (scene GCS MD5 + layer_index + render params).
-		sentinelURI, cacheKey, err := s.computeSentinel(ctx, job.GetSceneUri(), job, req)
+		sentinelURI, cacheKey, err := s.computeSentinel(ctx, frameSceneGCSURI, job, req)
 		if err != nil {
 			slog.Warn("cache check failed, proceeding without cache", "error", err)
 		} else if sentinelURI != "" {
@@ -289,6 +293,15 @@ func (s *Server) handleRenderJobSubmit(ctx context.Context, jobID string, req *p
 			return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
 		}
 		_ = t
+	}
+
+	// Adjust TotalTasks for partial cache hits so the completion check still fires
+	// when the remaining (non-cached) tasks report back.
+	if skippedTasks > 0 && skippedTasks < req.GetNumFrames() {
+		renderJob.mu.Lock()
+		renderJob.TotalTasks -= skippedTasks
+		renderJob.mu.Unlock()
+		slog.Info("partial cache hit", "job_id", jobID, "skipped", skippedTasks, "remaining", req.GetNumFrames()-skippedTasks)
 	}
 
 	// If all tasks were cache hits, mark the job complete immediately.
@@ -351,13 +364,23 @@ func (s *Server) handleCompositeJobSubmit(ctx context.Context, jobID string, req
 
 		frameLayerUris := make([]string, len(originalPrefixes))
 
+		staticSet := make(map[int32]bool)
+		for _, si := range job.GetStaticLayerIndices() {
+			staticSet[si] = true
+		}
+
 		for idx, uriPrefix := range originalPrefixes {
 			translatedPrefix, err := gcsURIToFusePath(uriPrefix)
 			if err != nil {
 				return err
 			}
 
-			fullLayerUri, err := url.JoinPath(translatedPrefix, fmt.Sprintf("frame-%04d.exr", frameID+1))
+			frameNum := frameID + 1
+			if staticSet[int32(idx)] {
+				frameNum = 1 // static layer: always use frame-0001.exr
+			}
+
+			fullLayerUri, err := url.JoinPath(translatedPrefix, fmt.Sprintf("frame-%04d.exr", frameNum))
 			if err != nil {
 				return err
 			}

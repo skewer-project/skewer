@@ -70,6 +70,9 @@ message CompositeJob {
   // gs://bucket/renders/smoke/frame-0005.exr and gs://bucket/renders/person/frame-0005.exr
   repeated string layer_uri_prefixes = 1;
   string output_uri_prefix = 2;
+  // Indices into layer_uri_prefixes that are static (rendered once, always frame-0001.exr).
+  // For all other layers the per-frame filename (frame-NNNN.exr) is used.
+  repeated int32 static_layer_indices = 3;
 }
 
 message SubmitJobResponse {

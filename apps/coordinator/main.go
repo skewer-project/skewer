@@ -38,7 +38,9 @@ func main() {
 	}
 	defer func() { _ = cloudManager.Close() }()
 
-	scheduler := coordinator.NewScheduler(cloudManager, coordAddr)
+	// Throttle to 1 Cloud Run launch/sec to stay under the default
+	// quota of 60 job-run requests per minute per region.
+	scheduler := coordinator.NewScheduler(cloudManager, coordAddr, 0.125)
 	tracker := coordinator.NewJobTracker()
 
 	myServer := coordinator.NewServer(scheduler, tracker, cloudManager)

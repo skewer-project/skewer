@@ -340,8 +340,11 @@ type CompositeJob struct {
 	// gs://bucket/renders/smoke/frame-0005.exr and gs://bucket/renders/person/frame-0005.exr
 	LayerUriPrefixes []string `protobuf:"bytes,1,rep,name=layer_uri_prefixes,json=layerUriPrefixes,proto3" json:"layer_uri_prefixes,omitempty"`
 	OutputUriPrefix  string   `protobuf:"bytes,2,opt,name=output_uri_prefix,json=outputUriPrefix,proto3" json:"output_uri_prefix,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Indices into layer_uri_prefixes that are static (rendered once, always frame-0001.exr).
+	// For all other layers the per-frame filename (frame-NNNN.exr) is used.
+	StaticLayerIndices []int32 `protobuf:"varint,3,rep,packed,name=static_layer_indices,json=staticLayerIndices,proto3" json:"static_layer_indices,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CompositeJob) Reset() {
@@ -386,6 +389,13 @@ func (x *CompositeJob) GetOutputUriPrefix() string {
 		return x.OutputUriPrefix
 	}
 	return ""
+}
+
+func (x *CompositeJob) GetStaticLayerIndices() []int32 {
+	if x != nil {
+		return x.StaticLayerIndices
+	}
+	return nil
 }
 
 type SubmitJobResponse struct {
@@ -1104,10 +1114,11 @@ const file_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"layerIndex\x12\x1d\n" +
 	"\n" +
 	"layer_name\x18\n" +
-	" \x01(\tR\tlayerName\"h\n" +
+	" \x01(\tR\tlayerName\"\x9a\x01\n" +
 	"\fCompositeJob\x12,\n" +
 	"\x12layer_uri_prefixes\x18\x01 \x03(\tR\x10layerUriPrefixes\x12*\n" +
-	"\x11output_uri_prefix\x18\x02 \x01(\tR\x0foutputUriPrefix\"*\n" +
+	"\x11output_uri_prefix\x18\x02 \x01(\tR\x0foutputUriPrefix\x120\n" +
+	"\x14static_layer_indices\x18\x03 \x03(\x05R\x12staticLayerIndices\"*\n" +
 	"\x11SubmitJobResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\",\n" +
 	"\x13GetJobStatusRequest\x12\x15\n" +
