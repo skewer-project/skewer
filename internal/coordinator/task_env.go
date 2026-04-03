@@ -36,6 +36,7 @@ func renderTaskEnv(t *pb.RenderTask, base map[string]string) map[string]string {
 	out["NOISE_THRESHOLD"] = strconv.FormatFloat(float64(t.GetNoiseThreshold()), 'f', -1, 32)
 	out["MIN_SAMPLES"] = strconv.FormatInt(int64(t.GetMinSamples()), 10)
 	out["ADAPTIVE_STEP"] = strconv.FormatInt(int64(t.GetAdaptiveStep()), 10)
+	out["LAYER_INDEX"] = strconv.FormatInt(int64(t.GetLayerIndex()), 10)
 	return out
 }
 

@@ -36,7 +36,9 @@ class RenderSession {
     void RebuildFilm();
 
     // --- Legacy API (used by the cloud worker until Phase 5) ---
-    void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
+    // layer_index selects which layer from the scene JSON to load (0-based).
+    void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0,
+                           int layer_index = 0);
     void Render();
     void Save() const;
     RenderOptions& Options() { return options_; }

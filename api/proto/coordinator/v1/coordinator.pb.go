@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.0
-// source: api/proto/coordinator/v1/coordinator.proto
+// source: coordinator/v1/coordinator.proto
 
 package coordinatorv1
 
@@ -63,11 +63,11 @@ func (x GetJobStatusResponse_JobStatus) String() string {
 }
 
 func (GetJobStatusResponse_JobStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_api_proto_coordinator_v1_coordinator_proto_enumTypes[0].Descriptor()
+	return file_coordinator_v1_coordinator_proto_enumTypes[0].Descriptor()
 }
 
 func (GetJobStatusResponse_JobStatus) Type() protoreflect.EnumType {
-	return &file_api_proto_coordinator_v1_coordinator_proto_enumTypes[0]
+	return &file_coordinator_v1_coordinator_proto_enumTypes[0]
 }
 
 func (x GetJobStatusResponse_JobStatus) Number() protoreflect.EnumNumber {
@@ -76,7 +76,7 @@ func (x GetJobStatusResponse_JobStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GetJobStatusResponse_JobStatus.Descriptor instead.
 func (GetJobStatusResponse_JobStatus) EnumDescriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5, 0}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5, 0}
 }
 
 // /* "Job" Submission Level *///
@@ -100,7 +100,7 @@ type SubmitJobRequest struct {
 
 func (x *SubmitJobRequest) Reset() {
 	*x = SubmitJobRequest{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -112,7 +112,7 @@ func (x *SubmitJobRequest) String() string {
 func (*SubmitJobRequest) ProtoMessage() {}
 
 func (x *SubmitJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -125,7 +125,7 @@ func (x *SubmitJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitJobRequest.ProtoReflect.Descriptor instead.
 func (*SubmitJobRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{0}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SubmitJobRequest) GetJobId() string {
@@ -223,13 +223,20 @@ type RenderJob struct {
 	NoiseThreshold float32 `protobuf:"fixed32,6,opt,name=noise_threshold,json=noiseThreshold,proto3" json:"noise_threshold,omitempty"`
 	MinSamples     int32   `protobuf:"varint,7,opt,name=min_samples,json=minSamples,proto3" json:"min_samples,omitempty"`       // Minimum samples before convergence check (default 0 = use scene JSON)
 	AdaptiveStep   int32   `protobuf:"varint,8,opt,name=adaptive_step,json=adaptiveStep,proto3" json:"adaptive_step,omitempty"` // Samples between convergence checks (default 0 = use scene JSON)
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Layer selection. When set, renders only the specified layer from the scene JSON.
+	// layer_index is the 0-based index into the scene's "layers" array.
+	// layer_name is the stem of the layer file (e.g. "layer_hill") used for output naming.
+	// When layer_name is set, output file is <output_uri_prefix>/<layer_name>.exr
+	// instead of frame-%04d.exr.
+	LayerIndex    int32  `protobuf:"varint,9,opt,name=layer_index,json=layerIndex,proto3" json:"layer_index,omitempty"`
+	LayerName     string `protobuf:"bytes,10,opt,name=layer_name,json=layerName,proto3" json:"layer_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RenderJob) Reset() {
 	*x = RenderJob{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +248,7 @@ func (x *RenderJob) String() string {
 func (*RenderJob) ProtoMessage() {}
 
 func (x *RenderJob) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +261,7 @@ func (x *RenderJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderJob.ProtoReflect.Descriptor instead.
 func (*RenderJob) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{1}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RenderJob) GetSceneUri() string {
@@ -313,6 +320,20 @@ func (x *RenderJob) GetAdaptiveStep() int32 {
 	return 0
 }
 
+func (x *RenderJob) GetLayerIndex() int32 {
+	if x != nil {
+		return x.LayerIndex
+	}
+	return 0
+}
+
+func (x *RenderJob) GetLayerName() string {
+	if x != nil {
+		return x.LayerName
+	}
+	return ""
+}
+
 type CompositeJob struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The layers to combine. For frame x, Loom will look for:
@@ -325,7 +346,7 @@ type CompositeJob struct {
 
 func (x *CompositeJob) Reset() {
 	*x = CompositeJob{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +358,7 @@ func (x *CompositeJob) String() string {
 func (*CompositeJob) ProtoMessage() {}
 
 func (x *CompositeJob) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +371,7 @@ func (x *CompositeJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompositeJob.ProtoReflect.Descriptor instead.
 func (*CompositeJob) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{2}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CompositeJob) GetLayerUriPrefixes() []string {
@@ -376,7 +397,7 @@ type SubmitJobResponse struct {
 
 func (x *SubmitJobResponse) Reset() {
 	*x = SubmitJobResponse{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -388,7 +409,7 @@ func (x *SubmitJobResponse) String() string {
 func (*SubmitJobResponse) ProtoMessage() {}
 
 func (x *SubmitJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -401,7 +422,7 @@ func (x *SubmitJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitJobResponse.ProtoReflect.Descriptor instead.
 func (*SubmitJobResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SubmitJobResponse) GetJobId() string {
@@ -421,7 +442,7 @@ type GetJobStatusRequest struct {
 
 func (x *GetJobStatusRequest) Reset() {
 	*x = GetJobStatusRequest{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -433,7 +454,7 @@ func (x *GetJobStatusRequest) String() string {
 func (*GetJobStatusRequest) ProtoMessage() {}
 
 func (x *GetJobStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -446,7 +467,7 @@ func (x *GetJobStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetJobStatusRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{4}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetJobStatusRequest) GetJobId() string {
@@ -467,7 +488,7 @@ type GetJobStatusResponse struct {
 
 func (x *GetJobStatusResponse) Reset() {
 	*x = GetJobStatusResponse{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +500,7 @@ func (x *GetJobStatusResponse) String() string {
 func (*GetJobStatusResponse) ProtoMessage() {}
 
 func (x *GetJobStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +513,7 @@ func (x *GetJobStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetJobStatusResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetJobStatusResponse) GetJobStatus() GetJobStatusResponse_JobStatus {
@@ -525,7 +546,7 @@ type CancelJobRequest struct {
 
 func (x *CancelJobRequest) Reset() {
 	*x = CancelJobRequest{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[6]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -537,7 +558,7 @@ func (x *CancelJobRequest) String() string {
 func (*CancelJobRequest) ProtoMessage() {}
 
 func (x *CancelJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[6]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -550,7 +571,7 @@ func (x *CancelJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelJobRequest.ProtoReflect.Descriptor instead.
 func (*CancelJobRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{6}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CancelJobRequest) GetJobId() string {
@@ -569,7 +590,7 @@ type CancelJobResponse struct {
 
 func (x *CancelJobResponse) Reset() {
 	*x = CancelJobResponse{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[7]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -581,7 +602,7 @@ func (x *CancelJobResponse) String() string {
 func (*CancelJobResponse) ProtoMessage() {}
 
 func (x *CancelJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[7]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -594,7 +615,7 @@ func (x *CancelJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelJobResponse.ProtoReflect.Descriptor instead.
 func (*CancelJobResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{7}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CancelJobResponse) GetSuccess() bool {
@@ -621,7 +642,7 @@ type WorkPackage struct {
 
 func (x *WorkPackage) Reset() {
 	*x = WorkPackage{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[8]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -633,7 +654,7 @@ func (x *WorkPackage) String() string {
 func (*WorkPackage) ProtoMessage() {}
 
 func (x *WorkPackage) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[8]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -646,7 +667,7 @@ func (x *WorkPackage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkPackage.ProtoReflect.Descriptor instead.
 func (*WorkPackage) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{8}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WorkPackage) GetJobId() string {
@@ -727,13 +748,15 @@ type RenderTask struct {
 	MinSamples     int32   `protobuf:"varint,8,opt,name=min_samples,json=minSamples,proto3" json:"min_samples,omitempty"`
 	AdaptiveStep   int32   `protobuf:"varint,9,opt,name=adaptive_step,json=adaptiveStep,proto3" json:"adaptive_step,omitempty"`
 	MaxSamples     int32   `protobuf:"varint,10,opt,name=max_samples,json=maxSamples,proto3" json:"max_samples,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Which layer to render from the scene JSON (0-based index).
+	LayerIndex    int32 `protobuf:"varint,11,opt,name=layer_index,json=layerIndex,proto3" json:"layer_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RenderTask) Reset() {
 	*x = RenderTask{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -745,7 +768,7 @@ func (x *RenderTask) String() string {
 func (*RenderTask) ProtoMessage() {}
 
 func (x *RenderTask) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -758,7 +781,7 @@ func (x *RenderTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderTask.ProtoReflect.Descriptor instead.
 func (*RenderTask) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{9}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RenderTask) GetSceneUri() string {
@@ -831,6 +854,13 @@ func (x *RenderTask) GetMaxSamples() int32 {
 	return 0
 }
 
+func (x *RenderTask) GetLayerIndex() int32 {
+	if x != nil {
+		return x.LayerIndex
+	}
+	return 0
+}
+
 type CompositeTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've been "merged" from sample splitting)
@@ -844,7 +874,7 @@ type CompositeTask struct {
 
 func (x *CompositeTask) Reset() {
 	*x = CompositeTask{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[10]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -856,7 +886,7 @@ func (x *CompositeTask) String() string {
 func (*CompositeTask) ProtoMessage() {}
 
 func (x *CompositeTask) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[10]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -869,7 +899,7 @@ func (x *CompositeTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompositeTask.ProtoReflect.Descriptor instead.
 func (*CompositeTask) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{10}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CompositeTask) GetLayerUris() []string {
@@ -918,7 +948,7 @@ type ReportTaskResultRequest struct {
 
 func (x *ReportTaskResultRequest) Reset() {
 	*x = ReportTaskResultRequest{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[11]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -930,7 +960,7 @@ func (x *ReportTaskResultRequest) String() string {
 func (*ReportTaskResultRequest) ProtoMessage() {}
 
 func (x *ReportTaskResultRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[11]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -943,7 +973,7 @@ func (x *ReportTaskResultRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportTaskResultRequest.ProtoReflect.Descriptor instead.
 func (*ReportTaskResultRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{11}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ReportTaskResultRequest) GetTaskId() string {
@@ -1004,7 +1034,7 @@ type ReportTaskResultResponse struct {
 
 func (x *ReportTaskResultResponse) Reset() {
 	*x = ReportTaskResultResponse{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[12]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1016,7 +1046,7 @@ func (x *ReportTaskResultResponse) String() string {
 func (*ReportTaskResultResponse) ProtoMessage() {}
 
 func (x *ReportTaskResultResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[12]
+	mi := &file_coordinator_v1_coordinator_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1029,7 +1059,7 @@ func (x *ReportTaskResultResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportTaskResultResponse.ProtoReflect.Descriptor instead.
 func (*ReportTaskResultResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{12}
+	return file_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReportTaskResultResponse) GetAcknowledged() bool {
@@ -1039,11 +1069,11 @@ func (x *ReportTaskResultResponse) GetAcknowledged() bool {
 	return false
 }
 
-var File_api_proto_coordinator_v1_coordinator_proto protoreflect.FileDescriptor
+var File_coordinator_v1_coordinator_proto protoreflect.FileDescriptor
 
-const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
+const file_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
-	"*api/proto/coordinator/v1/coordinator.proto\x12\x18api.proto.coordinator.v1\"\xd1\x02\n" +
+	" coordinator/v1/coordinator.proto\x12\x18api.proto.coordinator.v1\"\xd1\x02\n" +
 	"\x10SubmitJobRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x19\n" +
 	"\bjob_name\x18\x02 \x01(\tR\ajobName\x12\x1d\n" +
@@ -1057,7 +1087,7 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"render_job\x18\a \x01(\v2#.api.proto.coordinator.v1.RenderJobH\x00R\trenderJob\x12M\n" +
 	"\rcomposite_job\x18\b \x01(\v2&.api.proto.coordinator.v1.CompositeJobH\x00R\fcompositeJobB\n" +
 	"\n" +
-	"\bjob_type\"\x9f\x02\n" +
+	"\bjob_type\"\xdf\x02\n" +
 	"\tRenderJob\x12\x1b\n" +
 	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12\x1f\n" +
 	"\vmax_samples\x18\x02 \x01(\x05R\n" +
@@ -1069,7 +1099,12 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\x0fnoise_threshold\x18\x06 \x01(\x02R\x0enoiseThreshold\x12\x1f\n" +
 	"\vmin_samples\x18\a \x01(\x05R\n" +
 	"minSamples\x12#\n" +
-	"\radaptive_step\x18\b \x01(\x05R\fadaptiveStep\"h\n" +
+	"\radaptive_step\x18\b \x01(\x05R\fadaptiveStep\x12\x1f\n" +
+	"\vlayer_index\x18\t \x01(\x05R\n" +
+	"layerIndex\x12\x1d\n" +
+	"\n" +
+	"layer_name\x18\n" +
+	" \x01(\tR\tlayerName\"h\n" +
 	"\fCompositeJob\x12,\n" +
 	"\x12layer_uri_prefixes\x18\x01 \x03(\tR\x10layerUriPrefixes\x12*\n" +
 	"\x11output_uri_prefix\x18\x02 \x01(\tR\x0foutputUriPrefix\"*\n" +
@@ -1100,7 +1135,7 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\vrender_task\x18\x04 \x01(\v2$.api.proto.coordinator.v1.RenderTaskH\x00R\n" +
 	"renderTask\x12P\n" +
 	"\x0ecomposite_task\x18\x05 \x01(\v2'.api.proto.coordinator.v1.CompositeTaskH\x00R\rcompositeTaskB\t\n" +
-	"\apayload\"\xc1\x02\n" +
+	"\apayload\"\xe2\x02\n" +
 	"\n" +
 	"RenderTask\x12\x1b\n" +
 	"\tscene_uri\x18\x01 \x01(\tR\bsceneUri\x12\x14\n" +
@@ -1117,7 +1152,9 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\radaptive_step\x18\t \x01(\x05R\fadaptiveStep\x12\x1f\n" +
 	"\vmax_samples\x18\n" +
 	" \x01(\x05R\n" +
-	"maxSamples\"{\n" +
+	"maxSamples\x12\x1f\n" +
+	"\vlayer_index\x18\v \x01(\x05R\n" +
+	"layerIndex\"{\n" +
 	"\rCompositeTask\x12\x1d\n" +
 	"\n" +
 	"layer_uris\x18\x01 \x03(\tR\tlayerUris\x12\x14\n" +
@@ -1143,20 +1180,20 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\x10ReportTaskResult\x121.api.proto.coordinator.v1.ReportTaskResultRequest\x1a2.api.proto.coordinator.v1.ReportTaskResultResponseBIZGgithub.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1b\x06proto3"
 
 var (
-	file_api_proto_coordinator_v1_coordinator_proto_rawDescOnce sync.Once
-	file_api_proto_coordinator_v1_coordinator_proto_rawDescData []byte
+	file_coordinator_v1_coordinator_proto_rawDescOnce sync.Once
+	file_coordinator_v1_coordinator_proto_rawDescData []byte
 )
 
-func file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP() []byte {
-	file_api_proto_coordinator_v1_coordinator_proto_rawDescOnce.Do(func() {
-		file_api_proto_coordinator_v1_coordinator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_proto_coordinator_v1_coordinator_proto_rawDesc), len(file_api_proto_coordinator_v1_coordinator_proto_rawDesc)))
+func file_coordinator_v1_coordinator_proto_rawDescGZIP() []byte {
+	file_coordinator_v1_coordinator_proto_rawDescOnce.Do(func() {
+		file_coordinator_v1_coordinator_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_coordinator_v1_coordinator_proto_rawDesc), len(file_coordinator_v1_coordinator_proto_rawDesc)))
 	})
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescData
+	return file_coordinator_v1_coordinator_proto_rawDescData
 }
 
-var file_api_proto_coordinator_v1_coordinator_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_proto_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
-var file_api_proto_coordinator_v1_coordinator_proto_goTypes = []any{
+var file_coordinator_v1_coordinator_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_coordinator_v1_coordinator_proto_goTypes = []any{
 	(GetJobStatusResponse_JobStatus)(0), // 0: api.proto.coordinator.v1.GetJobStatusResponse.JobStatus
 	(*SubmitJobRequest)(nil),            // 1: api.proto.coordinator.v1.SubmitJobRequest
 	(*RenderJob)(nil),                   // 2: api.proto.coordinator.v1.RenderJob
@@ -1172,7 +1209,7 @@ var file_api_proto_coordinator_v1_coordinator_proto_goTypes = []any{
 	(*ReportTaskResultRequest)(nil),     // 12: api.proto.coordinator.v1.ReportTaskResultRequest
 	(*ReportTaskResultResponse)(nil),    // 13: api.proto.coordinator.v1.ReportTaskResultResponse
 }
-var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
+var file_coordinator_v1_coordinator_proto_depIdxs = []int32{
 	2,  // 0: api.proto.coordinator.v1.SubmitJobRequest.render_job:type_name -> api.proto.coordinator.v1.RenderJob
 	3,  // 1: api.proto.coordinator.v1.SubmitJobRequest.composite_job:type_name -> api.proto.coordinator.v1.CompositeJob
 	0,  // 2: api.proto.coordinator.v1.GetJobStatusResponse.job_status:type_name -> api.proto.coordinator.v1.GetJobStatusResponse.JobStatus
@@ -1193,16 +1230,16 @@ var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
 	0,  // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_api_proto_coordinator_v1_coordinator_proto_init() }
-func file_api_proto_coordinator_v1_coordinator_proto_init() {
-	if File_api_proto_coordinator_v1_coordinator_proto != nil {
+func init() { file_coordinator_v1_coordinator_proto_init() }
+func file_coordinator_v1_coordinator_proto_init() {
+	if File_coordinator_v1_coordinator_proto != nil {
 		return
 	}
-	file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0].OneofWrappers = []any{
+	file_coordinator_v1_coordinator_proto_msgTypes[0].OneofWrappers = []any{
 		(*SubmitJobRequest_RenderJob)(nil),
 		(*SubmitJobRequest_CompositeJob)(nil),
 	}
-	file_api_proto_coordinator_v1_coordinator_proto_msgTypes[8].OneofWrappers = []any{
+	file_coordinator_v1_coordinator_proto_msgTypes[8].OneofWrappers = []any{
 		(*WorkPackage_RenderTask)(nil),
 		(*WorkPackage_CompositeTask)(nil),
 	}
@@ -1210,18 +1247,18 @@ func file_api_proto_coordinator_v1_coordinator_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_coordinator_v1_coordinator_proto_rawDesc), len(file_api_proto_coordinator_v1_coordinator_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_coordinator_v1_coordinator_proto_rawDesc), len(file_coordinator_v1_coordinator_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_api_proto_coordinator_v1_coordinator_proto_goTypes,
-		DependencyIndexes: file_api_proto_coordinator_v1_coordinator_proto_depIdxs,
-		EnumInfos:         file_api_proto_coordinator_v1_coordinator_proto_enumTypes,
-		MessageInfos:      file_api_proto_coordinator_v1_coordinator_proto_msgTypes,
+		GoTypes:           file_coordinator_v1_coordinator_proto_goTypes,
+		DependencyIndexes: file_coordinator_v1_coordinator_proto_depIdxs,
+		EnumInfos:         file_coordinator_v1_coordinator_proto_enumTypes,
+		MessageInfos:      file_coordinator_v1_coordinator_proto_msgTypes,
 	}.Build()
-	File_api_proto_coordinator_v1_coordinator_proto = out.File
-	file_api_proto_coordinator_v1_coordinator_proto_goTypes = nil
-	file_api_proto_coordinator_v1_coordinator_proto_depIdxs = nil
+	File_coordinator_v1_coordinator_proto = out.File
+	file_coordinator_v1_coordinator_proto_goTypes = nil
+	file_coordinator_v1_coordinator_proto_depIdxs = nil
 }

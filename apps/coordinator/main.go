@@ -41,7 +41,7 @@ func main() {
 	scheduler := coordinator.NewScheduler(cloudManager, coordAddr)
 	tracker := coordinator.NewJobTracker()
 
-	myServer := coordinator.NewServer(scheduler, tracker)
+	myServer := coordinator.NewServer(scheduler, tracker, cloudManager)
 
 	pb.RegisterCoordinatorServiceServer(grpcServer, myServer)
 

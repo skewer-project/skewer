@@ -55,6 +55,14 @@ message RenderJob {
   float noise_threshold = 6;
   int32 min_samples = 7; // Minimum samples before convergence check (default 0 = use scene JSON)
   int32 adaptive_step = 8; // Samples between convergence checks (default 0 = use scene JSON)
+
+  // Layer selection. When set, renders only the specified layer from the scene JSON.
+  // layer_index is the 0-based index into the scene's "layers" array.
+  // layer_name is the stem of the layer file (e.g. "layer_hill") used for output naming.
+  // When layer_name is set, output file is <output_uri_prefix>/<layer_name>.exr
+  // instead of frame-%04d.exr.
+  int32 layer_index = 9;
+  string layer_name = 10;
 }
 
 message CompositeJob {
@@ -125,6 +133,9 @@ message RenderTask {
   int32 min_samples = 8;
   int32 adaptive_step = 9;
   int32 max_samples = 10;
+
+  // Which layer to render from the scene JSON (0-based index).
+  int32 layer_index = 11;
 }
 
 message CompositeTask {

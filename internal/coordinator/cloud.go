@@ -2,15 +2,20 @@ package coordinator
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"cloud.google.com/go/run/apiv2"
 	"cloud.google.com/go/run/apiv2/runpb"
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 )
 
 // CloudManager launches one Cloud Run Job execution per task and tracks executions for cancel.
@@ -18,6 +23,9 @@ type CloudManager interface {
 	LaunchTask(ctx context.Context, workerType string, taskID string, env map[string]string) error
 	CancelTask(ctx context.Context, taskID string) error
 	ProvisionStorage(ctx context.Context, bucketName string) error
+	GCSObjectHash(ctx context.Context, gcsURI string) (string, error)
+	GCSObjectExists(ctx context.Context, gcsURI string) (bool, error)
+	WriteSentinel(ctx context.Context, gcsURI string) error
 }
 
 // CloudRunManager triggers pre-defined Cloud Run Jobs with per-task environment overrides.
@@ -208,5 +216,79 @@ func (c *CloudRunManager) ProvisionStorage(ctx context.Context, bucketName strin
 		return fmt.Errorf("access user bucket (gs://%s): %w", bucketName, err)
 	}
 	slog.Info("GCS bucket verified", "bucket", attrs.Name, "location", attrs.Location)
+	return nil
+}
+
+// parseGCSURI splits a gs://bucket/path URI into (bucket, object).
+func parseGCSURI(uri string) (bucket, object string, err error) {
+	if !strings.HasPrefix(uri, "gs://") {
+		return "", "", fmt.Errorf("not a gs:// URI: %s", uri)
+	}
+	trimmed := strings.TrimPrefix(uri, "gs://")
+	sep := strings.IndexByte(trimmed, '/')
+	if sep < 0 {
+		return trimmed, "", nil
+	}
+	return trimmed[:sep], trimmed[sep+1:], nil
+}
+
+// GCSObjectHash returns a SHA-256 hex digest of the object's raw content.
+// Uses the object's MD5 from GCS metadata when available to avoid a full download;
+// falls back to streaming the content if the object has no stored MD5 (e.g. composite objects).
+func (c *CloudRunManager) GCSObjectHash(ctx context.Context, gcsURI string) (string, error) {
+	bucket, object, err := parseGCSURI(gcsURI)
+	if err != nil {
+		return "", err
+	}
+	obj := c.storageClient.Bucket(bucket).Object(object)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return "", fmt.Errorf("GCSObjectHash attrs %s: %w", gcsURI, err)
+	}
+	// Prefer stored MD5 — no download needed.
+	if len(attrs.MD5) > 0 {
+		h := sha256.Sum256(attrs.MD5)
+		return hex.EncodeToString(h[:]), nil
+	}
+	// Fallback: stream the object and hash its content.
+	r, err := obj.NewReader(ctx)
+	if err != nil {
+		return "", fmt.Errorf("GCSObjectHash reader %s: %w", gcsURI, err)
+	}
+	defer r.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, r); err != nil {
+		return "", fmt.Errorf("GCSObjectHash copy %s: %w", gcsURI, err)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// GCSObjectExists returns true if the object exists in GCS.
+func (c *CloudRunManager) GCSObjectExists(ctx context.Context, gcsURI string) (bool, error) {
+	bucket, object, err := parseGCSURI(gcsURI)
+	if err != nil {
+		return false, err
+	}
+	it := c.storageClient.Bucket(bucket).Objects(ctx, &storage.Query{Prefix: object})
+	_, err = it.Next()
+	if err == iterator.Done {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("GCSObjectExists %s: %w", gcsURI, err)
+	}
+	return true, nil
+}
+
+// WriteSentinel writes an empty object to gcsURI as a cache sentinel.
+func (c *CloudRunManager) WriteSentinel(ctx context.Context, gcsURI string) error {
+	bucket, object, err := parseGCSURI(gcsURI)
+	if err != nil {
+		return err
+	}
+	w := c.storageClient.Bucket(bucket).Object(object).NewWriter(ctx)
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("WriteSentinel %s: %w", gcsURI, err)
+	}
 	return nil
 }

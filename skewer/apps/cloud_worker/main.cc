@@ -100,7 +100,12 @@ int main(int argc, char* argv[]) {
             task_threads = *t;
         }
 
-        session.LoadSceneFromFile(scene_uri, 0);
+        int layer_index = 0;
+        if (auto li = EnvInt("LAYER_INDEX"); li && *li >= 0) {
+            layer_index = *li;
+        }
+
+        session.LoadSceneFromFile(scene_uri, task_threads, layer_index);
 
         if (auto w = EnvInt("WIDTH")) {
             if (*w > 0) {

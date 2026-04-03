@@ -105,6 +105,7 @@ void LoaderWorker(int start_row, int end_row, PipelineContext& ctx) {
                                                        sampleStride));
 
             file.setFrameBuffer(frameBuffer);
+            file.readPixelSampleCounts(load_y, load_y);
             file.readPixels(load_y, load_y);
         }
 

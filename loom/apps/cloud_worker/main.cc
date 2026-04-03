@@ -51,13 +51,6 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
-    auto w = EnvInt("WIDTH");
-    auto h = EnvInt("HEIGHT");
-    if (!w || !h || *w <= 0 || *h <= 0) {
-        std::cerr << "[LOOM] WIDTH and HEIGHT must be positive integers\n";
-        return 2;
-    }
-
     auto layer_count = EnvInt("LAYER_COUNT");
     if (!layer_count || *layer_count <= 0) {
         std::cerr << "[LOOM] LAYER_COUNT must be a positive integer\n";
@@ -103,12 +96,19 @@ int main(int argc, char* argv[]) {
         int load_rc = exrio::SaveImageInfo(opts, images_info);
         if (load_rc == 1) {
             outcome.success = false;
-            outcome.error_message = "Failed to load worker options";
+            outcome.error_message = "Failed to load input EXR files";
         } else {
+            // Read dimensions from the first loaded image; env vars WIDTH/HEIGHT
+            // are optional overrides (useful when bypassing EXR header inspection).
+            int w = images_info[0]->width();
+            int h = images_info[0]->height();
+            if (auto ew = EnvInt("WIDTH"); ew && *ew > 0) w = *ew;
+            if (auto eh = EnvInt("HEIGHT"); eh && *eh > 0) h = *eh;
+
             std::vector<float> final_image =
-                deep_compositor::ProcessAllEXR(opts, *h, *w, images_info);
+                deep_compositor::ProcessAllEXR(opts, h, w, images_info);
             exrio::WriteFlatOutputs(final_image, outcome.output_uri, opts.flat_output,
-                                    opts.png_output, *w, *h);
+                                    opts.png_output, w, h);
         }
     } catch (const std::exception& e) {
         outcome.success = false;

@@ -2,6 +2,8 @@ package coordinator
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -16,12 +18,14 @@ type Server struct {
 	pb.UnimplementedCoordinatorServiceServer
 	scheduler *Scheduler
 	tracker   *JobTracker
+	cloud     CloudManager
 }
 
-func NewServer(scheduler *Scheduler, tracker *JobTracker) *Server {
+func NewServer(scheduler *Scheduler, tracker *JobTracker, cloud CloudManager) *Server {
 	s := &Server{
 		scheduler: scheduler,
 		tracker:   tracker,
+		cloud:     cloud,
 	}
 
 	s.scheduler.OnTaskFailedPermanently = func(task *Task) {
@@ -156,6 +160,15 @@ func (s *Server) ReportTaskResult(ctx context.Context, req *pb.ReportTaskResultR
 
 	s.scheduler.MarkTaskComplete(taskID)
 
+	// Write cache sentinel so future identical tasks are skipped.
+	if task.SentinelURI != "" && s.cloud != nil {
+		if werr := s.cloud.WriteSentinel(ctx, task.SentinelURI); werr != nil {
+			slog.Warn("failed to write cache sentinel", "uri", task.SentinelURI, "error", werr)
+		} else {
+			slog.Debug("cache sentinel written", "uri", task.SentinelURI)
+		}
+	}
+
 	job, err := s.tracker.GetJob(task.JobID)
 	if err != nil {
 		return &pb.ReportTaskResultResponse{Acknowledged: false}, err
@@ -205,6 +218,17 @@ func gcsURIToFusePath(uri string) (string, error) {
 }
 
 func (s *Server) handleRenderJobSubmit(ctx context.Context, jobID string, req *pb.SubmitJobRequest, job *pb.RenderJob) error {
+	rj, err := s.tracker.GetJob(jobID)
+	if err != nil {
+		return fmt.Errorf("job %s not found in tracker: %w", jobID, err)
+	}
+	renderJob, ok := rj.(*RenderJob)
+	if !ok {
+		return fmt.Errorf("job %s is not a RenderJob", jobID)
+	}
+
+	skippedTasks := int32(0)
+
 	for frameID := int32(0); frameID < req.GetNumFrames(); frameID++ {
 		outputUriPrefix, err := gcsURIToFusePath(job.GetOutputUriPrefix())
 		if err != nil {
@@ -224,10 +248,24 @@ func (s *Server) handleRenderJobSubmit(ctx context.Context, jobID string, req *p
 		if !job.GetEnableDeep() {
 			extension = ".png"
 		}
-
 		outputUri, err := url.JoinPath(outputUriPrefix, fmt.Sprintf("frame-%04d%s", frameID+1, extension))
 		if err != nil {
 			return err
+		}
+
+		// Cache check: compute a sentinel key from (scene GCS MD5 + layer_index + render params).
+		sentinelURI, cacheKey, err := s.computeSentinel(ctx, job.GetSceneUri(), job, req)
+		if err != nil {
+			slog.Warn("cache check failed, proceeding without cache", "error", err)
+		} else if sentinelURI != "" {
+			exists, err := s.cloud.GCSObjectExists(ctx, sentinelURI)
+			if err != nil {
+				slog.Warn("sentinel existence check failed", "uri", sentinelURI, "error", err)
+			} else if exists {
+				slog.Info("cache hit, skipping render task", "job_id", jobID, "layer_name", job.GetLayerName(), "layer_index", job.GetLayerIndex())
+				skippedTasks++
+				continue
+			}
 		}
 
 		task := &pb.RenderTask{
@@ -243,14 +281,61 @@ func (s *Server) handleRenderJobSubmit(ctx context.Context, jobID string, req *p
 			MinSamples:     job.GetMinSamples(),
 			AdaptiveStep:   job.GetAdaptiveStep(),
 			MaxSamples:     job.GetMaxSamples(),
+			LayerIndex:     job.GetLayerIndex(),
 		}
 
-		if _, err := s.scheduler.EnqueueTask(ctx, task, jobID, fmt.Sprint(frameID)); err != nil {
+		t, err := s.scheduler.EnqueueTaskWithMeta(ctx, task, jobID, fmt.Sprint(frameID), cacheKey, sentinelURI)
+		if err != nil {
 			return fmt.Errorf("[ERROR]: Failed to enqueue render task for job %s frame %d (%w)", jobID, frameID, err)
+		}
+		_ = t
+	}
+
+	// If all tasks were cache hits, mark the job complete immediately.
+	if skippedTasks == req.GetNumFrames() {
+		renderJob.mu.Lock()
+		renderJob.CompletedTasks = renderJob.TotalTasks
+		renderJob.mu.Unlock()
+		renderJob.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_COMPLETED)
+		slog.Info("all tasks cache hits, job complete", "job_id", jobID)
+
+		unlockedJobs := s.tracker.UnlockDependencies(jobID)
+		for _, newJob := range unlockedJobs {
+			orig := newJob.GetOriginalReq()
+			switch typedJob := newJob.(type) {
+			case *RenderJob:
+				_ = s.handleRenderJobSubmit(ctx, typedJob.ID(), orig, orig.GetRenderJob())
+			case *CompositeJob:
+				_ = s.handleCompositeJobSubmit(ctx, typedJob.ID(), orig, orig.GetCompositeJob())
+			}
 		}
 	}
 
 	return nil
+}
+
+// computeSentinel derives a cache sentinel GCS URI and its hash key for a render task.
+// Returns ("", "", nil) if the scene URI is not a GCS path (local mode, no caching).
+func (s *Server) computeSentinel(ctx context.Context, sceneGCSURI string, job *pb.RenderJob, req *pb.SubmitJobRequest) (sentinelURI, cacheKey string, err error) {
+	if !strings.HasPrefix(sceneGCSURI, "gs://") || s.cloud == nil {
+		return "", "", nil
+	}
+	fileHash, err := s.cloud.GCSObjectHash(ctx, sceneGCSURI)
+	if err != nil {
+		return "", "", err
+	}
+	// Mix in render params so changing resolution/samples invalidates the cache.
+	raw := fmt.Sprintf("%s|%d|%d|%d|%d", fileHash, job.GetLayerIndex(), req.GetWidth(), req.GetHeight(), job.GetMaxSamples())
+	sum := sha256.Sum256([]byte(raw))
+	cacheKey = hex.EncodeToString(sum[:])
+
+	// Derive bucket from the output_uri_prefix to keep sentinels colocated.
+	bucket, _, err := parseGCSURI(job.GetOutputUriPrefix())
+	if err != nil {
+		return "", "", err
+	}
+	sentinelURI = fmt.Sprintf("gs://%s/renders/.cache/%s", bucket, cacheKey)
+	return sentinelURI, cacheKey, nil
 }
 
 func (s *Server) handleCompositeJobSubmit(ctx context.Context, jobID string, req *pb.SubmitJobRequest, job *pb.CompositeJob) error {

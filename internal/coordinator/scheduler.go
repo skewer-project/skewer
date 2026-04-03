@@ -16,6 +16,9 @@ type Task struct {
 	FrameID string
 	Payload any // *pb.RenderTask or *pb.CompositeTask
 
+	CacheKey    string // SHA-256 hex used as sentinel path suffix; empty if caching not applicable
+	SentinelURI string // gs:// path to write on successful completion
+
 	CreatedAt time.Time
 	StartedAt time.Time
 	Retries   int32
@@ -41,13 +44,21 @@ func NewScheduler(manager CloudManager, coordinatorAddr string) *Scheduler {
 
 // EnqueueTask registers the task and launches a Cloud Run Job execution.
 func (s *Scheduler) EnqueueTask(ctx context.Context, payload any, jobID string, frameID string) (string, error) {
+	return s.EnqueueTaskWithMeta(ctx, payload, jobID, frameID, "", "")
+}
+
+// EnqueueTaskWithMeta is like EnqueueTask but attaches a cache key and sentinel URI to the task.
+// On successful completion the caller is responsible for writing the sentinel via CloudManager.
+func (s *Scheduler) EnqueueTaskWithMeta(ctx context.Context, payload any, jobID string, frameID string, cacheKey string, sentinelURI string) (string, error) {
 	taskID := uuid.New().String()
 	task := &Task{
-		ID:        taskID,
-		JobID:     jobID,
-		FrameID:   frameID,
-		Payload:   payload,
-		CreatedAt: time.Now(),
+		ID:          taskID,
+		JobID:       jobID,
+		FrameID:     frameID,
+		Payload:     payload,
+		CacheKey:    cacheKey,
+		SentinelURI: sentinelURI,
+		CreatedAt:   time.Now(),
 	}
 
 	workerType, env, err := buildWorkerLaunch(task, s.coordinatorAddr)

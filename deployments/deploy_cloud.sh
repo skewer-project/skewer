@@ -14,7 +14,7 @@ AR_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}"
 
 SKIP_WORKERS=false
 if [[ "$1" == "--skip-workers" ]]; then
-    SKIP_WORKERS=true
+  SKIP_WORKERS=true
 fi
 
 echo "[DEPLOY] Using GCP Project: ${PROJECT_ID}"
@@ -33,15 +33,15 @@ docker build --platform linux/amd64 -t "${AR_URI}/coordinator:latest" -f deploym
 docker push "${AR_URI}/coordinator:latest"
 
 if [ "$SKIP_WORKERS" = false ]; then
-    # Build Skewer Worker
-    docker build --platform linux/amd64 -t "${AR_URI}/skewer-worker:latest" -f deployments/docker/Dockerfile.skewer .
-    docker push "${AR_URI}/skewer-worker:latest"
+  # Build Skewer Worker
+  docker build --platform linux/amd64 -t "${AR_URI}/skewer-worker:latest" -f deployments/docker/Dockerfile.skewer .
+  docker push "${AR_URI}/skewer-worker:latest"
 
-    # Build Loom Worker
-    docker build --platform linux/amd64 -t "${AR_URI}/loom-worker:latest" -f deployments/docker/Dockerfile.loom .
-    docker push "${AR_URI}/loom-worker:latest"
+  # Build Loom Worker
+  docker build --platform linux/amd64 -t "${AR_URI}/loom-worker:latest" -f deployments/docker/Dockerfile.loom .
+  docker push "${AR_URI}/loom-worker:latest"
 else
-    echo "[DEPLOY] Skipping worker builds."
+  echo "[DEPLOY] Skipping worker builds."
 fi
 
 # 2. Update/Create Cloud Run Jobs
@@ -49,18 +49,24 @@ fi
 echo "[DEPLOY] Updating Cloud Run Jobs..."
 
 gcloud run jobs update skewer-worker \
-    --image="${AR_URI}/skewer-worker:latest" \
-    --region="${REGION}" \
-    --service-account="skewer-worker@${PROJECT_ID}.iam.gserviceaccount.com" \
-    --update-env-vars="COORDINATOR_ADDR=34.94.62.66:50051" \
-    --quiet
+  --image="${AR_URI}/skewer-worker:latest" \
+  --region="${REGION}" \
+  --service-account="skewer-worker@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --update-env-vars="COORDINATOR_ADDR=34.94.62.66:50051" \
+  --cpu=4 \
+  --memory=8Gi \
+  --task-timeout=3600 \
+  --quiet
 
 gcloud run jobs update loom-worker \
-    --image="${AR_URI}/loom-worker:latest" \
-    --region="${REGION}" \
-    --service-account="skewer-worker@${PROJECT_ID}.iam.gserviceaccount.com" \
-    --update-env-vars="COORDINATOR_ADDR=34.94.62.66:50051" \
-    --quiet
+  --image="${AR_URI}/loom-worker:latest" \
+  --region="${REGION}" \
+  --service-account="skewer-worker@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --update-env-vars="COORDINATOR_ADDR=34.94.62.66:50051" \
+  --cpu=2 \
+  --memory=4Gi \
+  --task-timeout=1800 \
+  --quiet
 
 # 3. Deploy Coordinator to GKE
 echo "[DEPLOY] Deploying coordinator to GKE..."

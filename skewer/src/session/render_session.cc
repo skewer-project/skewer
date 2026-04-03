@@ -136,7 +136,8 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
  * Load a scene from a JSON config file.
  * Sets up everything: scene geometry, materials, camera, film, and integrator.
  */
-void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_override) {
+void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_override,
+                                      int layer_index) {
     std::cout << "[Session] Loading scene from: " << scene_file << "\n";
 
     // 1. Parse scene.json (camera + layer/context paths; no geometry)
@@ -149,7 +150,12 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     if (config.layer_paths.empty()) {
         throw std::runtime_error("Scene file has no layers: " + scene_file);
     }
-    LayerConfig lcfg = LoadLayerFile(config.layer_paths[0], *scene_);
+    if (layer_index < 0 || static_cast<size_t>(layer_index) >= config.layer_paths.size()) {
+        throw std::runtime_error(
+            "layer_index " + std::to_string(layer_index) + " out of range (scene has " +
+            std::to_string(config.layer_paths.size()) + " layers): " + scene_file);
+    }
+    LayerConfig lcfg = LoadLayerFile(config.layer_paths[layer_index], *scene_);
 
     // 3. Build BVH acceleration structure
     scene_->Build();

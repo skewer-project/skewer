@@ -1,6 +1,7 @@
 #include "film/film.h"
 
 #include <exrio/deep_writer.h>
+#include <unistd.h>
 
 #include <atomic>
 
@@ -119,7 +120,8 @@ exrio::DeepImage Film::BuildDeepImage() const {
     auto bar = bk::ProgressBar(&scanlines_done, {.total = static_cast<size_t>(height_),
                                                  .speed = 1.0,
                                                  .speed_unit = "lines/s",
-                                                 .style = bk::ProgressBarStyle::Rich});
+                                                 .style = bk::ProgressBarStyle::Rich,
+                                                 .no_tty = !isatty(STDOUT_FILENO)});
     if (height_ > 0) bar->show();
 
     // Process one scanline at a time to keep transient memory (sorting buffers) small.

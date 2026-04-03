@@ -1,5 +1,7 @@
 #include "integrators/path_trace.h"
 
+#include <unistd.h>
+
 #include <atomic>
 #include <thread>
 #include <vector>
@@ -50,6 +52,7 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
                                                      .speed = 0.2,
                                                      .speed_unit = "tiles/s",
                                                      .style = bk::ProgressBarStyle::Rich,
+                                                     .no_tty = !isatty(STDOUT_FILENO),
                                                  });
 
     const bool is_adaptive = config.noise_threshold > 0.0f;
