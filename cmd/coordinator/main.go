@@ -1,4 +1,4 @@
-package main
+package coordinator
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
-	"github.com/skewer-project/skewer/internal/coordinator"
 	"google.golang.org/grpc"
 )
 
@@ -26,15 +25,15 @@ func main() {
 
 	// Create dependencies
 	// TODO: Make these configurable and make arguments for skewer and loom queue sizes separate
-	scheduler := coordinator.NewScheduler(10000) // Increase queue size to handle large jobs without blocking
-	tracker := coordinator.NewJobTracker()
+	scheduler := NewScheduler(10000) // Increase queue size to handle large jobs without blocking
+	tracker := NewJobTracker()
 
 	ctx := context.Background()
 
 	go scheduler.StartSweeper(ctx, time.Hour, time.Minute)
 
 	// Create Cloud Manager (passing an empty string for local testing if credentials aren't explicitly provided yet)
-	cloudManager, err := coordinator.NewK8sCloudManager(ctx, "")
+	cloudManager, err := NewK8sCloudManager(ctx, "")
 	if err != nil {
 		log.Fatalf("[ERROR] Failed to initialize Cloud Manager: %v", err)
 	}
@@ -46,7 +45,7 @@ func main() {
 		log.Printf("[SERVER]: No storage credentials found. Defaulting to local storage at: %s", localStorageBase)
 	}
 
-	myServer := coordinator.NewServer(scheduler, cloudManager, tracker, localStorageBase) // Logical server
+	myServer := NewServer(scheduler, cloudManager, tracker, localStorageBase) // Logical server
 
 	// Register logical server with gRPC engine
 	pb.RegisterCoordinatorServiceServer(grpcServer, myServer)
