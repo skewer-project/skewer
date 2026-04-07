@@ -184,7 +184,7 @@ Output layout:
 		for li := 0; li < numLayers; li++ {
 			layerFile := layersByFrame[0][li] // name of the layer file (same for static, frame-1 for animated)
 			layerStem := layerStemFromName(layerFile)
-			layerOutputPrefix := outputPrefix + "layer_" + layerStem + "/"
+			layerOutputPrefix := outputPrefix + layerStem + "/"
 			layerOutputPrefixes[li] = layerOutputPrefix
 
 			var sceneURI string

@@ -71,9 +71,10 @@ gcloud run jobs update loom-worker \
 # 3. Deploy Coordinator to GKE
 echo "[DEPLOY] Deploying coordinator to GKE..."
 kubectl apply -f deployments/k8s/coordinator-cloud.yaml
+kubectl rollout restart deployment/skewer-coordinator
 
 echo "[DEPLOY] Waiting for coordinator to be ready..."
-kubectl wait --for=condition=ready pod -l app=skewer-coordinator --timeout=120s
+kubectl rollout status deployment/skewer-coordinator --timeout=120s
 
 echo "[DEPLOY] Success! Cloud environment is ready."
 echo "[DEPLOY] You can now submit jobs using: skewer-cli submit --scene gs://${BUCKET}/scenes/cornell.json --output gs://${BUCKET}/renders/test/"

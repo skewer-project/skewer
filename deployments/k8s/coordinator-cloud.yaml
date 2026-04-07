@@ -27,6 +27,7 @@ spec:
       containers:
         - name: coordinator
           image: us-west2-docker.pkg.dev/deft-sight-487822-q9/skewer/coordinator:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 50051
               name: grpc
