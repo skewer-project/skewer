@@ -28,7 +28,7 @@ Skewer is a distributed deep rendering system, consisting of:
 | `skewer/` | C++ ray-tracing renderer |
 | `loom/` | C++ deep compositor |
 | `libs/` | Shared C++ libraries |
-| `cmd/` | Go CLI and coordinator |
+| `orchestration/` | Go CLI and coordinator |
 | `api/` | Protocol Buffer definitions |
 | `scripts/` | Utility scripts |
 | `deployments/` | Docker and Kubernetes configs |

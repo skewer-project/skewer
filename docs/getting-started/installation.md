@@ -36,7 +36,7 @@ For local deployment:
 
 ```bash
 # Check C++ compiler
-g++ --version  # or clang++ --version
+clang++ --version  # or g++ --version
 
 # Check CMake
 cmake --version
