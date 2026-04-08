@@ -22,7 +22,7 @@ service CoordinatorService {
   rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
 
   // Internal API for Skewer and Loom GKE Workers
-  rpc GetWorkStream(GetWorkStreamRequest) returns (stream WorkPackage);
+  rpc GetWorkStream(GetWorkStreamRequest) returns (stream GetWorkStreamResponse);
   rpc ReportTaskResult(ReportTaskResultRequest) returns (ReportTaskResultResponse);
 }
 
@@ -105,7 +105,7 @@ message GetWorkStreamRequest {
   repeated string capabilities = 2;
 }
 
-message WorkPackage {
+message GetWorkStreamResponse {
   string job_id = 1;
   string task_id = 2;
   string frame_id = 3;

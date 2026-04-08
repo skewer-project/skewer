@@ -9,12 +9,12 @@
 #include "session/render_options.h"
 #include "session/render_session.h"
 
+using api::proto::coordinator::v1::GetWorkStreamResponse;
 using api::proto::coordinator::v1::RenderTask;
-using api::proto::coordinator::v1::WorkPackage;
 
 namespace {
 
-std::optional<coordinator_worker::TaskOutcome> HandlePackage(const WorkPackage& package,
+std::optional<coordinator_worker::TaskOutcome> HandlePackage(const GetWorkStreamResponse& package,
                                                              int render_threads) {
     if (!package.has_render_task()) {
         std::cerr << "[SKEWER]: Error: Received non-render task. Ignoring.\n";
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << opt.log_prefix << ": Render Threads: " << render_threads << "\n";
 
-    coordinator_worker::RunLoop(opt, [render_threads](const WorkPackage& package) {
+    coordinator_worker::RunLoop(opt, [render_threads](const GetWorkStreamResponse& package) {
         return HandlePackage(package, render_threads);
     });
 

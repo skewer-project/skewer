@@ -1,7 +1,7 @@
 /// \file worker_loop.h
 /// \brief Shared gRPC client loop for Skewer and Loom worker processes.
 ///
-/// Connects to `CoordinatorService`, streams `WorkPackage` messages, dispatches to
+/// Connects to `CoordinatorService`, streams `GetWorkStreamResponse` messages, dispatches to
 /// engine-specific handlers, and reports results. Intended for use with
 /// `clang-doc` and other Clang-based documentation tools.
 
@@ -30,7 +30,7 @@ struct Options {
     std::vector<std::string> capabilities;
 };
 
-/// \brief Result of handling one `WorkPackage`, reported via `ReportTaskResult`.
+/// \brief Result of handling one work unit, reported via `ReportTaskResult`.
 struct TaskOutcome {
     /// Whether task execution completed without a terminal error.
     bool success = true;
@@ -40,12 +40,12 @@ struct TaskOutcome {
     std::string output_uri;
 };
 
-/// \brief Invoked for each streamed `WorkPackage`.
+/// \brief Invoked for each streamed work unit.
 ///
 /// \returns `std::nullopt` if the package was ignored (no `ReportTaskResult` call).
 /// Otherwise returns the outcome to report (including `success == false` failures).
-using PackageHandler =
-    std::function<std::optional<TaskOutcome>(const api::proto::coordinator::v1::WorkPackage&)>;
+using PackageHandler = std::function<std::optional<TaskOutcome>(
+    const api::proto::coordinator::v1::GetWorkStreamResponse&)>;
 
 /// \brief Runs until process exit: connect, stream work, run `handler`, report results.
 ///
