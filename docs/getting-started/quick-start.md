@@ -34,7 +34,7 @@ This starts:
 ### Submit a Job
 
 ```bash
-./cmd/cli/skewer-cli submit \
+./orchestration/cmd/cli/skewer-cli submit \
   --scene data/scenes/panda-####.json \
   --frames 4 \
   --output data/renders/my_job/
@@ -43,13 +43,13 @@ This starts:
 ### Check Status
 
 ```bash
-./cmd/cli/skewer-cli status --job <JOB_ID>
+./orchestration/cmd/cli/skewer-cli status --job <JOB_ID>
 ```
 
 ### Cancel if Needed
 
 ```bash
-./cmd/cli/skewer-cli cancel --job <JOB_ID>
+./orchestration/cmd/cli/skewer-cli cancel --job <JOB_ID>
 ```
 
 ## 4. Using the Scene Previewer

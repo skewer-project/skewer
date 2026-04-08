@@ -49,10 +49,10 @@ The Go CLI is built separately:
 
 ```bash
 # Build CLI
-go build -o skewer-cli ./cmd/cli/
+go build -o skewer-cli ./orchestration/cmd/cli/
 
 # Build Coordinator
-go build -o coordinator ./cmd/coordinator/
+go build -o coordinator ./orchestration/cmd/coordinator/
 ```
 
 ## Troubleshooting

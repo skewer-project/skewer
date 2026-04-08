@@ -66,10 +66,10 @@ The coordinator is available at `localhost:50051`. The CLI handles port-forward 
 
 ```bash
 # Submit job
-./cmd/cli/skewer-cli submit --scene data/scenes/panda-####.json --frames 4 --output data/renders/test/
+./orchestration/cmd/cli/skewer-cli submit --scene data/scenes/panda-####.json --frames 4 --output data/renders/test/
 
 # Check status
-./cmd/cli/skewer-cli status --job <JOB_ID>
+./orchestration/cmd/cli/skewer-cli status --job <JOB_ID>
 ```
 
 ## Data Mapping
