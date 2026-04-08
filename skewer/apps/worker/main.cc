@@ -1,5 +1,5 @@
-#include <grpcpp/grpcpp.h>
 #include <coordinator_worker/worker_loop.h>
+#include <grpcpp/grpcpp.h>
 
 #include <atomic>
 #include <chrono>
