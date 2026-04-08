@@ -45,7 +45,7 @@ Job Submit ─▶ DAG Builder ─▶ Scheduler ─▶ Workers
 
 ```bash
 # Build
-go build -o coordinator ./cmd/coordinator/
+go build -o coordinator ./orchestration/cmd/coordinator/
 
 # Run locally
 ./coordinator --port 50051 --local-storage /path/to/data

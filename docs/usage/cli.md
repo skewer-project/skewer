@@ -9,7 +9,7 @@ The `skewer-cli` is the command-line interface for interacting with the Coordina
 Submit a rendering job to the coordinator:
 
 ```bash
-./cmd/cli/skewer-cli submit [flags]
+./orchestration/cmd/cli/skewer-cli submit [flags]
 ```
 
 **Flags:**
@@ -27,7 +27,7 @@ Submit a rendering job to the coordinator:
 **Basic Usage:**
 
 ```bash
-./cmd/cli/skewer-cli submit \
+./orchestration/cmd/cli/skewer-cli submit \
   --scene data/scenes/panda-####.json \
   --frames 4 \
   --output data/renders/my_job/
@@ -36,7 +36,7 @@ Submit a rendering job to the coordinator:
 **With Overrides:**
 
 ```bash
-./cmd/cli/skewer-cli submit \
+./orchestration/cmd/cli/skewer-cli submit \
   --scene data/scenes/panda-####.json \
   --frames 4 \
   --samples 256 \
@@ -55,7 +55,7 @@ Submit a rendering job to the coordinator:
 Check the status of a submitted job:
 
 ```bash
-./cmd/cli/skewer-cli status --job <JOB_ID>
+./orchestration/cmd/cli/skewer-cli status --job <JOB_ID>
 ```
 
 **Example Output:**
@@ -74,7 +74,7 @@ Progress: 25.0%
 Cancel a running job:
 
 ```bash
-./cmd/cli/skewer-cli cancel --job <JOB_ID>
+./orchestration/cmd/cli/skewer-cli cancel --job <JOB_ID>
 ```
 
 Drops all pending tasks and prevents further processing.
@@ -86,7 +86,7 @@ Drops all pending tasks and prevents further processing.
 If you're iterating on the CLI code, run directly without compiling:
 
 ```bash
-go run ./cmd/cli/main.go help
+go run ./orchestration/cmd/cli/main.go help
 ```
 
 ---
