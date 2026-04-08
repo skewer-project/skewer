@@ -28,6 +28,8 @@ spec:
           env:
             - name: COORDINATOR_ADDR
               value: "skewer-coordinator.default.svc.cluster.local:50051"
+            - name: GRPC_DNS_RESOLVER
+              value: "native"
             - name: RENDER_THREADS
               value: "2"
             - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -41,7 +43,7 @@ spec:
           resources:
             requests:
               cpu: "100m"
-              memory: "256Mi"
+              memory: "512Mi"
             limits:
               cpu: "2000m"
               memory: "4Gi"

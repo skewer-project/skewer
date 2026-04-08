@@ -56,23 +56,25 @@ go run apps/cli/main.go help
 
 ### Common CLI Commands
 
-#### 1. Submitting a Job (`submit`)
+#### 1. Rendering a Scene (`render`)
 
-The `submit` command packages your rendering parameters and sends them to the Coordinator. The coordinator will break the job down into atomic tasks and distribute them to the workers.
+The `render` command packages your rendering parameters and sends them to the Coordinator. The coordinator will break the job down into atomic tasks and distribute them to the compute workers.
 
-**Basic Submission (Using Scene Defaults):**
+**Basic Rendering (Using Scene Defaults):**
 ```bash
-./apps/cli/skewer-cli submit \
+./skewer-cli render \
+  --name my_panda_render \
   --scene data/scenes/panda-####.json \
   --frames 4 \
   --output data/renders/test_panda/
 ```
 *Note: Using `####` in the filename tells the coordinator to render a sequence of frames (e.g., `panda-0001.json`, `panda-0002.json`).*
 
-**Advanced Submission (Overriding Quality Settings):**
+**Advanced Rendering (Overriding Quality Settings):**
 You can override the JSON scene file's defaults using CLI flags:
 ```bash
-./apps/cli/skewer-cli submit \
+./skewer-cli render \
+  --name high_res_panda \
   --scene data/scenes/panda-####.json \
   --frames 4 \
   --samples 256 \
@@ -91,12 +93,37 @@ You can override the JSON scene file's defaults using CLI flags:
 
 *When successful, the CLI will output your newly generated `Job ID`.*
 
-#### 2. Checking Job Status (`status`)
+#### 2. Deep Compositing (`composite`)
+
+The `composite` command tells the Loom workers to physically merge multiple Deep EXR layers (e.g. merging a dynamic character's frames with a static background). The resulting output is a standard **Flat EXR** 2D image, which can be viewed natively in macOS Preview or using professional tools like [DJV Imaging](https://darbyjohnston.github.io/DJV/).
+
+**Method A: Using Job Dependencies**
+If you just rendered two scenes via Skewer, you can automatically composite them by linking their Job IDs. The Coordinator will automatically evaluate where they saved their files:
+```bash
+./skewer-cli composite \
+  --name auto_composite \
+  --depends-on <JOB_ID_1>,<JOB_ID_2> \
+  --output data/renders/final_image/
+```
+
+**Method B: Using Existing Disk Files (`--layers`)**
+If you have existing EXRs, provide a comma-separated list of folder prefixes. 
+Use the pipe `|` to specify the extension and frame count limit `path/prefix|.ext|frames`:
+```bash
+./skewer-cli composite \
+  --name explicit_composite \
+  --layers "data/renders/pandas|.exr|10,data/renders/cloud|.exr|1" \
+  --frames 10 \
+  --output data/renders/custom_final/
+```
+*In the example above, the compositor processes 10 consecutive frames from `pandas`, continually merging them over the exact same single `frame-0001` from the `cloud` background.*
+
+#### 3. Checking Job Status (`status`)
 
 To monitor the progress of a submitted job, use the `status` command and pass the `Job ID`:
 
 ```bash
-./apps/cli/skewer-cli status --job <YOUR_JOB_ID>
+./skewer-cli status --job <YOUR_JOB_ID>
 ```
 
 **Example Output:**
@@ -107,12 +134,12 @@ Job Status: JOB_STATUS_RUNNING
 Progress: 25.0%
 ```
 
-#### 3. Canceling a Job (`cancel`)
+#### 4. Canceling a Job (`cancel`)
 
 If you need to stop a long-running render, you can kill it in the Coordinator:
 
 ```bash
-./apps/cli/skewer-cli cancel --job <YOUR_JOB_ID>
+./skewer-cli cancel --job <YOUR_JOB_ID>
 ```
 This drops all pending tasks for the job and prevents further processing.
 

@@ -11,7 +11,7 @@ import (
 // * Job Primitive * //
 // ================= //
 
-// Minimum for Job interface
+// Job interface
 type Job interface {
 	ID() string
 	GetDependencies() []string
@@ -19,6 +19,8 @@ type Job interface {
 	SetStatus(status pb.GetJobStatusResponse_JobStatus)
 	Progress() float32
 	GetOriginalReq() *pb.SubmitJobRequest
+	GetOutputPrefix() string
+	SetOutputPrefix(prefix string)
 }
 
 // The Render Job
@@ -57,6 +59,12 @@ func (rj *RenderJob) Progress() float32 {
 func (rj *RenderJob) GetOriginalReq() *pb.SubmitJobRequest {
 	return rj.OriginalReq
 }
+func (rj *RenderJob) GetOutputPrefix() string {
+	return rj.OriginalReq.GetRenderJob().GetOutputUriPrefix() // get protobuf field
+}
+func (rj *RenderJob) SetOutputPrefix(prefix string) {
+	rj.OriginalReq.GetRenderJob().OutputUriPrefix = prefix
+}
 
 // The Composite Job
 type CompositeJob struct {
@@ -93,6 +101,12 @@ func (cj *CompositeJob) Progress() float32 {
 }
 func (cj *CompositeJob) GetOriginalReq() *pb.SubmitJobRequest {
 	return cj.OriginalReq
+}
+func (cj *CompositeJob) GetOutputPrefix() string {
+	return cj.OriginalReq.GetCompositeJob().GetOutputUriPrefix() // get protobuf field
+}
+func (cj *CompositeJob) SetOutputPrefix(prefix string) {
+	cj.OriginalReq.GetCompositeJob().OutputUriPrefix = prefix
 }
 
 // ===================== //
@@ -139,15 +153,24 @@ func (jt *JobTracker) AddJob(job Job) error {
 			}
 		}
 
-		jt.activeJobs[job.ID()] = job // ALWAYS add it to active jobs!
+		jt.activeJobs[job.ID()] = job // ALWAYS add it to active jobs
+
+		// Calculate how many dependencies are actually pending
+		unmetDeps := 0
+		for _, depID := range jobDeps {
+			dep, exists := jt.activeJobs[depID]
+			if !exists || dep.GetStatus() != pb.GetJobStatusResponse_JOB_STATUS_COMPLETED {
+				unmetDeps++
+			}
+		}
 
 		// Add the job to the live tracker
-		if len(jobDeps) == 0 {
+		if unmetDeps == 0 {
 			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_QUEUED)
 		} else {
 			job.SetStatus(pb.GetJobStatusResponse_JOB_STATUS_PENDING_DEPENDENCIES)
 		}
-		jt.pendingDeps[job.ID()] = len(jobDeps)
+		jt.pendingDeps[job.ID()] = unmetDeps
 
 		// Add the job and dependencies to the graph
 		jt.graph.AddNode(job)
