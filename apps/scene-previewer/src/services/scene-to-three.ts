@@ -32,7 +32,7 @@ function parseMtlTexturePaths(mtlText: string): string[] {
 	return paths;
 }
 
-function makeThreeMaterial(mat: Material): THREE.Material {
+export function makeThreeMaterial(mat: Material): THREE.Material {
 	const color = new THREE.Color(mat.albedo[0], mat.albedo[1], mat.albedo[2]);
 	const emissive = new THREE.Color(
 		mat.emission[0],
@@ -65,7 +65,7 @@ function makeThreeMaterial(mat: Material): THREE.Material {
 	}
 }
 
-function applyTransform(obj: THREE.Object3D, transform: Transform) {
+export function applyTransform(obj: THREE.Object3D, transform: Transform) {
 	if (transform.translate) obj.position.set(...transform.translate);
 	if (transform.rotate) {
 		obj.rotation.order = "YXZ";
@@ -128,7 +128,7 @@ async function buildObject(
 
 			// Base directory of the OBJ file — MTL and textures live alongside it.
 			const objBaseDir = obj.file.includes("/")
-				? obj.file.split("/").slice(0, -1).join("/") + "/"
+				? `${obj.file.split("/").slice(0, -1).join("/")}/`
 				: "";
 
 			// Load MTL materials and any referenced textures.
@@ -204,8 +204,12 @@ export async function buildSceneGraph(
 ): Promise<THREE.Group> {
 	const root = new THREE.Group();
 
-	for (const layer of [...scene.contexts, ...scene.layers]) {
+	const allLayers = [...scene.contexts, ...scene.layers];
+	for (let li = 0; li < allLayers.length; li++) {
 		if (signal.aborted) break;
+		const layer = allLayers[li];
+		const tag = li < scene.contexts.length ? "ctx" : "lyr";
+		const idx = li < scene.contexts.length ? li : li - scene.contexts.length;
 
 		const layerGroup = new THREE.Group();
 		layerGroup.name = layer.name;
@@ -222,8 +226,16 @@ export async function buildSceneGraph(
 		);
 		if (signal.aborted) break;
 
-		for (const obj of built) {
-			if (obj) layerGroup.add(obj);
+		for (let oi = 0; oi < built.length; oi++) {
+			const obj = built[oi];
+			if (obj) {
+				obj.userData.objectKey = `${tag}:${idx}:${oi}`;
+				// Tag all descendant meshes too so raycaster can find the key
+				obj.traverse((child) => {
+					child.userData.objectKey = `${tag}:${idx}:${oi}`;
+				});
+				layerGroup.add(obj);
+			}
 		}
 		root.add(layerGroup);
 	}
