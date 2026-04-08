@@ -1,12 +1,9 @@
 name: Deploy Docs
 on:
   push:
-    branches:
-      - main
-      - docs/doc-pages
-    paths:
-      - 'docs/**'
-      - 'mkdocs.yml'
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -30,7 +27,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
