@@ -62,7 +62,7 @@ target_include_directories(loom-worker PRIVATE
     ${PROJECT_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}
 )
-target_link_libraries(loom-worker PRIVATE loom_compositor coordinator_proto)
+target_link_libraries(loom-worker PRIVATE loom_compositor coordinator_worker)
 
 # Create output directory
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)

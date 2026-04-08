@@ -1,10 +1,10 @@
 #include <grpcpp/grpcpp.h>
+#include <coordinator_worker/worker_loop.h>
 
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
-#include <memory>
 #include <random>
 #include <string>
 #include <thread>
