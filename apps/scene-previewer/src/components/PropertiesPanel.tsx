@@ -299,6 +299,7 @@ function ObjEditor({
 			<Vec3Field
 				label="rot"
 				value={rot}
+				step={1}
 				onChange={(v) => patchTransform({ rotate: v })}
 			/>
 			<NumberField
@@ -313,6 +314,8 @@ function ObjEditor({
 }
 
 // ── Material editor ─────────────────────────────────────────
+
+const MATERIAL_TYPES = ["lambertian", "metal", "dielectric"] as const;
 
 function MaterialEditor({
 	mat,
@@ -331,50 +334,88 @@ function MaterialEditor({
 	onSceneEdit: Props["onSceneEdit"];
 	viewportRef: Props["viewportRef"];
 }) {
-	function patchMat(partial: Partial<Material>) {
-		onSceneEdit((s) =>
-			updateMaterial(
-				s,
-				objectKey,
-				matName,
-				(m) =>
-					({
-						...m,
-						...partial,
-					}) as Material,
-			),
-		);
-		// Build the full updated material for Three.js — updates ALL objects using this material
-		const updated = { ...mat, ...partial } as Material;
+	function applyMat(next: Material) {
+		onSceneEdit((s) => updateMaterial(s, objectKey, matName, () => next));
 		viewportRef.current?.applyPatch(objectKey, {
 			kind: "material",
-			matData: updated,
+			matData: next,
 			matName,
 			layerTag,
 			layerIdx,
 		});
 	}
 
+	function patchMat(partial: Partial<Material>) {
+		applyMat({ ...mat, ...partial } as Material);
+	}
+
+	function changeType(newType: Material["type"]) {
+		if (newType === mat.type) return;
+		const roughness = "roughness" in mat ? mat.roughness : 0;
+		const ior = "ior" in mat ? mat.ior : 1.5;
+		const base = {
+			albedo: mat.albedo,
+			emission: mat.emission,
+			opacity: mat.opacity,
+			visible: mat.visible,
+			...(mat.albedo_texture ? { albedo_texture: mat.albedo_texture } : {}),
+			...(mat.normal_texture ? { normal_texture: mat.normal_texture } : {}),
+			...(mat.roughness_texture
+				? { roughness_texture: mat.roughness_texture }
+				: {}),
+		};
+		const next: Material =
+			newType === "lambertian"
+				? { ...base, type: "lambertian" }
+				: newType === "metal"
+					? { ...base, type: "metal", roughness }
+					: { ...base, type: "dielectric", roughness, ior };
+		applyMat(next);
+	}
+
 	return (
 		<div className="kv-table">
 			<div className="kv-row">
 				<span className="kv-key">type</span>
-				<span className="kv-val">{mat.type}</span>
+				<select
+					className="mat-select"
+					value={mat.type}
+					onChange={(e) => changeType(e.target.value as Material["type"])}
+				>
+					{MATERIAL_TYPES.map((t) => (
+						<option key={t} value={t}>
+							{t}
+						</option>
+					))}
+				</select>
 			</div>
-			<Vec3Field
-				label="albedo"
-				value={mat.albedo}
-				componentLabels={["r", "g", "b"]}
-				min={0}
-				max={1}
-				step={0.01}
-				onChange={(v) => patchMat({ albedo: v })}
-			/>
+
+			{mat.type !== "dielectric" && (
+				<Vec3Field
+					label="albedo"
+					value={mat.albedo}
+					componentLabels={["r", "g", "b"]}
+					min={0}
+					max={1}
+					step={0.01}
+					onChange={(v) => patchMat({ albedo: v })}
+				/>
+			)}
 			{mat.albedo_texture && (
 				<div className="kv-row">
 					<span className="kv-key">a.tex</span>
 					<span className="kv-val">{mat.albedo_texture.split("/").pop()}</span>
 				</div>
+			)}
+
+			{mat.type === "dielectric" && (
+				<NumberField
+					label="ior"
+					value={mat.ior}
+					min={1}
+					step={0.01}
+					onChange={(v) => patchMat({ ior: v })}
+				/>
 			)}
 			{(mat.type === "metal" || mat.type === "dielectric") && (
 				<NumberField
@@ -386,15 +427,7 @@ function MaterialEditor({
 					onChange={(v) => patchMat({ roughness: v })}
 				/>
 			)}
-			{mat.type === "dielectric" && (
-				<NumberField
-					label="ior"
-					value={mat.ior}
-					min={1}
-					step={0.01}
-					onChange={(v) => patchMat({ ior: v })}
-				/>
-			)}
+
 			<Vec3Field
 				label="emit"
 				value={mat.emission}
@@ -403,6 +436,57 @@ function MaterialEditor({
 				step={0.1}
 				onChange={(v) => patchMat({ emission: v })}
 			/>
+		</div>
+	);
+}
+
+// ── Standalone material panel ────────────────────────────────
+
+export function MaterialPropertiesPanel({
+	scene,
+	matKey,
+	onSceneEdit,
+	viewportRef,
+}: {
+	scene: ResolvedScene;
+	matKey: string;
+	onSceneEdit: Props["onSceneEdit"];
+	viewportRef: Props["viewportRef"];
+}) {
+	// matKey format: "lyr:0:mat:marble"
+	const parts = matKey.split(":");
+	const tag = parts[0];
+	const layerIdx = Number(parts[1]);
+	const matName = parts.slice(3).join(":");
+
+	const list = tag === "ctx" ? scene.contexts : scene.layers;
+	const layer = list[layerIdx];
+	if (!layer) return null;
+
+	const mat = layer.data.materials[matName];
+	if (!mat) return null;
+
+	return (
+		<div className="properties">
+			<div className="properties-header">
+				<span className="layer-tag layer-tag-ctx">MAT</span>
+				<span className="properties-title">{matName}</span>
+				<span className="properties-layer">{layer.name}</span>
+			</div>
+			<div className="properties-section">
+				<div className="inspector-section-head">Material</div>
+				<div className="properties-body">
+					<MaterialEditor
+						mat={mat}
+						matName={matName}
+						objectKey={matKey}
+						layerTag={tag}
+						layerIdx={layerIdx}
+						onSceneEdit={onSceneEdit}
+						viewportRef={viewportRef}
+					/>
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -420,7 +504,6 @@ export function PropertiesPanel({
 
 	const { tag, obj, layer, mat, matName, materialNames } = resolved;
 	const typeLabel = obj.type.toUpperCase();
-	const tagLabel = tag === "ctx" ? "CTX" : "LYR";
 
 	const editorProps: EditorProps = {
 		objectKey,
@@ -435,11 +518,7 @@ export function PropertiesPanel({
 	return (
 		<div className="properties">
 			<div className="properties-header">
-				<span
-					className={`layer-tag ${tag === "ctx" ? "layer-tag-ctx" : "layer-tag-lyr"}`}
-				>
-					{tagLabel}
-				</span>
+				<span className="layer-tag layer-tag-lyr">OBJ</span>
 				<span className="properties-title">
 					{typeLabel} #{resolved.objIdx}
 				</span>

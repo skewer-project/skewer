@@ -34,12 +34,16 @@ function parseMtlTexturePaths(mtlText: string): string[] {
 
 export function makeThreeMaterial(mat: Material): THREE.Material {
 	const color = new THREE.Color(mat.albedo[0], mat.albedo[1], mat.albedo[2]);
-	const emissive = new THREE.Color(
-		mat.emission[0],
-		mat.emission[1],
-		mat.emission[2],
-	);
 	const hasEmission = mat.emission.some((v) => v > 0);
+	const emissive = (() => {
+		if (!hasEmission) return new THREE.Color(0, 0, 0);
+		const peak = Math.max(...mat.emission);
+		return new THREE.Color(
+			mat.emission[0] / peak,
+			mat.emission[1] / peak,
+			mat.emission[2] / peak,
+		);
+	})();
 
 	switch (mat.type) {
 		case "lambertian":
