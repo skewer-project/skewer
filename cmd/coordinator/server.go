@@ -180,18 +180,17 @@ func (s *Server) GetWorkStream(req *pb.GetWorkStreamRequest, stream pb.Coordinat
 	}
 
 	// Package task into the Protobuf format.
-	workPackage := &pb.WorkPackage{
+	workPackage := &pb.GetWorkStreamResponse{
 		JobId:   task.JobID,
 		TaskId:  task.ID,
 		FrameId: task.FrameID,
 	}
 
-	// Type-assert the payload and map it to the Protobuf 'oneof'
 	switch t := task.Payload.(type) {
 	case *pb.RenderTask:
-		workPackage.Payload = &pb.WorkPackage_RenderTask{RenderTask: t}
+		workPackage.Payload = &pb.GetWorkStreamResponse_RenderTask{RenderTask: t}
 	case *pb.CompositeTask:
-		workPackage.Payload = &pb.WorkPackage_CompositeTask{CompositeTask: t}
+		workPackage.Payload = &pb.GetWorkStreamResponse_CompositeTask{CompositeTask: t}
 	default:
 		log.Printf("[ERROR]: Unknown task payload type for task %s", task.ID)
 		return nil

@@ -12,7 +12,7 @@
 #include "proto/coordinator/v1/coordinator.pb.h"
 
 using api::proto::coordinator::v1::CompositeTask;
-using api::proto::coordinator::v1::WorkPackage;
+using api::proto::coordinator::v1::GetWorkStreamResponse;
 
 namespace {
 
@@ -54,7 +54,7 @@ coordinator_worker::TaskOutcome RunCompositePipeline(const CompositeTask& task) 
     return out;
 }
 
-std::optional<coordinator_worker::TaskOutcome> HandlePackage(const WorkPackage& package) {
+std::optional<coordinator_worker::TaskOutcome> HandlePackage(const GetWorkStreamResponse& package) {
     if (!package.has_composite_task()) {
         std::cerr << "[LOOM]: Error: Received unsupported task type for task " << package.task_id()
                   << ". Failing task.\n";
@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
     opt.worker_name_tag = "loom-worker";
     opt.capabilities = {"loom"};
 
-    coordinator_worker::RunLoop(opt,
-                                [](const WorkPackage& package) { return HandlePackage(package); });
+    coordinator_worker::RunLoop(
+        opt, [](const GetWorkStreamResponse& package) { return HandlePackage(package); });
     return 0;
 }

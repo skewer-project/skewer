@@ -35,7 +35,7 @@ type CoordinatorServiceClient interface {
 	GetJobStatus(ctx context.Context, in *GetJobStatusRequest, opts ...grpc.CallOption) (*GetJobStatusResponse, error)
 	CancelJob(ctx context.Context, in *CancelJobRequest, opts ...grpc.CallOption) (*CancelJobResponse, error)
 	// Internal API for Skewer and Loom GKE Workers
-	GetWorkStream(ctx context.Context, in *GetWorkStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkPackage], error)
+	GetWorkStream(ctx context.Context, in *GetWorkStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[GetWorkStreamResponse], error)
 	ReportTaskResult(ctx context.Context, in *ReportTaskResultRequest, opts ...grpc.CallOption) (*ReportTaskResultResponse, error)
 }
 
@@ -77,13 +77,13 @@ func (c *coordinatorServiceClient) CancelJob(ctx context.Context, in *CancelJobR
 	return out, nil
 }
 
-func (c *coordinatorServiceClient) GetWorkStream(ctx context.Context, in *GetWorkStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkPackage], error) {
+func (c *coordinatorServiceClient) GetWorkStream(ctx context.Context, in *GetWorkStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[GetWorkStreamResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &CoordinatorService_ServiceDesc.Streams[0], CoordinatorService_GetWorkStream_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[GetWorkStreamRequest, WorkPackage]{ClientStream: stream}
+	x := &grpc.GenericClientStream[GetWorkStreamRequest, GetWorkStreamResponse]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (c *coordinatorServiceClient) GetWorkStream(ctx context.Context, in *GetWor
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type CoordinatorService_GetWorkStreamClient = grpc.ServerStreamingClient[WorkPackage]
+type CoordinatorService_GetWorkStreamClient = grpc.ServerStreamingClient[GetWorkStreamResponse]
 
 func (c *coordinatorServiceClient) ReportTaskResult(ctx context.Context, in *ReportTaskResultRequest, opts ...grpc.CallOption) (*ReportTaskResultResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -115,7 +115,7 @@ type CoordinatorServiceServer interface {
 	GetJobStatus(context.Context, *GetJobStatusRequest) (*GetJobStatusResponse, error)
 	CancelJob(context.Context, *CancelJobRequest) (*CancelJobResponse, error)
 	// Internal API for Skewer and Loom GKE Workers
-	GetWorkStream(*GetWorkStreamRequest, grpc.ServerStreamingServer[WorkPackage]) error
+	GetWorkStream(*GetWorkStreamRequest, grpc.ServerStreamingServer[GetWorkStreamResponse]) error
 	ReportTaskResult(context.Context, *ReportTaskResultRequest) (*ReportTaskResultResponse, error)
 	mustEmbedUnimplementedCoordinatorServiceServer()
 }
@@ -136,7 +136,7 @@ func (UnimplementedCoordinatorServiceServer) GetJobStatus(context.Context, *GetJ
 func (UnimplementedCoordinatorServiceServer) CancelJob(context.Context, *CancelJobRequest) (*CancelJobResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CancelJob not implemented")
 }
-func (UnimplementedCoordinatorServiceServer) GetWorkStream(*GetWorkStreamRequest, grpc.ServerStreamingServer[WorkPackage]) error {
+func (UnimplementedCoordinatorServiceServer) GetWorkStream(*GetWorkStreamRequest, grpc.ServerStreamingServer[GetWorkStreamResponse]) error {
 	return status.Error(codes.Unimplemented, "method GetWorkStream not implemented")
 }
 func (UnimplementedCoordinatorServiceServer) ReportTaskResult(context.Context, *ReportTaskResultRequest) (*ReportTaskResultResponse, error) {
@@ -222,11 +222,11 @@ func _CoordinatorService_GetWorkStream_Handler(srv interface{}, stream grpc.Serv
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(CoordinatorServiceServer).GetWorkStream(m, &grpc.GenericServerStream[GetWorkStreamRequest, WorkPackage]{ServerStream: stream})
+	return srv.(CoordinatorServiceServer).GetWorkStream(m, &grpc.GenericServerStream[GetWorkStreamRequest, GetWorkStreamResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type CoordinatorService_GetWorkStreamServer = grpc.ServerStreamingServer[WorkPackage]
+type CoordinatorService_GetWorkStreamServer = grpc.ServerStreamingServer[GetWorkStreamResponse]
 
 func _CoordinatorService_ReportTaskResult_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReportTaskResultRequest)
