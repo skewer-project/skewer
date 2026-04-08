@@ -1,9 +1,7 @@
 name: Deploy Docs
 on:
   push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+    branches: ["main", "docs/doc-pages"]
 
 permissions:
   contents: read
