@@ -40,6 +40,98 @@ static std::unique_ptr<Integrator> CreateIntegrator(IntegratorType type) {
 RenderSession::RenderSession() { skwr::InitSpectralModel(); }
 RenderSession::~RenderSession() = default;
 
+// Derive PNG + EXR output paths from a layer file path and optional output_dir.
+// e.g. layer_path="scenes/foo/layer_ball.json", output_dir="images/foo/"
+//   → ("images/foo/layer_ball.png", "images/foo/layer_ball.exr")
+// output_dir may be a local path or a cloud URI (e.g. "gs://bucket/renders/").
+// A trailing separator is added automatically if output_dir doesn't end with one.
+static std::pair<std::string, std::string> LayerOutputPaths(const std::string& layer_path,
+                                                            const std::string& output_dir) {
+    // Strip directory from layer_path to get the bare filename
+    size_t slash = layer_path.find_last_of("/\\");
+    std::string base = (slash != std::string::npos) ? layer_path.substr(slash + 1) : layer_path;
+
+    // Strip extension
+    size_t dot = base.rfind('.');
+    std::string stem = (dot != std::string::npos) ? base.substr(0, dot) : base;
+
+    std::string prefix;
+    if (!output_dir.empty()) {
+        prefix = output_dir;
+        char last = prefix.back();
+        if (last != '/' && last != '\\') prefix += '/';
+    }
+
+    return {prefix + stem + ".png", prefix + stem + ".exr"};
+}
+
+void RenderSession::RenderScene(const std::string& scene_file, int thread_override) {
+    std::cout << "[Session] Rendering scene: " << scene_file << "\n";
+
+    SceneConfig config = LoadSceneFile(scene_file);
+
+    // Store shared camera params (used by RebuildFilm)
+    cam_look_from_ = config.look_from;
+    cam_look_at_ = config.look_at;
+    cam_vup_ = config.vup;
+    cam_vfov_ = config.vfov;
+    cam_aperture_ = config.aperture_radius;
+    cam_focus_dist_ = config.focus_distance;
+
+    const bool multi_layer = config.layer_paths.size() > 1;
+
+    for (size_t i = 0; i < config.layer_paths.size(); ++i) {
+        const std::string& layer_path = config.layer_paths[i];
+        std::cout << "[Session] Layer " << (i + 1) << "/" << config.layer_paths.size() << ": "
+                  << layer_path << "\n";
+
+        // Fresh scene per layer
+        auto layer_scene = std::make_unique<Scene>();
+        LoadContextIntoScene(config.context_paths, *layer_scene);
+        LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
+        layer_scene->Build();
+
+        auto& opts = lcfg.render_options;
+        auto& ic = opts.integrator_config;
+
+        // Multi-layer renders always produce deep EXRs with transparent backgrounds
+        if (multi_layer) {
+            ic.enable_deep = true;
+            ic.transparent_background = true;
+        }
+        if (thread_override > 0) ic.num_threads = thread_override;
+
+        // Output filenames derived from layer filename + scene-level output_dir
+        auto [png_out, exr_out] = LayerOutputPaths(layer_path, config.output_dir);
+        opts.image_config.outfile = png_out;
+        opts.image_config.exrfile = exr_out;
+
+        float aspect = static_cast<float>(opts.image_config.width) /
+                       static_cast<float>(opts.image_config.height);
+        auto cam = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
+                                            aspect, cam_aperture_, cam_focus_dist_);
+        ic.cam_w = -cam->GetW();
+
+        auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
+        auto integ = CreateIntegrator(opts.integrator_type);
+
+        const auto& lic = opts.integrator_config;
+        std::cout << "[Session] " << opts.image_config.width << "x" << opts.image_config.height
+                  << " | Samples: " << lic.max_samples << " | Depth: " << lic.max_depth << "\n";
+
+        integ->Render(*layer_scene, *cam, film.get(), ic);
+
+        film->WriteImage(opts.image_config.outfile);
+        std::cout << "[Session] Wrote " << opts.image_config.outfile << "\n";
+
+        if (ic.enable_deep) {
+            exrio::DeepImage img = film->BuildDeepImage();
+            exrio::writeDeepEXR(img, opts.image_config.exrfile);
+            std::cout << "[Session] Wrote " << opts.image_config.exrfile << "\n";
+        }
+    }
+}
+
 /**
  * Load a scene from a JSON config file.
  * Sets up everything: scene geometry, materials, camera, film, and integrator.
@@ -47,22 +139,30 @@ RenderSession::~RenderSession() = default;
 void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_override) {
     std::cout << "[Session] Loading scene from: " << scene_file << "\n";
 
-    // 1. Create scene and load from JSON
-    scene_ = std::make_unique<Scene>();
-    SceneConfig config = LoadSceneFile(scene_file, *scene_);
+    // 1. Parse scene.json (camera + layer/context paths; no geometry)
+    SceneConfig config = LoadSceneFile(scene_file);
 
-    // 2. Build BVH acceleration structure
+    // 2. Create scene, load context + first layer
+    scene_ = std::make_unique<Scene>();
+    LoadContextIntoScene(config.context_paths, *scene_);
+
+    if (config.layer_paths.empty()) {
+        throw std::runtime_error("Scene file has no layers: " + scene_file);
+    }
+    LayerConfig lcfg = LoadLayerFile(config.layer_paths[0], *scene_);
+
+    // 3. Build BVH acceleration structure
     scene_->Build();
 
-    // 3. Apply thread override if specified
+    // 4. Apply thread override if specified
     if (thread_override > 0) {
-        config.render_options.integrator_config.num_threads = thread_override;
+        lcfg.render_options.integrator_config.num_threads = thread_override;
     }
 
-    // 4. Store render options
-    options_ = config.render_options;
+    // 5. Store render options
+    options_ = lcfg.render_options;
 
-    // 5. Store camera parameters so RebuildFilm() can recreate the camera
+    // 6. Store camera parameters so RebuildFilm() can recreate the camera
     // with the correct aspect ratio if the resolution is later overridden.
     cam_look_from_ = config.look_from;
     cam_look_at_ = config.look_at;
