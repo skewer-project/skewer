@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
-import { PropertiesPanel } from "./components/PropertiesPanel";
+import {
+	MaterialPropertiesPanel,
+	PropertiesPanel,
+} from "./components/PropertiesPanel";
 import { SceneInspector } from "./components/SceneInspector";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
@@ -17,6 +20,19 @@ function App() {
 	const [selectedObjectKey, setSelectedObjectKey] = useState<string | null>(
 		null,
 	);
+	const [selectedMaterialKey, setSelectedMaterialKey] = useState<string | null>(
+		null,
+	);
+
+	function handleSelectObject(key: string | null) {
+		setSelectedObjectKey(key);
+		setSelectedMaterialKey(null);
+	}
+
+	function handleSelectMaterial(key: string | null) {
+		setSelectedMaterialKey(key);
+		setSelectedObjectKey(null);
+	}
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -27,6 +43,7 @@ function App() {
 		setDirHandle(dir);
 		setError("");
 		setSelectedObjectKey(null);
+		setSelectedMaterialKey(null);
 		setSceneVersion((v) => v + 1);
 		setHasUnsavedChanges(false);
 		addRecentScene(dir.name, dir);
@@ -68,6 +85,7 @@ function App() {
 		setScene(null);
 		setDirHandle(null);
 		setSelectedObjectKey(null);
+		setSelectedMaterialKey(null);
 		setHasUnsavedChanges(false);
 		setError("");
 	}
@@ -89,7 +107,7 @@ function App() {
 					dirHandle={dirHandle}
 					sceneVersion={sceneVersion}
 					selectedObjectKey={selectedObjectKey}
-					onSelectObject={setSelectedObjectKey}
+					onSelectObject={handleSelectObject}
 				/>
 			</div>
 
@@ -124,20 +142,32 @@ function App() {
 						<SceneInspector
 							scene={scene}
 							selectedObjectKey={selectedObjectKey}
-							onSelectObject={setSelectedObjectKey}
+							selectedMaterialKey={selectedMaterialKey}
+							onSelectObject={handleSelectObject}
+							onSelectMaterial={handleSelectMaterial}
 						/>
 					</div>
 				)}
 
 				{/* Right sidebar: properties panel */}
-				{scene && selectedObjectKey && (
+				{scene && (selectedObjectKey || selectedMaterialKey) && (
 					<div className="panel hud-properties">
-						<PropertiesPanel
-							scene={scene}
-							objectKey={selectedObjectKey}
-							onSceneEdit={handleSceneEdit}
-							viewportRef={viewportRef}
-						/>
+						{selectedObjectKey && (
+							<PropertiesPanel
+								scene={scene}
+								objectKey={selectedObjectKey}
+								onSceneEdit={handleSceneEdit}
+								viewportRef={viewportRef}
+							/>
+						)}
+						{selectedMaterialKey && (
+							<MaterialPropertiesPanel
+								scene={scene}
+								matKey={selectedMaterialKey}
+								onSceneEdit={handleSceneEdit}
+								viewportRef={viewportRef}
+							/>
+						)}
 					</div>
 				)}
 

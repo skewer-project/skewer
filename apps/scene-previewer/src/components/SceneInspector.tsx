@@ -1,6 +1,5 @@
 import type {
 	Camera,
-	Material,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneObject,
@@ -11,32 +10,11 @@ function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
 }
 
-function materialValueStr(mat: Material): string {
-	switch (mat.type) {
-		case "lambertian":
-			if (mat.albedo_texture) {
-				const file = mat.albedo_texture.split("/").pop() ?? mat.albedo_texture;
-				return `tex:${file}`;
-			}
-			return vec3(mat.albedo);
-		case "metal":
-			return `${vec3(mat.albedo)}  r=${mat.roughness}`;
-		case "dielectric":
-			return `ior=${mat.ior}  r=${mat.roughness}`;
+function objectLabel(obj: SceneObject): string {
+	if (obj.type === "obj") {
+		return obj.file.split("/").pop() ?? obj.file;
 	}
-}
-
-function objectValueStr(obj: SceneObject): string {
-	switch (obj.type) {
-		case "sphere":
-			return `${vec3(obj.center)}  r=${obj.radius}  "${obj.material}"`;
-		case "quad":
-			return `"${obj.material}"`;
-		case "obj": {
-			const file = obj.file.split("/").pop() ?? obj.file;
-			return `${file}${obj.material ? `  "${obj.material}"` : ""}`;
-		}
-	}
+	return obj.material ?? "";
 }
 
 function CameraSection({ camera }: { camera: Camera }) {
@@ -84,17 +62,20 @@ function LayerCard({
 	tag,
 	layerIdx,
 	selectedObjectKey,
+	selectedMaterialKey,
 	onSelectObject,
+	onSelectMaterial,
 }: {
 	layer: ResolvedLayer;
 	tag: "context" | "layer";
 	layerIdx: number;
 	selectedObjectKey: string | null;
+	selectedMaterialKey: string | null;
 	onSelectObject: (key: string | null) => void;
+	onSelectMaterial: (key: string | null) => void;
 }) {
 	const { name, data } = layer;
 	const matNames = Object.keys(data.materials);
-	const render = data.render;
 	const keyPrefix = tag === "context" ? "ctx" : "lyr";
 
 	return (
@@ -132,13 +113,24 @@ function LayerCard({
 				{matNames.length > 0 && (
 					<>
 						<div className="layer-sub-head">Materials</div>
-						{matNames.map((n) => (
-							<div key={n} className="data-row">
-								<span className="data-name">{n}</span>{" "}
-								<span className="data-type">[{data.materials[n].type}]</span>{" "}
-								{materialValueStr(data.materials[n])}
-							</div>
-						))}
+						{matNames.map((n) => {
+							const key = `${keyPrefix}:${layerIdx}:mat:${n}`;
+							const isSelected = key === selectedMaterialKey;
+							return (
+								<button
+									type="button"
+									key={n}
+									className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+									onClick={(e) => {
+										e.stopPropagation();
+										onSelectMaterial(isSelected ? null : key);
+									}}
+								>
+									<span className="data-name">{n}</span>{" "}
+									<span className="data-type">[{data.materials[n].type}]</span>
+								</button>
+							);
+						})}
 					</>
 				)}
 
@@ -148,6 +140,7 @@ function LayerCard({
 						{data.objects.map((obj, i) => {
 							const key = `${keyPrefix}:${layerIdx}:${i}`;
 							const isSelected = key === selectedObjectKey;
+							const label = objectLabel(obj);
 							return (
 								<button
 									type="button"
@@ -158,37 +151,14 @@ function LayerCard({
 										onSelectObject(isSelected ? null : key);
 									}}
 								>
-									<span className="data-type">
-										#{i} {obj.type}
-									</span>{" "}
-									{objectValueStr(obj)}
+									<span className="data-type">#{i}</span>{" "}
+									<span className="data-name">{obj.type}</span>
+									{label && (
+										<span className="data-type"> {label}</span>
+									)}
 								</button>
 							);
 						})}
-					</>
-				)}
-
-				{render && (
-					<>
-						<div className="layer-sub-head">Render</div>
-						<div className="render-row">
-							<span className="render-kv">
-								<span className="render-k">int </span>
-								{render.integrator}
-							</span>
-							<span className="render-kv">
-								<span className="render-k">res </span>
-								{render.image.width}×{render.image.height}
-							</span>
-							<span className="render-kv">
-								<span className="render-k">spp </span>
-								{render.max_samples}
-							</span>
-							<span className="render-kv">
-								<span className="render-k">d </span>
-								{render.max_depth}
-							</span>
-						</div>
 					</>
 				)}
 			</div>
@@ -199,11 +169,15 @@ function LayerCard({
 export function SceneInspector({
 	scene,
 	selectedObjectKey,
+	selectedMaterialKey,
 	onSelectObject,
+	onSelectMaterial,
 }: {
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
+	selectedMaterialKey: string | null;
 	onSelectObject: (key: string | null) => void;
+	onSelectMaterial: (key: string | null) => void;
 }) {
 	return (
 		<div className="inspector">
@@ -219,7 +193,9 @@ export function SceneInspector({
 							tag="context"
 							layerIdx={i}
 							selectedObjectKey={selectedObjectKey}
+							selectedMaterialKey={selectedMaterialKey}
 							onSelectObject={onSelectObject}
+							onSelectMaterial={onSelectMaterial}
 						/>
 					))}
 				</>
@@ -235,7 +211,9 @@ export function SceneInspector({
 							tag="layer"
 							layerIdx={i}
 							selectedObjectKey={selectedObjectKey}
+							selectedMaterialKey={selectedMaterialKey}
 							onSelectObject={onSelectObject}
+							onSelectMaterial={onSelectMaterial}
 						/>
 					))}
 				</>

@@ -22,6 +22,7 @@
 	--amber-border: rgba(232, 165, 60, 0.22);
 	--blue: #4d80ff;
 	--blue-lo: rgba(77, 128, 255, 0.08);
+	--green: #5fba6f;
 	--red: #e05c5c;
 
 	--mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
@@ -569,6 +570,11 @@ body {
 	border-bottom: 1px solid var(--border);
 }
 
+.properties-section .inspector-section-head {
+	border-bottom: none;
+	padding-bottom: 0;
+}
+
 /* Camera block */
 .camera-block {
 	padding: 8px 14px 10px;
@@ -578,12 +584,13 @@ body {
 .kv-table {
 	display: flex;
 	flex-direction: column;
+	gap: 4px;
 }
 
 .kv-row {
 	display: grid;
 	grid-template-columns: 40px 1fr;
-	gap: 0 8px;
+	gap: 0 6px;
 	line-height: 1.7;
 }
 
@@ -824,7 +831,7 @@ button.data-row {
 }
 
 .properties-body {
-	padding: 8px 14px 10px;
+	padding: 10px 14px 14px;
 }
 
 /* ── Editable controls ───────────────── */
@@ -876,26 +883,48 @@ button.data-row {
 .vec3-row {
 	display: grid;
 	grid-template-columns: 40px 1fr 1fr 1fr;
-	gap: 0 4px;
-	align-items: start;
+	gap: 0 6px;
+	align-items: center;
 	min-height: 1.7lh;
 }
 
 .vec3-cell {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	align-items: stretch;
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	overflow: hidden;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.vec3-cell .num-input {
+	border: none;
+	background: transparent;
+	border-radius: 0;
+	padding: 2px 4px;
 }
 
 .vec3-component {
-	font-size: 7.5px;
+	font-size: 9px;
 	font-weight: 500;
-	color: var(--t3);
-	text-align: center;
-	letter-spacing: 0.12em;
+	color: var(--t2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 5px;
 	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	border-right: 1px solid var(--border-mid);
+	background: rgba(0, 0, 0, 0.18);
+	min-width: 18px;
 	line-height: 1;
-	padding-bottom: 1px;
+	flex-shrink: 0;
 }
+
+.vec3-row > .vec3-cell:nth-child(2) .vec3-component { color: var(--red); }
+.vec3-row > .vec3-cell:nth-child(3) .vec3-component { color: var(--green); }
+.vec3-row > .vec3-cell:nth-child(4) .vec3-component { color: var(--blue); }
 
 /* Material dropdown */
 .mat-select {
