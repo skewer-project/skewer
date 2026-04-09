@@ -106,8 +106,6 @@ function resolveObject(scene: ResolvedScene, key: string) {
 
 // ── Geometry editors ────────────────────────────────────────
 
-// (EditorProps defined above with SceneEditorBase)
-
 function SphereEditor({
 	obj,
 	objectKey,
