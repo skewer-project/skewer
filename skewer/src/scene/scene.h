@@ -52,6 +52,10 @@ class Scene {
 
     const std::map<std::string, SceneNode>& Nodes() const { return nodes_; }
     const std::string& GetNodeStringId(int32_t id) const { return node_id_to_string_[id]; }
+    int32_t GetNodeIntId(const std::string& id) const {
+        auto it = node_string_to_id_.find(id);
+        return (it != node_string_to_id_.end()) ? it->second : -1;
+    }
 
     const Material& GetMaterial(uint32_t id) const { return materials_[id]; }
     const ImageTexture& GetTexture(uint32_t id) const { return textures_[id]; }

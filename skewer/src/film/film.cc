@@ -179,6 +179,7 @@ std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& i
     merged.reserve(reserve_size);
 
     DeepSample current = input[0];
+    int current_bucket_count = 1;
 
     for (size_t i = 1; i < input.size(); ++i) {
         const DeepSample& next = input[i];

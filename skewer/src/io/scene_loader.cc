@@ -134,7 +134,7 @@ static SceneNode ParseNode(const json& j, const std::string& scene_dir) {
     SceneNode node;
     node.id = j.at("id").get<std::string>();
     node.name = GetOr<std::string>(j, "name", "");
-    node.type = j.at("type").get<std::string>();
+    node.type = GetOr<std::string>(j, "type", "transform");
 
     if (j.contains("file")) {
         node.file = ResolvePath(j["file"].get<std::string>(), scene_dir);
@@ -339,6 +339,11 @@ static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap&
     return scene.AddMaterial(cloned);
 }
 
+static int32_t LookupNodeId(const json& obj, const Scene& scene) {
+    if (!obj.contains("node_id")) return -1;
+    return scene.GetNodeIntId(obj["node_id"].get<std::string>());
+}
+
 static void ParseSphere(const json& obj, const MaterialMap& mat_map, const MediaMap& media_map,
                         Scene& scene, int index) {
     uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
@@ -362,8 +367,9 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, const Media
     }
     int32_t light_index = -1;
     uint16_t priority = 1;
+    int32_t node_id = LookupNodeId(obj, scene);
 
-    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority});
+    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority, node_id});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
@@ -380,7 +386,9 @@ static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene,
     Vec3 p2 = ParseVec3(verts[2]);
     Vec3 p3 = ParseVec3(verts[3]);
 
-    scene.AddMesh(CreateQuad(p0, p1, p2, p3, mat_id));
+    Mesh m = CreateQuad(p0, p1, p2, p3, mat_id);
+    m.node_id = LookupNodeId(obj, scene);
+    scene.AddMesh(std::move(m));
 
     std::string comment = GetOr<std::string>(obj, "comment", "");
 }
@@ -423,49 +431,62 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
                                  ": failed to load OBJ file '" + filepath + "'");
     }
 
+    int32_t node_id = LookupNodeId(obj, scene);
+
     // Override material if specified (also applies object-level visible override)
     if (obj.contains("material") && !obj["material"].is_null()) {
         uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
-            scene.GetMutableMesh(static_cast<uint32_t>(i)).material_id = mat_id;
-        }
-    } else if (obj.contains("visible")) {
-        // No material override, but a visibility flag was set.  The OBJ may
-        // have loaded multiple sub-meshes with different materials; clone each
-        // unique material with the requested visibility.
-        bool want_visible = obj["visible"].get<bool>();
-        std::unordered_map<uint32_t, uint32_t> vis_cache;
-        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
-            uint32_t orig = mesh.material_id;
-            auto it = vis_cache.find(orig);
-            if (it != vis_cache.end()) {
-                mesh.material_id = it->second;
-            } else {
-                Material cloned = scene.GetMaterial(orig);
-                uint32_t new_id = orig;
-                if (cloned.visible != want_visible) {
-                    cloned.visible = want_visible;
-                    new_id = scene.AddMaterial(cloned);
+            mesh.material_id = mat_id;
+            mesh.node_id = node_id;
+        }
+    } else {
+        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+            scene.GetMutableMesh(static_cast<uint32_t>(i)).node_id = node_id;
+        }
+        
+        if (obj.contains("visible")) {
+            // No material override, but a visibility flag was set.  The OBJ may
+            // have loaded multiple sub-meshes with different materials; clone each
+            // unique material with the requested visibility.
+            bool want_visible = obj["visible"].get<bool>();
+            std::unordered_map<uint32_t, uint32_t> vis_cache;
+            for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+                Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
+                uint32_t orig = mesh.material_id;
+                auto it = vis_cache.find(orig);
+                if (it != vis_cache.end()) {
+                    mesh.material_id = it->second;
+                } else {
+                    Material cloned = scene.GetMaterial(orig);
+                    uint32_t new_id = orig;
+                    if (cloned.visible != want_visible) {
+                        cloned.visible = want_visible;
+                        new_id = scene.AddMaterial(cloned);
+                    }
+                    vis_cache[orig] = new_id;
+                    mesh.material_id = new_id;
                 }
-                vis_cache[orig] = new_id;
-                mesh.material_id = new_id;
             }
         }
     }
 
     // Apply transform (Scale -> Rotate -> Translate) to all newly added meshes
-    bool has_transform =
-        (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
-         rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
-         translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
+    // ONLY if node_id is -1. If node_id is set, we use dynamic transforms.
+    if (node_id == -1) {
+        bool has_transform =
+            (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
+             rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
+             translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
 
-    if (has_transform) {
-        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
-            Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
-            ApplyTransform(mesh.p, translate, rotate_deg, obj_scale);
-            if (!mesh.n.empty()) {
-                ApplyRotationToNormals(mesh.n, rotate_deg);
+        if (has_transform) {
+            for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+                Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
+                ApplyTransform(mesh.p, translate, rotate_deg, obj_scale);
+                if (!mesh.n.empty()) {
+                    ApplyRotationToNormals(mesh.n, rotate_deg);
+                }
             }
         }
     }
