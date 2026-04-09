@@ -44,15 +44,11 @@ int main(int argc, char* argv[]) {
     skwr::RenderSession session;
 
     try {
-        session.LoadSceneFromFile(scene_file, thread_override);
+        session.RenderScene(scene_file, thread_override);
     } catch (const std::exception& e) {
-        std::cerr << "[Error] Failed to load scene: " << e.what() << "\n";
+        std::cerr << "[Error] " << e.what() << "\n";
         return 1;
     }
-
-    session.Render();
-
-    session.Save();
 
     return 0;
 }

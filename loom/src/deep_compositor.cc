@@ -105,7 +105,9 @@ void LoaderWorker(int start_row, int end_row, PipelineContext& ctx) {
                                                        sampleStride));
 
             file.setFrameBuffer(frameBuffer);
-            file.readPixels(load_y, load_y);
+            int exr_y = load_y + ctx.images_info[i]->min_y();
+            file.readPixelSampleCounts(exr_y, exr_y);
+            file.readPixels(exr_y, exr_y);
         }
 
         ctx.row_status[load_y].store(LOADED);
@@ -199,6 +201,12 @@ void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
 
 std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
                                  std::vector<std::unique_ptr<DeepInfo>>& images_info) {
+    if ((width == 0 || height == 0) && !images_info.empty()) {
+        width = images_info[0]->width();
+        height = images_info[0]->height();
+        printf("[Loom] Inherited dimensions from first input: %dx%d\n", width, height);
+    }
+
     const int window_size = 48;
     int num_files = opts.input_files.size();
 

@@ -26,7 +26,7 @@ func ensureConnection(addr string) error {
 		return nil
 	}
 
-	fmt.Println("[CLI] Coordinator not reachable. Attempting to port-forward...")
+	fmt.Println("[CLI]: Coordinator not reachable. Attempting to port-forward...")
 
 	// Extract the port from the address (e.g. "localhost:50051" -> "50051")
 	parts := strings.Split(addr, ":")

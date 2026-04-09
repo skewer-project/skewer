@@ -36,3 +36,6 @@ add_custom_command(
 add_library(coordinator_proto STATIC "${PROTO_SRC}" "${GRPC_SRC}")
 target_include_directories(coordinator_proto PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(coordinator_proto PUBLIC gRPC::grpc++ protobuf::libprotobuf)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(coordinator_proto PRIVATE -Wno-nullability-extension -Wno-error=nullability-extension)
+endif()

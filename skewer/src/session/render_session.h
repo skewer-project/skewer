@@ -27,20 +27,18 @@ class RenderSession {
     RenderSession();
     ~RenderSession();
 
-    // SETUP: Load scene from a JSON config file.
-    // Populates scene, camera, film, and integrator from the config.
-    // Optional thread_override: if > 0, overrides the thread count from JSON.
-    void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
+    // Parse scene.json, render every layer, save outputs.
+    // Output filenames are derived from each layer filename
+    // (e.g. layer_character.json → layer_character.png / .exr).
+    void RenderScene(const std::string& scene_file, int thread_override = 0);
 
     // Update the film buffer if options (like samples_per_pixel) have changed
     void RebuildFilm();
 
-    // EXECUTE: Run the integrator on the scene
+    // --- Legacy API (used by the cloud worker until Phase 5) ---
+    void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
     void Render();
-
-    // OUTPUT: Write the rendered image to disk
     void Save() const;
-
     RenderOptions& Options() { return options_; }
     const RenderOptions& Options() const { return options_; }
 
