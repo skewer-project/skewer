@@ -9,3 +9,9 @@ declare interface FileSystemHandle {
 		mode?: "read" | "readwrite";
 	}): Promise<PermissionState>;
 }
+
+declare function showOpenFilePicker(options?: {
+	types?: Array<{ description?: string; accept: Record<string, string[]> }>;
+	multiple?: boolean;
+	excludeAcceptAllOption?: boolean;
+}): Promise<FileSystemFileHandle[]>;
