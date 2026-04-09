@@ -922,9 +922,15 @@ button.data-row {
 	flex-shrink: 0;
 }
 
-.vec3-row > .vec3-cell:nth-child(2) .vec3-component { color: var(--red); }
-.vec3-row > .vec3-cell:nth-child(3) .vec3-component { color: var(--green); }
-.vec3-row > .vec3-cell:nth-child(4) .vec3-component { color: var(--blue); }
+.vec3-row > .vec3-cell:nth-child(2) .vec3-component {
+	color: var(--red);
+}
+.vec3-row > .vec3-cell:nth-child(3) .vec3-component {
+	color: var(--green);
+}
+.vec3-row > .vec3-cell:nth-child(4) .vec3-component {
+	color: var(--blue);
+}
 
 /* Material dropdown */
 .mat-select {

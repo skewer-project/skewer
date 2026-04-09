@@ -153,9 +153,7 @@ function LayerCard({
 								>
 									<span className="data-type">#{i}</span>{" "}
 									<span className="data-name">{obj.type}</span>
-									{label && (
-										<span className="data-type"> {label}</span>
-									)}
+									{label && <span className="data-type"> {label}</span>}
 								</button>
 							);
 						})}
