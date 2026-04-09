@@ -19,6 +19,7 @@ interface Props {
 	scene: ResolvedScene;
 	objectKey: string;
 	onSceneEdit: (updater: (s: ResolvedScene) => ResolvedScene) => void;
+	onRebuild: () => void;
 	viewportRef: RefObject<ViewportHandle | null>;
 }
 
@@ -88,6 +89,7 @@ function resolveObject(scene: ResolvedScene, key: string) {
 interface EditorProps {
 	objectKey: string;
 	onSceneEdit: Props["onSceneEdit"];
+	onRebuild: Props["onRebuild"];
 	viewportRef: Props["viewportRef"];
 	materialNames: string[];
 	layer: ResolvedLayer;
@@ -226,6 +228,7 @@ function ObjEditor({
 	obj,
 	objectKey,
 	onSceneEdit,
+	onRebuild,
 	viewportRef,
 	materialNames,
 	layer,
@@ -288,7 +291,7 @@ function ObjEditor({
 							auto_fit: v,
 						})),
 					);
-					// auto_fit requires full rebuild — no live patch
+					onRebuild();
 				}}
 			/>
 			<Vec3Field
@@ -497,6 +500,7 @@ export function PropertiesPanel({
 	scene,
 	objectKey,
 	onSceneEdit,
+	onRebuild,
 	viewportRef,
 }: Props) {
 	const resolved = resolveObject(scene, objectKey);
@@ -508,6 +512,7 @@ export function PropertiesPanel({
 	const editorProps: EditorProps = {
 		objectKey,
 		onSceneEdit,
+		onRebuild,
 		viewportRef,
 		materialNames,
 		layer,

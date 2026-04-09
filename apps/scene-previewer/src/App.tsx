@@ -157,6 +157,7 @@ function App() {
 								scene={scene}
 								objectKey={selectedObjectKey}
 								onSceneEdit={handleSceneEdit}
+								onRebuild={() => setSceneVersion((v) => v + 1)}
 								viewportRef={viewportRef}
 							/>
 						)}
