@@ -13,13 +13,34 @@ import type {
 import { MaterialDropdown, NumberField, Toggle, Vec3Field } from "./controls";
 import type { ViewportHandle } from "./Viewport";
 
-// ── Props ───────────────────────────────────────────────────
+// ── Shared base ───────────────────────────────────────────────
 
-interface Props {
+interface SceneEditorBase {
 	scene: ResolvedScene;
-	objectKey: string;
 	onSceneEdit: (updater: (s: ResolvedScene) => ResolvedScene) => void;
 	viewportRef: RefObject<ViewportHandle | null>;
+}
+
+// ── Props ───────────────────────────────────────────────────
+
+interface Props extends SceneEditorBase {
+	objectKey: string;
+}
+
+// ── Material editor props ───────────────────────────────────
+
+interface MaterialEditorProps extends SceneEditorBase {
+	matKey: string;
+}
+
+// ── Geometry editor props ───────────────────────────────────
+
+interface EditorProps extends SceneEditorBase {
+	objectKey: string;
+	materialNames: string[];
+	layer: ResolvedLayer;
+	layerTag: string;
+	layerIdx: number;
 }
 
 // ── Scene mutation helpers ──────────────────────────────────
@@ -85,16 +106,7 @@ function resolveObject(scene: ResolvedScene, key: string) {
 
 // ── Geometry editors ────────────────────────────────────────
 
-interface EditorProps {
-	objectKey: string;
-	onSceneEdit: Props["onSceneEdit"];
-	viewportRef: Props["viewportRef"];
-	scene: Props["scene"];
-	materialNames: string[];
-	layer: ResolvedLayer;
-	layerTag: string;
-	layerIdx: number;
-}
+// (EditorProps defined above with SceneEditorBase)
 
 function SphereEditor({
 	obj,
@@ -330,15 +342,12 @@ function MaterialEditor({
 	onSceneEdit,
 	viewportRef,
 	scene,
-}: {
+}: SceneEditorBase & {
 	mat: Material;
 	matName: string;
 	objectKey: string;
 	layerTag: string;
 	layerIdx: number;
-	onSceneEdit: Props["onSceneEdit"];
-	viewportRef: Props["viewportRef"];
-	scene: Props["scene"];
 }) {
 	function applyMat(next: Material) {
 		onSceneEdit((s) => updateMaterial(s, objectKey, matName, () => next));
@@ -453,12 +462,7 @@ export function MaterialPropertiesPanel({
 	matKey,
 	onSceneEdit,
 	viewportRef,
-}: {
-	scene: ResolvedScene;
-	matKey: string;
-	onSceneEdit: Props["onSceneEdit"];
-	viewportRef: Props["viewportRef"];
-}) {
+}: MaterialEditorProps) {
 	// matKey format: "lyr:0:mat:marble"
 	const parts = matKey.split(":");
 	const tag = parts[0];
