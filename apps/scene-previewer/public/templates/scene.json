@@ -1,0 +1,15 @@
+{
+	"camera": {
+		"look_from": [0.0, 0.0, 4.0],
+		"look_at": [0.0, 0.0, -10.0],
+		"vup": [0.0, 1.0, 0.0],
+		"vfov": 50.0
+	},
+	"context": ["ctx_lighting.json"],
+	"layers": [
+		"layer_env.json",
+		"layer_sphere_gold.json",
+		"layer_sphere_blue.json"
+	],
+	"output_dir": "images/output"
+}
