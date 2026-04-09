@@ -17,6 +17,7 @@ struct Mesh {
     // Index buffer
     std::vector<uint32_t> indices;
     uint32_t material_id;
+    int32_t node_id = -1;
 };
 
 }  // namespace skwr

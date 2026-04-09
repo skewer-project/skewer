@@ -63,6 +63,8 @@ class RenderSession {
     float cam_vfov_ = 90.0f;
     float cam_aperture_ = 0.0f;
     float cam_focus_dist_ = 1.0f;
+    float cam_shutter_open_ = 0.0f;
+    float cam_shutter_close_ = 0.0f;
 };
 
 }  // namespace skwr

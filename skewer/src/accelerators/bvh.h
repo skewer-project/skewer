@@ -2,6 +2,8 @@
 #define SKWR_ACCELERATORS_BVH_H_
 
 #include <cstdint>
+#include <map>
+#include <string>
 #include <vector>
 
 #include "core/ray.h"
@@ -10,6 +12,8 @@
 #include "geometry/triangle.h"
 
 namespace skwr {
+
+struct SceneNode;
 
 /* Linear bvh - we try to preserve cache locality by ordering nodes depth-first in array */
 
@@ -38,13 +42,18 @@ class BVH {
   public:
     // Build the tree and REORDER the triangles vector for cache locality.
     // Triangles must already have their vertex data pre-baked (see Scene::AddMesh).
-    void Build(std::vector<Triangle>& triangles);
+    void Build(std::vector<Triangle>& triangles,
+               const std::map<std::string, SceneNode>& nodes,
+               const std::vector<std::string>& node_id_to_string,
+               float t_start = 0.0f, float t_end = 0.0f);
 
     const std::vector<BVHNode>& GetNodes() const { return nodes_; }
 
     bool IsEmpty() const { return nodes_.empty(); }
     bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
-                   const std::vector<Triangle>& triangles) const;
+                   const std::vector<Triangle>& triangles,
+                   const std::map<std::string, SceneNode>& nodes,
+                   const std::vector<std::string>& node_id_to_string) const;
 
   private:
     std::vector<BVHNode> nodes_;

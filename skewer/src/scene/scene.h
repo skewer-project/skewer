@@ -15,6 +15,9 @@
 #include "media/mediums.h"
 #include "media/nano_vdb_medium.h"
 #include "scene/light.h"
+#include "io/scene_loader.h"
+#include <map>
+#include <string>
 
 namespace skwr {
 
@@ -36,6 +39,20 @@ class Scene {
     void SetGlobalMedium(uint16_t medium_id) { global_medium_id_ = medium_id; }
     uint16_t GetGlobalMedium() const { return global_medium_id_; }
 
+    void SetNodes(const std::vector<SceneNode>& nodes) {
+        nodes_.clear();
+        node_id_to_string_.clear();
+        node_string_to_id_.clear();
+        for (const auto& n : nodes) {
+            nodes_[n.id] = n;
+            node_string_to_id_[n.id] = (int32_t)node_id_to_string_.size();
+            node_id_to_string_.push_back(n.id);
+        }
+    }
+
+    const std::map<std::string, SceneNode>& Nodes() const { return nodes_; }
+    const std::string& GetNodeStringId(int32_t id) const { return node_id_to_string_[id]; }
+
     const Material& GetMaterial(uint32_t id) const { return materials_[id]; }
     const ImageTexture& GetTexture(uint32_t id) const { return textures_[id]; }
     const Mesh& GetMesh(uint32_t id) const { return meshes_[id]; }
@@ -50,7 +67,7 @@ class Scene {
     const std::vector<NanoVDBMedium>& nanovdb_media() const { return nanovdb_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
 
-    void Build();  // Construct the BVH from the shapes list
+    void Build(float t_start = 0.0f, float t_end = 0.0f);  // Construct the BVH from the shapes list
 
     // THE CRITICAL HOT-PATH FUNCTION
     // The Integrator calls this millions of times.
@@ -70,6 +87,10 @@ class Scene {
     BVH bvh_;
     float inv_light_count_;
     uint16_t global_medium_id_ = 0;  // 0 represents Vacuum
+
+    std::map<std::string, SceneNode> nodes_;
+    std::vector<std::string> node_id_to_string_;
+    std::map<std::string, int32_t> node_string_to_id_;
 };
 
 }  // namespace skwr

@@ -87,9 +87,10 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
 
         // Fresh scene per layer
         auto layer_scene = std::make_unique<Scene>();
+        layer_scene->SetNodes(config.nodes);
         LoadContextIntoScene(config.context_paths, *layer_scene);
         LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
-        layer_scene->Build();
+        layer_scene->Build(config.start_time, config.end_time);
 
         auto& opts = lcfg.render_options;
         auto& ic = opts.integrator_config;
@@ -109,7 +110,8 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
         float aspect = static_cast<float>(opts.image_config.width) /
                        static_cast<float>(opts.image_config.height);
         auto cam = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
-                                            aspect, cam_aperture_, cam_focus_dist_);
+                                            aspect, cam_aperture_, cam_focus_dist_,
+                                            config.start_time, config.end_time);
         ic.cam_w = -cam->GetW();
 
         auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
@@ -144,6 +146,7 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
 
     // 2. Create scene, load context + first layer
     scene_ = std::make_unique<Scene>();
+    scene_->SetNodes(config.nodes);
     LoadContextIntoScene(config.context_paths, *scene_);
 
     if (config.layer_paths.empty()) {
@@ -152,7 +155,7 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     LayerConfig lcfg = LoadLayerFile(config.layer_paths[0], *scene_);
 
     // 3. Build BVH acceleration structure
-    scene_->Build();
+    scene_->Build(config.start_time, config.end_time);
 
     // 4. Apply thread override if specified
     if (thread_override > 0) {
@@ -170,12 +173,15 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     cam_vfov_ = config.vfov;
     cam_aperture_ = config.aperture_radius;
     cam_focus_dist_ = config.focus_distance;
+    cam_shutter_open_ = config.start_time;
+    cam_shutter_close_ = config.end_time;
 
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
     camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_);
+                                       cam_aperture_, cam_focus_dist_,
+                                       cam_shutter_open_, cam_shutter_close_);
 
     // 7. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
@@ -200,7 +206,8 @@ void RenderSession::RebuildFilm() {
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
     camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_);
+                                       cam_aperture_, cam_focus_dist_,
+                                       cam_shutter_open_, cam_shutter_close_);
     options_.integrator_config.cam_w = -camera_->GetW();
 
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
