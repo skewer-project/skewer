@@ -54,6 +54,41 @@ static RGB ParseRGB(const json& j) {
     return RGB(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
 }
 
+template <typename T>
+static T GetOr(const json& j, const std::string& key, const T& default_value) {
+    if (j.contains(key)) {
+        return j[key].get<T>();
+    }
+    return default_value;
+}
+
+static Vec3 GetVec3Or(const json& j, const std::string& key, const Vec3& default_value) {
+    if (j.contains(key)) {
+        return ParseVec3(j[key]);
+    }
+    return default_value;
+}
+
+static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_value) {
+    if (j.contains(key)) {
+        return ParseRGB(j[key]);
+    }
+    return default_value;
+}
+
+static std::string ExtractDir(const std::string& filepath) {
+    size_t last_slash = filepath.find_last_of("/\\");
+    if (last_slash != std::string::npos) {
+        return filepath.substr(0, last_slash);
+    }
+    return "";
+}
+
+static std::string ResolvePath(const std::string& path, const std::string& base_dir) {
+    if (!path.empty() && path[0] == '/') return path;
+    return base_dir.empty() ? path : (base_dir + "/" + path);
+}
+
 template <typename T, typename ParseFunc>
 static auto ParseKeyframes(const json& j, ParseFunc parse_func) {
     using KeyframeType = decltype(parse_func(j[0]["value"]));
@@ -125,41 +160,6 @@ static SceneNode ParseNode(const json& j, const std::string& scene_dir) {
     }
 
     return node;
-}
-
-template <typename T>
-static T GetOr(const json& j, const std::string& key, const T& default_value) {
-    if (j.contains(key)) {
-        return j[key].get<T>();
-    }
-    return default_value;
-}
-
-static Vec3 GetVec3Or(const json& j, const std::string& key, const Vec3& default_value) {
-    if (j.contains(key)) {
-        return ParseVec3(j[key]);
-    }
-    return default_value;
-}
-
-static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_value) {
-    if (j.contains(key)) {
-        return ParseRGB(j[key]);
-    }
-    return default_value;
-}
-
-static std::string ExtractDir(const std::string& filepath) {
-    size_t last_slash = filepath.find_last_of("/\\");
-    if (last_slash != std::string::npos) {
-        return filepath.substr(0, last_slash);
-    }
-    return "";
-}
-
-static std::string ResolvePath(const std::string& path, const std::string& base_dir) {
-    if (!path.empty() && path[0] == '/') return path;
-    return base_dir.empty() ? path : (base_dir + "/" + path);
 }
 
 // Media Parsing

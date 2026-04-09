@@ -6,7 +6,7 @@
 
 namespace skwr {
 
-inline float DegreesToRadians(float degrees) { return degrees * kPi / 180.0f; }
+inline float DegreesToRadians(float degrees) { return degrees * MathConstants::kPi / 180.0f; }
 
 inline float Lerp(float a, float b, float t) { return a + t * (b - a); }
 

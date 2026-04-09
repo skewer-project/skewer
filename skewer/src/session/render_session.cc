@@ -109,9 +109,9 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
 
         float aspect = static_cast<float>(opts.image_config.width) /
                        static_cast<float>(opts.image_config.height);
-        auto cam = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
+        auto cam = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
                                             aspect, cam_aperture_, cam_focus_dist_,
-                                            config.start_time, config.end_time);
+                                            config.start_time, config.end_time));
         ic.cam_w = -cam->GetW();
 
         auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
@@ -179,9 +179,9 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
+    camera_ = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
                                        cam_aperture_, cam_focus_dist_,
-                                       cam_shutter_open_, cam_shutter_close_);
+                                       cam_shutter_open_, cam_shutter_close_));
 
     // 7. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
@@ -205,9 +205,9 @@ void RenderSession::RebuildFilm() {
     // the projection matches the new film dimensions.
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
+    camera_ = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
                                        cam_aperture_, cam_focus_dist_,
-                                       cam_shutter_open_, cam_shutter_close_);
+                                       cam_shutter_open_, cam_shutter_close_));
     options_.integrator_config.cam_w = -camera_->GetW();
 
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
