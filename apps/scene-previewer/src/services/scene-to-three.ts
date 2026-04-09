@@ -90,6 +90,7 @@ async function buildObject(
 	obj: SceneObject,
 	materials: Record<string, THREE.Material>,
 	dir: FileSystemDirectoryHandle,
+	blobUrls: string[],
 ): Promise<THREE.Object3D | null> {
 	const fallback = new THREE.MeshLambertMaterial({ color: 0xcccccc });
 
@@ -152,7 +153,9 @@ async function buildObject(
 					if (urlMap.has(texName)) continue;
 					try {
 						const file = await getFile(dir, objBaseDir + texName);
-						urlMap.set(texName, URL.createObjectURL(file));
+						const url = URL.createObjectURL(file);
+						urlMap.set(texName, url);
+						blobUrls.push(url);
 					} catch {
 						// texture missing — MTLLoader will use a default color
 					}
@@ -201,12 +204,24 @@ async function buildObject(
 	}
 }
 
+export interface SceneGraphResult {
+	group: THREE.Group;
+	blobUrls: string[];
+}
+
+export function revokeBlobUrls(urls: string[]) {
+	for (const url of urls) {
+		URL.revokeObjectURL(url);
+	}
+}
+
 export async function buildSceneGraph(
 	scene: ResolvedScene,
 	dir: FileSystemDirectoryHandle,
 	signal: AbortSignal,
-): Promise<THREE.Group> {
+): Promise<SceneGraphResult> {
 	const root = new THREE.Group();
+	const blobUrls: string[] = [];
 
 	const allLayers = [...scene.contexts, ...scene.layers];
 	for (let li = 0; li < allLayers.length; li++) {
@@ -226,7 +241,9 @@ export async function buildSceneGraph(
 
 		// Build objects (in parallel per layer)
 		const built = await Promise.all(
-			layer.data.objects.map((obj) => buildObject(obj, threeMats, dir)),
+			layer.data.objects.map((obj) =>
+				buildObject(obj, threeMats, dir, blobUrls),
+			),
 		);
 		if (signal.aborted) break;
 
@@ -244,5 +261,5 @@ export async function buildSceneGraph(
 		root.add(layerGroup);
 	}
 
-	return root;
+	return { group: root, blobUrls };
 }

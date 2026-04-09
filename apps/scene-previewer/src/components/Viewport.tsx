@@ -15,6 +15,7 @@ import {
 	applyTransform,
 	buildSceneGraph,
 	makeThreeMaterial,
+	revokeBlobUrls,
 } from "../services/scene-to-three";
 import type { Material, ResolvedScene, Transform, Vec3 } from "../types/scene";
 
@@ -36,10 +37,23 @@ export type ThreePatch =
 	| { kind: "rebuild" };
 
 export interface ViewportHandle {
-	applyPatch(objectKey: string, patch: ThreePatch): void;
+	applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch): void;
 }
 
 // ── Helpers ─────────────────────────────────────────────────
+
+function disposeSceneGroup(group: THREE.Group) {
+	group.traverse((obj) => {
+		if (obj instanceof THREE.Mesh) {
+			obj.geometry?.dispose();
+			if (obj.material instanceof THREE.Material) {
+				obj.material.dispose();
+			} else if (Array.isArray(obj.material)) {
+				obj.material.forEach((m) => m.dispose());
+			}
+		}
+	});
+}
 
 interface Props {
 	scene?: ResolvedScene | null;
@@ -92,13 +106,7 @@ function findTopLevelObject(
 }
 
 export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{
-		scene,
-		dirHandle,
-		sceneVersion: _sceneVersion,
-		selectedObjectKey,
-		onSelectObject,
-	},
+	{ scene, dirHandle, selectedObjectKey, onSelectObject },
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -107,17 +115,15 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const camera = useRef<THREE.PerspectiveCamera | null>(null);
 	const controls = useRef<OrbitControls | null>(null);
 	const sceneGroup = useRef<THREE.Group | null>(null);
+	const blobUrlsRef = useRef<string[]>([]);
 	const composer = useRef<EffectComposer | null>(null);
-	const outlinePass = useRef<OutlinePass | null>(null);
-	// Keep a ref to scene so Effect 2 can read current data without depending on it
-	const sceneRef = useRef(scene);
-	sceneRef.current = scene;
+  const outlinePass = useRef<OutlinePass | null>(null);
 
 	// ── Imperative handle: applyPatch ──
 	useImperativeHandle(
 		ref,
 		() => ({
-			applyPatch(objectKey: string, patch: ThreePatch) {
+			applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
 				const grp = sceneGroup.current;
 				if (!grp) return;
 
@@ -165,7 +171,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					}
 				} else if (patch.kind === "material") {
 					// Update ALL objects in the layer that use this material name
-					const currentScene = sceneRef.current;
+					const currentScene = scene;
 					if (!currentScene) return;
 					const list =
 						patch.layerTag === "ctx"
@@ -314,12 +320,24 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			cancelAnimationFrame(animId);
 			ro.disconnect();
 			ctrl.dispose();
+
+			const old = sceneGroup.current;
+			if (old) {
+				sc.remove(old);
+				disposeSceneGroup(old);
+			}
+			const oldUrls = blobUrlsRef.current;
+			if (oldUrls.length > 0) {
+				revokeBlobUrls(oldUrls);
+			}
+
 			renderer.dispose();
 			container.removeChild(renderer.domElement);
 			threeScene.current = null;
 			camera.current = null;
 			controls.current = null;
 			sceneGroup.current = null;
+			blobUrlsRef.current = [];
 			composer.current = null;
 			outlinePass.current = null;
 		};
@@ -327,7 +345,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 	// --- Effect 2: rebuild scene objects on structural changes ---
 	useEffect(() => {
-		const currentScene = sceneRef.current;
+		const currentScene = scene;
 		if (!currentScene || !dirHandle) return;
 
 		const sc = threeScene.current;
@@ -345,21 +363,30 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const abortController = new AbortController();
 
 		buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
-			(newGroup) => {
+			(result) => {
 				if (abortController.signal.aborted) return;
 
 				const old = sceneGroup.current;
-				if (old) sc.remove(old);
+				if (old) {
+					sc.remove(old);
+					disposeSceneGroup(old);
+				}
 
-				sc.add(newGroup);
-				sceneGroup.current = newGroup;
+				const oldUrls = blobUrlsRef.current;
+				if (oldUrls.length > 0) {
+					revokeBlobUrls(oldUrls);
+				}
+
+				sc.add(result.group);
+				sceneGroup.current = result.group;
+				blobUrlsRef.current = result.blobUrls;
 			},
 		);
 
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle]);
+	}, [dirHandle, scene]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {
