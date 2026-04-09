@@ -35,11 +35,13 @@ export function NumberField({
 	);
 
 	const [draft, setDraft] = useState(() => format(value));
+	const [isEditing, setIsEditing] = useState(false);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const latestOnChange = useRef(onChange);
-	latestOnChange.current = onChange;
 
-	const prevExternal = useRef(value);
+	useEffect(() => {
+		latestOnChange.current = onChange;
+	}, [onChange]);
 
 	const cancelDebounce = useCallback(() => {
 		if (debounceRef.current) {
@@ -54,95 +56,83 @@ export function NumberField({
 			if (Number.isNaN(n)) return;
 			const clamped = clamp(n);
 			setDraft(format(clamped));
-			prevExternal.current = clamped;
+			setIsEditing(false);
 			latestOnChange.current(clamped);
 		},
 		[clamp, format],
 	);
 
-	// Sync draft when external value changes (e.g. from another control)
-	useEffect(() => {
-		if (value !== prevExternal.current) {
-			setDraft(format(value));
-			prevExternal.current = value;
-		}
-	}, [value, format]);
+	// Derive display value in render: use draft when editing, otherwise formatted prop value
+	const displayValue = isEditing ? draft : format(value);
 
-	const handleChange = useCallback(
-		(e: React.ChangeEvent<HTMLInputElement>) => {
-			const raw = e.target.value;
-			setDraft(raw);
-			cancelDebounce();
-			debounceRef.current = setTimeout(() => flush(raw), 150);
-		},
-		[cancelDebounce, flush],
-	);
+	const handleFocus = () => setIsEditing(true);
 
-	const handleBlur = useCallback(() => {
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const raw = e.target.value;
+		setDraft(raw);
+		setIsEditing(true);
+		cancelDebounce();
+		debounceRef.current = setTimeout(() => flush(raw), 150);
+	};
+
+	const handleBlur = () => {
 		cancelDebounce();
 		flush(draft);
-	}, [draft, cancelDebounce, flush]);
+	};
 
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
-			if (e.key === "Enter") {
-				cancelDebounce();
-				flush(draft);
-			} else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-				e.preventDefault();
-				cancelDebounce();
-				const cur = Number.parseFloat(draft);
-				if (Number.isNaN(cur)) return;
-				const delta = e.key === "ArrowUp" ? step : -step;
-				const clamped = clamp(cur + delta);
-				setDraft(format(clamped));
-				prevExternal.current = clamped;
-				latestOnChange.current(clamped);
-			}
-		},
-		[draft, step, cancelDebounce, clamp, flush, format],
-	);
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === "Enter") {
+			cancelDebounce();
+			flush(draft);
+		} else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+			e.preventDefault();
+			cancelDebounce();
+			const cur = Number.parseFloat(draft);
+			if (Number.isNaN(cur)) return;
+			const delta = e.key === "ArrowUp" ? step : -step;
+			const clamped = clamp(cur + delta);
+			setDraft(format(clamped));
+			setIsEditing(false);
+			latestOnChange.current(clamped);
+		}
+	};
 
 	// ── Drag-to-scrub on label ──
 	const scrubStart = useRef<{ x: number; val: number } | null>(null);
 
-	const handlePointerDown = useCallback(
-		(e: React.PointerEvent<HTMLSpanElement>) => {
-			e.preventDefault();
-			(e.target as HTMLElement).setPointerCapture(e.pointerId);
-			cancelDebounce();
-			scrubStart.current = {
-				x: e.clientX,
-				val: Number.parseFloat(draft) || 0,
-			};
-		},
-		[draft, cancelDebounce],
-	);
+	const handlePointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
+		e.preventDefault();
+		(e.target as HTMLElement).setPointerCapture(e.pointerId);
+		cancelDebounce();
+		setIsEditing(true);
+		scrubStart.current = {
+			x: e.clientX,
+			val: Number.parseFloat(displayValue) || 0,
+		};
+	};
 
-	const handlePointerMove = useCallback(
-		(e: React.PointerEvent<HTMLSpanElement>) => {
-			if (!scrubStart.current) return;
-			const dx = e.clientX - scrubStart.current.x;
-			const newVal = clamp(scrubStart.current.val + dx * step);
-			setDraft(format(newVal));
-			prevExternal.current = newVal;
-			latestOnChange.current(newVal);
-		},
-		[step, clamp, format],
-	);
+	const handlePointerMove = (e: React.PointerEvent<HTMLSpanElement>) => {
+		if (!scrubStart.current) return;
+		const dx = e.clientX - scrubStart.current.x;
+		const newVal = clamp(scrubStart.current.val + dx * step);
+		setDraft(format(newVal));
+		setIsEditing(true);
+		latestOnChange.current(newVal);
+	};
 
-	const handlePointerUp = useCallback(() => {
+	const handlePointerUp = () => {
 		scrubStart.current = null;
-	}, []);
+	};
 
 	const input = (
 		<input
 			type="number"
 			className="num-input"
-			value={draft}
+			value={displayValue}
 			step={step}
 			min={min}
 			max={max}
+			onFocus={handleFocus}
 			onChange={handleChange}
 			onBlur={handleBlur}
 			onKeyDown={handleKeyDown}
@@ -188,9 +178,15 @@ export function Vec3Field({
 	step = 0.1,
 }: Vec3FieldProps) {
 	const latestOnChange = useRef(onChange);
-	latestOnChange.current = onChange;
 	const latestValue = useRef(value);
-	latestValue.current = value;
+
+	useEffect(() => {
+		latestOnChange.current = onChange;
+	}, [onChange]);
+
+	useEffect(() => {
+		latestValue.current = value;
+	}, [value]);
 
 	const handleComponent = useCallback(
 		(idx: number) => (n: number) => {
