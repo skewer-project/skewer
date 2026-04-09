@@ -20,6 +20,7 @@ interface Props {
 	objectKey: string;
 	onSceneEdit: (updater: (s: ResolvedScene) => ResolvedScene) => void;
 	onRebuild: () => void;
+	onDeleteObject: () => void;
 	viewportRef: RefObject<ViewportHandle | null>;
 }
 
@@ -501,6 +502,7 @@ export function PropertiesPanel({
 	objectKey,
 	onSceneEdit,
 	onRebuild,
+	onDeleteObject,
 	viewportRef,
 }: Props) {
 	const resolved = resolveObject(scene, objectKey);
@@ -536,6 +538,13 @@ export function PropertiesPanel({
 					{obj.type === "sphere" && <SphereEditor obj={obj} {...editorProps} />}
 					{obj.type === "quad" && <QuadEditor obj={obj} {...editorProps} />}
 					{obj.type === "obj" && <ObjEditor obj={obj} {...editorProps} />}
+					<button
+						type="button"
+						className="delete-obj-btn"
+						onClick={onDeleteObject}
+					>
+						delete object
+					</button>
 				</div>
 			</div>
 

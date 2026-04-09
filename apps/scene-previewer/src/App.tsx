@@ -9,7 +9,7 @@ import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
-import type { ResolvedScene } from "./types/scene";
+import type { Material, ResolvedScene, SceneObject } from "./types/scene";
 
 function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
@@ -71,6 +71,77 @@ function App() {
 		} finally {
 			setSaving(false);
 		}
+	}
+
+	function handleDeleteObject(objectKey: string) {
+		const [tag, liStr, oiStr] = objectKey.split(":");
+		const li = Number(liStr);
+		const oi = Number(oiStr);
+		handleSceneEdit((s) => {
+			const listKey = tag === "ctx" ? "contexts" : "layers";
+			const newList = [...s[listKey]];
+			const newLayer = {
+				...newList[li],
+				data: {
+					...newList[li].data,
+					objects: newList[li].data.objects.filter((_, i) => i !== oi),
+				},
+			};
+			newList[li] = newLayer;
+			return { ...s, [listKey]: newList };
+		});
+		setSceneVersion((v) => v + 1);
+		setSelectedObjectKey(null);
+	}
+
+	function handleAddObject(
+		tag: "ctx" | "lyr",
+		layerIdx: number,
+		obj: SceneObject,
+	) {
+		let newObjIdx = -1;
+		handleSceneEdit((s) => {
+			const listKey = tag === "ctx" ? "contexts" : "layers";
+			newObjIdx = s[listKey][layerIdx].data.objects.length;
+			const newList = [...s[listKey]];
+			const newLayer = {
+				...newList[layerIdx],
+				data: {
+					...newList[layerIdx].data,
+					objects: [...newList[layerIdx].data.objects, obj],
+				},
+			};
+			newList[layerIdx] = newLayer;
+			return { ...s, [listKey]: newList };
+		});
+		setSceneVersion((v) => v + 1);
+		if (newObjIdx >= 0) {
+			setSelectedObjectKey(`${tag}:${layerIdx}:${newObjIdx}`);
+			setSelectedMaterialKey(null);
+		}
+	}
+
+	function handleAddMaterial(
+		tag: "ctx" | "lyr",
+		layerIdx: number,
+		name: string,
+		mat: Material,
+	) {
+		handleSceneEdit((s) => {
+			const listKey = tag === "ctx" ? "contexts" : "layers";
+			const newList = [...s[listKey]];
+			const newLayer = {
+				...newList[layerIdx],
+				data: {
+					...newList[layerIdx].data,
+					materials: { ...newList[layerIdx].data.materials, [name]: mat },
+				},
+			};
+			newList[layerIdx] = newLayer;
+			return { ...s, [listKey]: newList };
+		});
+		setSelectedMaterialKey(`${tag}:${layerIdx}:mat:${name}`);
+		setSelectedObjectKey(null);
 	}
 
 	function handleNavigateHome() {
@@ -137,7 +208,7 @@ function App() {
 				</div>
 
 				{/* Left sidebar: scene inspector */}
-				{scene && (
+				{scene && dirHandle && (
 					<div className="panel hud-sidebar">
 						<SceneInspector
 							scene={scene}
@@ -145,6 +216,9 @@ function App() {
 							selectedMaterialKey={selectedMaterialKey}
 							onSelectObject={handleSelectObject}
 							onSelectMaterial={handleSelectMaterial}
+							onAddObject={handleAddObject}
+							onAddMaterial={handleAddMaterial}
+							dirHandle={dirHandle}
 						/>
 					</div>
 				)}
@@ -158,6 +232,7 @@ function App() {
 								objectKey={selectedObjectKey}
 								onSceneEdit={handleSceneEdit}
 								onRebuild={() => setSceneVersion((v) => v + 1)}
+								onDeleteObject={() => handleDeleteObject(selectedObjectKey)}
 								viewportRef={viewportRef}
 							/>
 						)}
