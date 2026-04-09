@@ -12,6 +12,18 @@ import type {
 } from "../types/scene";
 import { getFile, readTextFile } from "./fs";
 
+function disposeMaterialTextures(material: THREE.Material) {
+	for (const value of Object.values(material)) {
+		if (value instanceof THREE.Texture) {
+			value.dispose();
+		} else if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item instanceof THREE.Texture) item.dispose();
+			}
+		}
+	}
+}
+
 // Extracts `mtllib <name>` lines from OBJ text.
 function parseMtllibNames(objText: string): string[] {
 	const names: string[] = [];
@@ -222,6 +234,7 @@ export async function buildSceneGraph(
 ): Promise<SceneGraphResult> {
 	const root = new THREE.Group();
 	const blobUrls: string[] = [];
+	const disposableGroups: THREE.Group[] = [];
 
 	const allLayers = [...scene.contexts, ...scene.layers];
 	for (let li = 0; li < allLayers.length; li++) {
@@ -232,6 +245,7 @@ export async function buildSceneGraph(
 
 		const layerGroup = new THREE.Group();
 		layerGroup.name = layer.name;
+		disposableGroups.push(layerGroup);
 
 		// Resolve materials for this layer
 		const threeMats: Record<string, THREE.Material> = {};
@@ -259,6 +273,28 @@ export async function buildSceneGraph(
 			}
 		}
 		root.add(layerGroup);
+	}
+
+	if (signal.aborted) {
+		revokeBlobUrls(blobUrls);
+		for (const group of disposableGroups) {
+			group.traverse((obj) => {
+				if (obj instanceof THREE.Mesh) {
+					obj.geometry?.dispose();
+					const material = obj.material;
+					if (Array.isArray(material)) {
+						for (const mat of material) {
+							disposeMaterialTextures(mat);
+							mat.dispose();
+						}
+					} else if (material) {
+						disposeMaterialTextures(material);
+						material.dispose();
+					}
+				}
+			});
+		}
+		return { group: root, blobUrls: [] };
 	}
 
 	return { group: root, blobUrls };

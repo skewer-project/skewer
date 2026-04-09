@@ -42,15 +42,45 @@ export interface ViewportHandle {
 
 // ── Helpers ─────────────────────────────────────────────────
 
+function disposeMaterialTextures(material: THREE.Material) {
+	for (const value of Object.values(material)) {
+		if (value instanceof THREE.Texture) {
+			value.dispose();
+		} else if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item instanceof THREE.Texture) item.dispose();
+			}
+		}
+	}
+}
+
+function disposeMaterial(material: THREE.Material | THREE.Material[]) {
+	if (Array.isArray(material)) {
+		for (const mat of material) disposeMaterial(mat);
+		return;
+	}
+	disposeMaterialTextures(material);
+	material.dispose();
+}
+
+function getMaterialSide(
+	material: THREE.Material | THREE.Material[] | undefined,
+): THREE.Side | null {
+	if (!material) return null;
+	if (Array.isArray(material)) {
+		if (material.some((m) => m.side === THREE.DoubleSide)) {
+			return THREE.DoubleSide;
+		}
+		return material[0]?.side ?? null;
+	}
+	return material.side;
+}
+
 function disposeSceneGroup(group: THREE.Group) {
 	group.traverse((obj) => {
 		if (obj instanceof THREE.Mesh) {
 			obj.geometry?.dispose();
-			if (obj.material instanceof THREE.Material) {
-				obj.material.dispose();
-			} else if (Array.isArray(obj.material)) {
-				obj.material.forEach((m) => m.dispose());
-			}
+			disposeMaterial(obj.material);
 		}
 	});
 }
@@ -106,7 +136,7 @@ function findTopLevelObject(
 }
 
 export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{ scene, dirHandle, selectedObjectKey, onSelectObject },
+	{ scene, dirHandle, sceneVersion, selectedObjectKey, onSelectObject },
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -118,6 +148,10 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const blobUrlsRef = useRef<string[]>([]);
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
+	const lastBuild = useRef<{
+		dirHandle: FileSystemDirectoryHandle | null;
+		sceneVersion: number | null;
+	}>({ dirHandle: null, sceneVersion: null });
 
 	// ── Imperative handle: applyPatch ──
 	useImperativeHandle(
@@ -196,10 +230,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 						const meshes = collectMeshesForKey(grp, key);
 						for (const m of meshes) {
 							if (m instanceof THREE.Mesh) {
-								if (m.material instanceof THREE.Material) {
-									m.material.dispose();
-								}
-								const oldSide = (m.material as THREE.Material)?.side;
+								const oldSide = getMaterialSide(m.material);
+								disposeMaterial(m.material);
 								m.material = newMat.clone();
 								if (oldSide === THREE.DoubleSide) {
 									(m.material as THREE.Material).side = THREE.DoubleSide;
@@ -213,10 +245,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					const newMat = makeThreeMaterial(patch.matData);
 					for (const m of meshes) {
 						if (m instanceof THREE.Mesh) {
-							if (m.material instanceof THREE.Material) {
-								m.material.dispose();
-							}
-							const oldSide = (m.material as THREE.Material)?.side;
+							const oldSide = getMaterialSide(m.material);
+							disposeMaterial(m.material);
 							m.material = newMat.clone();
 							if (oldSide === THREE.DoubleSide) {
 								(m.material as THREE.Material).side = THREE.DoubleSide;
@@ -330,6 +360,23 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			if (oldUrls.length > 0) {
 				revokeBlobUrls(oldUrls);
 			}
+			const comp = composer.current;
+			if (comp) {
+				for (const pass of comp.passes) {
+					if ("dispose" in pass && typeof pass.dispose === "function") {
+						pass.dispose();
+					}
+				}
+				const compAny = comp as unknown as {
+					renderTarget1?: THREE.WebGLRenderTarget;
+					renderTarget2?: THREE.WebGLRenderTarget;
+				};
+				compAny.renderTarget1?.dispose();
+				compAny.renderTarget2?.dispose();
+				if ("dispose" in comp && typeof comp.dispose === "function") {
+					comp.dispose();
+				}
+			}
 
 			renderer.dispose();
 			container.removeChild(renderer.domElement);
@@ -360,6 +407,14 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		cam.updateProjectionMatrix();
 		ctrl.update();
 
+		if (
+			lastBuild.current.dirHandle === dirHandle &&
+			lastBuild.current.sceneVersion === sceneVersion
+		) {
+			return;
+		}
+		lastBuild.current = { dirHandle, sceneVersion };
+
 		const abortController = new AbortController();
 
 		buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
@@ -386,7 +441,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle, scene]);
+	}, [dirHandle, scene, sceneVersion]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {
