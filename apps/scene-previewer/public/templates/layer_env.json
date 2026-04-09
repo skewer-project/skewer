@@ -1,0 +1,116 @@
+{
+	"render": {
+		"integrator": "path_trace",
+		"max_samples": 1024,
+		"min_samples": 16,
+		"noise_threshold": 0.1,
+		"adaptive_step": 16,
+		"max_depth": 10,
+		"threads": 0,
+		"image": {
+			"width": 1024,
+			"height": 1024
+		}
+	},
+	"materials": {
+		"white": {
+			"type": "lambertian",
+			"albedo": [0.73, 0.73, 0.73]
+		},
+		"red": {
+			"type": "lambertian",
+			"albedo": [0.65, 0.05, 0.05]
+		},
+		"green": {
+			"type": "lambertian",
+			"albedo": [0.12, 0.45, 0.15]
+		}
+	},
+	"objects": [
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [[5, -5, -5], [5, -5, -15], [-5, -5, -15], [-5, -5, -5]],
+			"comment": "floor"
+		},
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [[5, 5, -15], [5, 5, -5], [-5, 5, -5], [-5, 5, -15]],
+			"comment": "ceiling"
+		},
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [[5, -5, -15], [5, 5, -15], [-5, 5, -15], [-5, -5, -15]],
+			"comment": "back wall"
+		},
+		{
+			"type": "quad",
+			"material": "red",
+			"vertices": [[-5, -5, -15], [-5, 5, -15], [-5, 5, -5], [-5, -5, -5]],
+			"comment": "left wall"
+		},
+		{
+			"type": "quad",
+			"material": "green",
+			"vertices": [[5, -5, -5], [5, 5, -5], [5, 5, -15], [5, -5, -15]],
+			"comment": "right wall"
+		},
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [
+				[0, -5, -8.5],
+				[0, -1, -8.5],
+				[-3, -1, -8.5],
+				[-3, -5, -8.5]
+			],
+			"comment": "box front"
+		},
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [
+				[-3, -5, -11.5],
+				[-3, -1, -11.5],
+				[0, -1, -11.5],
+				[0, -5, -11.5]
+			],
+			"comment": "box back"
+		},
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [
+				[-3, -5, -8.5],
+				[-3, -1, -8.5],
+				[-3, -1, -11.5],
+				[-3, -5, -11.5]
+			],
+			"comment": "box left"
+		},
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [
+				[0, -5, -11.5],
+				[0, -1, -11.5],
+				[0, -1, -8.5],
+				[0, -5, -8.5]
+			],
+			"comment": "box right"
+		},
+		{
+			"type": "quad",
+			"material": "white",
+			"vertices": [
+				[0, -1, -8.5],
+				[0, -1, -11.5],
+				[-3, -1, -11.5],
+				[-3, -1, -8.5]
+			],
+			"comment": "box top"
+		}
+	]
+}
