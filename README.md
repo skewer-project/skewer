@@ -50,4 +50,8 @@ ctest --preset ci
 
 ## Deployment & CLI
 
-For instructions on deploying the cluster locally (using OrbStack/Minikube) and using the `skewer-cli` to submit and manage rendering jobs, please refer to the [Local Deployment & CLI Guide](LOCAL_DEPLOYMENT.md).
+The distributed worker cluster manages rendering and compositing workloads. Control the cluster via the `skewer-cli` interface:
+- **`render`**: Submit standard `.json` scenes to the compute cluster.
+- **`composite`**: Deep merge layered EXRs using the Loom pipeline.
+
+For automated local deployment scripts (OrbStack/Minikube) and the exhaustive CLI manual, please refer directly to the [Local Deployment & CLI Guide](LOCAL_DEPLOYMENT.md).

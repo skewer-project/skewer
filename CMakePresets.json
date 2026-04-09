@@ -61,6 +61,20 @@
       "cacheVariables": {
         "SKEWER_BUILD_NATIVE_OPTIMIZATIONS": "OFF"
       }
+    },
+    {
+      "name": "releasestatic",
+      "displayName": "Release (Static)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "VCPKG_HOST_TRIPLET": "x64-linux",
+        "CMAKE_EXE_LINKER_FLAGS": "-static-libgcc -static-libstdc++",
+        "BUILD_TESTING": "OFF",
+        "SKEWER_BUILD_NATIVE_OPTIMIZATIONS": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -68,7 +82,8 @@
     { "name": "release", "configurePreset": "release" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" },
     { "name": "asan",    "configurePreset": "asan" },
-    { "name": "ci",      "configurePreset": "ci" }
+    { "name": "ci",      "configurePreset": "ci" },
+    { "name": "releasestatic",  "configurePreset": "releasestatic" }
   ],
   "testPresets": [
     {
