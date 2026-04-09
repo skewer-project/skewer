@@ -50,7 +50,7 @@ export function AddObjectDialog({
 	async function handleBrowseObj() {
 		setFileError(null);
 		try {
-			const [fileHandle] = await window.showOpenFilePicker({
+			const [fileHandle] = await showOpenFilePicker({
 				types: [
 					{
 						description: "OBJ Files",
