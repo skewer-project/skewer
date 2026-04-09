@@ -89,6 +89,7 @@ interface EditorProps {
 	objectKey: string;
 	onSceneEdit: Props["onSceneEdit"];
 	viewportRef: Props["viewportRef"];
+	scene: Props["scene"];
 	materialNames: string[];
 	layer: ResolvedLayer;
 	layerTag: string;
@@ -100,6 +101,7 @@ function SphereEditor({
 	objectKey,
 	onSceneEdit,
 	viewportRef,
+	scene,
 	materialNames,
 	layer,
 }: EditorProps & { obj: SphereObject }) {
@@ -115,7 +117,7 @@ function SphereEditor({
 							center: v,
 						})),
 					);
-					viewportRef.current?.applyPatch(objectKey, {
+					viewportRef.current?.applyPatch(scene, objectKey, {
 						kind: "sphere-center",
 						value: v,
 					});
@@ -133,7 +135,7 @@ function SphereEditor({
 							radius: v,
 						})),
 					);
-					viewportRef.current?.applyPatch(objectKey, {
+					viewportRef.current?.applyPatch(scene, objectKey, {
 						kind: "sphere-radius",
 						value: v,
 					});
@@ -152,7 +154,7 @@ function SphereEditor({
 					);
 					const matData = layer.data.materials[name];
 					if (matData) {
-						viewportRef.current?.applyPatch(objectKey, {
+						viewportRef.current?.applyPatch(scene, objectKey, {
 							kind: "assign-material",
 							matData,
 						});
@@ -168,6 +170,7 @@ function QuadEditor({
 	objectKey,
 	onSceneEdit,
 	viewportRef,
+	scene,
 	materialNames,
 	layer,
 }: EditorProps & { obj: QuadObject }) {
@@ -180,7 +183,7 @@ function QuadEditor({
 				vertices: newVerts,
 			})),
 		);
-		viewportRef.current?.applyPatch(objectKey, {
+		viewportRef.current?.applyPatch(scene, objectKey, {
 			kind: "quad-vertices",
 			value: newVerts,
 		});
@@ -211,7 +214,7 @@ function QuadEditor({
 					);
 					const matData = layer.data.materials[name];
 					if (matData) {
-						viewportRef.current?.applyPatch(objectKey, {
+						viewportRef.current?.applyPatch(scene, objectKey, {
 							kind: "assign-material",
 							matData,
 						});
@@ -227,6 +230,7 @@ function ObjEditor({
 	objectKey,
 	onSceneEdit,
 	viewportRef,
+	scene,
 	materialNames,
 	layer,
 }: EditorProps & { obj: ObjFileObject }) {
@@ -244,7 +248,7 @@ function ObjEditor({
 				transform: newTransform,
 			})),
 		);
-		viewportRef.current?.applyPatch(objectKey, {
+		viewportRef.current?.applyPatch(scene, objectKey, {
 			kind: "obj-transform",
 			value: newTransform,
 		});
@@ -270,7 +274,7 @@ function ObjEditor({
 						);
 						const matData = layer.data.materials[name];
 						if (matData) {
-							viewportRef.current?.applyPatch(objectKey, {
+							viewportRef.current?.applyPatch(scene, objectKey, {
 								kind: "assign-material",
 								matData,
 							});
@@ -325,6 +329,7 @@ function MaterialEditor({
 	layerIdx,
 	onSceneEdit,
 	viewportRef,
+	scene,
 }: {
 	mat: Material;
 	matName: string;
@@ -333,10 +338,11 @@ function MaterialEditor({
 	layerIdx: number;
 	onSceneEdit: Props["onSceneEdit"];
 	viewportRef: Props["viewportRef"];
+	scene: Props["scene"];
 }) {
 	function applyMat(next: Material) {
 		onSceneEdit((s) => updateMaterial(s, objectKey, matName, () => next));
-		viewportRef.current?.applyPatch(objectKey, {
+		viewportRef.current?.applyPatch(scene, objectKey, {
 			kind: "material",
 			matData: next,
 			matName,
@@ -484,6 +490,7 @@ export function MaterialPropertiesPanel({
 						layerIdx={layerIdx}
 						onSceneEdit={onSceneEdit}
 						viewportRef={viewportRef}
+						scene={scene}
 					/>
 				</div>
 			</div>
@@ -509,6 +516,7 @@ export function PropertiesPanel({
 		objectKey,
 		onSceneEdit,
 		viewportRef,
+		scene,
 		materialNames,
 		layer,
 		layerTag: tag,
@@ -546,6 +554,7 @@ export function PropertiesPanel({
 							layerIdx={resolved.layerIdx}
 							onSceneEdit={onSceneEdit}
 							viewportRef={viewportRef}
+							scene={scene}
 						/>
 					</div>
 				</div>

@@ -117,7 +117,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const sceneGroup = useRef<THREE.Group | null>(null);
 	const blobUrlsRef = useRef<string[]>([]);
 	const composer = useRef<EffectComposer | null>(null);
-  const outlinePass = useRef<OutlinePass | null>(null);
+	const outlinePass = useRef<OutlinePass | null>(null);
 
 	// ── Imperative handle: applyPatch ──
 	useImperativeHandle(
