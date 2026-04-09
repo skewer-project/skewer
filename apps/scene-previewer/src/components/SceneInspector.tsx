@@ -68,6 +68,7 @@ function LayerCard({
 }: {
 	layer: ResolvedLayer;
 	tag: "context" | "layer";
+	// Index into scene.contexts or scene.layers (used to build object/material keys).
 	layerIdx: number;
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
@@ -174,6 +175,7 @@ export function SceneInspector({
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
+	// Keys are string identifiers like "ctx:0:3" or "lyr:1:mat:metal".
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
 }) {

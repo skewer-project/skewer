@@ -17,6 +17,7 @@ import type { ViewportHandle } from "./Viewport";
 
 interface SceneEditorBase {
 	scene: ResolvedScene;
+	// Uses an updater to keep edits immutable and batched.
 	onSceneEdit: (updater: (s: ResolvedScene) => ResolvedScene) => void;
 	viewportRef: RefObject<ViewportHandle | null>;
 }
@@ -45,6 +46,7 @@ interface EditorProps extends SceneEditorBase {
 
 // ── Scene mutation helpers ──────────────────────────────────
 
+// Update a single object while keeping the scene immutable.
 function updateObject(
 	scene: ResolvedScene,
 	objectKey: string,
@@ -65,6 +67,7 @@ function updateObject(
 	return { ...scene, [listKey]: newList };
 }
 
+// Update a single material within a layer/context.
 function updateMaterial(
 	scene: ResolvedScene,
 	objectKey: string,
@@ -85,6 +88,7 @@ function updateMaterial(
 }
 
 /** Parse an objectKey like "ctx:0:3" into the actual object + metadata. */
+// Resolve an objectKey into the layer/object/material tuple used by editors.
 function resolveObject(scene: ResolvedScene, key: string) {
 	const [tag, layerIdxStr, objIdxStr] = key.split(":");
 	const layerIdx = Number(layerIdxStr);
@@ -343,6 +347,7 @@ function MaterialEditor({
 }: SceneEditorBase & {
 	mat: Material;
 	matName: string;
+	// Object key for the layer that owns this material (ctx/lyr scope).
 	objectKey: string;
 	layerTag: string;
 	layerIdx: number;

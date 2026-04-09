@@ -88,6 +88,7 @@ function disposeSceneGroup(group: THREE.Group) {
 interface Props {
 	scene?: ResolvedScene | null;
 	dirHandle?: FileSystemDirectoryHandle | null;
+	// Incremented when the scene structure changes (add/remove/reorder objects).
 	sceneVersion: number;
 	selectedObjectKey: string | null;
 	onSelectObject: (key: string | null) => void;
@@ -148,12 +149,14 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const blobUrlsRef = useRef<string[]>([]);
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
+	// Used to avoid rebuilding the whole graph on minor edits.
 	const lastBuild = useRef<{
 		dirHandle: FileSystemDirectoryHandle | null;
 		sceneVersion: number | null;
 	}>({ dirHandle: null, sceneVersion: null });
 
 	// ── Imperative handle: applyPatch ──
+	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
 	useImperativeHandle(
 		ref,
 		() => ({
@@ -400,7 +403,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const ctrl = controls.current;
 		if (!sc || !cam || !ctrl) return;
 
-		// Sync camera
+		// Sync camera every time the scene prop changes.
 		cam.fov = currentScene.camera.vfov;
 		cam.position.set(...currentScene.camera.look_from);
 		ctrl.target.set(...currentScene.camera.look_at);

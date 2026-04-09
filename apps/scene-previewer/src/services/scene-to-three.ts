@@ -44,6 +44,7 @@ function parseMtlTexturePaths(mtlText: string): string[] {
 	return paths;
 }
 
+// Map scene material definitions to a Three.js material instance.
 export function makeThreeMaterial(mat: Material): THREE.Material {
 	const color = new THREE.Color(mat.albedo[0], mat.albedo[1], mat.albedo[2]);
 	const hasEmission = mat.emission.some((v) => v > 0);
@@ -227,6 +228,7 @@ export function revokeBlobUrls(urls: string[]) {
 	}
 }
 
+// Build a Three.js scene graph and track blob URLs for cleanup.
 export async function buildSceneGraph(
 	scene: ResolvedScene,
 	dir: FileSystemDirectoryHandle,
