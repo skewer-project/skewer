@@ -123,6 +123,12 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		}
 	}
 
+	// Convert context URIs for the workflow (may be empty)
+	contextURIs := req.ContextUris
+	if contextURIs == nil {
+		contextURIs = []string{}
+	}
+
 	args := map[string]any{
 		"pipeline_id":              req.PipelineId,
 		"project_id":               m.projectID,
@@ -139,6 +145,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"batch_sa":                 m.batchSA,
 		"composite_output_prefix":  req.CompositeOutputUriPrefix,
 		"camera":                   camArgs,
+		"context_uris":             contextURIs,
 	}
 
 	argsJSON, err := json.Marshal(args)

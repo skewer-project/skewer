@@ -33,6 +33,7 @@ message SubmitPipelineRequest {
     repeated PipelineLayer layers = 3;
     string composite_output_uri_prefix = 4; // GCS prefix for final composited frames
     CameraParams camera = 5;               // Camera shared by all layers
+    repeated string context_uris = 6;      // GCS paths to context JSON files (lighting, invisible geo)
 }
 
 message SubmitPipelineResponse {

@@ -213,6 +213,7 @@ type SubmitPipelineRequest struct {
 	Layers                   []*PipelineLayer       `protobuf:"bytes,3,rep,name=layers,proto3" json:"layers,omitempty"`
 	CompositeOutputUriPrefix string                 `protobuf:"bytes,4,opt,name=composite_output_uri_prefix,json=compositeOutputUriPrefix,proto3" json:"composite_output_uri_prefix,omitempty"` // GCS prefix for final composited frames
 	Camera                   *CameraParams          `protobuf:"bytes,5,opt,name=camera,proto3" json:"camera,omitempty"`                                                                         // Camera shared by all layers
+	ContextUris              []string               `protobuf:"bytes,6,rep,name=context_uris,json=contextUris,proto3" json:"context_uris,omitempty"`                                            // GCS paths to context JSON files (lighting, invisible geo)
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -278,6 +279,13 @@ func (x *SubmitPipelineRequest) GetCompositeOutputUriPrefix() string {
 func (x *SubmitPipelineRequest) GetCamera() *CameraParams {
 	if x != nil {
 		return x.Camera
+	}
+	return nil
+}
+
+func (x *SubmitPipelineRequest) GetContextUris() []string {
+	if x != nil {
+		return x.ContextUris
 	}
 	return nil
 }
@@ -539,7 +547,7 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\tlook_from\x18\x01 \x03(\x02R\blookFrom\x12\x17\n" +
 	"\alook_at\x18\x02 \x03(\x02R\x06lookAt\x12\x10\n" +
 	"\x03vup\x18\x03 \x03(\x02R\x03vup\x12\x12\n" +
-	"\x04vfov\x18\x04 \x01(\x02R\x04vfov\"\x97\x02\n" +
+	"\x04vfov\x18\x04 \x01(\x02R\x04vfov\"\xba\x02\n" +
 	"\x15SubmitPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12\x1d\n" +
@@ -547,7 +555,8 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"num_frames\x18\x02 \x01(\x05R\tnumFrames\x12?\n" +
 	"\x06layers\x18\x03 \x03(\v2'.api.proto.coordinator.v1.PipelineLayerR\x06layers\x12=\n" +
 	"\x1bcomposite_output_uri_prefix\x18\x04 \x01(\tR\x18compositeOutputUriPrefix\x12>\n" +
-	"\x06camera\x18\x05 \x01(\v2&.api.proto.coordinator.v1.CameraParamsR\x06camera\"9\n" +
+	"\x06camera\x18\x05 \x01(\v2&.api.proto.coordinator.v1.CameraParamsR\x06camera\x12!\n" +
+	"\fcontext_uris\x18\x06 \x03(\tR\vcontextUris\"9\n" +
 	"\x16SubmitPipelineResponse\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\";\n" +

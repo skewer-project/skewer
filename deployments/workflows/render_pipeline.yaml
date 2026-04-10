@@ -37,6 +37,7 @@ main:
           - batch_sa: ${args.batch_sa}
           - composite_output_prefix: ${args.composite_output_prefix}
           - camera: ${args.camera}
+          - context_uris: ${args.context_uris}
           - layer_output_prefixes: {}
 
     - render_layers:
@@ -77,6 +78,7 @@ main:
                             subnet: ${subnet}
                             batch_sa: ${batch_sa}
                             camera: ${camera}
+                            context_uris: ${context_uris}
                           result: render_output_prefix
                       - write_cache_manifest:
                           try:
@@ -132,7 +134,8 @@ main:
 
 submit_batch_render:
   params: [project_id, region, pipeline_id, layer, num_frames, data_bucket,
-           cache_bucket, skewer_image, machine_type, network, subnet, batch_sa, camera]
+           cache_bucket, skewer_image, machine_type, network, subnet, batch_sa, camera,
+           context_uris]
   steps:
     - init_render:
         assign:
@@ -143,6 +146,16 @@ submit_batch_render:
           - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
           - output_fuse: '${fuse_data + "/renders/" + pipeline_id + "/" + layer.layer_id}'
           - cache_fuse: '${fuse_cache + "/" + layer.cache_key}'
+          - context_fuse_csv: ""
+
+    - build_context_csv:
+        for:
+          value: ctx_uri
+          in: ${context_uris}
+          steps:
+            - append_context:
+                assign:
+                  - context_fuse_csv: '${if(context_fuse_csv == "", text.replace_all(ctx_uri, "gs://", "/mnt/"), context_fuse_csv + "," + text.replace_all(ctx_uri, "gs://", "/mnt/"))}'
 
     - create_render_job:
         call: googleapis.batch.v1.projects.locations.jobs.create
@@ -170,6 +183,7 @@ submit_batch_render:
                       CACHE_PREFIX: ${cache_fuse}
                       NUM_FRAMES: ${string(num_frames)}
                       PIPELINE_LAYER: "true"
+                      CONTEXT_URIS: ${context_fuse_csv}
                       CAM_FROM_X: ${string(camera.from_x)}
                       CAM_FROM_Y: ${string(camera.from_y)}
                       CAM_FROM_Z: ${string(camera.from_z)}

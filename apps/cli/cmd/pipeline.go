@@ -22,12 +22,13 @@ var pipelineCmd = &cobra.Command{
 }
 
 var (
-	pipelineLayerFlags []string
-	pipelineFrames     int32
-	pipelineOutput     string
-	pipelineCache      bool
-	pipelineID         string
-	impersonateSA      string
+	pipelineLayerFlags   []string
+	pipelineContextFlags []string
+	pipelineFrames       int32
+	pipelineOutput       string
+	pipelineCache        bool
+	pipelineID           string
+	impersonateSA        string
 
 	camFromX, camFromY, camFromZ float32
 	camAtX, camAtY, camAtZ       float32
@@ -89,6 +90,7 @@ Example:
 				Vup:      []float32{camVupX, camVupY, camVupZ},
 				Vfov:     camVfov,
 			},
+			ContextUris: pipelineContextFlags,
 		})
 		if err != nil {
 			return fmt.Errorf("SubmitPipeline: %w", err)
@@ -210,6 +212,7 @@ func dial(addr string, tls_ bool) (*grpc.ClientConn, error) {
 
 func init() {
 	submitCmd.Flags().StringArrayVarP(&pipelineLayerFlags, "layer", "l", nil, "Layer to render as \"layer_id:gs://bucket/scene.json\" (repeatable)")
+	submitCmd.Flags().StringArrayVar(&pipelineContextFlags, "context", nil, "Context file URI (lighting/invisible geo) loaded into every layer (repeatable)")
 	submitCmd.Flags().Int32VarP(&pipelineFrames, "frames", "f", 1, "Number of frames to render")
 	submitCmd.Flags().StringVarP(&pipelineOutput, "output", "o", "", "GCS URI prefix for composited output (required)")
 	submitCmd.Flags().BoolVar(&pipelineCache, "cache", true, "Enable content-hash layer caching")
