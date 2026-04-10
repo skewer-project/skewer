@@ -1,0 +1,73 @@
+steps:
+  # Build Go coordinator image
+  - name: gcr.io/cloud-builders/docker
+    id: build-coordinator
+    args:
+      - build
+      - -f
+      - deployments/docker/Dockerfile.coordinator
+      - -t
+      - ${_AR_BASE}/skewer-coordinator:latest
+      - .
+
+  # Build skewer render worker image (C++ — needs high-CPU machine)
+  - name: gcr.io/cloud-builders/docker
+    id: build-skewer
+    args:
+      - build
+      - -f
+      - deployments/docker/Dockerfile.skewer
+      - -t
+      - ${_AR_BASE}/skewer-worker:latest
+      - .
+
+  # Build loom composite worker image (C++ — runs in parallel with skewer build)
+  - name: gcr.io/cloud-builders/docker
+    id: build-loom
+    waitFor:
+      - '-'
+    args:
+      - build
+      - -f
+      - deployments/docker/Dockerfile.loom
+      - -t
+      - ${_AR_BASE}/loom-worker:latest
+      - .
+
+  # Push all images
+  - name: gcr.io/cloud-builders/docker
+    id: push-coordinator
+    waitFor:
+      - build-coordinator
+    args:
+      - push
+      - ${_AR_BASE}/skewer-coordinator:latest
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-skewer
+    waitFor:
+      - build-skewer
+    args:
+      - push
+      - ${_AR_BASE}/skewer-worker:latest
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-loom
+    waitFor:
+      - build-loom
+    args:
+      - push
+      - ${_AR_BASE}/loom-worker:latest
+
+substitutions:
+  # Override with your Artifact Registry base path:
+  # e.g. us-west2-docker.pkg.dev/skwr-ucd/skewer
+  _AR_BASE: us-west2-docker.pkg.dev/$PROJECT_ID/skewer
+
+options:
+  machineType: E2_HIGHCPU_8
+
+images:
+  - ${_AR_BASE}/skewer-coordinator:latest
+  - ${_AR_BASE}/skewer-worker:latest
+  - ${_AR_BASE}/loom-worker:latest

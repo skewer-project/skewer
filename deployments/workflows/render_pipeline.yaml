@@ -1,0 +1,329 @@
+# Skewer Render Pipeline
+#
+# Orchestrates parallel layer rendering via Cloud Batch then composites all layers.
+#
+# Args (passed by the coordinator via CreateExecution):
+#   pipeline_id             - string, unique run identifier
+#   project_id              - string, GCP project
+#   region                  - string, e.g. "us-west2"
+#   num_frames              - int, total frames to render
+#   layers                  - list of {layer_id, scene_uri, cache_key, enable_cache}
+#   data_bucket             - string, GCS bucket name for render outputs
+#   cache_bucket            - string, GCS bucket name for layer cache
+#   skewer_image            - string, Artifact Registry URI for skewer-worker
+#   loom_image              - string, Artifact Registry URI for loom-worker
+#   machine_type            - string, e.g. "e2-standard-4"
+#   network                 - string, VPC self_link
+#   subnet                  - string, subnet self_link
+#   batch_sa                - string, batch worker service account email
+#   composite_output_prefix - string, GCS URI prefix for final composited frames
+
+main:
+  params: [args]
+  steps:
+    - init:
+        assign:
+          - project_id: ${args.project_id}
+          - region: ${args.region}
+          - pipeline_id: ${args.pipeline_id}
+          - num_frames: ${args.num_frames}
+          - data_bucket: ${args.data_bucket}
+          - cache_bucket: ${args.cache_bucket}
+          - skewer_image: ${args.skewer_image}
+          - loom_image: ${args.loom_image}
+          - machine_type: ${args.machine_type}
+          - network: ${args.network}
+          - subnet: ${args.subnet}
+          - batch_sa: ${args.batch_sa}
+          - composite_output_prefix: ${args.composite_output_prefix}
+          - camera: ${args.camera}
+          - layer_output_prefixes: {}
+
+    - render_layers:
+        parallel:
+          shared: [layer_output_prefixes]
+          for:
+            value: layer
+            in: ${args.layers}
+            steps:
+              - check_cache:
+                  try:
+                    steps:
+                      - read_manifest:
+                          call: googleapis.storage.v1.objects.get
+                          args:
+                            bucket: ${cache_bucket}
+                            object: '${layer.cache_key + "/manifest.json"}'
+                          result: _manifest
+                      - use_cache:
+                          assign:
+                            - layer_output_prefixes[layer.layer_id]: '${layer.cache_key}'
+                  except:
+                    as: _cache_miss
+                    steps:
+                      - submit_render:
+                          call: submit_batch_render
+                          args:
+                            project_id: ${project_id}
+                            region: ${region}
+                            pipeline_id: ${pipeline_id}
+                            layer: ${layer}
+                            num_frames: ${num_frames}
+                            data_bucket: ${data_bucket}
+                            cache_bucket: ${cache_bucket}
+                            skewer_image: ${skewer_image}
+                            machine_type: ${machine_type}
+                            network: ${network}
+                            subnet: ${subnet}
+                            batch_sa: ${batch_sa}
+                            camera: ${camera}
+                          result: render_output_prefix
+                      - write_cache_manifest:
+                          try:
+                            steps:
+                              - upload_manifest:
+                                  call: googleapis.storage.v1.objects.insert
+                                  args:
+                                    bucket: ${cache_bucket}
+                                    name: '${layer.cache_key + "/manifest.json"}'
+                                    body:
+                                      contentType: application/json
+                                  result: _manifest_upload
+                          except:
+                            as: _manifest_err
+                            steps:
+                              - log_manifest_err:
+                                  call: sys.log
+                                  args:
+                                    text: '${layer.layer_id + " cache manifest write failed: " + string(_manifest_err)}'
+                                    severity: WARNING
+                      - record_render_output:
+                          assign:
+                            - layer_output_prefixes[layer.layer_id]: ${render_output_prefix}
+
+    - composite:
+        call: submit_batch_composite
+        args:
+          project_id: ${project_id}
+          region: ${region}
+          pipeline_id: ${pipeline_id}
+          layer_output_prefixes: ${layer_output_prefixes}
+          num_frames: ${num_frames}
+          data_bucket: ${data_bucket}
+          composite_output_prefix: ${composite_output_prefix}
+          loom_image: ${loom_image}
+          machine_type: ${machine_type}
+          network: ${network}
+          subnet: ${subnet}
+          batch_sa: ${batch_sa}
+
+    - return_result:
+        return:
+          pipeline_id: ${pipeline_id}
+          status: SUCCEEDED
+          output_uri: ${composite_output_prefix}
+          layer_outputs: ${layer_output_prefixes}
+
+# ── Subworkflow: submit_batch_render ──────────────────────────────────────────
+#
+# Submits a Cloud Batch job to render all frames of a single layer.
+# Returns the cache_key (used as output prefix in the cache bucket) or the
+# data-bucket render prefix.
+
+submit_batch_render:
+  params: [project_id, region, pipeline_id, layer, num_frames, data_bucket,
+           cache_bucket, skewer_image, machine_type, network, subnet, batch_sa, camera]
+  steps:
+    - init_render:
+        assign:
+          - job_id: '${pipeline_id + "-" + layer.layer_id}'
+          - fuse_data: '${"/mnt/" + data_bucket}'
+          - fuse_cache: '${"/mnt/" + cache_bucket}'
+          # Convert gs://bucket/path  →  /mnt/bucket/path for GCS FUSE
+          - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
+          - output_fuse: '${fuse_data + "/renders/" + pipeline_id + "/" + layer.layer_id}'
+          - cache_fuse: '${fuse_cache + "/" + layer.cache_key}'
+
+    - create_render_job:
+        call: googleapis.batch.v1.projects.locations.jobs.create
+        args:
+          parent: '${"projects/" + project_id + "/locations/" + region}'
+          jobId: ${job_id}
+          body:
+            taskGroups:
+              - taskCount: ${num_frames}
+                taskSpec:
+                  runnables:
+                    - script:
+                        text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
+                    - container:
+                        imageUri: ${skewer_image}
+                        entrypoint: /usr/local/bin/skewer-worker
+                        volumes:
+                          - '${fuse_data + ":" + fuse_data + ":rw"}'
+                          - '${fuse_cache + ":" + fuse_cache + ":rw"}'
+                  environment:
+                    variables:
+                      BATCH_MODE: "true"
+                      SCENE_URI: ${scene_fuse}
+                      OUTPUT_URI_PREFIX: ${output_fuse}
+                      CACHE_PREFIX: ${cache_fuse}
+                      NUM_FRAMES: ${string(num_frames)}
+                      PIPELINE_LAYER: "true"
+                      CAM_FROM_X: ${string(camera.from_x)}
+                      CAM_FROM_Y: ${string(camera.from_y)}
+                      CAM_FROM_Z: ${string(camera.from_z)}
+                      CAM_AT_X: ${string(camera.at_x)}
+                      CAM_AT_Y: ${string(camera.at_y)}
+                      CAM_AT_Z: ${string(camera.at_z)}
+                      CAM_VUP_X: ${string(camera.vup_x)}
+                      CAM_VUP_Y: ${string(camera.vup_y)}
+                      CAM_VUP_Z: ${string(camera.vup_z)}
+                      CAM_VFOV: ${string(camera.vfov)}
+                  volumes:
+                    - gcs:
+                        remotePath: ${data_bucket}
+                      mountPath: ${fuse_data}
+                    - gcs:
+                        remotePath: ${cache_bucket}
+                      mountPath: ${fuse_cache}
+            allocationPolicy:
+              instances:
+                - policy:
+                    machineType: ${machine_type}
+                    provisioningModel: SPOT
+              network:
+                networkInterfaces:
+                  - network: ${network}
+                    subnetwork: ${subnet}
+                    noExternalIpAddress: true
+              serviceAccount:
+                email: ${batch_sa}
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: render_job
+
+    - poll_render:
+        call: poll_batch_job
+        args:
+          job_name: ${render_job.name}
+        result: final_render_state
+
+    - check_render_result:
+        switch:
+          - condition: '${final_render_state != "SUCCEEDED"}'
+            steps:
+              - render_failed:
+                  raise: '${layer.layer_id + " render failed: " + final_render_state}'
+
+    - return_render_prefix:
+        return: ${output_fuse}
+
+# ── Subworkflow: submit_batch_composite ───────────────────────────────────────
+#
+# Submits a Cloud Batch job to composite all rendered layers into final frames.
+
+submit_batch_composite:
+  params: [project_id, region, pipeline_id, layer_output_prefixes, num_frames, data_bucket,
+           composite_output_prefix, loom_image, machine_type, network, subnet, batch_sa]
+  steps:
+    - init_composite:
+        assign:
+          - job_id: '${pipeline_id + "-composite"}'
+          - fuse_data: '${"/mnt/" + data_bucket}'
+          - composite_fuse: '${text.replace_all(composite_output_prefix, "gs://", "/mnt/")}'
+          - layer_prefixes_csv: ""
+
+    - build_layer_csv:
+        for:
+          value: layer_key
+          in: '${keys(layer_output_prefixes)}'
+          steps:
+            - append_prefix:
+                assign:
+                  - layer_prefixes_csv: '${if(layer_prefixes_csv == "", layer_output_prefixes[layer_key], layer_prefixes_csv + "," + layer_output_prefixes[layer_key])}'
+
+    - create_composite_job:
+        call: googleapis.batch.v1.projects.locations.jobs.create
+        args:
+          parent: '${"projects/" + project_id + "/locations/" + region}'
+          jobId: ${job_id}
+          body:
+            taskGroups:
+              - taskCount: ${num_frames}
+                taskSpec:
+                  runnables:
+                    - script:
+                        text: '${"mkdir -p " + fuse_data}'
+                    - container:
+                        imageUri: ${loom_image}
+                        entrypoint: /usr/local/bin/loom-worker
+                        volumes:
+                          - '${fuse_data + ":" + fuse_data + ":rw"}'
+                  environment:
+                    variables:
+                      BATCH_MODE: "true"
+                      LAYER_URI_PREFIXES: ${layer_prefixes_csv}
+                      OUTPUT_URI_PREFIX: ${composite_fuse}
+                  volumes:
+                    - gcs:
+                        remotePath: ${data_bucket}
+                      mountPath: ${fuse_data}
+            allocationPolicy:
+              instances:
+                - policy:
+                    machineType: ${machine_type}
+                    provisioningModel: SPOT
+              network:
+                networkInterfaces:
+                  - network: ${network}
+                    subnetwork: ${subnet}
+                    noExternalIpAddress: true
+              serviceAccount:
+                email: ${batch_sa}
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: composite_job
+
+    - poll_composite:
+        call: poll_batch_job
+        args:
+          job_name: ${composite_job.name}
+        result: final_composite_state
+
+    - check_composite_result:
+        switch:
+          - condition: '${final_composite_state != "SUCCEEDED"}'
+            steps:
+              - composite_failed:
+                  raise: '${" composite failed: " + final_composite_state}'
+
+# ── Subworkflow: poll_batch_job ────────────────────────────────────────────────
+#
+# Polls a Cloud Batch job until it reaches a terminal state.
+# Returns the final job state string ("SUCCEEDED", "FAILED", etc.)
+
+poll_batch_job:
+  params: [job_name]
+  steps:
+    - poll_loop:
+        steps:
+          - get_job:
+              call: googleapis.batch.v1.projects.locations.jobs.get
+              args:
+                name: ${job_name}
+              result: job
+          - check_state:
+              switch:
+                - condition: '${job.status.state == "SUCCEEDED"}'
+                  return: SUCCEEDED
+                - condition: '${job.status.state == "FAILED"}'
+                  return: FAILED
+                - condition: '${job.status.state == "DELETION_IN_PROGRESS"}'
+                  return: FAILED
+          - wait:
+              call: sys.sleep
+              args:
+                seconds: 15
+          - continue_polling:
+              next: poll_loop
