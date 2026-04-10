@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "core/math/vec3.h"
 #include "session/render_options.h"
@@ -75,7 +76,22 @@ static int RunBatchMode() {
                            env_float("CAM_VUP_Z", 0));
             float vfov = env_float("CAM_VFOV", 90.0f);
 
-            session.LoadLayerDirect(scene_uri, look_from, look_at, vup, vfov);
+            // Parse comma-separated context file paths (lighting, invisible geo)
+            std::vector<std::string> context_paths;
+            if (const char* ctx_env = std::getenv("CONTEXT_URIS"); ctx_env && ctx_env[0] != '\0') {
+                std::string ctx_str(ctx_env);
+                size_t start = 0;
+                while (start < ctx_str.size()) {
+                    size_t end = ctx_str.find(',', start);
+                    if (end == std::string::npos) end = ctx_str.size();
+                    context_paths.push_back(ctx_str.substr(start, end - start));
+                    start = end + 1;
+                }
+                std::cout << "[SKEWER BATCH]: Loading " << context_paths.size()
+                          << " context file(s)\n";
+            }
+
+            session.LoadLayerDirect(scene_uri, look_from, look_at, vup, vfov, context_paths);
             session.Options().integrator_config.enable_deep = true;
             session.Options().integrator_config.transparent_background = true;
             std::cout << "[SKEWER BATCH]: Pipeline layer mode: enable_deep + "

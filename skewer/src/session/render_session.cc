@@ -133,10 +133,15 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
 }
 
 void RenderSession::LoadLayerDirect(const std::string& layer_file, Vec3 look_from, Vec3 look_at,
-                                    Vec3 vup, float vfov) {
+                                    Vec3 vup, float vfov,
+                                    const std::vector<std::string>& context_paths) {
     std::cout << "[Session] Loading layer directly: " << layer_file << "\n";
 
     scene_ = std::make_unique<Scene>();
+    if (!context_paths.empty()) {
+        std::cout << "[Session] Loading " << context_paths.size() << " context file(s)\n";
+        LoadContextIntoScene(context_paths, *scene_);
+    }
     LayerConfig lcfg = LoadLayerFile(layer_file, *scene_);
     scene_->Build();
 

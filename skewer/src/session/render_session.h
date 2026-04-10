@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "film/film.h"
 #include "session/render_options.h"
@@ -36,8 +37,9 @@ class RenderSession {
     void RebuildFilm();
 
     // Load a single layer file with explicit camera params (for pipeline batch mode).
+    // context_paths are loaded first to provide lighting/invisible geometry.
     void LoadLayerDirect(const std::string& layer_file, Vec3 look_from, Vec3 look_at, Vec3 vup,
-                         float vfov);
+                         float vfov, const std::vector<std::string>& context_paths = {});
 
     // --- Legacy API (used by the cloud worker until Phase 5) ---
     void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
