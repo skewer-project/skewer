@@ -37,6 +37,7 @@ renders/
 *.tfstate
 *.tfstate.backup
 .terraform/
+terraform.tfvars
 
 # Go binaries
 /coordinator
