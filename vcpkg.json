@@ -1,0 +1,12 @@
+{
+  "name": "skewer",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "openexr",
+    "imath",
+    "grpc",
+    "protobuf",
+    "zlib",
+    "libpng"
+  ]
+}

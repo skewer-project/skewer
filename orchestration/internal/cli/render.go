@@ -27,10 +27,11 @@ var (
 	noiseThreshold float32
 	minSamples     int32
 	adaptiveStep   int32
+	dependsOn      []string
 )
 
-var submitCmd = &cobra.Command{
-	Use:   "submit",
+var renderCmd = &cobra.Command{
+	Use:   "render",
 	Short: "Submit a rendering job to the Skewer coordinator",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Validation: Check if local scene files exist if '####' is present
@@ -67,6 +68,7 @@ var submitCmd = &cobra.Command{
 			NumFrames: numFrames,
 			Width:     width,
 			Height:    height,
+			DependsOn: dependsOn,
 			JobType: &coordinatorv1.SubmitJobRequest_RenderJob{
 				RenderJob: &coordinatorv1.RenderJob{
 					SceneUri:        sceneURI,
@@ -83,29 +85,30 @@ var submitCmd = &cobra.Command{
 
 		r, err := c.SubmitJob(ctx, req)
 		if err != nil {
-			log.Fatalf("Could not submit job: %v", err)
+			log.Fatalf("Could not submit renderjob: %v", err)
 		}
 		fmt.Printf("Job submitted successfully! Job ID: %s\n", r.GetJobId())
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(submitCmd)
+	rootCmd.AddCommand(renderCmd)
 
-	submitCmd.Flags().StringVarP(&sceneURI, "scene", "s", "", "URI of the scene file to render (can be local path or gs://)")
-	submitCmd.Flags().StringVarP(&jobName, "name", "n", "skewer-job", "Name of the job")
-	submitCmd.Flags().StringVarP(&outputURI, "output", "o", "data/renders/", "Output URI prefix (can be local path or gs://)")
-	submitCmd.Flags().Int32VarP(&numFrames, "frames", "f", 1, "Number of frames to render")
-	submitCmd.Flags().Int32VarP(&width, "width", "W", 0, "Width of the rendered image (0 = use scene JSON)")
-	submitCmd.Flags().Int32VarP(&height, "height", "H", 0, "Height of the rendered image (0 = use scene JSON)")
-	submitCmd.Flags().Int32VarP(&maxSamples, "samples", "S", 0, "Total samples per pixel (0 = use scene JSON)")
-	submitCmd.Flags().BoolVar(&enableDeep, "deep", false, "Enable deep output for the final image")
-	submitCmd.Flags().Int32VarP(&threads, "threads", "t", 0, "Number of threads per worker (0 = auto)")
-	submitCmd.Flags().Float32Var(&noiseThreshold, "noise-threshold", 0.0, "Adaptive sampling noise threshold (0 = use scene JSON setting)")
-	submitCmd.Flags().Int32Var(&minSamples, "min-samples", 0, "Minimum samples before adaptive convergence check (0 = use scene JSON setting)")
-	submitCmd.Flags().Int32Var(&adaptiveStep, "adaptive-step", 0, "Samples between adaptive convergence checks (0 = use scene JSON setting)")
+	renderCmd.Flags().StringVarP(&sceneURI, "scene", "s", "", "URI of the scene file to render (can be local path or gs://)")
+	renderCmd.Flags().StringVarP(&jobName, "name", "n", "skewer-job", "Name of the job")
+	renderCmd.Flags().StringVarP(&outputURI, "output", "o", "data/renders/", "Output URI prefix (can be local path or gs://)")
+	renderCmd.Flags().Int32VarP(&numFrames, "frames", "f", 1, "Number of frames to render")
+	renderCmd.Flags().Int32VarP(&width, "width", "W", 0, "Width of the rendered image (0 = use scene JSON)")
+	renderCmd.Flags().Int32VarP(&height, "height", "H", 0, "Height of the rendered image (0 = use scene JSON)")
+	renderCmd.Flags().Int32VarP(&maxSamples, "samples", "S", 0, "Total samples per pixel (0 = use scene JSON)")
+	renderCmd.Flags().BoolVar(&enableDeep, "deep", false, "Enable deep output for the final image")
+	renderCmd.Flags().Int32VarP(&threads, "threads", "t", 0, "Number of threads per worker (0 = auto)")
+	renderCmd.Flags().Float32Var(&noiseThreshold, "noise-threshold", 0.0, "Adaptive sampling noise threshold (0 = use scene JSON setting)")
+	renderCmd.Flags().Int32Var(&minSamples, "min-samples", 0, "Minimum samples before adaptive convergence check (0 = use scene JSON setting)")
+	renderCmd.Flags().Int32Var(&adaptiveStep, "adaptive-step", 0, "Samples between adaptive convergence checks (0 = use scene JSON setting)")
+	renderCmd.Flags().StringSliceVarP(&dependsOn, "depends-on", "d", []string{}, "Comma-separated list of Job IDs this job depends on")
 
-	if err := submitCmd.MarkFlagRequired("scene"); err != nil {
+	if err := renderCmd.MarkFlagRequired("scene"); err != nil {
 		log.Fatalf("Failed to mark 'scene' flag as required: %v", err)
 	}
 }

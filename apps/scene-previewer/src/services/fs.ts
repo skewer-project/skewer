@@ -1,0 +1,84 @@
+// File System Access API wrapper.
+// Targets Chrome/Edge/Safari only
+
+export async function openSceneFolder(): Promise<FileSystemDirectoryHandle> {
+	return await showDirectoryPicker({ mode: "readwrite" });
+}
+
+// Resolves a relative path (e.g. "layer_room.json" or "../objects/foo.obj")
+// against a directory handle by navigating path segments.
+async function resolveHandle(
+	dir: FileSystemDirectoryHandle,
+	relativePath: string,
+): Promise<FileSystemFileHandle> {
+	const parts = relativePath.split("/");
+	let currentDir = dir;
+
+	for (let i = 0; i < parts.length - 1; i++) {
+		const part = parts[i];
+		if (part === "" || part === ".") continue;
+		if (part === "..") {
+			// The File System Access API doesn't expose a parent handle.
+			// For now, paths going above the scene folder root are not supported.
+			throw new Error(
+				`Path traversal above scene folder root is not supported: ${relativePath}`,
+			);
+		}
+		currentDir = await currentDir.getDirectoryHandle(part);
+	}
+
+	const filename = parts[parts.length - 1];
+	return await currentDir.getFileHandle(filename);
+}
+
+/** Creates parent directories as needed; rejects `..` like {@link resolveHandle}. */
+export async function writeTextFile(
+	dir: FileSystemDirectoryHandle,
+	relativePath: string,
+	text: string,
+): Promise<void> {
+	const parts = relativePath.split("/");
+	let currentDir = dir;
+
+	for (let i = 0; i < parts.length - 1; i++) {
+		const part = parts[i];
+		if (part === "" || part === ".") continue;
+		if (part === "..") {
+			throw new Error(
+				`Path traversal above scene folder root is not supported: ${relativePath}`,
+			);
+		}
+		currentDir = await currentDir.getDirectoryHandle(part, { create: true });
+	}
+
+	const filename = parts[parts.length - 1];
+	const fileHandle = await currentDir.getFileHandle(filename, { create: true });
+	const writable = await fileHandle.createWritable();
+	await writable.write(text);
+	await writable.close();
+}
+
+export async function readTextFile(
+	dir: FileSystemDirectoryHandle,
+	relativePath: string,
+): Promise<string> {
+	const fileHandle = await resolveHandle(dir, relativePath);
+	const file = await fileHandle.getFile();
+	return await file.text();
+}
+
+export async function getFile(
+	dir: FileSystemDirectoryHandle,
+	relativePath: string,
+): Promise<File> {
+	const fileHandle = await resolveHandle(dir, relativePath);
+	return await fileHandle.getFile();
+}
+
+export async function readJsonFile(
+	dir: FileSystemDirectoryHandle,
+	relativePath: string,
+): Promise<unknown> {
+	const text = await readTextFile(dir, relativePath);
+	return JSON.parse(text);
+}

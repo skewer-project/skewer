@@ -24,6 +24,7 @@ service CoordinatorService {
   // Internal API for Skewer and Loom GKE Workers
   rpc GetWorkStream(GetWorkStreamRequest) returns (stream GetWorkStreamResponse);
   rpc ReportTaskResult(ReportTaskResultRequest) returns (ReportTaskResultResponse);
+  rpc ReportTaskProgress(ReportTaskProgressRequest) returns (ReportTaskProgressResponse);
 }
 
 ///* "Job" Submission Level *///
@@ -114,7 +115,8 @@ message GetWorkStreamResponse {
     // Run by Skewer: Render a sample chunk
     RenderTask render_task = 4;
 
-    // Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person) and deep-merges them
+    // Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person)
+    // and deep-merges them
     CompositeTask composite_task = 5;
   }
 }
@@ -137,7 +139,8 @@ message RenderTask {
 }
 
 message CompositeTask {
-  // The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've been "merged" from sample splitting)
+  // The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've
+  // been "merged" from sample splitting)
   repeated string layer_uris = 1;
 
   int32 width = 2;
@@ -162,5 +165,15 @@ message ReportTaskResultRequest {
 }
 
 message ReportTaskResultResponse {
+  bool acknowledged = 1;
+}
+
+message ReportTaskProgressRequest {
+  string task_id = 1;
+  string worker_id = 2;
+  float progress_percent = 3;
+}
+
+message ReportTaskProgressResponse {
   bool acknowledged = 1;
 }

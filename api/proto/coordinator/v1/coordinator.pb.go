@@ -759,7 +759,8 @@ type GetWorkStreamResponse_RenderTask struct {
 }
 
 type GetWorkStreamResponse_CompositeTask struct {
-	// Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person) and deep-merges them
+	// Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person)
+	// and deep-merges them
 	CompositeTask *CompositeTask `protobuf:"bytes,5,opt,name=composite_task,json=compositeTask,proto3,oneof"`
 }
 
@@ -887,7 +888,8 @@ func (x *RenderTask) GetMaxSamples() int32 {
 
 type CompositeTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've been "merged" from sample splitting)
+	// The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've
+	// been "merged" from sample splitting)
 	LayerUris     []string `protobuf:"bytes,1,rep,name=layer_uris,json=layerUris,proto3" json:"layer_uris,omitempty"`
 	Width         int32    `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
 	Height        int32    `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
@@ -1093,6 +1095,110 @@ func (x *ReportTaskResultResponse) GetAcknowledged() bool {
 	return false
 }
 
+type ReportTaskProgressRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TaskId          string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	WorkerId        string                 `protobuf:"bytes,2,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	ProgressPercent float32                `protobuf:"fixed32,3,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ReportTaskProgressRequest) Reset() {
+	*x = ReportTaskProgressRequest{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportTaskProgressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportTaskProgressRequest) ProtoMessage() {}
+
+func (x *ReportTaskProgressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportTaskProgressRequest.ProtoReflect.Descriptor instead.
+func (*ReportTaskProgressRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ReportTaskProgressRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *ReportTaskProgressRequest) GetWorkerId() string {
+	if x != nil {
+		return x.WorkerId
+	}
+	return ""
+}
+
+func (x *ReportTaskProgressRequest) GetProgressPercent() float32 {
+	if x != nil {
+		return x.ProgressPercent
+	}
+	return 0
+}
+
+type ReportTaskProgressResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Acknowledged  bool                   `protobuf:"varint,1,opt,name=acknowledged,proto3" json:"acknowledged,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportTaskProgressResponse) Reset() {
+	*x = ReportTaskProgressResponse{}
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportTaskProgressResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportTaskProgressResponse) ProtoMessage() {}
+
+func (x *ReportTaskProgressResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportTaskProgressResponse.ProtoReflect.Descriptor instead.
+func (*ReportTaskProgressResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ReportTaskProgressResponse) GetAcknowledged() bool {
+	if x != nil {
+		return x.Acknowledged
+	}
+	return false
+}
+
 var File_api_proto_coordinator_v1_coordinator_proto protoreflect.FileDescriptor
 
 const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
@@ -1192,13 +1298,20 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"output_uri\x18\x06 \x01(\tR\toutputUri\x12*\n" +
 	"\x11execution_time_ms\x18\a \x01(\x03R\x0fexecutionTimeMs\">\n" +
 	"\x18ReportTaskResultResponse\x12\"\n" +
-	"\facknowledged\x18\x01 \x01(\bR\facknowledged2\xbe\x04\n" +
+	"\facknowledged\x18\x01 \x01(\bR\facknowledged\"|\n" +
+	"\x19ReportTaskProgressRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x1b\n" +
+	"\tworker_id\x18\x02 \x01(\tR\bworkerId\x12)\n" +
+	"\x10progress_percent\x18\x03 \x01(\x02R\x0fprogressPercent\"@\n" +
+	"\x1aReportTaskProgressResponse\x12\"\n" +
+	"\facknowledged\x18\x01 \x01(\bR\facknowledged2\xbf\x05\n" +
 	"\x12CoordinatorService\x12d\n" +
 	"\tSubmitJob\x12*.api.proto.coordinator.v1.SubmitJobRequest\x1a+.api.proto.coordinator.v1.SubmitJobResponse\x12m\n" +
 	"\fGetJobStatus\x12-.api.proto.coordinator.v1.GetJobStatusRequest\x1a..api.proto.coordinator.v1.GetJobStatusResponse\x12d\n" +
 	"\tCancelJob\x12*.api.proto.coordinator.v1.CancelJobRequest\x1a+.api.proto.coordinator.v1.CancelJobResponse\x12r\n" +
 	"\rGetWorkStream\x12..api.proto.coordinator.v1.GetWorkStreamRequest\x1a/.api.proto.coordinator.v1.GetWorkStreamResponse0\x01\x12y\n" +
-	"\x10ReportTaskResult\x121.api.proto.coordinator.v1.ReportTaskResultRequest\x1a2.api.proto.coordinator.v1.ReportTaskResultResponseBIZGgithub.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1b\x06proto3"
+	"\x10ReportTaskResult\x121.api.proto.coordinator.v1.ReportTaskResultRequest\x1a2.api.proto.coordinator.v1.ReportTaskResultResponse\x12\x7f\n" +
+	"\x12ReportTaskProgress\x123.api.proto.coordinator.v1.ReportTaskProgressRequest\x1a4.api.proto.coordinator.v1.ReportTaskProgressResponseBIZGgithub.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1b\x06proto3"
 
 var (
 	file_api_proto_coordinator_v1_coordinator_proto_rawDescOnce sync.Once
@@ -1213,7 +1326,7 @@ func file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP() []byte {
 }
 
 var file_api_proto_coordinator_v1_coordinator_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_proto_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_api_proto_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_api_proto_coordinator_v1_coordinator_proto_goTypes = []any{
 	(GetJobStatusResponse_JobStatus)(0), // 0: api.proto.coordinator.v1.GetJobStatusResponse.JobStatus
 	(*SubmitJobRequest)(nil),            // 1: api.proto.coordinator.v1.SubmitJobRequest
@@ -1230,6 +1343,8 @@ var file_api_proto_coordinator_v1_coordinator_proto_goTypes = []any{
 	(*CompositeTask)(nil),               // 12: api.proto.coordinator.v1.CompositeTask
 	(*ReportTaskResultRequest)(nil),     // 13: api.proto.coordinator.v1.ReportTaskResultRequest
 	(*ReportTaskResultResponse)(nil),    // 14: api.proto.coordinator.v1.ReportTaskResultResponse
+	(*ReportTaskProgressRequest)(nil),   // 15: api.proto.coordinator.v1.ReportTaskProgressRequest
+	(*ReportTaskProgressResponse)(nil),  // 16: api.proto.coordinator.v1.ReportTaskProgressResponse
 }
 var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
 	2,  // 0: api.proto.coordinator.v1.SubmitJobRequest.render_job:type_name -> api.proto.coordinator.v1.RenderJob
@@ -1242,13 +1357,15 @@ var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
 	7,  // 7: api.proto.coordinator.v1.CoordinatorService.CancelJob:input_type -> api.proto.coordinator.v1.CancelJobRequest
 	9,  // 8: api.proto.coordinator.v1.CoordinatorService.GetWorkStream:input_type -> api.proto.coordinator.v1.GetWorkStreamRequest
 	13, // 9: api.proto.coordinator.v1.CoordinatorService.ReportTaskResult:input_type -> api.proto.coordinator.v1.ReportTaskResultRequest
-	4,  // 10: api.proto.coordinator.v1.CoordinatorService.SubmitJob:output_type -> api.proto.coordinator.v1.SubmitJobResponse
-	6,  // 11: api.proto.coordinator.v1.CoordinatorService.GetJobStatus:output_type -> api.proto.coordinator.v1.GetJobStatusResponse
-	8,  // 12: api.proto.coordinator.v1.CoordinatorService.CancelJob:output_type -> api.proto.coordinator.v1.CancelJobResponse
-	10, // 13: api.proto.coordinator.v1.CoordinatorService.GetWorkStream:output_type -> api.proto.coordinator.v1.GetWorkStreamResponse
-	14, // 14: api.proto.coordinator.v1.CoordinatorService.ReportTaskResult:output_type -> api.proto.coordinator.v1.ReportTaskResultResponse
-	10, // [10:15] is the sub-list for method output_type
-	5,  // [5:10] is the sub-list for method input_type
+	15, // 10: api.proto.coordinator.v1.CoordinatorService.ReportTaskProgress:input_type -> api.proto.coordinator.v1.ReportTaskProgressRequest
+	4,  // 11: api.proto.coordinator.v1.CoordinatorService.SubmitJob:output_type -> api.proto.coordinator.v1.SubmitJobResponse
+	6,  // 12: api.proto.coordinator.v1.CoordinatorService.GetJobStatus:output_type -> api.proto.coordinator.v1.GetJobStatusResponse
+	8,  // 13: api.proto.coordinator.v1.CoordinatorService.CancelJob:output_type -> api.proto.coordinator.v1.CancelJobResponse
+	10, // 14: api.proto.coordinator.v1.CoordinatorService.GetWorkStream:output_type -> api.proto.coordinator.v1.GetWorkStreamResponse
+	14, // 15: api.proto.coordinator.v1.CoordinatorService.ReportTaskResult:output_type -> api.proto.coordinator.v1.ReportTaskResultResponse
+	16, // 16: api.proto.coordinator.v1.CoordinatorService.ReportTaskProgress:output_type -> api.proto.coordinator.v1.ReportTaskProgressResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -1273,7 +1390,7 @@ func file_api_proto_coordinator_v1_coordinator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_coordinator_v1_coordinator_proto_rawDesc), len(file_api_proto_coordinator_v1_coordinator_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
