@@ -659,34 +659,34 @@ func (x *GetWorkStreamRequest) GetCapabilities() []string {
 	return nil
 }
 
-type WorkPackage struct {
+type GetWorkStreamResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	JobId   string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	TaskId  string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	FrameId string                 `protobuf:"bytes,3,opt,name=frame_id,json=frameId,proto3" json:"frame_id,omitempty"`
 	// Types that are valid to be assigned to Payload:
 	//
-	//	*WorkPackage_RenderTask
-	//	*WorkPackage_CompositeTask
-	Payload       isWorkPackage_Payload `protobuf_oneof:"payload"`
+	//	*GetWorkStreamResponse_RenderTask
+	//	*GetWorkStreamResponse_CompositeTask
+	Payload       isGetWorkStreamResponse_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WorkPackage) Reset() {
-	*x = WorkPackage{}
+func (x *GetWorkStreamResponse) Reset() {
+	*x = GetWorkStreamResponse{}
 	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WorkPackage) String() string {
+func (x *GetWorkStreamResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WorkPackage) ProtoMessage() {}
+func (*GetWorkStreamResponse) ProtoMessage() {}
 
-func (x *WorkPackage) ProtoReflect() protoreflect.Message {
+func (x *GetWorkStreamResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -698,75 +698,75 @@ func (x *WorkPackage) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WorkPackage.ProtoReflect.Descriptor instead.
-func (*WorkPackage) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetWorkStreamResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkStreamResponse) Descriptor() ([]byte, []int) {
 	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *WorkPackage) GetJobId() string {
+func (x *GetWorkStreamResponse) GetJobId() string {
 	if x != nil {
 		return x.JobId
 	}
 	return ""
 }
 
-func (x *WorkPackage) GetTaskId() string {
+func (x *GetWorkStreamResponse) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
 	}
 	return ""
 }
 
-func (x *WorkPackage) GetFrameId() string {
+func (x *GetWorkStreamResponse) GetFrameId() string {
 	if x != nil {
 		return x.FrameId
 	}
 	return ""
 }
 
-func (x *WorkPackage) GetPayload() isWorkPackage_Payload {
+func (x *GetWorkStreamResponse) GetPayload() isGetWorkStreamResponse_Payload {
 	if x != nil {
 		return x.Payload
 	}
 	return nil
 }
 
-func (x *WorkPackage) GetRenderTask() *RenderTask {
+func (x *GetWorkStreamResponse) GetRenderTask() *RenderTask {
 	if x != nil {
-		if x, ok := x.Payload.(*WorkPackage_RenderTask); ok {
+		if x, ok := x.Payload.(*GetWorkStreamResponse_RenderTask); ok {
 			return x.RenderTask
 		}
 	}
 	return nil
 }
 
-func (x *WorkPackage) GetCompositeTask() *CompositeTask {
+func (x *GetWorkStreamResponse) GetCompositeTask() *CompositeTask {
 	if x != nil {
-		if x, ok := x.Payload.(*WorkPackage_CompositeTask); ok {
+		if x, ok := x.Payload.(*GetWorkStreamResponse_CompositeTask); ok {
 			return x.CompositeTask
 		}
 	}
 	return nil
 }
 
-type isWorkPackage_Payload interface {
-	isWorkPackage_Payload()
+type isGetWorkStreamResponse_Payload interface {
+	isGetWorkStreamResponse_Payload()
 }
 
-type WorkPackage_RenderTask struct {
+type GetWorkStreamResponse_RenderTask struct {
 	// Run by Skewer: Render a sample chunk
 	RenderTask *RenderTask `protobuf:"bytes,4,opt,name=render_task,json=renderTask,proto3,oneof"`
 }
 
-type WorkPackage_CompositeTask struct {
+type GetWorkStreamResponse_CompositeTask struct {
 	// Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person)
 	// and deep-merges them
 	CompositeTask *CompositeTask `protobuf:"bytes,5,opt,name=composite_task,json=compositeTask,proto3,oneof"`
 }
 
-func (*WorkPackage_RenderTask) isWorkPackage_Payload() {}
+func (*GetWorkStreamResponse_RenderTask) isGetWorkStreamResponse_Payload() {}
 
-func (*WorkPackage_CompositeTask) isWorkPackage_Payload() {}
+func (*GetWorkStreamResponse_CompositeTask) isGetWorkStreamResponse_Payload() {}
 
 type RenderTask struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1255,8 +1255,8 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"W\n" +
 	"\x14GetWorkStreamRequest\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\"\n" +
-	"\fcapabilities\x18\x02 \x03(\tR\fcapabilities\"\xfe\x01\n" +
-	"\vWorkPackage\x12\x15\n" +
+	"\fcapabilities\x18\x02 \x03(\tR\fcapabilities\"\x88\x02\n" +
+	"\x15GetWorkStreamResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x19\n" +
 	"\bframe_id\x18\x03 \x01(\tR\aframeId\x12G\n" +
@@ -1304,12 +1304,12 @@ const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\tworker_id\x18\x02 \x01(\tR\bworkerId\x12)\n" +
 	"\x10progress_percent\x18\x03 \x01(\x02R\x0fprogressPercent\"@\n" +
 	"\x1aReportTaskProgressResponse\x12\"\n" +
-	"\facknowledged\x18\x01 \x01(\bR\facknowledged2\xb5\x05\n" +
+	"\facknowledged\x18\x01 \x01(\bR\facknowledged2\xbf\x05\n" +
 	"\x12CoordinatorService\x12d\n" +
 	"\tSubmitJob\x12*.api.proto.coordinator.v1.SubmitJobRequest\x1a+.api.proto.coordinator.v1.SubmitJobResponse\x12m\n" +
 	"\fGetJobStatus\x12-.api.proto.coordinator.v1.GetJobStatusRequest\x1a..api.proto.coordinator.v1.GetJobStatusResponse\x12d\n" +
-	"\tCancelJob\x12*.api.proto.coordinator.v1.CancelJobRequest\x1a+.api.proto.coordinator.v1.CancelJobResponse\x12h\n" +
-	"\rGetWorkStream\x12..api.proto.coordinator.v1.GetWorkStreamRequest\x1a%.api.proto.coordinator.v1.WorkPackage0\x01\x12y\n" +
+	"\tCancelJob\x12*.api.proto.coordinator.v1.CancelJobRequest\x1a+.api.proto.coordinator.v1.CancelJobResponse\x12r\n" +
+	"\rGetWorkStream\x12..api.proto.coordinator.v1.GetWorkStreamRequest\x1a/.api.proto.coordinator.v1.GetWorkStreamResponse0\x01\x12y\n" +
 	"\x10ReportTaskResult\x121.api.proto.coordinator.v1.ReportTaskResultRequest\x1a2.api.proto.coordinator.v1.ReportTaskResultResponse\x12\x7f\n" +
 	"\x12ReportTaskProgress\x123.api.proto.coordinator.v1.ReportTaskProgressRequest\x1a4.api.proto.coordinator.v1.ReportTaskProgressResponseBIZGgithub.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1b\x06proto3"
 
@@ -1338,7 +1338,7 @@ var file_api_proto_coordinator_v1_coordinator_proto_goTypes = []any{
 	(*CancelJobRequest)(nil),            // 7: api.proto.coordinator.v1.CancelJobRequest
 	(*CancelJobResponse)(nil),           // 8: api.proto.coordinator.v1.CancelJobResponse
 	(*GetWorkStreamRequest)(nil),        // 9: api.proto.coordinator.v1.GetWorkStreamRequest
-	(*WorkPackage)(nil),                 // 10: api.proto.coordinator.v1.WorkPackage
+	(*GetWorkStreamResponse)(nil),       // 10: api.proto.coordinator.v1.GetWorkStreamResponse
 	(*RenderTask)(nil),                  // 11: api.proto.coordinator.v1.RenderTask
 	(*CompositeTask)(nil),               // 12: api.proto.coordinator.v1.CompositeTask
 	(*ReportTaskResultRequest)(nil),     // 13: api.proto.coordinator.v1.ReportTaskResultRequest
@@ -1350,8 +1350,8 @@ var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
 	2,  // 0: api.proto.coordinator.v1.SubmitJobRequest.render_job:type_name -> api.proto.coordinator.v1.RenderJob
 	3,  // 1: api.proto.coordinator.v1.SubmitJobRequest.composite_job:type_name -> api.proto.coordinator.v1.CompositeJob
 	0,  // 2: api.proto.coordinator.v1.GetJobStatusResponse.job_status:type_name -> api.proto.coordinator.v1.GetJobStatusResponse.JobStatus
-	11, // 3: api.proto.coordinator.v1.WorkPackage.render_task:type_name -> api.proto.coordinator.v1.RenderTask
-	12, // 4: api.proto.coordinator.v1.WorkPackage.composite_task:type_name -> api.proto.coordinator.v1.CompositeTask
+	11, // 3: api.proto.coordinator.v1.GetWorkStreamResponse.render_task:type_name -> api.proto.coordinator.v1.RenderTask
+	12, // 4: api.proto.coordinator.v1.GetWorkStreamResponse.composite_task:type_name -> api.proto.coordinator.v1.CompositeTask
 	1,  // 5: api.proto.coordinator.v1.CoordinatorService.SubmitJob:input_type -> api.proto.coordinator.v1.SubmitJobRequest
 	5,  // 6: api.proto.coordinator.v1.CoordinatorService.GetJobStatus:input_type -> api.proto.coordinator.v1.GetJobStatusRequest
 	7,  // 7: api.proto.coordinator.v1.CoordinatorService.CancelJob:input_type -> api.proto.coordinator.v1.CancelJobRequest
@@ -1361,7 +1361,7 @@ var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
 	4,  // 11: api.proto.coordinator.v1.CoordinatorService.SubmitJob:output_type -> api.proto.coordinator.v1.SubmitJobResponse
 	6,  // 12: api.proto.coordinator.v1.CoordinatorService.GetJobStatus:output_type -> api.proto.coordinator.v1.GetJobStatusResponse
 	8,  // 13: api.proto.coordinator.v1.CoordinatorService.CancelJob:output_type -> api.proto.coordinator.v1.CancelJobResponse
-	10, // 14: api.proto.coordinator.v1.CoordinatorService.GetWorkStream:output_type -> api.proto.coordinator.v1.WorkPackage
+	10, // 14: api.proto.coordinator.v1.CoordinatorService.GetWorkStream:output_type -> api.proto.coordinator.v1.GetWorkStreamResponse
 	14, // 15: api.proto.coordinator.v1.CoordinatorService.ReportTaskResult:output_type -> api.proto.coordinator.v1.ReportTaskResultResponse
 	16, // 16: api.proto.coordinator.v1.CoordinatorService.ReportTaskProgress:output_type -> api.proto.coordinator.v1.ReportTaskProgressResponse
 	11, // [11:17] is the sub-list for method output_type
@@ -1381,8 +1381,8 @@ func file_api_proto_coordinator_v1_coordinator_proto_init() {
 		(*SubmitJobRequest_CompositeJob)(nil),
 	}
 	file_api_proto_coordinator_v1_coordinator_proto_msgTypes[9].OneofWrappers = []any{
-		(*WorkPackage_RenderTask)(nil),
-		(*WorkPackage_CompositeTask)(nil),
+		(*GetWorkStreamResponse_RenderTask)(nil),
+		(*GetWorkStreamResponse_CompositeTask)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
