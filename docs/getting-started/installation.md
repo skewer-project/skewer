@@ -1,5 +1,20 @@
 # Installation
 
+> **Note:** These instructions are for building from source.
+> Eventually, pre-built binaries will be available on package managers on different platforms.
+
+## Clone & Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/skewer-project/skewer.git
+cd skewer
+
+# Pull large files tracked by Git LFS (required for sRGB spectral data)
+git lfs install  # only needed once
+git lfs pull
+```
+
 ## Prerequisites
 
 - CMake 3.21+

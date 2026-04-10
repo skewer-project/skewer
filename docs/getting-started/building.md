@@ -17,6 +17,7 @@ cmake --build --preset release --parallel
 
 | Preset | Description |
 |--------|-------------|
+| `relwithdebinfo` | Debug build with optimizations enabled |
 | `debug` | Debug build with symbols |
 | `release` | Optimized release build |
 | `ci` | CI build with tests enabled |

@@ -1,6 +1,6 @@
 # Quick Start
 
-This guide walks through your first render with Skewer.
+This guide walks through your first render with Skewer. See (Installation)[installation.md] and (Building)[building.md] for instructions on installing dependencies to get started.
 
 ## 1. Build the Project
 
