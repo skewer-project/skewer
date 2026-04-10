@@ -15,13 +15,13 @@
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y libopenexr-dev libimath-dev zlib1g-dev libpng-dev
+sudo apt-get install -y libopenexr-dev libimath-dev zlib1g-dev libpng-dev protobuf-compiler libgrpc++-dev
 ```
 
 ### macOS (Homebrew)
 
 ```bash
-brew install openexr libpng
+brew install openexr libpng protobuf grpc
 ```
 
 ### Additional Tools
