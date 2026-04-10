@@ -17,7 +17,7 @@ The script exports:
 - A full `scene.json` file
 - All referenced assets
 
-to your downloads folder.
+to the same directory where the .blend file is saved.
 
 ---
 

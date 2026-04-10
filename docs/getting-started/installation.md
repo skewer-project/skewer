@@ -18,11 +18,12 @@ git lfs pull
 ## Prerequisites
 
 - CMake 3.21+
-- C++17 compiler
+- C++20 compiler (C++17 minimum supported, C++20 recommended)
 - Go 1.21+ (for CLI and coordinator)
 - Protocol Buffer compiler (`protoc`)
 - Go protobuf plugin: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`
 - gRPC Go plugin: `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`
+- Python 3 (for code formatting script)
 
 ## System Dependencies
 
@@ -61,4 +62,27 @@ go version
 
 # Check protobuf
 protoc --version
+
+# Check Python (for formatting script)
+python3 --version
+```
+
+## vcpkg (Recommended)
+
+For dependency management, the project uses vcpkg:
+
+```bash
+# Install vcpkg (one-time)
+git clone https://github.com/microsoft/vcpkg.git /path/to/vcpkg
+cd /path/to/vcpkg
+./bootstrap-vcpkg.sh
+
+# Integrate with CMake (one-time)
+/path/to/vcpkg integrate install
+```
+
+When building, use the vcpkg toolchain:
+
+```bash
+cmake --preset relwithdebinfo -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
 ```
