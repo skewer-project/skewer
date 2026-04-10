@@ -34,3 +34,8 @@ renders/
 *.ppm
 
 .claude/
+
+opencode.json
+
+# gcp key
+gcp-key.json
