@@ -33,4 +33,13 @@ renders/
 *.exr
 *.ppm
 
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Go binaries
+/coordinator
+/cli
+
 .claude/
