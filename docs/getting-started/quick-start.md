@@ -107,8 +107,8 @@ This starts:
 
 ## Next Steps
 
-- [CLI Reference](cli.md) - Complete CLI documentation
-- [Scene Format](scene-format.md) - Understanding scene JSON
-- [Architecture](architecture/overview.md) - How the system works
-- [Deployment](deployment/local.md) - Local cluster setup
-- [GKE Deployment](deployment/gke.md) - Running on Google Kubernetes Engine
+- [CLI Reference](../usage/cli.md) - Complete CLI documentation
+- [Scene Format](../usage/scene-format.md) - Understanding scene JSON
+- [Architecture](../architecture/overview.md) - How the system works
+- [Deployment](../deployment/local.md) - Local cluster setup
+- [GKE Deployment](../deployment/gke.md) - Running on Google Kubernetes Engine
