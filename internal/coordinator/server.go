@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
@@ -31,12 +32,18 @@ func (s *Server) SubmitPipeline(ctx context.Context, req *pb.SubmitPipelineReque
 	if req.CompositeOutputUriPrefix == "" {
 		return nil, status.Error(codes.InvalidArgument, "composite_output_uri_prefix is required")
 	}
+	if !strings.HasPrefix(req.CompositeOutputUriPrefix, "gs://") {
+		return nil, status.Error(codes.InvalidArgument, "composite_output_uri_prefix must start with gs://")
+	}
 	for _, l := range req.Layers {
 		if l.LayerId == "" {
 			return nil, status.Error(codes.InvalidArgument, "each layer must have a non-empty layer_id")
 		}
 		if l.SceneUri == "" {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("layer %q is missing scene_uri", l.LayerId))
+		}
+		if !strings.HasPrefix(l.SceneUri, "gs://") {
+			return nil, status.Errorf(codes.InvalidArgument, "layer %q scene_uri must start with gs://", l.LayerId)
 		}
 	}
 

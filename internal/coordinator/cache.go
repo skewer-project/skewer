@@ -13,12 +13,11 @@ import (
 // SHA-256 hash as a hex string. The scene file already encodes all render
 // parameters (resolution, samples, noise threshold, etc.), so hashing the
 // file content is sufficient as a stable cache key.
-func ComputeLayerCacheKey(ctx context.Context, client *storage.Client, bucket string, sceneURI string) (string, error) {
+func ComputeLayerCacheKey(ctx context.Context, client *storage.Client, sceneURI string) (string, error) {
 	bucketName, objectPath, err := sceneURIToBucketObject(sceneURI)
 	if err != nil {
 		return "", err
 	}
-	_ = bucket // bucket param reserved for future cross-bucket support; parse from URI
 
 	r, err := client.Bucket(bucketName).Object(objectPath).NewReader(ctx)
 	if err != nil {

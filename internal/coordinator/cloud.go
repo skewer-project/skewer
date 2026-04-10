@@ -80,18 +80,20 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 	layers := make([]layerArg, 0, len(req.Layers))
 	for _, l := range req.Layers {
 		cacheKey := ""
+		enableCache := l.EnableCache
 		if l.EnableCache {
 			var err error
-			cacheKey, err = ComputeLayerCacheKey(ctx, m.storageClient, m.cacheBucket, l.SceneUri)
+			cacheKey, err = ComputeLayerCacheKey(ctx, m.storageClient, l.SceneUri)
 			if err != nil {
-				log.Printf("[GCP]: cache key computation failed for %s: %v (proceeding without cache)", l.LayerId, err)
+				log.Printf("[GCP]: cache key computation failed for %s: %v (disabling cache for this layer)", l.LayerId, err)
+				enableCache = false
 			}
 		}
 		layers = append(layers, layerArg{
 			LayerID:     l.LayerId,
 			SceneURI:    l.SceneUri,
 			CacheKey:    cacheKey,
-			EnableCache: l.EnableCache,
+			EnableCache: enableCache,
 		})
 	}
 

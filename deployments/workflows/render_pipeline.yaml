@@ -39,6 +39,7 @@ main:
           - camera: ${args.camera}
           - context_uris: ${args.context_uris}
           - layer_output_prefixes: {}
+          - layer_output_gcs: {}
 
     - render_layers:
         parallel:
@@ -47,6 +48,11 @@ main:
             value: layer
             in: ${args.layers}
             steps:
+              - decide_cache:
+                  switch:
+                    - condition: '${layer.enable_cache AND layer.cache_key != ""}'
+                      next: check_cache
+                  next: do_render
               - check_cache:
                   try:
                     steps:
@@ -58,50 +64,71 @@ main:
                           result: _manifest
                       - use_cache:
                           assign:
-                            - layer_output_prefixes[layer.layer_id]: '${layer.cache_key}'
+                            - layer_output_prefixes[layer.layer_id]: '${"/mnt/" + cache_bucket + "/" + layer.cache_key}'
                   except:
                     as: _cache_miss
                     steps:
-                      - submit_render:
-                          call: submit_batch_render
+                      - cache_miss_goto:
+                          next: do_render
+              - skip_render:
+                  next: layer_end
+              - do_render:
+                  call: submit_batch_render
+                  args:
+                    project_id: ${project_id}
+                    region: ${region}
+                    pipeline_id: ${pipeline_id}
+                    layer: ${layer}
+                    num_frames: ${num_frames}
+                    data_bucket: ${data_bucket}
+                    cache_bucket: ${cache_bucket}
+                    skewer_image: ${skewer_image}
+                    machine_type: ${machine_type}
+                    network: ${network}
+                    subnet: ${subnet}
+                    batch_sa: ${batch_sa}
+                    camera: ${camera}
+                    context_uris: ${context_uris}
+                  result: render_output_prefix
+              - write_cache_manifest:
+                  switch:
+                    - condition: '${layer.enable_cache AND layer.cache_key != ""}'
+                      next: do_write_manifest
+                  next: record_render_output
+              - do_write_manifest:
+                  try:
+                    steps:
+                      - upload_manifest:
+                          call: googleapis.storage.v1.objects.insert
                           args:
-                            project_id: ${project_id}
-                            region: ${region}
-                            pipeline_id: ${pipeline_id}
-                            layer: ${layer}
-                            num_frames: ${num_frames}
-                            data_bucket: ${data_bucket}
-                            cache_bucket: ${cache_bucket}
-                            skewer_image: ${skewer_image}
-                            machine_type: ${machine_type}
-                            network: ${network}
-                            subnet: ${subnet}
-                            batch_sa: ${batch_sa}
-                            camera: ${camera}
-                            context_uris: ${context_uris}
-                          result: render_output_prefix
-                      - write_cache_manifest:
-                          try:
-                            steps:
-                              - upload_manifest:
-                                  call: googleapis.storage.v1.objects.insert
-                                  args:
-                                    bucket: ${cache_bucket}
-                                    name: '${layer.cache_key + "/manifest.json"}'
-                                    body:
-                                      contentType: application/json
-                                  result: _manifest_upload
-                          except:
-                            as: _manifest_err
-                            steps:
-                              - log_manifest_err:
-                                  call: sys.log
-                                  args:
-                                    text: '${layer.layer_id + " cache manifest write failed: " + string(_manifest_err)}'
-                                    severity: WARNING
-                      - record_render_output:
-                          assign:
-                            - layer_output_prefixes[layer.layer_id]: ${render_output_prefix}
+                            bucket: ${cache_bucket}
+                            name: '${layer.cache_key + "/manifest.json"}'
+                            body:
+                              contentType: application/json
+                          result: _manifest_upload
+                  except:
+                    as: _manifest_err
+                    steps:
+                      - log_manifest_err:
+                          call: sys.log
+                          args:
+                            text: '${layer.layer_id + " cache manifest write failed: " + string(_manifest_err)}'
+                            severity: WARNING
+              - record_render_output:
+                  assign:
+                    - layer_output_prefixes[layer.layer_id]: ${render_output_prefix}
+              - layer_end:
+                  assign:
+                    - _done: null
+
+    - build_gcs_outputs:
+        for:
+          value: lid
+          in: '${keys(layer_output_prefixes)}'
+          steps:
+            - convert_path:
+                assign:
+                  - layer_output_gcs[lid]: '${text.replace_all(layer_output_prefixes[lid], "/mnt/", "gs://")}'
 
     - composite:
         call: submit_batch_composite
@@ -112,6 +139,7 @@ main:
           layer_output_prefixes: ${layer_output_prefixes}
           num_frames: ${num_frames}
           data_bucket: ${data_bucket}
+          cache_bucket: ${cache_bucket}
           composite_output_prefix: ${composite_output_prefix}
           loom_image: ${loom_image}
           machine_type: ${machine_type}
@@ -124,7 +152,7 @@ main:
           pipeline_id: ${pipeline_id}
           status: SUCCEEDED
           output_uri: ${composite_output_prefix}
-          layer_outputs: ${layer_output_prefixes}
+          layer_outputs: ${layer_output_gcs}
 
 # ── Subworkflow: submit_batch_render ──────────────────────────────────────────
 #
@@ -239,12 +267,13 @@ submit_batch_render:
 
 submit_batch_composite:
   params: [project_id, region, pipeline_id, layer_output_prefixes, num_frames, data_bucket,
-           composite_output_prefix, loom_image, machine_type, network, subnet, batch_sa]
+           cache_bucket, composite_output_prefix, loom_image, machine_type, network, subnet, batch_sa]
   steps:
     - init_composite:
         assign:
           - job_id: '${pipeline_id + "-composite"}'
           - fuse_data: '${"/mnt/" + data_bucket}'
+          - fuse_cache: '${"/mnt/" + cache_bucket}'
           - composite_fuse: '${text.replace_all(composite_output_prefix, "gs://", "/mnt/")}'
           - layer_prefixes_csv: ""
 
@@ -268,12 +297,13 @@ submit_batch_composite:
                 taskSpec:
                   runnables:
                     - script:
-                        text: '${"mkdir -p " + fuse_data}'
+                        text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
                     - container:
                         imageUri: ${loom_image}
                         entrypoint: /usr/local/bin/loom-worker
                         volumes:
                           - '${fuse_data + ":" + fuse_data + ":rw"}'
+                          - '${fuse_cache + ":" + fuse_cache + ":ro"}'
                   environment:
                     variables:
                       BATCH_MODE: "true"
@@ -283,6 +313,9 @@ submit_batch_composite:
                     - gcs:
                         remotePath: ${data_bucket}
                       mountPath: ${fuse_data}
+                    - gcs:
+                        remotePath: ${cache_bucket}
+                      mountPath: ${fuse_cache}
             allocationPolicy:
               instances:
                 - policy:
