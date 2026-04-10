@@ -39,6 +39,3 @@ opencode.json
 
 # gcp key
 gcp-key.json
-
-# scripts/clang-format (installed locally)
-scripts/clang-format/
