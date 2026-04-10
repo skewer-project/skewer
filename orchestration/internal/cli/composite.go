@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"context"
@@ -25,7 +25,7 @@ var (
 var compositeCmd = &cobra.Command{
 	Use:   "composite",
 	Short: "Submit a compositing job to the Skewer coordinator",
-	Long: `Submit a compositing job. If --layers is omitted, the coordinator will 
+	Long: `Submit a compositing job. If --layers is omitted, the coordinator will
 automatically resolve input layers from the jobs listed in --depends-on.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Automate port-forwarding if needed

@@ -33,7 +33,7 @@ using api::proto::coordinator::v1::ReportTaskProgressRequest;
 using api::proto::coordinator::v1::ReportTaskProgressResponse;
 using api::proto::coordinator::v1::ReportTaskResultRequest;
 using api::proto::coordinator::v1::ReportTaskResultResponse;
-using api::proto::coordinator::v1::WorkPackage;
+using api::proto::coordinator::v1::GetWorkStreamResponse;
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::ClientReader;
@@ -70,10 +70,10 @@ void RunLoomWorker(const std::string& coordinator_addr) {
         request.set_worker_id(worker_id);
         request.add_capabilities("loom");
 
-        std::unique_ptr<ClientReader<WorkPackage>> stream(stub->GetWorkStream(&context, request));
+        std::unique_ptr<ClientReader<GetWorkStreamResponse>> stream(stub->GetWorkStream(&context, request));
 
         // Loop to read work packages from the coordinator
-        WorkPackage package;
+        GetWorkStreamResponse package;
         while (stream->Read(&package)) {
             bool success = true;
             std::string error_message = "";
