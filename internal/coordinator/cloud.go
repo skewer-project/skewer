@@ -2,221 +2,246 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
+	"strings"
 
+	executions "cloud.google.com/go/workflows/executions/apiv1"
+	executionspb "cloud.google.com/go/workflows/executions/apiv1/executionspb"
 	"cloud.google.com/go/storage"
-	"google.golang.org/api/option"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+
+	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
 )
 
-type CloudManager interface {
-	EnsureCapacity(ctx context.Context, workerType string, workerCount int) error
-	ProvisionStorage(ctx context.Context, bucketName string) error
-}
-
-type K8sCloudManager struct {
-	k8sClient       *kubernetes.Clientset
+// GCPManager delegates pipeline orchestration to Cloud Workflows and Cloud Storage.
+// It is stateless: all execution state lives in Cloud Workflows.
+type GCPManager struct {
+	projectID       string // used when submitting Batch jobs via the workflow
+	region          string // used when submitting Batch jobs via the workflow
+	workflowsClient *executions.Client
 	storageClient   *storage.Client
-	credentialsFile string
+	workflowName    string // fully-qualified: projects/{p}/locations/{r}/workflows/{w}
+	dataBucket      string
+	cacheBucket     string
+	skewerImage     string
+	loomImage       string
+	machineType     string
+	network         string
+	subnet          string
+	batchSA         string
 }
 
-// NewK8sCloudManager initializes a new CloudManager using Kubernetes and GCP.
-// It detects whether it is running inside a cluster (GKE) or outside (Minikube).
-// It also takes a path to a user-provided GCP Service Account JSON key file.
-func NewK8sCloudManager(ctx context.Context, credentialsFile string) (*K8sCloudManager, error) {
-	var config *rest.Config
-	var err error
+// NewGCPManager reads config from environment variables and creates GCP clients.
+// All env vars are set by Terraform on the Cloud Run service.
+func NewGCPManager(ctx context.Context) (*GCPManager, error) {
+	// WORKFLOW_NAME is set by Terraform as the full resource ID:
+	// projects/{project}/locations/{region}/workflows/{name}
+	workflowName := mustEnv("WORKFLOW_NAME")
 
-	// Try in-cluster configuration first (e.g. running inside GKE)
-	config, err = rest.InClusterConfig()
+	wfClient, err := executions.NewClient(ctx)
 	if err != nil {
-		// Fallback to out-of-cluster config (e.g. Minikube on laptop)
-		kubeconfig := os.Getenv("KUBECONFIG")
-		if kubeconfig == "" {
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return nil, fmt.Errorf("[ERROR]: Failed to get user home dir: %w", err)
-			}
-			kubeconfig = filepath.Join(homeDir, ".kube", "config")
-		}
-
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			return nil, fmt.Errorf("[ERROR]: Failed to build kubeconfig: %w", err)
-		}
+		return nil, fmt.Errorf("create workflows executions client: %w", err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("[ERROR]: Failed to create k8s clientset: %w", err)
+		return nil, fmt.Errorf("create storage client: %w", err)
 	}
 
-	var storageClient *storage.Client
-	if credentialsFile != "" {
-		log.Printf("[CLOUD]: Initializing GCP Storage client with provided credentials: %s", credentialsFile)
-		// Use the modern WithAuthCredentialsFile option
-		storageClient, err = storage.NewClient(ctx, option.WithAuthCredentialsFile(option.ServiceAccount, credentialsFile))
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize GCP storage client: %w", err)
-		}
-	} else {
-		log.Printf("[CLOUD]: Warning: No GCP credentials provided. Storage provisioning will fail.")
-	}
-
-	return &K8sCloudManager{
-		k8sClient:       clientset,
+	return &GCPManager{
+		projectID:       mustEnv("GCP_PROJECT"),  // passed into workflow args for Batch job creation
+		region:          mustEnv("GCP_REGION"),    // passed into workflow args for Batch job creation
+		workflowsClient: wfClient,
 		storageClient:   storageClient,
-		credentialsFile: credentialsFile,
+		workflowName:    workflowName,
+		dataBucket:      mustEnv("DATA_BUCKET"),
+		cacheBucket:     mustEnv("CACHE_BUCKET"),
+		skewerImage:     mustEnv("SKEWER_IMAGE"),
+		loomImage:       mustEnv("LOOM_IMAGE"),
+		machineType:     getEnvOrDefault("BATCH_MACHINE_TYPE", "e2-standard-4"),
+		network:         mustEnv("VPC_NETWORK"),
+		subnet:          mustEnv("VPC_SUBNET"),
+		batchSA:         mustEnv("BATCH_SA_EMAIL"),
 	}, nil
 }
 
-// EnsureCapacity creates or updates a Kubernetes Deployment for the C++ workers.
-func (c *K8sCloudManager) EnsureCapacity(ctx context.Context, deploymentName string, workerCount int) error {
-	log.Printf("[CLOUD]: Ensuring capacity for %s: configuring %d workers...", deploymentName, workerCount)
-
-	deploymentsClient := c.k8sClient.AppsV1().Deployments("default")
-
-	// Look up the existing deployment
-	deployment, err := deploymentsClient.Get(ctx, deploymentName, metav1.GetOptions{})
-
-	replicas := int32(workerCount)
-
-	// Define volumes and mounts dynamically based on whether we are local or in the cloud.
-	var volumes []corev1.Volume
-	var volumeMounts []corev1.VolumeMount
-	var envVars []corev1.EnvVar
-
-	envVars = append(envVars, corev1.EnvVar{
-		Name:  "COORDINATOR_ADDR",
-		Value: "skewer-coordinator.default.svc.cluster.local:50051",
-	})
-	envVars = append(envVars, corev1.EnvVar{
-		Name:  "COORDINATOR_ADDRESS",
-		Value: "skewer-coordinator.default.svc.cluster.local:50051",
-	})
-
-	if c.credentialsFile == "" {
-		// LOCAL MODE: Mount a local hostPath directory to /data
-		localDataPath := os.Getenv("LOCAL_DATA_PATH")
-		if localDataPath == "" {
-			localDataPath = "/data" // fallback
-		}
-		volumes = append(volumes, corev1.Volume{
-			Name: "skewer-data",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: localDataPath,
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "skewer-data",
-			MountPath: "/data",
-		})
-	} else {
-		// CLOUD MODE: Mount the secret to /etc/secrets
-		volumes = append(volumes, corev1.Volume{
-			Name: "gcp-credentials",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: "skewer-gcp-creds",
-				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "gcp-credentials",
-			MountPath: "/etc/secrets",
-			ReadOnly:  true,
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "GOOGLE_APPLICATION_CREDENTIALS",
-			Value: "/etc/secrets/credentials.json",
-		})
+// ExecutePipeline computes cache keys, builds workflow arguments, and creates a
+// Cloud Workflows execution. Returns the execution name used as the pipeline ID.
+func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipelineRequest) (string, error) {
+	type layerArg struct {
+		LayerID    string `json:"layer_id"`
+		SceneURI   string `json:"scene_uri"`
+		CacheKey   string `json:"cache_key"`
+		EnableCache bool  `json:"enable_cache"`
 	}
 
-	if k8serrors.IsNotFound(err) {
-		// Create a new Deployment if it doesn't exist
-		newDeployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: deploymentName,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: &replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": deploymentName,
-					},
-				},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": deploymentName,
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:            "worker",
-								Image:           deploymentName + ":latest",
-								ImagePullPolicy: corev1.PullIfNotPresent,
-								Env:             envVars,
-								VolumeMounts:    volumeMounts,
-							},
-						},
-						Volumes: volumes,
-					},
-				},
-			},
-		}
-
-		_, err = deploymentsClient.Create(ctx, newDeployment, metav1.CreateOptions{})
-		if err != nil {
-			return fmt.Errorf("[ERROR]: Failed to create deployment %s: %w", deploymentName, err)
-		}
-		log.Printf("[CLOUD]: Created new deployment %s with %d replicas.", deploymentName, workerCount)
-	} else if err != nil {
-		return fmt.Errorf("[ERROR]: Failed to get deployment %s: %w", deploymentName, err)
-	} else {
-		// Update existing Deployment
-		if *deployment.Spec.Replicas != replicas {
-			deployment.Spec.Replicas = &replicas
-			_, err = deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{})
+	layers := make([]layerArg, 0, len(req.Layers))
+	for _, l := range req.Layers {
+		cacheKey := ""
+		if l.EnableCache {
+			var err error
+			cacheKey, err = ComputeLayerCacheKey(ctx, m.storageClient, m.cacheBucket, l.SceneUri)
 			if err != nil {
-				return fmt.Errorf("[ERROR]: Failed to update deployment %s replicas: %w", deploymentName, err)
+				log.Printf("[GCP]: cache key computation failed for %s: %v (proceeding without cache)", l.LayerId, err)
 			}
-			log.Printf("[CLOUD]: Updated deployment %s to %d replicas.", deploymentName, workerCount)
-		} else {
-			log.Printf("[CLOUD]: Deployment %s already at %d replicas. No change needed.", deploymentName, workerCount)
+		}
+		layers = append(layers, layerArg{
+			LayerID:     l.LayerId,
+			SceneURI:    l.SceneUri,
+			CacheKey:    cacheKey,
+			EnableCache: l.EnableCache,
+		})
+	}
+
+	// Build camera args (defaults if not provided)
+	camArgs := map[string]float64{
+		"from_x": 0, "from_y": 0, "from_z": 5,
+		"at_x": 0, "at_y": 0, "at_z": 0,
+		"vup_x": 0, "vup_y": 1, "vup_z": 0,
+		"vfov": 90,
+	}
+	if c := req.Camera; c != nil {
+		if len(c.LookFrom) == 3 {
+			camArgs["from_x"] = float64(c.LookFrom[0])
+			camArgs["from_y"] = float64(c.LookFrom[1])
+			camArgs["from_z"] = float64(c.LookFrom[2])
+		}
+		if len(c.LookAt) == 3 {
+			camArgs["at_x"] = float64(c.LookAt[0])
+			camArgs["at_y"] = float64(c.LookAt[1])
+			camArgs["at_z"] = float64(c.LookAt[2])
+		}
+		if len(c.Vup) == 3 {
+			camArgs["vup_x"] = float64(c.Vup[0])
+			camArgs["vup_y"] = float64(c.Vup[1])
+			camArgs["vup_z"] = float64(c.Vup[2])
+		}
+		if c.Vfov > 0 {
+			camArgs["vfov"] = float64(c.Vfov)
 		}
 	}
 
+	args := map[string]any{
+		"pipeline_id":              req.PipelineId,
+		"project_id":               m.projectID,
+		"region":                   m.region,
+		"num_frames":               req.NumFrames,
+		"layers":                   layers,
+		"data_bucket":              m.dataBucket,
+		"cache_bucket":             m.cacheBucket,
+		"skewer_image":             m.skewerImage,
+		"loom_image":               m.loomImage,
+		"machine_type":             m.machineType,
+		"network":                  m.network,
+		"subnet":                   m.subnet,
+		"batch_sa":                 m.batchSA,
+		"composite_output_prefix":  req.CompositeOutputUriPrefix,
+		"camera":                   camArgs,
+	}
+
+	argsJSON, err := json.Marshal(args)
+	if err != nil {
+		return "", fmt.Errorf("marshal workflow args: %w", err)
+	}
+
+	exec, err := m.workflowsClient.CreateExecution(ctx, &executionspb.CreateExecutionRequest{
+		Parent: m.workflowName,
+		Execution: &executionspb.Execution{
+			Argument: string(argsJSON),
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("create workflow execution: %w", err)
+	}
+
+	// The execution name is the full resource path; use it as the pipeline ID
+	return exec.Name, nil
+}
+
+// GetPipelineStatus retrieves a Cloud Workflows execution and maps it to the proto status.
+func (m *GCPManager) GetPipelineStatus(ctx context.Context, pipelineID string) (*pb.GetPipelineStatusResponse, error) {
+	exec, err := m.workflowsClient.GetExecution(ctx, &executionspb.GetExecutionRequest{
+		Name: pipelineID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get workflow execution: %w", err)
+	}
+
+	resp := &pb.GetPipelineStatusResponse{
+		Status: mapWorkflowState(exec.State),
+	}
+
+	if exec.Error != nil {
+		resp.ErrorMessage = exec.Error.Payload
+	}
+
+	// Parse result JSON to extract layer_outputs and composite_output
+	if exec.Result != "" {
+		var result struct {
+			LayerOutputs   map[string]string `json:"layer_outputs"`
+			OutputURI      string            `json:"output_uri"`
+		}
+		if err := json.Unmarshal([]byte(exec.Result), &result); err == nil {
+			resp.LayerOutputs = result.LayerOutputs
+			resp.CompositeOutput = result.OutputURI
+		}
+	}
+
+	return resp, nil
+}
+
+// CancelPipeline cancels an in-progress Cloud Workflows execution.
+func (m *GCPManager) CancelPipeline(ctx context.Context, pipelineID string) error {
+	_, err := m.workflowsClient.CancelExecution(ctx, &executionspb.CancelExecutionRequest{
+		Name: pipelineID,
+	})
+	if err != nil {
+		return fmt.Errorf("cancel workflow execution: %w", err)
+	}
 	return nil
 }
 
-// ProvisionStorage verifies access to the user's GCP bucket and configures storage.
-func (c *K8sCloudManager) ProvisionStorage(ctx context.Context, bucketName string) error {
-	if c.storageClient == nil {
-		return fmt.Errorf("[ERROR]: GCP storage client not initialized; missing credentials")
+func mapWorkflowState(state executionspb.Execution_State) pb.GetPipelineStatusResponse_PipelineStatus {
+	switch state {
+	case executionspb.Execution_ACTIVE:
+		return pb.GetPipelineStatusResponse_PIPELINE_STATUS_RUNNING
+	case executionspb.Execution_SUCCEEDED:
+		return pb.GetPipelineStatusResponse_PIPELINE_STATUS_SUCCEEDED
+	case executionspb.Execution_FAILED:
+		return pb.GetPipelineStatusResponse_PIPELINE_STATUS_FAILED
+	case executionspb.Execution_CANCELLED:
+		return pb.GetPipelineStatusResponse_PIPELINE_STATUS_CANCELLED
+	default:
+		return pb.GetPipelineStatusResponse_PIPELINE_STATUS_UNSPECIFIED
 	}
+}
 
-	log.Printf("[CLOUD]: Verifying storage access to bucket: gs://%s", bucketName)
-
-	// A simple check to ensure we can list objects or get bucket metadata.
-	bucket := c.storageClient.Bucket(bucketName)
-	attrs, err := bucket.Attrs(ctx)
-	if err != nil {
-		return fmt.Errorf("[ERROR]: Failed to access user bucket (gs://%s): %w", bucketName, err)
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		log.Fatalf("[GCP]: required env var %s is not set", key)
 	}
+	return v
+}
 
-	log.Printf("[CLOUD]: Successfully verified access to target bucket gs://%s (Location: %s)", attrs.Name, attrs.Location)
-	return nil
+func getEnvOrDefault(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+// sceneURIToBucketObject parses "gs://bucket/path/to/object" into (bucket, object).
+func sceneURIToBucketObject(uri string) (string, string, error) {
+	if !strings.HasPrefix(uri, "gs://") {
+		return "", "", fmt.Errorf("scene URI must start with gs://: %q", uri)
+	}
+	trimmed := strings.TrimPrefix(uri, "gs://")
+	idx := strings.IndexByte(trimmed, '/')
+	if idx < 0 {
+		return "", "", fmt.Errorf("scene URI has no object path: %q", uri)
+	}
+	return trimmed[:idx], trimmed[idx+1:], nil
 }
