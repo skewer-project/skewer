@@ -1,238 +1,133 @@
-#include <coordinator_worker/worker_loop.h>
-#include <grpcpp/grpcpp.h>
-
-#include <atomic>
-#include <chrono>
+#include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
-#include <random>
 #include <string>
-#include <thread>
 
-#include "proto/coordinator/v1/coordinator.grpc.pb.h"
-#include "proto/coordinator/v1/coordinator.pb.h"
+#include "core/math/vec3.h"
 #include "session/render_options.h"
 #include "session/render_session.h"
 
-struct HeartbeatGuard {
-    std::atomic<bool>& active;
-    std::thread& th;
-    ~HeartbeatGuard() {
-        active.store(false);
-        if (th.joinable()) {
-            th.join();
-        }
+// RunBatchMode renders a single frame as a Cloud Batch task.
+//
+// Required env vars (set by Cloud Workflows + Cloud Batch):
+//   BATCH_TASK_INDEX     — 0-based frame index (set automatically by Cloud Batch)
+//   SCENE_URI            — path to scene JSON via GCS FUSE, e.g. /gcs/bucket/scenes/smoke.json
+//   OUTPUT_URI_PREFIX    — GCS FUSE output directory, e.g. /gcs/bucket/renders/pipe123/smoke
+//
+// Optional env vars:
+//   CACHE_PREFIX         — if set, copy rendered frame here for content-hash caching
+//   PIPELINE_LAYER       — if "true", force enable_deep + transparent_background
+static int RunBatchMode() {
+    const char* task_index_str = std::getenv("BATCH_TASK_INDEX");
+    const char* scene_uri_env = std::getenv("SCENE_URI");
+    const char* output_prefix_env = std::getenv("OUTPUT_URI_PREFIX");
+
+    if (!task_index_str || !scene_uri_env || !output_prefix_env) {
+        std::cerr << "[SKEWER BATCH]: Missing required env vars (BATCH_TASK_INDEX, SCENE_URI, "
+                     "OUTPUT_URI_PREFIX)\n";
+        return 1;
     }
-};
 
-using api::proto::coordinator::v1::CoordinatorService;
-using api::proto::coordinator::v1::GetWorkStreamRequest;
-using api::proto::coordinator::v1::RenderTask;
-using api::proto::coordinator::v1::ReportTaskProgressRequest;
-using api::proto::coordinator::v1::ReportTaskProgressResponse;
-using api::proto::coordinator::v1::ReportTaskResultRequest;
-using api::proto::coordinator::v1::ReportTaskResultResponse;
-using api::proto::coordinator::v1::WorkPackage;
-using grpc::Channel;
-using grpc::ClientContext;
+    int frame = std::atoi(task_index_str) + 1;  // BATCH_TASK_INDEX is 0-based; frames are 1-based
+    char frame_str[8];
+    std::snprintf(frame_str, sizeof(frame_str), "%04d", frame);
 
-void RunSkewerWorker(const std::string& coordinator_addr) {
-    // Generate a unique worker ID with time epoch and mersenne twister engine
-    std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(1000, 9999);
-
-    std::string worker_id =
-        "skewer-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + "-" +
-        std::to_string(dis(gen));
-
-    // Determine number of render threads from environment
-    int render_threads = 2;  // default fallback
-    if (const char* env_threads = std::getenv("RENDER_THREADS")) {
-        try {
-            render_threads = std::stoi(env_threads);
-        } catch (...) {
-            std::cerr << "[SKEWER]: Error parsing RENDER_THREADS. Using default 2.\n";
+    // Substitute #### in SCENE_URI with the frame number (for per-frame scene files)
+    std::string scene_uri = scene_uri_env;
+    {
+        const std::string placeholder = "####";
+        size_t pos = scene_uri.find(placeholder);
+        if (pos != std::string::npos) {
+            scene_uri.replace(pos, placeholder.size(), frame_str);
         }
     }
 
-    std::cout << "[SKEWER]: Starting worker loop, ID: " << worker_id << "\n";
-    std::cout << "[SKEWER]: Coordinator Address: " << coordinator_addr << "\n";
-    std::cout << "[SKEWER]: Render Threads: " << render_threads << "\n";
+    // Construct output path: OUTPUT_URI_PREFIX/frame-NNNN.exr
+    std::string output_prefix = output_prefix_env;
+    if (!output_prefix.empty() && output_prefix.back() != '/') output_prefix += '/';
+    std::string output_path = output_prefix + "frame-" + frame_str + ".exr";
 
-    // Open a gRPC channel to the coordinator
-    std::shared_ptr<Channel> channel =
-        grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
-    std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
+    std::cout << "[SKEWER BATCH]: Frame " << frame << " | scene: " << scene_uri
+              << " | output: " << output_path << "\n";
 
-    // Cooldown timer before acquiring stream again on retry
-    int backoff_ms = 100;
-    const int max_backoff_ms = 30000;  // 30 seconds max
+    try {
+        skwr::RenderSession session;
 
-    // Main GetWorkStream loop
-    while (true) {
-        ClientContext context;
-        GetWorkStreamRequest request;
-        request.set_worker_id(worker_id);
-        request.add_capabilities("skewer");  // may add more capabilities later
-
-        // Actually get the stream work package
-        std::unique_ptr<grpc::ClientReader<WorkPackage>> stream(
-            stub->GetWorkStream(&context, request));
-
-        WorkPackage package;
-        while (stream->Read(&package)) {
-            if (!package.has_render_task()) {
-                std::cerr << "[SKEWER]: Error: Received non-render task. Ignoring.\n";
-                continue;
-            }
-
-            // Extract the render task from the work package
-            const RenderTask& task = package.render_task();
-            std::cout << "[SKEWER]: Starting RenderTask: " << package.task_id() << " for frame "
-                      << package.frame_id() << "\n";
-            std::cout << "[SKEWER]: Output URI: " << task.output_uri() << "\n";
-
-            bool success = true;
-            std::string error_message = "";
-
-            try {
-                // Initialize engine and RENDER HERE
-                skwr::RenderSession session;
-
-                // Determine thread count for this session
-                int task_threads = render_threads;
-                if (task.threads() > 0) {
-                    task_threads = task.threads();
-                }
-
-                // Adapt integrator config to sample range
-                session.LoadSceneFromFile(task.scene_uri(), 0);
-
-                // Check for overrides from the coordinator
-                if (task.width() > 0 && task.height() > 0) {
-                    session.Options().image_config.width = task.width();
-                    session.Options().image_config.height = task.height();
-                }
-                if (task.max_samples() > 0) {
-                    session.Options().integrator_config.max_samples = task.max_samples();
-                    std::cout << "[SKEWER]: Overriding JSON samples with: " << task.max_samples()
-                              << "\n";
-                }
-
-                session.Options().integrator_config.num_threads = task_threads;
-                session.Options().image_config.outfile = task.output_uri();
-                session.Options().image_config.exrfile = task.output_uri();
-                session.Options().integrator_config.enable_deep = task.enable_deep();
-
-                // Apply adaptive sampling if the job specifies it (overrides scene JSON)
-                if (task.noise_threshold() > 0.0f) {
-                    session.Options().integrator_config.noise_threshold = task.noise_threshold();
-                }
-                if (task.min_samples() > 0) {
-                    session.Options().integrator_config.min_samples = task.min_samples();
-                }
-                if (task.adaptive_step() > 0) {
-                    session.Options().integrator_config.adaptive_step = task.adaptive_step();
-                }
-
-                std::cout << "[SKEWER]: Rendering " << session.Options().image_config.width << "x"
-                          << session.Options().image_config.height << " (Threads: " << task_threads
-                          << ")\n";
-
-                // 1) Spawn heartbeat thread before rendering begins
-                std::atomic<bool> heartbeat_active(true);
-                std::thread heartbeat_thread([&]() {
-                    while (heartbeat_active.load()) {
-                        for (int i = 0; i < 30;
-                             ++i) {  // Sleep for 30s but check exit condition every second
-                            if (!heartbeat_active.load()) return;
-                            std::this_thread::sleep_for(std::chrono::seconds(1));
-                        }
-
-                        ClientContext hb_context;
-                        ReportTaskProgressRequest hb_req;
-                        hb_req.set_task_id(package.task_id());
-                        hb_req.set_worker_id(worker_id);
-                        hb_req.set_progress_percent(
-                            0.0);  // Polling real progress can go here later
-
-                        ReportTaskProgressResponse hb_res;
-                        stub->ReportTaskProgress(&hb_context, hb_req, &hb_res);
-                    }
-                });
-                HeartbeatGuard hb_guard{heartbeat_active, heartbeat_thread};
-
-                // Now render the task (blocking)
-                session.Render();
-                session.Save();
-
-                // std::cout << "[SKEWER]: Engine execution placeholder completed.\n";
-
-            } catch (const std::exception& e) {
-                success = false;
-                error_message = e.what();
-                std::cerr << "[SKEWER]: Task computation failed: " << error_message << "\n";
-            }
-
-            // Report the result
-            ClientContext report_context;
-
-            // Fail fast if the coordinator doesn't acknowledge within 10 seconds
-            std::chrono::system_clock::time_point deadline =
-                std::chrono::system_clock::now() + std::chrono::seconds(10);
-            report_context.set_deadline(deadline);
-
-            ReportTaskResultRequest report_req;
-            report_req.set_task_id(package.task_id());
-            report_req.set_job_id(package.job_id());
-            report_req.set_worker_id(worker_id);
-            report_req.set_success(success);
-            report_req.set_error_message(error_message);
-            report_req.set_output_uri(task.output_uri());
-
-            ReportTaskResultResponse report_res;
-            ::grpc::Status report_status =
-                stub->ReportTaskResult(&report_context, report_req, &report_res);
-            if (!report_status.ok()) {
-                std::cerr << "[SKEWER]: Failed to report task result: "
-                          << report_status.error_message() << "\n";
-            } else {
-                std::cout << "[SKEWER]: Task " << package.task_id()
-                          << " result reported successfully.\n";
-            }
+        bool is_pipeline_layer = false;
+        if (const char* pl = std::getenv("PIPELINE_LAYER")) {
+            is_pipeline_layer = (std::string(pl) == "true");
         }
 
-        // If we get here, the stream closed (either coordinator shut it down, or a network error)
-        grpc::Status status = stream->Finish();
-        if (!status.ok()) {
-            std::cerr << "[SKEWER]: Stream failed: " << status.error_message() << ". Retrying in "
-                      << backoff_ms << "ms...\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
+        if (is_pipeline_layer) {
+            // Pipeline mode: SCENE_URI points to a layer file (no camera).
+            // Camera params come from env vars set by the workflow.
+            auto env_float = [](const char* name, float def) -> float {
+                const char* v = std::getenv(name);
+                return v ? std::stof(v) : def;
+            };
+            skwr::Vec3 look_from(env_float("CAM_FROM_X", 0), env_float("CAM_FROM_Y", 0),
+                                 env_float("CAM_FROM_Z", 5));
+            skwr::Vec3 look_at(env_float("CAM_AT_X", 0), env_float("CAM_AT_Y", 0),
+                               env_float("CAM_AT_Z", 0));
+            skwr::Vec3 vup(env_float("CAM_VUP_X", 0), env_float("CAM_VUP_Y", 1),
+                           env_float("CAM_VUP_Z", 0));
+            float vfov = env_float("CAM_VFOV", 90.0f);
 
-            backoff_ms *= 2;
-            if (backoff_ms > max_backoff_ms) {
-                backoff_ms = max_backoff_ms;
-            }
-
+            session.LoadLayerDirect(scene_uri, look_from, look_at, vup, vfov);
+            session.Options().integrator_config.enable_deep = true;
+            session.Options().integrator_config.transparent_background = true;
+            std::cout << "[SKEWER BATCH]: Pipeline layer mode: enable_deep + "
+                         "transparent_background\n";
         } else {
-            // Stream closed normally (Coordinator intentionally hung up after assigning a task)
-            // Reset backoff and immediately reconnect to ask for more work.
-            backoff_ms = 100;
+            session.LoadSceneFromFile(scene_uri);
         }
+
+        session.Options().image_config.outfile = output_path;
+        session.Options().image_config.exrfile = output_path;
+
+        session.Render();
+        session.Save();
+        std::cout << "[SKEWER BATCH]: Render complete: " << output_path << "\n";
+
+        // Copy rendered frame to cache prefix if requested
+        if (const char* cache_prefix_env = std::getenv("CACHE_PREFIX")) {
+            std::string cache_prefix = cache_prefix_env;
+            if (!cache_prefix.empty() && cache_prefix.back() != '/') cache_prefix += '/';
+            std::string cache_path = cache_prefix + "frame-" + frame_str + ".exr";
+            std::filesystem::create_directories(std::filesystem::path(cache_path).parent_path());
+            // Use stream copy instead of filesystem::copy_file because GCS FUSE
+            // does not support copy_file_range/sendfile between mount points.
+            {
+                std::ifstream src(output_path, std::ios::binary);
+                std::ofstream dst(cache_path, std::ios::binary);
+                if (!src || !dst) {
+                    throw std::runtime_error("failed to open files for cache copy: " + output_path +
+                                             " -> " + cache_path);
+                }
+                dst << src.rdbuf();
+            }
+            std::cout << "[SKEWER BATCH]: Cached to: " << cache_path << "\n";
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "[SKEWER BATCH]: Render failed: " << e.what() << "\n";
+        return 1;
     }
+
+    return 0;
 }
 
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
-    // Determine coordinator address
-    std::string coordinator_addr = "localhost:50051";
-    if (const char* env_addr = std::getenv("COORDINATOR_ADDR")) {
-        coordinator_addr = env_addr;
+
+    // Cloud Batch sets BATCH_TASK_INDEX on every task VM.
+    if (!std::getenv("BATCH_TASK_INDEX")) {
+        std::cerr << "[SKEWER BATCH]: BATCH_TASK_INDEX not set. "
+                     "This binary runs as a Cloud Batch task only.\n";
+        return 1;
     }
 
-    RunSkewerWorker(coordinator_addr);
-    return 0;
+    return RunBatchMode();
 }
