@@ -70,6 +70,23 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
 
     SceneConfig config = LoadSceneFile(scene_file);
 
+    float t_start = config.start_time;
+    float t_end = config.end_time;
+
+    if (use_animation_overrides_) {
+        float fps = (fps_override_ > 0) ? fps_override_ : config.frame_rate;
+        if (fps <= 0) fps = 24.0f;
+        
+        float center_time = (float)frame_override_ / fps;
+        float shutter = (shutter_override_ >= 0) ? shutter_override_ : 0.5f;
+        
+        t_start = center_time - (shutter * 0.5f) / fps;
+        t_end = center_time + (shutter * 0.5f) / fps;
+        
+        std::cout << "[Session] Animation Override: Frame " << frame_override_ 
+                  << " | Shutter: [" << t_start << "s, " << t_end << "s]\n";
+    }
+
     // Store shared camera params (used by RebuildFilm)
     cam_look_from_ = config.look_from;
     cam_look_at_ = config.look_at;
@@ -77,6 +94,8 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
     cam_vfov_ = config.vfov;
     cam_aperture_ = config.aperture_radius;
     cam_focus_dist_ = config.focus_distance;
+    cam_shutter_open_ = t_start;
+    cam_shutter_close_ = t_end;
 
     const bool multi_layer = config.layer_paths.size() > 1;
 
@@ -90,7 +109,7 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
         layer_scene->SetNodes(config.nodes);
         LoadContextIntoScene(config.context_paths, *layer_scene);
         LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
-        layer_scene->Build(config.start_time, config.end_time);
+        layer_scene->Build(t_start, t_end);
 
         auto& opts = lcfg.render_options;
         auto& ic = opts.integrator_config;
@@ -104,6 +123,19 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
 
         // Output filenames derived from layer filename + scene-level output_dir
         auto [png_out, exr_out] = LayerOutputPaths(layer_path, config.output_dir);
+        
+        if (use_animation_overrides_) {
+            auto append_frame = [](const std::string& path, int frame) {
+                size_t dot = path.rfind('.');
+                if (dot == std::string::npos) return path + "_" + std::to_string(frame);
+                char buf[32];
+                std::snprintf(buf, sizeof(buf), "_%04d", frame);
+                return path.substr(0, dot) + std::string(buf) + path.substr(dot);
+            };
+            png_out = append_frame(png_out, frame_override_);
+            exr_out = append_frame(exr_out, frame_override_);
+        }
+
         opts.image_config.outfile = png_out;
         opts.image_config.exrfile = exr_out;
 
@@ -111,7 +143,7 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
                        static_cast<float>(opts.image_config.height);
         auto cam = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
                                             aspect, cam_aperture_, cam_focus_dist_,
-                                            config.start_time, config.end_time));
+                                            t_start, t_end));
         ic.cam_w = -cam->GetW();
 
         auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
@@ -144,6 +176,23 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     // 1. Parse scene.json (camera + layer/context paths; no geometry)
     SceneConfig config = LoadSceneFile(scene_file);
 
+    float t_start = config.start_time;
+    float t_end = config.end_time;
+
+    if (use_animation_overrides_) {
+        float fps = (fps_override_ > 0) ? fps_override_ : config.frame_rate;
+        if (fps <= 0) fps = 24.0f;
+        
+        float center_time = (float)frame_override_ / fps;
+        float shutter = (shutter_override_ >= 0) ? shutter_override_ : 0.5f;
+        
+        t_start = center_time - (shutter * 0.5f) / fps;
+        t_end = center_time + (shutter * 0.5f) / fps;
+        
+        std::cout << "[Session] Animation Override: Frame " << frame_override_ 
+                  << " | Shutter: [" << t_start << "s, " << t_end << "s]\n";
+    }
+
     // 2. Create scene, load context + first layer
     scene_ = std::make_unique<Scene>();
     scene_->SetNodes(config.nodes);
@@ -155,7 +204,7 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     LayerConfig lcfg = LoadLayerFile(config.layer_paths[0], *scene_);
 
     // 3. Build BVH acceleration structure
-    scene_->Build(config.start_time, config.end_time);
+    scene_->Build(t_start, t_end);
 
     // 4. Apply thread override if specified
     if (thread_override > 0) {
@@ -173,8 +222,8 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     cam_vfov_ = config.vfov;
     cam_aperture_ = config.aperture_radius;
     cam_focus_dist_ = config.focus_distance;
-    cam_shutter_open_ = config.start_time;
-    cam_shutter_close_ = config.end_time;
+    cam_shutter_open_ = t_start;
+    cam_shutter_close_ = t_end;
 
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /

@@ -114,12 +114,13 @@ bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction
             Matrix4 invM = M.Inverse();
 
             // Transform ray to object space
-            Ray local_r(invM.TransformPoint(r.origin()), 
-                        invM.TransformVector(r.direction()), 
-                        r.time());
+            Vec3 local_dir = invM.TransformVector(r.direction());
+            float dir_len = local_dir.Length();
+            Ray local_r(invM.TransformPoint(r.origin()), local_dir / dir_len, r.time());
 
-            if (IntersectSphere(local_r, sphere, t_min, closest_t, si)) {
+            if (IntersectSphere(local_r, sphere, t_min * dir_len, closest_t * dir_len, si)) {
                 hit_anything = true;
+                si->t /= dir_len;
                 closest_t = si->t;
                 // Transform hit point and normal back to world space
                 si->point = M.TransformPoint(si->point);

@@ -274,12 +274,13 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
                         Matrix4 M = AnimationEvaluator::EvaluateNodeTransform(node_id_str, r.time(), nodes);
                         Matrix4 invM = M.Inverse();
 
-                        Ray local_r(invM.TransformPoint(r.origin()), 
-                                    invM.TransformVector(r.direction()), 
-                                    r.time());
+                        Vec3 local_dir = invM.TransformVector(r.direction());
+                        float dir_len = local_dir.Length();
+                        Ray local_r(invM.TransformPoint(r.origin()), local_dir / dir_len, r.time());
 
-                        if (IntersectTriangle(local_r, tri, t_min, closest_t, si)) {
+                        if (IntersectTriangle(local_r, tri, t_min * dir_len, closest_t * dir_len, si)) {
                             hit_anything = true;
+                            si->t /= dir_len;
                             closest_t = si->t;
                             // Transform hit back to world
                             si->point = M.TransformPoint(si->point);
