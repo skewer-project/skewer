@@ -27,12 +27,12 @@ struct HeartbeatGuard {
 
 using api::proto::coordinator::v1::CoordinatorService;
 using api::proto::coordinator::v1::GetWorkStreamRequest;
+using api::proto::coordinator::v1::GetWorkStreamResponse;
 using api::proto::coordinator::v1::RenderTask;
 using api::proto::coordinator::v1::ReportTaskProgressRequest;
 using api::proto::coordinator::v1::ReportTaskProgressResponse;
 using api::proto::coordinator::v1::ReportTaskResultRequest;
 using api::proto::coordinator::v1::ReportTaskResultResponse;
-using api::proto::coordinator::v1::GetWorkStreamResponse;
 using grpc::Channel;
 using grpc::ClientContext;
 
