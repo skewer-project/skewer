@@ -228,6 +228,11 @@ submit_batch_render:
                   maxRetryCount: ${max_retry_count}
                   maxRunDuration: "14400s"
                   runnables:
+                    # Wait for GCS FUSE mounts to be ready before starting the
+                    # container. The Batch agent sets up FUSE asynchronously; without
+                    # this script the container races the mount and stat() fails.
+                    - script:
+                        text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
                     - container:
                         imageUri: ${skewer_image}
                         entrypoint: /usr/local/bin/skewer-worker
@@ -336,6 +341,11 @@ submit_batch_composite:
                   maxRetryCount: ${max_retry_count}
                   maxRunDuration: "14400s"
                   runnables:
+                    # Wait for GCS FUSE mounts to be ready before starting the
+                    # container. The Batch agent sets up FUSE asynchronously; without
+                    # this script the container races the mount and stat() fails.
+                    - script:
+                        text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
                     - container:
                         imageUri: ${loom_image}
                         entrypoint: /usr/local/bin/loom-worker
