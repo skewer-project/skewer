@@ -44,3 +44,6 @@ endif()
 if(SKEWER_COMBINED_BUILD_SKEWER)
     add_subdirectory(skewer)
 endif()
+
+# Integration tests
+add_subdirectory(tests)

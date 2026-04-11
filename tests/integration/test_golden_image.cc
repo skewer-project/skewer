@@ -1,38 +1,40 @@
 #include <gtest/gtest.h>
+
 #include <filesystem>
 
-#include "exrio/deep_reader.h"
 #include "exrio/deep_image.h"
+#include "exrio/deep_reader.h"
+#include "session/render_session.h"
 
 constexpr float kEpsilon = 1e-6f;
+const std::string kGoldenImageName = "all_features_512x512.exr";
+
+namespace fs = std::filesystem;
 
 class GoldenImageTest : public ::testing::Test {
   protected:
     void SetUp() override {
-        // Get path to fixtures
         auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
         testName_ = info->name();
         for (auto& c : testName_) {
             if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
         }
 
-        // Build path to fixtures (adjust relative path as needed)
-        // Will need to make this a bit more robust
-        std::filesystem::path projectRoot = std::filesystem::path(__FILE__).parent_path().parent_path().parent_path();
+        fs::path projectRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
         fixturesDir_ = projectRoot / "tests" / "integration" / "fixtures";
-        goldenImagePath_ = fixturesDir_ / "golden_images" / "all_features_512x512.exr"; // Make this an environment variable
+        goldenImagePath_ = fixturesDir_ / "golden_images" / kGoldenImageName;
 
-        // Create temp dir for render output
-        tempDir_ = std::filesystem::temp_directory_path() / "skewer_tests" / testName_;
-        std::filesystem::create_directories(tempDir_);
+        tempDir_ = fs::temp_directory_path() / "skewer_tests" / testName_;
+        fs::create_directories(tempDir_);
     }
+
     void TearDown() override {
         std::error_code ec;
-        std::filesystem::remove_all(tempDir_, ec);  // Cleanup
+        fs::remove_all(tempDir_, ec);
     }
 
-    // Helper: Compare two deep images pixel by pixel
-    bool compareDeepImages(const exrio::DeepImage& a, const exrio::DeepImage& b, float epsilon = kEpsilon) {
+    bool compareDeepImages(const exrio::DeepImage& a, const exrio::DeepImage& b,
+                           float epsilon = kEpsilon) {
         if (a.width() != b.width() || a.height() != b.height()) return false;
 
         for (int y = 0; y < a.height(); ++y) {
@@ -46,7 +48,6 @@ class GoldenImageTest : public ::testing::Test {
                     const auto& sampleA = pixelA[i];
                     const auto& sampleB = pixelB[i];
 
-                    // Compare each field with epsilon tolerance
                     if (std::abs(sampleA.depth - sampleB.depth) > epsilon) return false;
                     if (std::abs(sampleA.depth_back - sampleB.depth_back) > epsilon) return false;
                     if (std::abs(sampleA.red - sampleB.red) > epsilon) return false;
@@ -60,30 +61,50 @@ class GoldenImageTest : public ::testing::Test {
     }
 
     std::string testName_;
-    std::filesystem::path fixturesDir_;
-    std::filesystem::path goldenImagePath_;
-    std::filesystem::path tempDir_;
+    fs::path fixturesDir_;
+    fs::path goldenImagePath_;
+    fs::path tempDir_;
 };
 
+static bool generate_golden = false;
+
 TEST_F(GoldenImageTest, AllFeaturesSceneRendersIdentically) {
-    // Render the scene
-    std::string scenePath = (fixturesDir_ / "golden_scenes" / "all_features_scene.json").string();
-    std::string outputPath = (tempDir_ / "test_render.exr").string();
-    std::string renderCmd =
-        "../../build/relwithdebinfo/skewer/skewer-render --scene " + scenePath +
-        " --output " + outputPath + " --width 512 --height 512";
+    // Render the golden scene
+    fs::path scenePath = fixturesDir_ / "golden_scenes" / "test_single.scene.json";
+    fs::path outputPath = tempDir_ / "test_render.exr";
+    fs::path pngPath = tempDir_ / "test_render.png";
 
-    int renderResult = system(renderCmd.c_str()); // this will perform the render
-    ASSERT_EQ(renderResult, 0) << "Render failed";
+    skwr::RenderSession session;
+    session.LoadSceneFromFile(scenePath.string(), 0);
 
-    // Load rendered image and golden image
-    ASSERT_TRUE(std::filesystem::exists(outputPath)) << "Render output not found";
-    exrio::DeepImage renderedImage = exrio::loadDeepEXR(outputPath);
+    session.Options().image_config.outfile = pngPath.string();
+    session.Options().image_config.exrfile = outputPath.string();
+    session.Options().image_config.width = 512;
+    session.Options().image_config.height = 512;
+    session.Options().integrator_config.enable_deep = true;
+    session.RebuildFilm();
 
-    ASSERT_TRUE(std::filesystem::exists(goldenImagePath_)) << "Golden image not found";
-    exrio::DeepImage goldenImage = exrio::loadDeepEXR(goldenImagePath_);
+    session.Render();
+    session.Save();
 
-    // Compare with golden image
+    // Replace golden image if first run or generate_golden is set
+    bool firstRun = !fs::exists(goldenImagePath_);
+    if (firstRun || generate_golden) {
+        fs::copy_file(outputPath, goldenImagePath_, fs::copy_options::overwrite_existing);
+        fs::path pngGoldenPath = fixturesDir_ / "golden_images" / "all_features_512x512.png";
+        if (fs::exists(pngPath)) {
+            fs::copy_file(pngPath, pngGoldenPath, fs::copy_options::overwrite_existing);
+        }
+    }
+
+    // Check if rendered images exist before comparing
+    ASSERT_TRUE(fs::exists(outputPath)) << "Render output not found";
+    exrio::DeepImage renderedImage = exrio::loadDeepEXR(outputPath.string());
+
+    ASSERT_TRUE(fs::exists(goldenImagePath_)) << "Golden image not found";
+    exrio::DeepImage goldenImage = exrio::loadDeepEXR(goldenImagePath_.string());
+
+    // Compare rendered image with golden image
     EXPECT_TRUE(compareDeepImages(renderedImage, goldenImage, kEpsilon))
         << "Rendered image differs from golden image - possible regression!";
 }
