@@ -7,7 +7,8 @@ resource "google_cloud_run_v2_service" "coordinator" {
   location = var.region
 
   template {
-    service_account = google_service_account.coordinator.email
+    service_account       = google_service_account.coordinator.email
+    execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
 
     containers {
       # Use a public placeholder on first apply so Terraform doesn't block on a
