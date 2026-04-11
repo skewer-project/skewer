@@ -61,10 +61,26 @@ steps:
       - push
       - ${_AR_BASE}/loom-worker:latest
 
+  # Deploy the updated coordinator image to Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy-coordinator
+    waitFor:
+      - push-coordinator
+    args:
+      - gcloud
+      - run
+      - deploy
+      - skewer-coordinator
+      - --image=${_AR_BASE}/skewer-coordinator:latest
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --quiet
+
 substitutions:
   # Override with your Artifact Registry base path:
   # e.g. us-west2-docker.pkg.dev/skwr-ucd/skewer
   _AR_BASE: us-west2-docker.pkg.dev/$PROJECT_ID/skewer
+  _REGION: us-west2
 
 options:
   # Sized to run the two C++ image builds concurrently at 4 compile threads each.

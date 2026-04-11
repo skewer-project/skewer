@@ -31,6 +31,23 @@ resource "google_artifact_registry_repository_iam_member" "cloudbuild_ar_writer"
   member     = "serviceAccount:${google_service_account.cloudbuild.email}"
 }
 
+# Allow Cloud Build to deploy new revisions to the coordinator Cloud Run service
+resource "google_cloud_run_v2_service_iam_member" "cloudbuild_run_developer" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.coordinator.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
+
+# Cloud Build SA must be able to act as the coordinator SA when deploying
+# (gcloud run deploy --service-account requires iam.serviceAccounts.actAs)
+resource "google_service_account_iam_member" "cloudbuild_actAs_coordinator" {
+  service_account_id = google_service_account.coordinator.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
+
 resource "google_cloudbuild_trigger" "main_image_rebuild" {
   count       = var.cloudbuild_repository_id == null ? 0 : 1
   location    = var.region
