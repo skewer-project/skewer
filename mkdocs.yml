@@ -1,0 +1,42 @@
+site_name: Skewer & Loom
+site_description: Deep rendering and compositing system
+repo_url: https://github.com/skewer-project/skewer
+site_url: https://skewer-project.github.io/skewer/
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: blue
+  features:
+    - navigation.tracking
+    - navigation.tabs
+    - search.suggest
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/installation.md
+      - getting-started/building.md
+      - getting-started/quick-start.md
+  - Usage:
+      - usage/cli.md
+      - usage/scene-format.md
+      - usage/blender-tools.md
+      - usage/previewer.md
+  - Architecture:
+      - architecture/overview.md
+      - architecture/coordinator.md
+      - architecture/skewer.md
+      - architecture/loom.md
+  - API: api/grpc.md
+  - Deployment:
+      - deployment/local.md
+      - deployment/gke.md
+  - Legacy: legacy/index.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.highlight
