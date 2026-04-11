@@ -25,3 +25,12 @@ images/
 # Ignore Go binaries
 coordinator
 *.exe
+
+# Ignore frontend dependencies
+node_modules/
+apps/*/node_modules/
+
+# Ignore Terraform state and provider cache (may contain sensitive values)
+deployments/terraform/*.tfstate
+deployments/terraform/*.tfstate.backup
+deployments/terraform/.terraform/
