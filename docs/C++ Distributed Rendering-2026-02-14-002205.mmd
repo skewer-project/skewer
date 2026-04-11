@@ -1,0 +1,50 @@
+
+sequenceDiagram
+    participant User as User (CLI)
+    participant Coord as Coordinator (Go - Local)
+    participant GCS as GCS Bucket (Storage)
+    participant Rend as C++ Renderer Workers
+    participant Comp as C++ Compositor
+
+    User->>Coord: 1. Execute "skewer render scene.json"
+    Note over User,Coord: CLI spawns Coordinator process
+
+    Coord->>Coord: 2. Parse Scene & Auth Keys
+
+    par Initialization
+        Coord->>GCS: 3a. Upload Scene Assets (Mesh/Tex)`
+        Coord->>Rend: 3b. Provision Render Workers (GKE)
+        Coord->>Comp: 3c. Provision Compositor (GKE)
+    end
+
+    Note over Rend: Workers boot & pull assets from GCS
+
+    rect rgba(30, 30, 100, 0.1)
+        loop Distributed Rendering
+            Coord-->>Rend: 4. Dispatch RenderLayerRequest (gRPC)
+            activate Rend
+            Rend->>Rend: 5. Path Tracing (C++)
+            Rend->>GCS: 6. Upload Deep Layer (.exr)
+            deactivate Rend
+            Rend-->>Coord: 7. Return RenederLayer Response (gRPC)
+        end
+    end
+
+    rect rgba(30, 80, 30, 0.1)
+        loop Distributed Rendering
+            Coord-->>Comp: 8. Dispatch CompositeDeepLayersRequest (gRPC)
+            activate Comp
+            GCS->>Comp: 9. Download Layers (.exr files)
+            Comp->>Comp: 10. Merge layers (C++)
+            Comp->>GCS: 11. Upload Final Image (.png)
+            deactivate Comp
+            Comp-->>Coord: 12. Return CompositeDeepLayersResponse (gRPC)
+        end
+    end
+
+    Coord-->>User: 13. Final Image Output (GCS link)
+
+    opt Cleanup
+        Coord->>Rend: 14. Teardown Resources (Shutdown VMs)
+        Coord->>GCS: 15. Lifecycle Rule cleans temp assets
+    end
