@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
-	"github.com/skewer-project/skewer/internal/coordinator"
+	"github.com/skewer-project/skewer/orchestration/internal/coordinator"
 	"google.golang.org/grpc"
 )
 
