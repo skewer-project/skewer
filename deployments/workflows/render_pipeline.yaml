@@ -226,9 +226,8 @@ submit_batch_render:
                     cpuMilli: ${cpu_milli}
                     memoryMib: ${memory_mib}
                   maxRetryCount: ${max_retry_count}
+                  maxRunDuration: "14400s"
                   runnables:
-                    - script:
-                        text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
                     - container:
                         imageUri: ${skewer_image}
                         entrypoint: /usr/local/bin/skewer-worker
@@ -335,9 +334,8 @@ submit_batch_composite:
                     cpuMilli: ${cpu_milli}
                     memoryMib: ${memory_mib}
                   maxRetryCount: ${max_retry_count}
+                  maxRunDuration: "14400s"
                   runnables:
-                    - script:
-                        text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
                     - container:
                         imageUri: ${loom_image}
                         entrypoint: /usr/local/bin/loom-worker
