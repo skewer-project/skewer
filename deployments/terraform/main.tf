@@ -6,6 +6,11 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "skwr-ucd-tfstate"
+    prefix = "skewer"
+  }
 }
 
 provider "google" {
