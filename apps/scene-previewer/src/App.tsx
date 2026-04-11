@@ -34,15 +34,15 @@ function App() {
 		null,
 	);
 
-	function handleSelectObject(key: string | null) {
+	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
 		setSelectedMaterialKey(null);
-	}
+	}, []);
 
-	function handleSelectMaterial(key: string | null) {
+	const handleSelectMaterial = useCallback((key: string | null) => {
 		setSelectedMaterialKey(key);
 		setSelectedObjectKey(null);
-	}
+	}, []);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -123,55 +123,52 @@ function App() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [scene, selectedObjectKey, handleDeleteObject]);
 
-	function handleAddObject(
-		tag: "ctx" | "lyr",
-		layerIdx: number,
-		obj: SceneObject,
-	) {
-		let newObjIdx = -1;
-		handleSceneEdit((s) => {
-			const listKey = tag === "ctx" ? "contexts" : "layers";
-			newObjIdx = s[listKey][layerIdx].data.objects.length;
-			const newList = [...s[listKey]];
-			const newLayer = {
-				...newList[layerIdx],
-				data: {
-					...newList[layerIdx].data,
-					objects: [...newList[layerIdx].data.objects, obj],
-				},
-			};
-			newList[layerIdx] = newLayer;
-			return { ...s, [listKey]: newList };
-		});
-		setSceneVersion((v) => v + 1);
-		if (newObjIdx >= 0) {
-			setSelectedObjectKey(`${tag}:${layerIdx}:${newObjIdx}`);
-			setSelectedMaterialKey(null);
-		}
-	}
+	const handleAddObject = useCallback(
+		(tag: "ctx" | "lyr", layerIdx: number, obj: SceneObject) => {
+			let newObjIdx = -1;
+			handleSceneEdit((s) => {
+				const listKey = tag === "ctx" ? "contexts" : "layers";
+				newObjIdx = s[listKey][layerIdx].data.objects.length;
+				const newList = [...s[listKey]];
+				const newLayer = {
+					...newList[layerIdx],
+					data: {
+						...newList[layerIdx].data,
+						objects: [...newList[layerIdx].data.objects, obj],
+					},
+				};
+				newList[layerIdx] = newLayer;
+				return { ...s, [listKey]: newList };
+			});
+			setSceneVersion((v) => v + 1);
+			if (newObjIdx >= 0) {
+				setSelectedObjectKey(`${tag}:${layerIdx}:${newObjIdx}`);
+				setSelectedMaterialKey(null);
+			}
+		},
+		[handleSceneEdit],
+	);
 
-	function handleAddMaterial(
-		tag: "ctx" | "lyr",
-		layerIdx: number,
-		name: string,
-		mat: Material,
-	) {
-		handleSceneEdit((s) => {
-			const listKey = tag === "ctx" ? "contexts" : "layers";
-			const newList = [...s[listKey]];
-			const newLayer = {
-				...newList[layerIdx],
-				data: {
-					...newList[layerIdx].data,
-					materials: { ...newList[layerIdx].data.materials, [name]: mat },
-				},
-			};
-			newList[layerIdx] = newLayer;
-			return { ...s, [listKey]: newList };
-		});
-		setSelectedMaterialKey(`${tag}:${layerIdx}:mat:${name}`);
-		setSelectedObjectKey(null);
-	}
+	const handleAddMaterial = useCallback(
+		(tag: "ctx" | "lyr", layerIdx: number, name: string, mat: Material) => {
+			handleSceneEdit((s) => {
+				const listKey = tag === "ctx" ? "contexts" : "layers";
+				const newList = [...s[listKey]];
+				const newLayer = {
+					...newList[layerIdx],
+					data: {
+						...newList[layerIdx].data,
+						materials: { ...newList[layerIdx].data.materials, [name]: mat },
+					},
+				};
+				newList[layerIdx] = newLayer;
+				return { ...s, [listKey]: newList };
+			});
+			setSelectedMaterialKey(`${tag}:${layerIdx}:mat:${name}`);
+			setSelectedObjectKey(null);
+		},
+		[handleSceneEdit],
+	);
 
 	function handleNavigateHome() {
 		if (
