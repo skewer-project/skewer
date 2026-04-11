@@ -266,26 +266,37 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
 
         if (node.bounds.Intersect(r, t_min, closest_t)) {
             if (node.tri_count > 0) {
+                int32_t last_node_id = -2; // distinct from -1 and any valid ID
+                Matrix4 cached_M, cached_invM;
+                float cached_dir_len = 1.0f;
+                Ray local_r;
+
                 for (uint32_t i = 0; i < node.tri_count; ++i) {
                     const Triangle& tri = triangles[node.left_first + i];
 
                     if (tri.node_id != -1) {
-                        const std::string& node_id_str = node_id_to_string[tri.node_id];
-                        Matrix4 M = AnimationEvaluator::EvaluateNodeTransform(node_id_str, r.time(), nodes);
-                        Matrix4 invM = M.Inverse();
+                        if (tri.node_id != last_node_id) {
+                            // Update cache for new node
+                            last_node_id = tri.node_id;
+                            const std::string& node_id_str = node_id_to_string[tri.node_id];
+                            cached_M = AnimationEvaluator::EvaluateNodeTransform(node_id_str, r.time(), nodes);
+                            cached_invM = cached_M.Inverse();
 
-                        Vec3 local_dir = invM.TransformVector(r.direction());
-                        float dir_len = local_dir.Length();
-                        Ray local_r(invM.TransformPoint(r.origin()), local_dir / dir_len, r.time());
+                            Vec3 local_dir = cached_invM.TransformVector(r.direction());
+                            cached_dir_len = local_dir.Length();
+                            local_r = Ray(cached_invM.TransformPoint(r.origin()), 
+                                          local_dir / cached_dir_len, 
+                                          r.time());
+                        }
 
-                        if (IntersectTriangle(local_r, tri, t_min * dir_len, closest_t * dir_len, si)) {
+                        if (IntersectTriangle(local_r, tri, t_min * cached_dir_len, closest_t * cached_dir_len, si)) {
                             hit_anything = true;
-                            si->t /= dir_len;
+                            si->t /= cached_dir_len;
                             closest_t = si->t;
                             // Transform hit back to world
-                            si->point = M.TransformPoint(si->point);
-                            si->n_geom = Normalize(M.TransformVector(si->n_geom));
-                            si->n_shading = Normalize(M.TransformVector(si->n_shading));
+                            si->point = cached_M.TransformPoint(si->point);
+                            si->n_geom = Normalize(cached_M.TransformVector(si->n_geom));
+                            si->n_shading = Normalize(cached_M.TransformVector(si->n_shading));
                         }
                     } else {
                         if (IntersectTriangle(r, tri, t_min, closest_t, si)) {

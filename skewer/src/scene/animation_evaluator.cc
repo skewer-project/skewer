@@ -11,6 +11,12 @@ Matrix4 AnimationEvaluator::EvaluateNodeTransform(const std::string& node_id, fl
 
     const SceneNode& node = it->second;
 
+    // Fast-path: if node is static, we can use the pre-calculated world_matrix.
+    if (!node.channels.translation && !node.channels.rotation && !node.channels.scale) {
+        // If it has no parent, it's definitely safe to use the cached matrix.
+        if (node.parent.empty()) return node.world_matrix;
+    }
+
     Vec3 translation(0, 0, 0);
     if (node.channels.translation) {
         translation = EvaluateTranslation(*node.channels.translation, t);

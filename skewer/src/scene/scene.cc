@@ -17,6 +17,24 @@
 
 namespace skwr {
 
+void Scene::SetNodes(const std::vector<SceneNode>& nodes) {
+    nodes_.clear();
+    node_id_to_string_.clear();
+    node_string_to_id_.clear();
+    for (const auto& n : nodes) {
+        nodes_[n.id] = n;
+        node_string_to_id_[n.id] = (int32_t)node_id_to_string_.size();
+        node_id_to_string_.push_back(n.id);
+    }
+
+    // Second pass: Calculate world matrices (needs all nodes loaded for hierarchy)
+    for (auto& pair : nodes_) {
+        SceneNode& n = pair.second;
+        // Use 0.0 as time for the "base" matrix
+        n.world_matrix = AnimationEvaluator::EvaluateNodeTransform(n.id, 0.0f, nodes_);
+    }
+}
+
 void Scene::Build(float t_start, float t_end) {
     triangles_.clear();
     lights_.clear();

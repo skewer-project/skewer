@@ -39,16 +39,7 @@ class Scene {
     void SetGlobalMedium(uint16_t medium_id) { global_medium_id_ = medium_id; }
     uint16_t GetGlobalMedium() const { return global_medium_id_; }
 
-    void SetNodes(const std::vector<SceneNode>& nodes) {
-        nodes_.clear();
-        node_id_to_string_.clear();
-        node_string_to_id_.clear();
-        for (const auto& n : nodes) {
-            nodes_[n.id] = n;
-            node_string_to_id_[n.id] = (int32_t)node_id_to_string_.size();
-            node_id_to_string_.push_back(n.id);
-        }
-    }
+    void SetNodes(const std::vector<SceneNode>& nodes);
 
     const std::map<std::string, SceneNode>& Nodes() const { return nodes_; }
     const std::string& GetNodeStringId(int32_t id) const { return node_id_to_string_[id]; }
