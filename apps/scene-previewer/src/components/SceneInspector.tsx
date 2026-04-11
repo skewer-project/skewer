@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import type {
 	Camera,
 	Material,
@@ -61,7 +61,7 @@ function CameraSection({ camera }: { camera: Camera }) {
 	);
 }
 
-function LayerCard({
+const LayerCard = memo(function LayerCard({
 	layer,
 	tag,
 	layerIdx,
@@ -80,8 +80,13 @@ function LayerCard({
 	selectedMaterialKey: string | null;
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
-	onAddObject: (obj: SceneObject) => void;
-	onAddMaterial: (name: string, mat: Material) => void;
+	onAddObject: (tag: "ctx" | "lyr", layerIdx: number, obj: SceneObject) => void;
+	onAddMaterial: (
+		tag: "ctx" | "lyr",
+		layerIdx: number,
+		name: string,
+		mat: Material,
+	) => void;
 	dirHandle: FileSystemDirectoryHandle;
 }) {
 	const { name, data } = layer;
@@ -197,7 +202,7 @@ function LayerCard({
 					materialNames={matNames}
 					dirHandle={dirHandle}
 					onAdd={(obj) => {
-						onAddObject(obj);
+						onAddObject(keyPrefix as "ctx" | "lyr", layerIdx, obj);
 						setShowAddObject(false);
 					}}
 					onCancel={() => setShowAddObject(false)}
@@ -208,7 +213,7 @@ function LayerCard({
 				<AddMaterialDialog
 					existingNames={matNames}
 					onAdd={(name, mat) => {
-						onAddMaterial(name, mat);
+						onAddMaterial(keyPrefix as "ctx" | "lyr", layerIdx, name, mat);
 						setShowAddMaterial(false);
 					}}
 					onCancel={() => setShowAddMaterial(false)}
@@ -216,7 +221,7 @@ function LayerCard({
 			)}
 		</details>
 	);
-}
+});
 
 export function SceneInspector({
 	scene,
@@ -259,8 +264,8 @@ export function SceneInspector({
 							selectedMaterialKey={selectedMaterialKey}
 							onSelectObject={onSelectObject}
 							onSelectMaterial={onSelectMaterial}
-							onAddObject={(obj) => onAddObject("ctx", i, obj)}
-							onAddMaterial={(name, mat) => onAddMaterial("ctx", i, name, mat)}
+							onAddObject={onAddObject}
+							onAddMaterial={onAddMaterial}
 							dirHandle={dirHandle}
 						/>
 					))}
@@ -280,8 +285,8 @@ export function SceneInspector({
 							selectedMaterialKey={selectedMaterialKey}
 							onSelectObject={onSelectObject}
 							onSelectMaterial={onSelectMaterial}
-							onAddObject={(obj) => onAddObject("lyr", i, obj)}
-							onAddMaterial={(name, mat) => onAddMaterial("lyr", i, name, mat)}
+							onAddObject={onAddObject}
+							onAddMaterial={onAddMaterial}
 							dirHandle={dirHandle}
 						/>
 					))}
