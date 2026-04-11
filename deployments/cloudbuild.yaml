@@ -2,39 +2,48 @@ steps:
   # Build Go coordinator image
   - name: gcr.io/cloud-builders/docker
     id: build-coordinator
+    entrypoint: bash
     args:
-      - build
-      - -f
-      - deployments/docker/Dockerfile.coordinator
-      - -t
-      - ${_AR_BASE}/skewer-coordinator:latest
-      - .
+      - -c
+      - |
+        docker pull ${_AR_BASE}/skewer-coordinator:latest || true
+        docker build \
+          --cache-from ${_AR_BASE}/skewer-coordinator:latest \
+          -f deployments/docker/Dockerfile.coordinator \
+          -t ${_AR_BASE}/skewer-coordinator:latest \
+          .
 
   # Build skewer render worker image (C++ — needs high-CPU machine)
   - name: gcr.io/cloud-builders/docker
     id: build-skewer
     waitFor:
       - '-'
+    entrypoint: bash
     args:
-      - build
-      - -f
-      - deployments/docker/Dockerfile.skewer
-      - -t
-      - ${_AR_BASE}/skewer-worker:latest
-      - .
+      - -c
+      - |
+        docker pull ${_AR_BASE}/skewer-worker:latest || true
+        docker build \
+          --cache-from ${_AR_BASE}/skewer-worker:latest \
+          -f deployments/docker/Dockerfile.skewer \
+          -t ${_AR_BASE}/skewer-worker:latest \
+          .
 
   # Build loom composite worker image (C++ — runs in parallel with skewer build)
   - name: gcr.io/cloud-builders/docker
     id: build-loom
     waitFor:
       - '-'
+    entrypoint: bash
     args:
-      - build
-      - -f
-      - deployments/docker/Dockerfile.loom
-      - -t
-      - ${_AR_BASE}/loom-worker:latest
-      - .
+      - -c
+      - |
+        docker pull ${_AR_BASE}/loom-worker:latest || true
+        docker build \
+          --cache-from ${_AR_BASE}/loom-worker:latest \
+          -f deployments/docker/Dockerfile.loom \
+          -t ${_AR_BASE}/loom-worker:latest \
+          .
 
   # Push all images
   - name: gcr.io/cloud-builders/docker
