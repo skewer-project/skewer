@@ -383,7 +383,7 @@ submit_batch_composite:
           - condition: '${final_composite_state != "SUCCEEDED"}'
             steps:
               - composite_failed:
-                  raise: '${" composite failed: " + final_composite_state}'
+                  raise: '${"composite failed: " + final_composite_state}'
 
 # ── Subworkflow: poll_batch_job ────────────────────────────────────────────────
 #
