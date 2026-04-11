@@ -1,13 +1,33 @@
 # Enable CTest
-# This file specifies source files and links necessary libraries
 enable_testing()
 
-# Locate source files needed for tests (relative to project root)
-set(TEST_SOURCES
-    skewer/src/film/image_buffer.cc
-    skewer/src/film/film.cc
-    skewer/src/film/deep_segment_pool.cc
-    skewer/src/io/image_io.cc
+# Find required dependencies (available via vcpkg or system)
+find_package(Imath REQUIRED)
+find_package(OpenEXR REQUIRED)
+find_package(ZLIB REQUIRED)
+
+# Skewer core sources (same as used by skewer-render)
+set(SKEWER_CORE_SOURCES
+    ${PROJECT_SOURCE_DIR}/skewer/src/session/render_session.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/scene/scene.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/film/deep_segment_pool.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/film/film.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/film/image_buffer.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/integrators/path_trace.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/integrators/normals.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/accelerators/bvh.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/scene/light.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/io/obj_loader.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/io/scene_loader.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/io/image_io.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/materials/bsdf.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/materials/texture.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/core/spectral/rgb2spec.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/kernels/path_kernel.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/kernels/sample_media.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/kernels/volume_dispatch.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/kernels/utils/visibility.cc
+    ${PROJECT_SOURCE_DIR}/skewer/src/kernels/utils/volume_tracking.cc
 )
 
 # Create integration tests executable
@@ -15,7 +35,7 @@ add_executable(integration_tests
     integration/test_golden_image.cc
     integration/test_scene_parsing.cc
     integration/test_render_pipeline.cc
-    ${TEST_SOURCES}
+    ${SKEWER_CORE_SOURCES}
 )
 
 # Include directories
@@ -24,6 +44,7 @@ target_include_directories(integration_tests
     ${PROJECT_SOURCE_DIR}/skewer/src
     ${PROJECT_SOURCE_DIR}/skewer/external
     ${PROJECT_SOURCE_DIR}/libs/exrio/include
+    ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include
 )
 
 # Link dependencies
@@ -32,7 +53,16 @@ target_link_libraries(integration_tests
     GTest::gtest_main
     nlohmann_json::nlohmann_json
     exrio::exrio
+    nanovdb
+    Imath::Imath
+    OpenEXR::OpenEXR
+    ZLIB::ZLIB
 )
+
+# Disable fast-math for consistency with skewer-render
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(integration_tests PRIVATE -fno-fast-math)
+endif()
 
 # Auto-discover tests
 include(GoogleTest)
