@@ -9,7 +9,7 @@ resource "google_compute_subnetwork" "skewer" {
   name                     = "${local.name_prefix}-subnet"
   network                  = google_compute_network.skewer.id
   region                   = var.region
-  ip_cidr_range            = "10.10.0.0/24"
+  ip_cidr_range            = "10.10.0.0/22"
   private_ip_google_access = true # Allows VMs without public IPs to reach GCP APIs
 }
 
