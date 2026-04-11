@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
+	"cloud.google.com/go/storage"
 	executions "cloud.google.com/go/workflows/executions/apiv1"
 	executionspb "cloud.google.com/go/workflows/executions/apiv1/executionspb"
-	"cloud.google.com/go/storage"
 
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
 )
@@ -18,19 +19,28 @@ import (
 // GCPManager delegates pipeline orchestration to Cloud Workflows and Cloud Storage.
 // It is stateless: all execution state lives in Cloud Workflows.
 type GCPManager struct {
-	projectID       string // used when submitting Batch jobs via the workflow
-	region          string // used when submitting Batch jobs via the workflow
-	workflowsClient *executions.Client
-	storageClient   *storage.Client
-	workflowName    string // fully-qualified: projects/{p}/locations/{r}/workflows/{w}
-	dataBucket      string
-	cacheBucket     string
-	skewerImage     string
-	loomImage       string
-	machineType     string
-	network         string
-	subnet          string
-	batchSA         string
+	projectID               string // used when submitting Batch jobs via the workflow
+	region                  string // used when submitting Batch jobs via the workflow
+	workflowsClient         *executions.Client
+	storageClient           *storage.Client
+	workflowName            string // fully-qualified: projects/{p}/locations/{r}/workflows/{w}
+	dataBucket              string
+	cacheBucket             string
+	skewerImage             string
+	loomImage               string
+	skewerMachineType       string
+	skewerCPUMilli          int
+	skewerMemoryMiB         int
+	skewerProvisioningModel string
+	skewerMaxRetryCount     int
+	loomMachineType         string
+	loomCPUMilli            int
+	loomMemoryMiB           int
+	loomProvisioningModel   string
+	loomMaxRetryCount       int
+	network                 string
+	subnet                  string
+	batchSA                 string
 }
 
 // NewGCPManager reads config from environment variables and creates GCP clients.
@@ -51,19 +61,28 @@ func NewGCPManager(ctx context.Context) (*GCPManager, error) {
 	}
 
 	return &GCPManager{
-		projectID:       mustEnv("GCP_PROJECT"),  // passed into workflow args for Batch job creation
-		region:          mustEnv("GCP_REGION"),    // passed into workflow args for Batch job creation
-		workflowsClient: wfClient,
-		storageClient:   storageClient,
-		workflowName:    workflowName,
-		dataBucket:      mustEnv("DATA_BUCKET"),
-		cacheBucket:     mustEnv("CACHE_BUCKET"),
-		skewerImage:     mustEnv("SKEWER_IMAGE"),
-		loomImage:       mustEnv("LOOM_IMAGE"),
-		machineType:     getEnvOrDefault("BATCH_MACHINE_TYPE", "e2-standard-4"),
-		network:         mustEnv("VPC_NETWORK"),
-		subnet:          mustEnv("VPC_SUBNET"),
-		batchSA:         mustEnv("BATCH_SA_EMAIL"),
+		projectID:               mustEnv("GCP_PROJECT"), // passed into workflow args for Batch job creation
+		region:                  mustEnv("GCP_REGION"),  // passed into workflow args for Batch job creation
+		workflowsClient:         wfClient,
+		storageClient:           storageClient,
+		workflowName:            workflowName,
+		dataBucket:              mustEnv("DATA_BUCKET"),
+		cacheBucket:             mustEnv("CACHE_BUCKET"),
+		skewerImage:             mustEnv("SKEWER_IMAGE"),
+		loomImage:               mustEnv("LOOM_IMAGE"),
+		skewerMachineType:       getEnvOrDefault("SKEWER_BATCH_MACHINE_TYPE", "n2d-highcpu-8"),
+		skewerCPUMilli:          getEnvIntOrDefault("SKEWER_BATCH_CPU_MILLI", 8000),
+		skewerMemoryMiB:         getEnvIntOrDefault("SKEWER_BATCH_MEMORY_MIB", 6144),
+		skewerProvisioningModel: getEnvOrDefault("SKEWER_BATCH_PROVISIONING_MODEL", "SPOT"),
+		skewerMaxRetryCount:     getEnvIntOrDefault("SKEWER_BATCH_MAX_RETRY_COUNT", 3),
+		loomMachineType:         getEnvOrDefault("LOOM_BATCH_MACHINE_TYPE", "e2-highmem-8"),
+		loomCPUMilli:            getEnvIntOrDefault("LOOM_BATCH_CPU_MILLI", 8000),
+		loomMemoryMiB:           getEnvIntOrDefault("LOOM_BATCH_MEMORY_MIB", 32768),
+		loomProvisioningModel:   getEnvOrDefault("LOOM_BATCH_PROVISIONING_MODEL", "STANDARD"),
+		loomMaxRetryCount:       getEnvIntOrDefault("LOOM_BATCH_MAX_RETRY_COUNT", 2),
+		network:                 mustEnv("VPC_NETWORK"),
+		subnet:                  mustEnv("VPC_SUBNET"),
+		batchSA:                 mustEnv("BATCH_SA_EMAIL"),
 	}, nil
 }
 
@@ -71,10 +90,10 @@ func NewGCPManager(ctx context.Context) (*GCPManager, error) {
 // Cloud Workflows execution. Returns the execution name used as the pipeline ID.
 func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipelineRequest) (string, error) {
 	type layerArg struct {
-		LayerID    string `json:"layer_id"`
-		SceneURI   string `json:"scene_uri"`
-		CacheKey   string `json:"cache_key"`
-		EnableCache bool  `json:"enable_cache"`
+		LayerID     string `json:"layer_id"`
+		SceneURI    string `json:"scene_uri"`
+		CacheKey    string `json:"cache_key"`
+		EnableCache bool   `json:"enable_cache"`
 	}
 
 	layers := make([]layerArg, 0, len(req.Layers))
@@ -132,22 +151,31 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 	}
 
 	args := map[string]any{
-		"pipeline_id":              req.PipelineId,
-		"project_id":               m.projectID,
-		"region":                   m.region,
-		"num_frames":               req.NumFrames,
-		"layers":                   layers,
-		"data_bucket":              m.dataBucket,
-		"cache_bucket":             m.cacheBucket,
-		"skewer_image":             m.skewerImage,
-		"loom_image":               m.loomImage,
-		"machine_type":             m.machineType,
-		"network":                  m.network,
-		"subnet":                   m.subnet,
-		"batch_sa":                 m.batchSA,
-		"composite_output_prefix":  req.CompositeOutputUriPrefix,
-		"camera":                   camArgs,
-		"context_uris":             contextURIs,
+		"pipeline_id":               req.PipelineId,
+		"project_id":                m.projectID,
+		"region":                    m.region,
+		"num_frames":                req.NumFrames,
+		"layers":                    layers,
+		"data_bucket":               m.dataBucket,
+		"cache_bucket":              m.cacheBucket,
+		"skewer_image":              m.skewerImage,
+		"loom_image":                m.loomImage,
+		"skewer_machine_type":       m.skewerMachineType,
+		"skewer_cpu_milli":          m.skewerCPUMilli,
+		"skewer_memory_mib":         m.skewerMemoryMiB,
+		"skewer_provisioning_model": m.skewerProvisioningModel,
+		"skewer_max_retry_count":    m.skewerMaxRetryCount,
+		"loom_machine_type":         m.loomMachineType,
+		"loom_cpu_milli":            m.loomCPUMilli,
+		"loom_memory_mib":           m.loomMemoryMiB,
+		"loom_provisioning_model":   m.loomProvisioningModel,
+		"loom_max_retry_count":      m.loomMaxRetryCount,
+		"network":                   m.network,
+		"subnet":                    m.subnet,
+		"batch_sa":                  m.batchSA,
+		"composite_output_prefix":   req.CompositeOutputUriPrefix,
+		"camera":                    camArgs,
+		"context_uris":              contextURIs,
 	}
 
 	argsJSON, err := json.Marshal(args)
@@ -189,8 +217,8 @@ func (m *GCPManager) GetPipelineStatus(ctx context.Context, pipelineID string) (
 	// Parse result JSON to extract layer_outputs and composite_output
 	if exec.Result != "" {
 		var result struct {
-			LayerOutputs   map[string]string `json:"layer_outputs"`
-			OutputURI      string            `json:"output_uri"`
+			LayerOutputs map[string]string `json:"layer_outputs"`
+			OutputURI    string            `json:"output_uri"`
 		}
 		if err := json.Unmarshal([]byte(exec.Result), &result); err == nil {
 			resp.LayerOutputs = result.LayerOutputs
@@ -238,6 +266,17 @@ func mustEnv(key string) string {
 func getEnvOrDefault(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+func getEnvIntOrDefault(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			log.Fatalf("[GCP]: env var %s must be an integer: %v", key, err)
+		}
+		return n
 	}
 	return def
 }

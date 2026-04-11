@@ -10,7 +10,7 @@ resource "google_compute_subnetwork" "skewer" {
   network                  = google_compute_network.skewer.id
   region                   = var.region
   ip_cidr_range            = "10.10.0.0/24"
-  private_ip_google_access = true  # Allows VMs without public IPs to reach GCP APIs
+  private_ip_google_access = true # Allows VMs without public IPs to reach GCP APIs
 }
 
 resource "google_compute_router" "skewer" {
@@ -38,6 +38,21 @@ resource "google_compute_firewall" "egress_https" {
   allow {
     protocol = "tcp"
     ports    = ["443"]
+  }
+
+  target_tags = ["skewer-batch-worker"]
+}
+
+# Pair the HTTPS allow rule with an explicit deny so the implied allow-egress
+# rule does not leave worker VMs open to arbitrary outbound traffic.
+resource "google_compute_firewall" "egress_deny_all" {
+  name      = "${local.name_prefix}-deny-egress-all"
+  network   = google_compute_network.skewer.id
+  direction = "EGRESS"
+  priority  = 2000
+
+  deny {
+    protocol = "all"
   }
 
   target_tags = ["skewer-batch-worker"]

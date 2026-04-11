@@ -12,7 +12,16 @@
 #   cache_bucket            - string, GCS bucket name for layer cache
 #   skewer_image            - string, Artifact Registry URI for skewer-worker
 #   loom_image              - string, Artifact Registry URI for loom-worker
-#   machine_type            - string, e.g. "e2-standard-4"
+#   skewer_machine_type     - string, e.g. "n2d-highcpu-8"
+#   skewer_cpu_milli        - int, vCPU request per render task in milliCPU
+#   skewer_memory_mib       - int, memory request per render task in MiB
+#   skewer_provisioning_model - string, "SPOT" or "STANDARD"
+#   skewer_max_retry_count  - int, automatic retries for render task failures
+#   loom_machine_type       - string, e.g. "e2-highmem-8"
+#   loom_cpu_milli          - int, vCPU request per composite task in milliCPU
+#   loom_memory_mib         - int, memory request per composite task in MiB
+#   loom_provisioning_model - string, "SPOT" or "STANDARD"
+#   loom_max_retry_count    - int, automatic retries for composite task failures
 #   network                 - string, VPC self_link
 #   subnet                  - string, subnet self_link
 #   batch_sa                - string, batch worker service account email
@@ -31,7 +40,16 @@ main:
           - cache_bucket: ${args.cache_bucket}
           - skewer_image: ${args.skewer_image}
           - loom_image: ${args.loom_image}
-          - machine_type: ${args.machine_type}
+          - skewer_machine_type: ${args.skewer_machine_type}
+          - skewer_cpu_milli: ${args.skewer_cpu_milli}
+          - skewer_memory_mib: ${args.skewer_memory_mib}
+          - skewer_provisioning_model: ${args.skewer_provisioning_model}
+          - skewer_max_retry_count: ${args.skewer_max_retry_count}
+          - loom_machine_type: ${args.loom_machine_type}
+          - loom_cpu_milli: ${args.loom_cpu_milli}
+          - loom_memory_mib: ${args.loom_memory_mib}
+          - loom_provisioning_model: ${args.loom_provisioning_model}
+          - loom_max_retry_count: ${args.loom_max_retry_count}
           - network: ${args.network}
           - subnet: ${args.subnet}
           - batch_sa: ${args.batch_sa}
@@ -83,7 +101,11 @@ main:
                     data_bucket: ${data_bucket}
                     cache_bucket: ${cache_bucket}
                     skewer_image: ${skewer_image}
-                    machine_type: ${machine_type}
+                    machine_type: ${skewer_machine_type}
+                    cpu_milli: ${skewer_cpu_milli}
+                    memory_mib: ${skewer_memory_mib}
+                    provisioning_model: ${skewer_provisioning_model}
+                    max_retry_count: ${skewer_max_retry_count}
                     network: ${network}
                     subnet: ${subnet}
                     batch_sa: ${batch_sa}
@@ -142,7 +164,11 @@ main:
           cache_bucket: ${cache_bucket}
           composite_output_prefix: ${composite_output_prefix}
           loom_image: ${loom_image}
-          machine_type: ${machine_type}
+          machine_type: ${loom_machine_type}
+          cpu_milli: ${loom_cpu_milli}
+          memory_mib: ${loom_memory_mib}
+          provisioning_model: ${loom_provisioning_model}
+          max_retry_count: ${loom_max_retry_count}
           network: ${network}
           subnet: ${subnet}
           batch_sa: ${batch_sa}
@@ -162,7 +188,8 @@ main:
 
 submit_batch_render:
   params: [project_id, region, pipeline_id, layer, num_frames, data_bucket,
-           cache_bucket, skewer_image, machine_type, network, subnet, batch_sa, camera,
+           cache_bucket, skewer_image, machine_type, cpu_milli, memory_mib,
+           provisioning_model, max_retry_count, network, subnet, batch_sa, camera,
            context_uris]
   steps:
     - init_render:
@@ -193,7 +220,12 @@ submit_batch_render:
           body:
             taskGroups:
               - taskCount: ${num_frames}
+                taskCountPerNode: 1
                 taskSpec:
+                  computeResource:
+                    cpuMilli: ${cpu_milli}
+                    memoryMib: ${memory_mib}
+                  maxRetryCount: ${max_retry_count}
                   runnables:
                     - script:
                         text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
@@ -230,10 +262,12 @@ submit_batch_render:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              tags:
+                - skewer-batch-worker
               instances:
                 - policy:
                     machineType: ${machine_type}
-                    provisioningModel: SPOT
+                    provisioningModel: ${provisioning_model}
               network:
                 networkInterfaces:
                   - network: ${network}
@@ -267,7 +301,8 @@ submit_batch_render:
 
 submit_batch_composite:
   params: [project_id, region, pipeline_id, layer_output_prefixes, num_frames, data_bucket,
-           cache_bucket, composite_output_prefix, loom_image, machine_type, network, subnet, batch_sa]
+           cache_bucket, composite_output_prefix, loom_image, machine_type, cpu_milli,
+           memory_mib, provisioning_model, max_retry_count, network, subnet, batch_sa]
   steps:
     - init_composite:
         assign:
@@ -294,7 +329,12 @@ submit_batch_composite:
           body:
             taskGroups:
               - taskCount: ${num_frames}
+                taskCountPerNode: 1
                 taskSpec:
+                  computeResource:
+                    cpuMilli: ${cpu_milli}
+                    memoryMib: ${memory_mib}
+                  maxRetryCount: ${max_retry_count}
                   runnables:
                     - script:
                         text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
@@ -317,10 +357,12 @@ submit_batch_composite:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              tags:
+                - skewer-batch-worker
               instances:
                 - policy:
                     machineType: ${machine_type}
-                    provisioningModel: SPOT
+                    provisioningModel: ${provisioning_model}
               network:
                 networkInterfaces:
                   - network: ${network}

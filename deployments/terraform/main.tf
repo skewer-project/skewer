@@ -21,6 +21,7 @@ locals {
 resource "google_project_service" "apis" {
   for_each = toset([
     "batch.googleapis.com",
+    "cloudbuild.googleapis.com",
     "workflows.googleapis.com",
     "run.googleapis.com",
     "storage.googleapis.com",

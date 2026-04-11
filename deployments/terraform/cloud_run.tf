@@ -48,8 +48,44 @@ resource "google_cloud_run_v2_service" "coordinator" {
         value = "${local.ar_base}/loom-worker:latest"
       }
       env {
-        name  = "BATCH_MACHINE_TYPE"
-        value = var.batch_machine_type
+        name  = "SKEWER_BATCH_MACHINE_TYPE"
+        value = var.skewer_batch_machine_type
+      }
+      env {
+        name  = "SKEWER_BATCH_CPU_MILLI"
+        value = tostring(var.skewer_batch_cpu_milli)
+      }
+      env {
+        name  = "SKEWER_BATCH_MEMORY_MIB"
+        value = tostring(var.skewer_batch_memory_mib)
+      }
+      env {
+        name  = "SKEWER_BATCH_PROVISIONING_MODEL"
+        value = var.skewer_batch_provisioning_model
+      }
+      env {
+        name  = "SKEWER_BATCH_MAX_RETRY_COUNT"
+        value = tostring(var.skewer_batch_max_retry_count)
+      }
+      env {
+        name  = "LOOM_BATCH_MACHINE_TYPE"
+        value = var.loom_batch_machine_type
+      }
+      env {
+        name  = "LOOM_BATCH_CPU_MILLI"
+        value = tostring(var.loom_batch_cpu_milli)
+      }
+      env {
+        name  = "LOOM_BATCH_MEMORY_MIB"
+        value = tostring(var.loom_batch_memory_mib)
+      }
+      env {
+        name  = "LOOM_BATCH_PROVISIONING_MODEL"
+        value = var.loom_batch_provisioning_model
+      }
+      env {
+        name  = "LOOM_BATCH_MAX_RETRY_COUNT"
+        value = tostring(var.loom_batch_max_retry_count)
       }
       env {
         name  = "VPC_NETWORK"

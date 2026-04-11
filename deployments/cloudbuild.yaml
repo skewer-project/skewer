@@ -13,6 +13,8 @@ steps:
   # Build skewer render worker image (C++ — needs high-CPU machine)
   - name: gcr.io/cloud-builders/docker
     id: build-skewer
+    waitFor:
+      - '-'
     args:
       - build
       - -f
@@ -65,7 +67,11 @@ substitutions:
   _AR_BASE: us-west2-docker.pkg.dev/$PROJECT_ID/skewer
 
 options:
+  # Sized to run the two C++ image builds concurrently at 4 compile threads each.
   machineType: E2_HIGHCPU_8
+  # Custom build service accounts must send logs somewhere other than the
+  # default Cloud Build bucket.
+  logging: CLOUD_LOGGING_ONLY
 
 images:
   - ${_AR_BASE}/skewer-coordinator:latest
