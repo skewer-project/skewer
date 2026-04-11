@@ -29,7 +29,7 @@ coordinator
 
 # Ignore frontend dependencies
 node_modules/
-apps/
+apps/scene-previewer/
 
 # Ignore docs and scripts
 docs/
