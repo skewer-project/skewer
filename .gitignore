@@ -34,3 +34,12 @@ renders/
 *.ppm
 
 .claude/
+opencode.json
+
+# generated site output from mkdocs
+site/
+
+opencode.json
+
+# gcp key
+gcp-key.json

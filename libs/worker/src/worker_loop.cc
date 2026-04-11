@@ -16,9 +16,9 @@
 
 using api::proto::coordinator::v1::CoordinatorService;
 using api::proto::coordinator::v1::GetWorkStreamRequest;
+using api::proto::coordinator::v1::GetWorkStreamResponse;
 using api::proto::coordinator::v1::ReportTaskResultRequest;
 using api::proto::coordinator::v1::ReportTaskResultResponse;
-using api::proto::coordinator::v1::WorkPackage;
 using grpc::Channel;
 using grpc::ClientContext;
 
@@ -62,10 +62,10 @@ void RunLoop(const Options& opt, PackageHandler handler) {
             request.add_capabilities(cap);
         }
 
-        std::unique_ptr<grpc::ClientReader<WorkPackage>> stream(
+        std::unique_ptr<grpc::ClientReader<GetWorkStreamResponse>> stream(
             stub->GetWorkStream(&context, request));
 
-        WorkPackage package;
+        GetWorkStreamResponse package;
         while (stream->Read(&package)) {
             std::optional<TaskOutcome> outcome;
             try {
