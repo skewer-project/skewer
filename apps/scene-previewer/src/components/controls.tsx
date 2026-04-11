@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Vec3 } from "../types/scene";
 
 // ── NumberField ─────────────────────────────────────────────
@@ -14,7 +14,7 @@ interface NumberFieldProps {
 	inline?: boolean;
 }
 
-export function NumberField({
+export const NumberField = memo(function NumberField({
 	label,
 	value,
 	onChange,
@@ -164,7 +164,7 @@ export function NumberField({
 			{input}
 		</div>
 	);
-}
+});
 
 // ── Vec3Field ───────────────────────────────────────────────
 
