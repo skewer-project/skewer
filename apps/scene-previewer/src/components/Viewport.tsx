@@ -92,13 +92,7 @@ function findTopLevelObject(
 }
 
 export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{
-		scene,
-		dirHandle,
-		sceneVersion: _sceneVersion,
-		selectedObjectKey,
-		onSelectObject,
-	},
+	{ scene, dirHandle, sceneVersion, selectedObjectKey, onSelectObject },
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -112,6 +106,10 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	// Keep a ref to scene so Effect 2 can read current data without depending on it
 	const sceneRef = useRef(scene);
 	sceneRef.current = scene;
+	// Track previous dirHandle to distinguish a new scene load from a sceneVersion bump
+	const prevDirHandle = useRef<FileSystemDirectoryHandle | null | undefined>(
+		undefined,
+	);
 
 	// ── Imperative handle: applyPatch ──
 	useImperativeHandle(
@@ -326,6 +324,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	}, []);
 
 	// --- Effect 2: rebuild scene objects on structural changes ---
+	// biome-ignore lint/correctness/useExhaustiveDependencies: sceneVersion is used only as a trigger, not read in the body
 	useEffect(() => {
 		const currentScene = sceneRef.current;
 		if (!currentScene || !dirHandle) return;
@@ -335,12 +334,17 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const ctrl = controls.current;
 		if (!sc || !cam || !ctrl) return;
 
-		// Sync camera
-		cam.fov = currentScene.camera.vfov;
-		cam.position.set(...currentScene.camera.look_from);
-		ctrl.target.set(...currentScene.camera.look_at);
-		cam.updateProjectionMatrix();
-		ctrl.update();
+		// Only reset the camera when a new scene is loaded (dirHandle changed),
+		// not on sceneVersion bumps — otherwise edits reset the viewport angle.
+		const isNewScene = dirHandle !== prevDirHandle.current;
+		prevDirHandle.current = dirHandle;
+		if (isNewScene) {
+			cam.fov = currentScene.camera.vfov;
+			cam.position.set(...currentScene.camera.look_from);
+			ctrl.target.set(...currentScene.camera.look_at);
+			cam.updateProjectionMatrix();
+			ctrl.update();
+		}
 
 		const abortController = new AbortController();
 
@@ -359,7 +363,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle]);
+	}, [dirHandle, sceneVersion]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {

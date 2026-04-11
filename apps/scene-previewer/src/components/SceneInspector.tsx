@@ -1,10 +1,14 @@
+import { useState } from "react";
 import type {
 	Camera,
+	Material,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneObject,
 	Vec3,
 } from "../types/scene";
+import { AddMaterialDialog } from "./AddMaterialDialog";
+import { AddObjectDialog } from "./AddObjectDialog";
 
 function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
@@ -65,6 +69,9 @@ function LayerCard({
 	selectedMaterialKey,
 	onSelectObject,
 	onSelectMaterial,
+	onAddObject,
+	onAddMaterial,
+	dirHandle,
 }: {
 	layer: ResolvedLayer;
 	tag: "context" | "layer";
@@ -73,10 +80,16 @@ function LayerCard({
 	selectedMaterialKey: string | null;
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
+	onAddObject: (obj: SceneObject) => void;
+	onAddMaterial: (name: string, mat: Material) => void;
+	dirHandle: FileSystemDirectoryHandle;
 }) {
 	const { name, data } = layer;
 	const matNames = Object.keys(data.materials);
 	const keyPrefix = tag === "context" ? "ctx" : "lyr";
+
+	const [showAddObject, setShowAddObject] = useState(false);
+	const [showAddMaterial, setShowAddMaterial] = useState(false);
 
 	return (
 		<details className="layer-card">
@@ -110,58 +123,97 @@ function LayerCard({
 			</summary>
 
 			<div className="layer-body">
-				{matNames.length > 0 && (
-					<>
-						<div className="layer-sub-head">Materials</div>
-						{matNames.map((n) => {
-							const key = `${keyPrefix}:${layerIdx}:mat:${n}`;
-							const isSelected = key === selectedMaterialKey;
-							return (
-								<button
-									type="button"
-									key={n}
-									className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
-									onClick={(e) => {
-										e.stopPropagation();
-										onSelectMaterial(isSelected ? null : key);
-									}}
-								>
-									<span className="data-name">{n}</span>{" "}
-									<span className="data-type">[{data.materials[n].type}]</span>
-								</button>
-							);
-						})}
-					</>
-				)}
+				<div className="layer-sub-head layer-sub-head-action">
+					<span>Materials</span>
+					<button
+						type="button"
+						className="layer-add-btn"
+						title="Add material"
+						onClick={(e) => {
+							e.stopPropagation();
+							setShowAddMaterial(true);
+						}}
+					>
+						+
+					</button>
+				</div>
+				{matNames.map((n) => {
+					const key = `${keyPrefix}:${layerIdx}:mat:${n}`;
+					const isSelected = key === selectedMaterialKey;
+					return (
+						<button
+							type="button"
+							key={n}
+							className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+							onClick={(e) => {
+								e.stopPropagation();
+								onSelectMaterial(isSelected ? null : key);
+							}}
+						>
+							<span className="data-name">{n}</span>{" "}
+							<span className="data-type">[{data.materials[n].type}]</span>
+						</button>
+					);
+				})}
 
-				{data.objects.length > 0 && (
-					<>
-						<div className="layer-sub-head">Objects</div>
-						{data.objects.map((obj, i) => {
-							const key = `${keyPrefix}:${layerIdx}:${i}`;
-							const isSelected = key === selectedObjectKey;
-							const label = objectLabel(obj);
-							return (
-								<button
-									type="button"
-									key={key}
-									className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
-									onClick={(e) => {
-										e.stopPropagation();
-										onSelectObject(isSelected ? null : key);
-									}}
-								>
-									<span className="data-type">#{i}</span>{" "}
-									<span className="data-name">{obj.type}</span>
-									{label && (
-										<span className="data-type"> {label}</span>
-									)}
-								</button>
-							);
-						})}
-					</>
-				)}
+				<div className="layer-sub-head layer-sub-head-action">
+					<span>Objects</span>
+					<button
+						type="button"
+						className="layer-add-btn"
+						title="Add object"
+						onClick={(e) => {
+							e.stopPropagation();
+							setShowAddObject(true);
+						}}
+					>
+						+
+					</button>
+				</div>
+				{data.objects.map((obj, i) => {
+					const key = `${keyPrefix}:${layerIdx}:${i}`;
+					const isSelected = key === selectedObjectKey;
+					const label = objectLabel(obj);
+					return (
+						<button
+							type="button"
+							key={key}
+							className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+							onClick={(e) => {
+								e.stopPropagation();
+								onSelectObject(isSelected ? null : key);
+							}}
+						>
+							<span className="data-type">#{i}</span>{" "}
+							<span className="data-name">{obj.type}</span>
+							{label && <span className="data-type"> {label}</span>}
+						</button>
+					);
+				})}
 			</div>
+
+			{showAddObject && (
+				<AddObjectDialog
+					materialNames={matNames}
+					dirHandle={dirHandle}
+					onAdd={(obj) => {
+						onAddObject(obj);
+						setShowAddObject(false);
+					}}
+					onCancel={() => setShowAddObject(false)}
+				/>
+			)}
+
+			{showAddMaterial && (
+				<AddMaterialDialog
+					existingNames={matNames}
+					onAdd={(name, mat) => {
+						onAddMaterial(name, mat);
+						setShowAddMaterial(false);
+					}}
+					onCancel={() => setShowAddMaterial(false)}
+				/>
+			)}
 		</details>
 	);
 }
@@ -172,12 +224,23 @@ export function SceneInspector({
 	selectedMaterialKey,
 	onSelectObject,
 	onSelectMaterial,
+	onAddObject,
+	onAddMaterial,
+	dirHandle,
 }: {
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
+	onAddObject: (tag: "ctx" | "lyr", layerIdx: number, obj: SceneObject) => void;
+	onAddMaterial: (
+		tag: "ctx" | "lyr",
+		layerIdx: number,
+		name: string,
+		mat: Material,
+	) => void;
+	dirHandle: FileSystemDirectoryHandle;
 }) {
 	return (
 		<div className="inspector">
@@ -196,6 +259,9 @@ export function SceneInspector({
 							selectedMaterialKey={selectedMaterialKey}
 							onSelectObject={onSelectObject}
 							onSelectMaterial={onSelectMaterial}
+							onAddObject={(obj) => onAddObject("ctx", i, obj)}
+							onAddMaterial={(name, mat) => onAddMaterial("ctx", i, name, mat)}
+							dirHandle={dirHandle}
 						/>
 					))}
 				</>
@@ -214,6 +280,9 @@ export function SceneInspector({
 							selectedMaterialKey={selectedMaterialKey}
 							onSelectObject={onSelectObject}
 							onSelectMaterial={onSelectMaterial}
+							onAddObject={(obj) => onAddObject("lyr", i, obj)}
+							onAddMaterial={(name, mat) => onAddMaterial("lyr", i, name, mat)}
+							dirHandle={dirHandle}
 						/>
 					))}
 				</>
