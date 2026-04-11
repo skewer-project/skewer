@@ -2,6 +2,8 @@ steps:
   # Build Go coordinator image
   - name: gcr.io/cloud-builders/docker
     id: build-coordinator
+    waitFor:
+      - '-'
     entrypoint: bash
     args:
       - -c
