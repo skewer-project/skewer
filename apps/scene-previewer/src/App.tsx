@@ -11,6 +11,16 @@ import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import type { Material, ResolvedScene, SceneObject } from "./types/scene";
 
+function isEditableTarget(target: EventTarget | null) {
+	if (!(target instanceof HTMLElement)) return false;
+	if (target.isContentEditable) return true;
+	return (
+		target.tagName === "INPUT" ||
+		target.tagName === "TEXTAREA" ||
+		target.tagName === "SELECT"
+	);
+}
+
 function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
 	const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(
@@ -38,16 +48,6 @@ function App() {
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const viewportRef = useRef<ViewportHandle>(null);
 
-	function isEditableTarget(target: EventTarget | null) {
-		if (!(target instanceof HTMLElement)) return false;
-		if (target.isContentEditable) return true;
-		return (
-			target.tagName === "INPUT" ||
-			target.tagName === "TEXTAREA" ||
-			target.tagName === "SELECT"
-		);
-	}
-
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
 		setScene(s);
 		setDirHandle(dir);
@@ -68,7 +68,7 @@ function App() {
 				return updater(prev);
 			});
 		},
-		[setScene, setHasUnsavedChanges],
+		[],
 	);
 
 	async function handleSave() {
@@ -107,7 +107,7 @@ function App() {
 			setSceneVersion((v) => v + 1);
 			setSelectedObjectKey(null);
 		},
-		[handleSceneEdit, setSceneVersion, setSelectedObjectKey],
+		[handleSceneEdit],
 	);
 
 	useEffect(() => {
