@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <iostream>
+
 #include "core/math/vec3.h"
 
 namespace skwr {
@@ -47,25 +48,17 @@ inline Quaternion Slerp(const Quaternion& q1, const Quaternion& q2, float t) {
     float sinHalfTheta = std::sqrt(1.0f - cosHalfTheta * cosHalfTheta);
 
     if (std::abs(sinHalfTheta) < 0.001f) {
-        return Quaternion(
-            q1.x * 0.5f + target.x * 0.5f,
-            q1.y * 0.5f + target.y * 0.5f,
-            q1.z * 0.5f + target.z * 0.5f,
-            q1.w * 0.5f + target.w * 0.5f
-        );
+        return Quaternion(q1.x * 0.5f + target.x * 0.5f, q1.y * 0.5f + target.y * 0.5f,
+                          q1.z * 0.5f + target.z * 0.5f, q1.w * 0.5f + target.w * 0.5f);
     }
 
     float ratioA = std::sin((1 - t) * halfTheta) / sinHalfTheta;
     float ratioB = std::sin(t * halfTheta) / sinHalfTheta;
 
-    return Quaternion(
-        q1.x * ratioA + target.x * ratioB,
-        q1.y * ratioA + target.y * ratioB,
-        q1.z * ratioA + target.z * ratioB,
-        q1.w * ratioA + target.w * ratioB
-    );
+    return Quaternion(q1.x * ratioA + target.x * ratioB, q1.y * ratioA + target.y * ratioB,
+                      q1.z * ratioA + target.z * ratioB, q1.w * ratioA + target.w * ratioB);
 }
 
-} // namespace skwr
+}  // namespace skwr
 
-#endif // SKWR_CORE_MATH_QUATERNION_H_
+#endif  // SKWR_CORE_MATH_QUATERNION_H_

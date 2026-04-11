@@ -1,9 +1,10 @@
 #ifndef SKWR_CORE_MATH_MATRIX_H_
 #define SKWR_CORE_MATH_MATRIX_H_
 
-#include "core/math/vec3.h"
-#include "core/math/quaternion.h"
 #include <cmath>
+
+#include "core/math/quaternion.h"
+#include "core/math/vec3.h"
 
 namespace skwr {
 
@@ -12,8 +13,7 @@ struct Matrix4 {
 
     Matrix4() {
         for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                m[i][j] = 0.0f;
+            for (int j = 0; j < 4; j++) m[i][j] = 0.0f;
     }
 
     static Matrix4 Identity() {
@@ -70,10 +70,8 @@ struct Matrix4 {
         Matrix4 res;
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
-                res.m[i][j] = m[i][0] * other.m[0][j] +
-                             m[i][1] * other.m[1][j] +
-                             m[i][2] * other.m[2][j] +
-                             m[i][3] * other.m[3][j];
+                res.m[i][j] = m[i][0] * other.m[0][j] + m[i][1] * other.m[1][j] +
+                              m[i][2] * other.m[2][j] + m[i][3] * other.m[3][j];
             }
         }
         return res;
@@ -106,117 +104,66 @@ struct Matrix4 {
         float inv[16];
         const float* mat = &m[0][0];
 
-        inv[0] = mat[5]  * mat[10] * mat[15] - 
-                 mat[5]  * mat[11] * mat[14] - 
-                 mat[9]  * mat[6]  * mat[15] + 
-                 mat[9]  * mat[7]  * mat[14] +
-                 mat[13] * mat[6]  * mat[11] - 
-                 mat[13] * mat[7]  * mat[10];
+        inv[0] = mat[5] * mat[10] * mat[15] - mat[5] * mat[11] * mat[14] -
+                 mat[9] * mat[6] * mat[15] + mat[9] * mat[7] * mat[14] +
+                 mat[13] * mat[6] * mat[11] - mat[13] * mat[7] * mat[10];
 
-        inv[4] = -mat[4]  * mat[10] * mat[15] + 
-                  mat[4]  * mat[11] * mat[14] + 
-                  mat[8]  * mat[6]  * mat[15] - 
-                  mat[8]  * mat[7]  * mat[14] - 
-                  mat[12] * mat[6]  * mat[11] + 
-                  mat[12] * mat[7]  * mat[10];
+        inv[4] = -mat[4] * mat[10] * mat[15] + mat[4] * mat[11] * mat[14] +
+                 mat[8] * mat[6] * mat[15] - mat[8] * mat[7] * mat[14] -
+                 mat[12] * mat[6] * mat[11] + mat[12] * mat[7] * mat[10];
 
-        inv[8] = mat[4]  * mat[9] * mat[15] - 
-                 mat[4]  * mat[11] * mat[13] - 
-                 mat[8]  * mat[5] * mat[15] + 
-                 mat[8]  * mat[7] * mat[13] + 
-                 mat[12] * mat[5] * mat[11] - 
-                 mat[12] * mat[7] * mat[9];
+        inv[8] = mat[4] * mat[9] * mat[15] - mat[4] * mat[11] * mat[13] -
+                 mat[8] * mat[5] * mat[15] + mat[8] * mat[7] * mat[13] +
+                 mat[12] * mat[5] * mat[11] - mat[12] * mat[7] * mat[9];
 
-        inv[12] = -mat[4]  * mat[9] * mat[14] + 
-                   mat[4]  * mat[10] * mat[13] +
-                   mat[8]  * mat[5] * mat[14] - 
-                   mat[8]  * mat[6] * mat[13] - 
-                   mat[12] * mat[5] * mat[10] + 
-                   mat[12] * mat[6] * mat[9];
+        inv[12] = -mat[4] * mat[9] * mat[14] + mat[4] * mat[10] * mat[13] +
+                  mat[8] * mat[5] * mat[14] - mat[8] * mat[6] * mat[13] -
+                  mat[12] * mat[5] * mat[10] + mat[12] * mat[6] * mat[9];
 
-        inv[1] = -mat[1]  * mat[10] * mat[15] + 
-                  mat[1]  * mat[11] * mat[14] + 
-                  mat[9]  * mat[2] * mat[15] - 
-                  mat[9]  * mat[3] * mat[14] - 
-                  mat[13] * mat[2] * mat[11] + 
-                  mat[13] * mat[3] * mat[10];
+        inv[1] = -mat[1] * mat[10] * mat[15] + mat[1] * mat[11] * mat[14] +
+                 mat[9] * mat[2] * mat[15] - mat[9] * mat[3] * mat[14] -
+                 mat[13] * mat[2] * mat[11] + mat[13] * mat[3] * mat[10];
 
-        inv[5] = mat[0]  * mat[10] * mat[15] - 
-                 mat[0]  * mat[11] * mat[14] - 
-                 mat[8]  * mat[2] * mat[15] + 
-                 mat[8]  * mat[3] * mat[14] + 
-                 mat[12] * mat[2] * mat[11] - 
-                 mat[12] * mat[3] * mat[10];
+        inv[5] = mat[0] * mat[10] * mat[15] - mat[0] * mat[11] * mat[14] -
+                 mat[8] * mat[2] * mat[15] + mat[8] * mat[3] * mat[14] +
+                 mat[12] * mat[2] * mat[11] - mat[12] * mat[3] * mat[10];
 
-        inv[9] = -mat[0]  * mat[9] * mat[15] + 
-                  mat[0]  * mat[11] * mat[13] + 
-                  mat[8]  * mat[1] * mat[15] - 
-                  mat[8]  * mat[3] * mat[13] - 
-                  mat[12] * mat[1] * mat[11] + 
-                  mat[12] * mat[3] * mat[9];
+        inv[9] = -mat[0] * mat[9] * mat[15] + mat[0] * mat[11] * mat[13] +
+                 mat[8] * mat[1] * mat[15] - mat[8] * mat[3] * mat[13] -
+                 mat[12] * mat[1] * mat[11] + mat[12] * mat[3] * mat[9];
 
-        inv[13] = mat[0]  * mat[9] * mat[14] - 
-                  mat[0]  * mat[10] * mat[13] - 
-                  mat[8]  * mat[1] * mat[14] + 
-                  mat[8]  * mat[2] * mat[13] + 
-                  mat[12] * mat[1] * mat[10] - 
-                  mat[12] * mat[2] * mat[9];
+        inv[13] = mat[0] * mat[9] * mat[14] - mat[0] * mat[10] * mat[13] -
+                  mat[8] * mat[1] * mat[14] + mat[8] * mat[2] * mat[13] +
+                  mat[12] * mat[1] * mat[10] - mat[12] * mat[2] * mat[9];
 
-        inv[2] = mat[1]  * mat[6] * mat[15] - 
-                 mat[1]  * mat[7] * mat[14] - 
-                 mat[5]  * mat[2] * mat[15] + 
-                 mat[5]  * mat[3] * mat[14] + 
-                 mat[13] * mat[2] * mat[7] - 
-                 mat[13] * mat[3] * mat[6];
+        inv[2] = mat[1] * mat[6] * mat[15] - mat[1] * mat[7] * mat[14] - mat[5] * mat[2] * mat[15] +
+                 mat[5] * mat[3] * mat[14] + mat[13] * mat[2] * mat[7] - mat[13] * mat[3] * mat[6];
 
-        inv[6] = -mat[0]  * mat[6] * mat[15] + 
-                  mat[0]  * mat[7] * mat[14] + 
-                  mat[4]  * mat[2] * mat[15] - 
-                  mat[4]  * mat[3] * mat[14] - 
-                  mat[12] * mat[2] * mat[7] + 
-                  mat[12] * mat[3] * mat[6];
+        inv[6] = -mat[0] * mat[6] * mat[15] + mat[0] * mat[7] * mat[14] +
+                 mat[4] * mat[2] * mat[15] - mat[4] * mat[3] * mat[14] - mat[12] * mat[2] * mat[7] +
+                 mat[12] * mat[3] * mat[6];
 
-        inv[10] = mat[0]  * mat[5] * mat[15] - 
-                  mat[0]  * mat[7] * mat[13] - 
-                  mat[4]  * mat[1] * mat[15] + 
-                  mat[4]  * mat[3] * mat[13] + 
-                  mat[12] * mat[1] * mat[7] - 
-                  mat[12] * mat[3] * mat[5];
+        inv[10] = mat[0] * mat[5] * mat[15] - mat[0] * mat[7] * mat[13] -
+                  mat[4] * mat[1] * mat[15] + mat[4] * mat[3] * mat[13] +
+                  mat[12] * mat[1] * mat[7] - mat[12] * mat[3] * mat[5];
 
-        inv[14] = -mat[0]  * mat[5] * mat[14] + 
-                   mat[0]  * mat[6] * mat[13] + 
-                   mat[4]  * mat[1] * mat[14] - 
-                   mat[4]  * mat[2] * mat[13] - 
-                   mat[12] * mat[1] * mat[6] + 
-                   mat[12] * mat[2] * mat[5];
+        inv[14] = -mat[0] * mat[5] * mat[14] + mat[0] * mat[6] * mat[13] +
+                  mat[4] * mat[1] * mat[14] - mat[4] * mat[2] * mat[13] -
+                  mat[12] * mat[1] * mat[6] + mat[12] * mat[2] * mat[5];
 
-        inv[3] = -mat[1] * mat[6] * mat[11] + 
-                  mat[1] * mat[7] * mat[10] + 
-                  mat[5] * mat[2] * mat[11] - 
-                  mat[5] * mat[3] * mat[10] - 
-                  mat[9] * mat[2] * mat[7] + 
-                  mat[9] * mat[3] * mat[6];
+        inv[3] = -mat[1] * mat[6] * mat[11] + mat[1] * mat[7] * mat[10] +
+                 mat[5] * mat[2] * mat[11] - mat[5] * mat[3] * mat[10] - mat[9] * mat[2] * mat[7] +
+                 mat[9] * mat[3] * mat[6];
 
-        inv[7] = mat[0] * mat[6] * mat[11] - 
-                 mat[0] * mat[7] * mat[10] - 
-                 mat[4] * mat[2] * mat[11] + 
-                 mat[4] * mat[3] * mat[10] + 
-                 mat[8] * mat[2] * mat[7] - 
-                 mat[8] * mat[3] * mat[6];
+        inv[7] = mat[0] * mat[6] * mat[11] - mat[0] * mat[7] * mat[10] - mat[4] * mat[2] * mat[11] +
+                 mat[4] * mat[3] * mat[10] + mat[8] * mat[2] * mat[7] - mat[8] * mat[3] * mat[6];
 
-        inv[11] = -mat[0] * mat[5] * mat[11] + 
-                   mat[0] * mat[7] * mat[9] + 
-                   mat[4] * mat[1] * mat[11] - 
-                   mat[4] * mat[3] * mat[9] - 
-                   mat[8] * mat[1] * mat[7] + 
-                   mat[8] * mat[3] * mat[5];
+        inv[11] = -mat[0] * mat[5] * mat[11] + mat[0] * mat[7] * mat[9] +
+                  mat[4] * mat[1] * mat[11] - mat[4] * mat[3] * mat[9] - mat[8] * mat[1] * mat[7] +
+                  mat[8] * mat[3] * mat[5];
 
-        inv[15] = mat[0] * mat[5] * mat[10] - 
-                  mat[0] * mat[6] * mat[9] - 
-                  mat[4] * mat[1] * mat[10] + 
-                  mat[4] * mat[2] * mat[9] + 
-                  mat[8] * mat[1] * mat[6] - 
-                  mat[8] * mat[2] * mat[5];
+        inv[15] = mat[0] * mat[5] * mat[10] - mat[0] * mat[6] * mat[9] - mat[4] * mat[1] * mat[10] +
+                  mat[4] * mat[2] * mat[9] + mat[8] * mat[1] * mat[6] - mat[8] * mat[2] * mat[5];
 
         float det = mat[0] * inv[0] + mat[1] * inv[4] + mat[2] * inv[8] + mat[3] * inv[12];
 
@@ -225,13 +172,12 @@ struct Matrix4 {
 
         det = 1.0f / det;
 
-        for (int i = 0; i < 16; i++)
-            (&res.m[0][0])[i] = inv[i] * det;
+        for (int i = 0; i < 16; i++) (&res.m[0][0])[i] = inv[i] * det;
 
         return res;
     }
 };
 
-} // namespace skwr
+}  // namespace skwr
 
-#endif // SKWR_CORE_MATH_MATRIX_H_
+#endif  // SKWR_CORE_MATH_MATRIX_H_

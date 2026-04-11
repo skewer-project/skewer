@@ -7,14 +7,14 @@
 // and returns camera/render configuration.
 //==============================================================================================
 
+#include <map>
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
-#include <map>
 
-#include "core/math/vec3.h"
-#include "core/math/quaternion.h"
 #include "core/math/matrix.h"
+#include "core/math/quaternion.h"
+#include "core/math/vec3.h"
 #include "session/render_options.h"
 
 namespace skwr {
@@ -65,12 +65,12 @@ struct SceneNode {
     std::string type;
     std::string file;
     std::string material;
-    std::string parent; // ID of parent node or empty if null
+    std::string parent;  // ID of parent node or empty if null
     float base_scale = 1.0f;
     AnimationChannels channels;
 
     // Optimization: pre-calculated matrix for static nodes or base states
-    Matrix4 world_matrix; 
+    Matrix4 world_matrix;
 };
 
 // Per-layer render config extracted from a layer JSON

@@ -25,8 +25,8 @@ static constexpr float kCostIntersect = 4.0f;  // relative cost of a triangle te
 // ---------------------------------------------------------------------------
 
 static Vec3 GetCentroid(const Triangle& t, const std::map<std::string, SceneNode>& nodes,
-                        const std::vector<std::string>& node_id_to_string,
-                        float t_start, float t_end) {
+                        const std::vector<std::string>& node_id_to_string, float t_start,
+                        float t_end) {
     Vec3 c0 = t.p0 + (t.e1 + t.e2) * (1.0f / 3.0f);
     if (t.node_id == -1) return c0;
 
@@ -41,8 +41,8 @@ static Vec3 GetCentroid(const Triangle& t, const std::map<std::string, SceneNode
 }
 
 static BoundBox GetBounds(const Triangle& t, const std::map<std::string, SceneNode>& nodes,
-                          const std::vector<std::string>& node_id_to_string,
-                          float t_start, float t_end) {
+                          const std::vector<std::string>& node_id_to_string, float t_start,
+                          float t_end) {
     BoundBox local_bbox(t.p0);
     local_bbox.Expand(t.p0 + t.e1);
     local_bbox.Expand(t.p0 + t.e2);
@@ -58,7 +58,7 @@ static BoundBox GetBounds(const Triangle& t, const std::map<std::string, SceneNo
     for (int i = 0; i < samples; ++i) {
         float t_sample = t_start + (t_end - t_start) * (float)i / (samples - 1);
         Matrix4 M = AnimationEvaluator::EvaluateNodeTransform(node_id_str, t_sample, nodes);
-        
+
         global_bbox.Expand(M.TransformPoint(t.p0));
         global_bbox.Expand(M.TransformPoint(t.p0 + t.e1));
         global_bbox.Expand(M.TransformPoint(t.p0 + t.e2));
@@ -71,10 +71,8 @@ static BoundBox GetBounds(const Triangle& t, const std::map<std::string, SceneNo
 // Build
 // ---------------------------------------------------------------------------
 
-void BVH::Build(std::vector<Triangle>& triangles,
-                const std::map<std::string, SceneNode>& nodes,
-                const std::vector<std::string>& node_id_to_string,
-                float t_start, float t_end) {
+void BVH::Build(std::vector<Triangle>& triangles, const std::map<std::string, SceneNode>& nodes,
+                const std::vector<std::string>& node_id_to_string, float t_start, float t_end) {
     if (triangles.empty()) return;
 
     nodes_.clear();
@@ -83,9 +81,11 @@ void BVH::Build(std::vector<Triangle>& triangles,
     std::vector<BVHPrimitiveInfo> primitive_info(triangles.size());
     for (size_t i = 0; i < triangles.size(); ++i) {
         primitive_info[i].original_index = (uint32_t)i;
-        primitive_info[i].bounds = GetBounds(triangles[i], nodes, node_id_to_string, t_start, t_end);
+        primitive_info[i].bounds =
+            GetBounds(triangles[i], nodes, node_id_to_string, t_start, t_end);
         primitive_info[i].bounds.PadToMinimums();
-        primitive_info[i].centroid = GetCentroid(triangles[i], nodes, node_id_to_string, t_start, t_end);
+        primitive_info[i].centroid =
+            GetCentroid(triangles[i], nodes, node_id_to_string, t_start, t_end);
     }
 
     BVHNode& root = nodes_.emplace_back();
@@ -266,7 +266,7 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
 
         if (node.bounds.Intersect(r, t_min, closest_t)) {
             if (node.tri_count > 0) {
-                int32_t last_node_id = -2; // distinct from -1 and any valid ID
+                int32_t last_node_id = -2;  // distinct from -1 and any valid ID
                 Matrix4 cached_M, cached_invM;
                 float cached_dir_len = 1.0f;
                 Ray local_r;
@@ -279,17 +279,18 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
                             // Update cache for new node
                             last_node_id = tri.node_id;
                             const std::string& node_id_str = node_id_to_string[tri.node_id];
-                            cached_M = AnimationEvaluator::EvaluateNodeTransform(node_id_str, r.time(), nodes);
+                            cached_M = AnimationEvaluator::EvaluateNodeTransform(node_id_str,
+                                                                                 r.time(), nodes);
                             cached_invM = cached_M.Inverse();
 
                             Vec3 local_dir = cached_invM.TransformVector(r.direction());
                             cached_dir_len = local_dir.Length();
-                            local_r = Ray(cached_invM.TransformPoint(r.origin()), 
-                                          local_dir / cached_dir_len, 
-                                          r.time());
+                            local_r = Ray(cached_invM.TransformPoint(r.origin()),
+                                          local_dir / cached_dir_len, r.time());
                         }
 
-                        if (IntersectTriangle(local_r, tri, t_min * cached_dir_len, closest_t * cached_dir_len, si)) {
+                        if (IntersectTriangle(local_r, tri, t_min * cached_dir_len,
+                                              closest_t * cached_dir_len, si)) {
                             hit_anything = true;
                             si->t /= cached_dir_len;
                             closest_t = si->t;

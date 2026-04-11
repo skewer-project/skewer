@@ -4,20 +4,20 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <map>
+#include <string>
 #include <vector>
 
 #include "accelerators/bvh.h"
 #include "geometry/mesh.h"
 #include "geometry/sphere.h"
 #include "geometry/triangle.h"
+#include "io/scene_loader.h"
 #include "materials/material.h"
 #include "materials/texture.h"
 #include "media/mediums.h"
 #include "media/nano_vdb_medium.h"
 #include "scene/light.h"
-#include "io/scene_loader.h"
-#include <map>
-#include <string>
 
 namespace skwr {
 

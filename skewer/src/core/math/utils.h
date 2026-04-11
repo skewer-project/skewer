@@ -15,4 +15,3 @@ inline Vec3 Lerp(const Vec3& a, const Vec3& b, float t) { return a + t * (b - a)
 }  // namespace skwr
 
 #endif  // SKWR_CORE_MATH_UTILS_H_
-

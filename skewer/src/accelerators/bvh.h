@@ -42,10 +42,9 @@ class BVH {
   public:
     // Build the tree and REORDER the triangles vector for cache locality.
     // Triangles must already have their vertex data pre-baked (see Scene::AddMesh).
-    void Build(std::vector<Triangle>& triangles,
-               const std::map<std::string, SceneNode>& nodes,
-               const std::vector<std::string>& node_id_to_string,
-               float t_start = 0.0f, float t_end = 0.0f);
+    void Build(std::vector<Triangle>& triangles, const std::map<std::string, SceneNode>& nodes,
+               const std::vector<std::string>& node_id_to_string, float t_start = 0.0f,
+               float t_end = 0.0f);
 
     const std::vector<BVHNode>& GetNodes() const { return nodes_; }
 

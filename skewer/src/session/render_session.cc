@@ -76,15 +76,15 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
     if (use_animation_overrides_) {
         float fps = (fps_override_ > 0) ? fps_override_ : config.frame_rate;
         if (fps <= 0) fps = 24.0f;
-        
+
         float center_time = (float)frame_override_ / fps;
         float shutter = (shutter_override_ >= 0) ? shutter_override_ : 0.5f;
-        
+
         t_start = center_time - (shutter * 0.5f) / fps;
         t_end = center_time + (shutter * 0.5f) / fps;
-        
-        std::cout << "[Session] Animation Override: Frame " << frame_override_ 
-                  << " | Shutter: [" << t_start << "s, " << t_end << "s]\n";
+
+        std::cout << "[Session] Animation Override: Frame " << frame_override_ << " | Shutter: ["
+                  << t_start << "s, " << t_end << "s]\n";
     }
 
     // Store shared camera params (used by RebuildFilm)
@@ -123,7 +123,7 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
 
         // Output filenames derived from layer filename + scene-level output_dir
         auto [png_out, exr_out] = LayerOutputPaths(layer_path, config.output_dir);
-        
+
         if (use_animation_overrides_) {
             auto append_frame = [](const std::string& path, int frame) {
                 size_t dot = path.rfind('.');
@@ -141,9 +141,9 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
 
         float aspect = static_cast<float>(opts.image_config.width) /
                        static_cast<float>(opts.image_config.height);
-        auto cam = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
-                                            aspect, cam_aperture_, cam_focus_dist_,
-                                            t_start, t_end));
+        auto cam = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_,
+                                                      cam_vfov_, aspect, cam_aperture_,
+                                                      cam_focus_dist_, t_start, t_end));
         ic.cam_w = -cam->GetW();
 
         auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
@@ -182,15 +182,15 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     if (use_animation_overrides_) {
         float fps = (fps_override_ > 0) ? fps_override_ : config.frame_rate;
         if (fps <= 0) fps = 24.0f;
-        
+
         float center_time = (float)frame_override_ / fps;
         float shutter = (shutter_override_ >= 0) ? shutter_override_ : 0.5f;
-        
+
         t_start = center_time - (shutter * 0.5f) / fps;
         t_end = center_time + (shutter * 0.5f) / fps;
-        
-        std::cout << "[Session] Animation Override: Frame " << frame_override_ 
-                  << " | Shutter: [" << t_start << "s, " << t_end << "s]\n";
+
+        std::cout << "[Session] Animation Override: Frame " << frame_override_ << " | Shutter: ["
+                  << t_start << "s, " << t_end << "s]\n";
     }
 
     // 2. Create scene, load context + first layer
@@ -228,9 +228,9 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_,
-                                       cam_shutter_open_, cam_shutter_close_));
+    camera_ = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
+                                                 aspect, cam_aperture_, cam_focus_dist_,
+                                                 cam_shutter_open_, cam_shutter_close_));
 
     // 7. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
@@ -254,9 +254,9 @@ void RenderSession::RebuildFilm() {
     // the projection matches the new film dimensions.
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_,
-                                       cam_shutter_open_, cam_shutter_close_));
+    camera_ = std::unique_ptr<Camera>(new Camera(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
+                                                 aspect, cam_aperture_, cam_focus_dist_,
+                                                 cam_shutter_open_, cam_shutter_close_));
     options_.integrator_config.cam_w = -camera_->GetW();
 
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);

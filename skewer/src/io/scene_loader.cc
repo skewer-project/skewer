@@ -369,7 +369,8 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, const Media
     uint16_t priority = 1;
     int32_t node_id = LookupNodeId(obj, scene);
 
-    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority, node_id});
+    scene.AddSphere(
+        Sphere{center, radius, mat_id, light_index, inside, outside, priority, node_id});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
@@ -445,7 +446,7 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             scene.GetMutableMesh(static_cast<uint32_t>(i)).node_id = node_id;
         }
-        
+
         if (obj.contains("visible")) {
             // No material override, but a visibility flag was set.  The OBJ may
             // have loaded multiple sub-meshes with different materials; clone each
@@ -602,16 +603,16 @@ static json OpenJSON(const std::string& filepath) {
 
 SceneConfig LoadSceneFile(const std::string& filepath) {
     json root = OpenJSON(filepath);
-    
+
     // Support both old flat format and new "scene" wrapper format
     const json& j = root.contains("scene") ? root["scene"] : root;
 
     if (!j.contains("camera")) {
         throw std::runtime_error("Scene file missing 'camera' section: " + filepath);
     }
-    
+
     if (!j.contains("layers") && !j.contains("nodes")) {
-         throw std::runtime_error("Scene file must contain either 'layers' or 'nodes': " + filepath);
+        throw std::runtime_error("Scene file must contain either 'layers' or 'nodes': " + filepath);
     }
 
     std::string scene_dir = ExtractDir(filepath);

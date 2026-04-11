@@ -15,7 +15,7 @@ struct Sphere {
     uint16_t interior_medium;
     uint16_t exterior_medium;
     uint16_t priority;
-    int32_t node_id = -1; // -1 means no node (static)
+    int32_t node_id = -1;  // -1 means no node (static)
 };
 
 }  // namespace skwr

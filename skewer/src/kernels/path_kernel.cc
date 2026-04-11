@@ -207,8 +207,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 if (GenerateLightSample(
                         si.point + (si.n_shading * RenderConstants::kRayOffsetEpsilon), scene, rng,
                         wl, &dls)) {
-                    Ray shadow_ray(si.point + (dls.wi * RenderConstants::kRayOffsetEpsilon),
-                                   dls.wi, r.time());
+                    Ray shadow_ray(si.point + (dls.wi * RenderConstants::kRayOffsetEpsilon), dls.wi,
+                                   r.time());
                     shadow_ray.vol_stack() = r.vol_stack();
 
                     Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);

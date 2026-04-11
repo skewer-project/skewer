@@ -1,11 +1,13 @@
 #include "scene/animation_evaluator.h"
-#include "core/math/utils.h"
+
 #include <algorithm>
+
+#include "core/math/utils.h"
 
 namespace skwr {
 
-Matrix4 AnimationEvaluator::EvaluateNodeTransform(const std::string& node_id, float t, 
-                                                 const std::map<std::string, SceneNode>& nodes) {
+Matrix4 AnimationEvaluator::EvaluateNodeTransform(const std::string& node_id, float t,
+                                                  const std::map<std::string, SceneNode>& nodes) {
     auto it = nodes.find(node_id);
     if (it == nodes.end()) return Matrix4::Identity();
 
@@ -32,9 +34,8 @@ Matrix4 AnimationEvaluator::EvaluateNodeTransform(const std::string& node_id, fl
         scale *= EvaluateScale(*node.channels.scale, t);
     }
 
-    Matrix4 local = Matrix4::Translate(translation) * 
-                   Matrix4::Rotate(rotation) * 
-                   Matrix4::Scale(scale);
+    Matrix4 local =
+        Matrix4::Translate(translation) * Matrix4::Rotate(rotation) * Matrix4::Scale(scale);
 
     if (!node.parent.empty()) {
         Matrix4 parent_transform = EvaluateNodeTransform(node.parent, t, nodes);
@@ -52,13 +53,13 @@ Vec3 AnimationEvaluator::EvaluateTranslation(const AnimationChannelVec3& channel
     if (t >= channel.keyframes.back().t) return channel.keyframes.back().value;
 
     auto it = std::lower_bound(channel.keyframes.begin(), channel.keyframes.end(), t,
-                              [](const KeyframeVec3& k, float t) { return k.t < t; });
-    
+                               [](const KeyframeVec3& k, float t) { return k.t < t; });
+
     auto k1 = std::prev(it);
     auto k2 = it;
 
     float factor = (t - k1->t) / (k2->t - k1->t);
-    
+
     if (channel.interpolation == "step") return k1->value;
     return Lerp(k1->value, k2->value, factor);
 }
@@ -71,8 +72,8 @@ Quaternion AnimationEvaluator::EvaluateRotation(const AnimationChannelQuat& chan
     if (t >= channel.keyframes.back().t) return channel.keyframes.back().value;
 
     auto it = std::lower_bound(channel.keyframes.begin(), channel.keyframes.end(), t,
-                              [](const KeyframeQuat& k, float t) { return k.t < t; });
-    
+                               [](const KeyframeQuat& k, float t) { return k.t < t; });
+
     auto k1 = std::prev(it);
     auto k2 = it;
 
@@ -90,8 +91,8 @@ float AnimationEvaluator::EvaluateScale(const AnimationChannelFloat& channel, fl
     if (t >= channel.keyframes.back().t) return channel.keyframes.back().value;
 
     auto it = std::lower_bound(channel.keyframes.begin(), channel.keyframes.end(), t,
-                              [](const KeyframeFloat& k, float t) { return k.t < t; });
-    
+                               [](const KeyframeFloat& k, float t) { return k.t < t; });
+
     auto k1 = std::prev(it);
     auto k2 = it;
 
@@ -101,4 +102,4 @@ float AnimationEvaluator::EvaluateScale(const AnimationChannelFloat& channel, fl
     return Lerp(k1->value, k2->value, factor);
 }
 
-} // namespace skwr
+}  // namespace skwr
