@@ -14,6 +14,7 @@ CMakeUserPresets.json
 .vscode/
 .idea/
 .zed/
+.cursor/
 
 # Ignore outputs
 objects/
@@ -28,7 +29,11 @@ coordinator
 
 # Ignore frontend dependencies
 node_modules/
-apps/*/node_modules/
+apps/
+
+# Ignore docs and scripts
+docs/
+scripts/
 
 # Ignore Terraform state and provider cache (may contain sensitive values)
 deployments/terraform/*.tfstate
