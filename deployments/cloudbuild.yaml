@@ -97,8 +97,3 @@ options:
   # Custom build service accounts must send logs somewhere other than the
   # default Cloud Build bucket.
   logging: CLOUD_LOGGING_ONLY
-
-images:
-  - ${_AR_BASE}/skewer-coordinator:latest
-  - ${_AR_BASE}/skewer-worker:latest
-  - ${_AR_BASE}/loom-worker:latest
