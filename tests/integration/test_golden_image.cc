@@ -100,7 +100,7 @@ TEST_P(GoldenImageTest, RendersIdentically) {
     session.Options().image_config.height = 450;
     session.Options().integrator_config.max_samples = 256;
     session.Options().integrator_config.noise_threshold = 0.075f;
-    session.Options().integrator_config.num_threads = 4;
+    session.Options().integrator_config.num_threads = 1;
     session.Options().integrator_config.enable_deep = true;
     session.RebuildFilm();
 
