@@ -19,6 +19,7 @@ struct Triangle {
     uint16_t exterior_medium;
     uint16_t priority;
     bool needs_tangent_frame = false;  // True only when material uses a normal map
+    int32_t node_id = -1;
 };
 
 }  // namespace skwr

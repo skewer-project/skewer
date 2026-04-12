@@ -16,7 +16,8 @@ namespace skwr {
 class Camera {
   public:
     Camera(const Vec3& look_from, const Vec3& look_at, const Vec3& vup, float vfov,
-           float aspect_ratio, float aperture_radius = 0.0f, float focus_distance = 1.0f) {
+           float aspect_ratio, float aperture_radius = 0.0f, float focus_distance = 1.0f,
+           float shutter_open = 0.0f, float shutter_close = 0.0f) {
         auto theta = vfov * MathConstants::kPi / 180.0f;
         auto h = std::tan(theta / 2.0f);
         auto viewport_height = 2.0f * h;
@@ -29,6 +30,8 @@ class Camera {
 
         origin_ = look_from;
         lens_radius_ = aperture_radius;
+        shutter_open_ = shutter_open;
+        shutter_close_ = shutter_close;
 
         // Scale viewport by focus_distance so all rays through a pixel converge at the focus plane
         horizontal_ = u_ * (viewport_width * focus_distance);
@@ -40,14 +43,21 @@ class Camera {
 
     // Ray generation: takes normalized coords [0,1] and returns a world-space ray.
     // When lens_radius_ > 0, applies thin-lens DoF by sampling the aperture disk.
+    // Randomly samples a time between shutter_open and shutter_close.
     Ray GetRay(float s, float t, RNG& rng) const {
         Vec3 offset(0.0f, 0.0f, 0.0f);
         if (lens_radius_ > 0.0f) {
             Vec3 rd = RandomInUnitDisk(rng) * lens_radius_;
             offset = u_ * rd.x() + v_ * rd.y();
         }
+
+        float time = shutter_open_;
+        if (shutter_close_ > shutter_open_) {
+            time = rng.UniformFloat() * (shutter_close_ - shutter_open_) + shutter_open_;
+        }
+
         Vec3 focal_point = lower_left_corner_ + horizontal_ * s + vertical_ * t;
-        return Ray(origin_ + offset, Normalize(focal_point - origin_ - offset));
+        return Ray(origin_ + offset, Normalize(focal_point - origin_ - offset), time);
     }
 
     Vec3 GetW() const { return w_; }
@@ -60,6 +70,8 @@ class Camera {
     Vec3 vertical_;
     Vec3 u_, v_, w_;
     float lens_radius_ = 0.0f;
+    float shutter_open_ = 0.0f;
+    float shutter_close_ = 0.0f;
 };
 
 }  // namespace skwr

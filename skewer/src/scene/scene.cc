@@ -13,10 +13,29 @@
 #include "materials/material.h"
 #include "media/mediums.h"
 #include "media/nano_vdb_medium.h"
+#include "scene/animation_evaluator.h"
 
 namespace skwr {
 
-void Scene::Build() {
+void Scene::SetNodes(const std::vector<SceneNode>& nodes) {
+    nodes_.clear();
+    node_id_to_string_.clear();
+    node_string_to_id_.clear();
+    for (const auto& n : nodes) {
+        nodes_[n.id] = n;
+        node_string_to_id_[n.id] = (int32_t)node_id_to_string_.size();
+        node_id_to_string_.push_back(n.id);
+    }
+
+    // Second pass: Calculate world matrices (needs all nodes loaded for hierarchy)
+    for (auto& pair : nodes_) {
+        SceneNode& n = pair.second;
+        // Use 0.0 as time for the "base" matrix
+        n.world_matrix = AnimationEvaluator::EvaluateNodeTransform(n.id, 0.0f, nodes_);
+    }
+}
+
+void Scene::Build(float t_start, float t_end) {
     triangles_.clear();
     lights_.clear();
 
@@ -58,6 +77,7 @@ void Scene::Build() {
             t.exterior_medium = kVacuumMediumId;
             t.priority = 0;
             t.needs_tangent_frame = mat != nullptr && mat->HasNormalMap();
+            t.node_id = mesh_ref.node_id;
 
             if (!mesh_ref.n.empty()) {
                 t.n0 = mesh_ref.n[i0];
@@ -82,7 +102,7 @@ void Scene::Build() {
 
     if (!triangles_.empty()) {
         std::cout << "Building BVH for " << triangles_.size() << " triangles...\n";
-        bvh_.Build(triangles_);
+        bvh_.Build(triangles_, nodes_, node_id_to_string_, t_start, t_end);
     }
 
     for (uint32_t i = 0; i < (uint32_t)triangles_.size(); ++i) {
@@ -105,13 +125,35 @@ bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction
     bool hit_anything = false;
     float closest_t = t_max;
     for (const auto& sphere : spheres_) {
-        if (IntersectSphere(r, sphere, t_min, closest_t, si)) {
-            hit_anything = true;
-            closest_t = si->t;
+        if (sphere.node_id != -1) {
+            // Evaluate transform at ray.time()
+            const std::string& node_id_str = GetNodeStringId(sphere.node_id);
+            Matrix4 M = AnimationEvaluator::EvaluateNodeTransform(node_id_str, r.time(), nodes_);
+            Matrix4 invM = M.Inverse();
+
+            // Transform ray to object space
+            Vec3 local_dir = invM.TransformVector(r.direction());
+            float dir_len = local_dir.Length();
+            Ray local_r(invM.TransformPoint(r.origin()), local_dir / dir_len, r.time());
+
+            if (IntersectSphere(local_r, sphere, t_min * dir_len, closest_t * dir_len, si)) {
+                hit_anything = true;
+                si->t /= dir_len;
+                closest_t = si->t;
+                // Transform hit point and normal back to world space
+                si->point = M.TransformPoint(si->point);
+                si->n_geom = Normalize(M.TransformVector(si->n_geom));
+                si->n_shading = Normalize(M.TransformVector(si->n_shading));
+            }
+        } else {
+            if (IntersectSphere(r, sphere, t_min, closest_t, si)) {
+                hit_anything = true;
+                closest_t = si->t;
+            }
         }
     }
 
-    if (bvh_.Intersect(r, t_min, closest_t, si, Triangles())) {
+    if (bvh_.Intersect(r, t_min, closest_t, si, Triangles(), nodes_, node_id_to_string_)) {
         hit_anything = true;
     }
 

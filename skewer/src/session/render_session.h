@@ -32,6 +32,14 @@ class RenderSession {
     // (e.g. layer_character.json → layer_character.png / .exr).
     void RenderScene(const std::string& scene_file, int thread_override = 0);
 
+    // Override animation timeline from CLI
+    void SetAnimationParams(int frame, float fps, float shutter) {
+        frame_override_ = frame;
+        fps_override_ = fps;
+        shutter_override_ = shutter;
+        use_animation_overrides_ = true;
+    }
+
     // Update the film buffer if options (like samples_per_pixel) have changed
     void RebuildFilm();
 
@@ -63,6 +71,13 @@ class RenderSession {
     float cam_vfov_ = 90.0f;
     float cam_aperture_ = 0.0f;
     float cam_focus_dist_ = 1.0f;
+    float cam_shutter_open_ = 0.0f;
+    float cam_shutter_close_ = 0.0f;
+
+    bool use_animation_overrides_ = false;
+    int frame_override_ = 0;
+    float fps_override_ = 24.0f;
+    float shutter_override_ = 0.0f;
 };
 
 }  // namespace skwr

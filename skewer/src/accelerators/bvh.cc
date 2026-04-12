@@ -9,6 +9,7 @@
 #include "geometry/boundbox.h"
 #include "geometry/intersect_triangle.h"
 #include "geometry/triangle.h"
+#include "scene/animation_evaluator.h"
 
 namespace skwr {
 
@@ -23,23 +24,55 @@ static constexpr float kCostIntersect = 4.0f;  // relative cost of a triangle te
 // Helpers using pre-baked Triangle data (no mesh indirection)
 // ---------------------------------------------------------------------------
 
-static Vec3 GetCentroid(const Triangle& t) {
-    // centroid = (p0 + p1 + p2) / 3  =  p0 + (e1 + e2) / 3
-    return t.p0 + (t.e1 + t.e2) * (1.0f / 3.0f);
+static Vec3 GetCentroid(const Triangle& t, const std::map<std::string, SceneNode>& nodes,
+                        const std::vector<std::string>& node_id_to_string, float t_start,
+                        float t_end) {
+    Vec3 c0 = t.p0 + (t.e1 + t.e2) * (1.0f / 3.0f);
+    if (t.node_id == -1) return c0;
+
+    const std::string& node_id_str = node_id_to_string[t.node_id];
+    Matrix4 m_start = AnimationEvaluator::EvaluateNodeTransform(node_id_str, t_start, nodes);
+    Matrix4 m_end = AnimationEvaluator::EvaluateNodeTransform(node_id_str, t_end, nodes);
+
+    Vec3 c_start = m_start.TransformPoint(c0);
+    Vec3 c_end = m_end.TransformPoint(c0);
+
+    return (c_start + c_end) * 0.5f;
 }
 
-static BoundBox GetBounds(const Triangle& t) {
-    BoundBox bbox(t.p0);
-    bbox.Expand(t.p0 + t.e1);
-    bbox.Expand(t.p0 + t.e2);
-    return bbox;
+static BoundBox GetBounds(const Triangle& t, const std::map<std::string, SceneNode>& nodes,
+                          const std::vector<std::string>& node_id_to_string, float t_start,
+                          float t_end) {
+    BoundBox local_bbox(t.p0);
+    local_bbox.Expand(t.p0 + t.e1);
+    local_bbox.Expand(t.p0 + t.e2);
+
+    if (t.node_id == -1) return local_bbox;
+
+    const std::string& node_id_str = node_id_to_string[t.node_id];
+    BoundBox global_bbox;
+
+    // Sample the animation to get a conservative bound.
+    // 5 samples is a reasonable trade-off for most motion.
+    const int samples = 5;
+    for (int i = 0; i < samples; ++i) {
+        float t_sample = t_start + (t_end - t_start) * (float)i / (samples - 1);
+        Matrix4 M = AnimationEvaluator::EvaluateNodeTransform(node_id_str, t_sample, nodes);
+
+        global_bbox.Expand(M.TransformPoint(t.p0));
+        global_bbox.Expand(M.TransformPoint(t.p0 + t.e1));
+        global_bbox.Expand(M.TransformPoint(t.p0 + t.e2));
+    }
+
+    return global_bbox;
 }
 
 // ---------------------------------------------------------------------------
 // Build
 // ---------------------------------------------------------------------------
 
-void BVH::Build(std::vector<Triangle>& triangles) {
+void BVH::Build(std::vector<Triangle>& triangles, const std::map<std::string, SceneNode>& nodes,
+                const std::vector<std::string>& node_id_to_string, float t_start, float t_end) {
     if (triangles.empty()) return;
 
     nodes_.clear();
@@ -48,9 +81,11 @@ void BVH::Build(std::vector<Triangle>& triangles) {
     std::vector<BVHPrimitiveInfo> primitive_info(triangles.size());
     for (size_t i = 0; i < triangles.size(); ++i) {
         primitive_info[i].original_index = (uint32_t)i;
-        primitive_info[i].bounds = GetBounds(triangles[i]);
+        primitive_info[i].bounds =
+            GetBounds(triangles[i], nodes, node_id_to_string, t_start, t_end);
         primitive_info[i].bounds.PadToMinimums();
-        primitive_info[i].centroid = GetCentroid(triangles[i]);
+        primitive_info[i].centroid =
+            GetCentroid(triangles[i], nodes, node_id_to_string, t_start, t_end);
     }
 
     BVHNode& root = nodes_.emplace_back();
@@ -210,7 +245,9 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
 }
 
 bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
-                    const std::vector<Triangle>& triangles) const {
+                    const std::vector<Triangle>& triangles,
+                    const std::map<std::string, SceneNode>& nodes,
+                    const std::vector<std::string>& node_id_to_string) const {
     if (IsEmpty()) return false;
 
     bool hit_anything = false;
@@ -229,11 +266,44 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
 
         if (node.bounds.Intersect(r, t_min, closest_t)) {
             if (node.tri_count > 0) {
+                int32_t last_node_id = -2;  // distinct from -1 and any valid ID
+                Matrix4 cached_M, cached_invM;
+                float cached_dir_len = 1.0f;
+                Ray local_r;
+
                 for (uint32_t i = 0; i < node.tri_count; ++i) {
                     const Triangle& tri = triangles[node.left_first + i];
-                    if (IntersectTriangle(r, tri, t_min, closest_t, si)) {
-                        hit_anything = true;
-                        closest_t = si->t;
+
+                    if (tri.node_id != -1) {
+                        if (tri.node_id != last_node_id) {
+                            // Update cache for new node
+                            last_node_id = tri.node_id;
+                            const std::string& node_id_str = node_id_to_string[tri.node_id];
+                            cached_M = AnimationEvaluator::EvaluateNodeTransform(node_id_str,
+                                                                                 r.time(), nodes);
+                            cached_invM = cached_M.Inverse();
+
+                            Vec3 local_dir = cached_invM.TransformVector(r.direction());
+                            cached_dir_len = local_dir.Length();
+                            local_r = Ray(cached_invM.TransformPoint(r.origin()),
+                                          local_dir / cached_dir_len, r.time());
+                        }
+
+                        if (IntersectTriangle(local_r, tri, t_min * cached_dir_len,
+                                              closest_t * cached_dir_len, si)) {
+                            hit_anything = true;
+                            si->t /= cached_dir_len;
+                            closest_t = si->t;
+                            // Transform hit back to world
+                            si->point = cached_M.TransformPoint(si->point);
+                            si->n_geom = Normalize(cached_M.TransformVector(si->n_geom));
+                            si->n_shading = Normalize(cached_M.TransformVector(si->n_shading));
+                        }
+                    } else {
+                        if (IntersectTriangle(r, tri, t_min, closest_t, si)) {
+                            hit_anything = true;
+                            closest_t = si->t;
+                        }
                     }
                 }
             } else {

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "core/cpu_config.h"
+#include "core/math/quaternion.h"
 #include "core/math/transform.h"
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
@@ -37,6 +38,13 @@ static Vec3 ParseVec3(const json& j) {
         throw std::runtime_error("Expected array of 3 numbers for Vec3");
     }
     return Vec3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
+}
+
+static Quaternion ParseQuaternion(const json& j) {
+    if (!j.is_array() || j.size() != 4) {
+        throw std::runtime_error("Expected array of 4 numbers for Quaternion [x, y, z, w]");
+    }
+    return Quaternion(j[0].get<float>(), j[1].get<float>(), j[2].get<float>(), j[3].get<float>());
 }
 
 static RGB ParseRGB(const json& j) {
@@ -79,6 +87,79 @@ static std::string ExtractDir(const std::string& filepath) {
 static std::string ResolvePath(const std::string& path, const std::string& base_dir) {
     if (!path.empty() && path[0] == '/') return path;
     return base_dir.empty() ? path : (base_dir + "/" + path);
+}
+
+template <typename T, typename ParseFunc>
+static auto ParseKeyframes(const json& j, ParseFunc parse_func) {
+    using KeyframeType = decltype(parse_func(j[0]["value"]));
+    struct InternalKeyframe {
+        float t;
+        KeyframeType value;
+    };
+    std::vector<InternalKeyframe> keyframes;
+    for (const auto& k : j) {
+        keyframes.push_back({k.at("t").get<float>(), parse_func(k.at("value"))});
+    }
+    return keyframes;
+}
+
+static AnimationChannelVec3 ParseChannelVec3(const json& j) {
+    AnimationChannelVec3 channel;
+    channel.interpolation = GetOr<std::string>(j, "interpolation", "linear");
+    for (const auto& k : j.at("keyframes")) {
+        channel.keyframes.push_back({k.at("t").get<float>(), ParseVec3(k.at("value"))});
+    }
+    return channel;
+}
+
+static AnimationChannelQuat ParseChannelQuat(const json& j) {
+    AnimationChannelQuat channel;
+    channel.interpolation = GetOr<std::string>(j, "interpolation", "linear");
+    for (const auto& k : j.at("keyframes")) {
+        channel.keyframes.push_back({k.at("t").get<float>(), ParseQuaternion(k.at("value"))});
+    }
+    return channel;
+}
+
+static AnimationChannelFloat ParseChannelFloat(const json& j) {
+    AnimationChannelFloat channel;
+    channel.interpolation = GetOr<std::string>(j, "interpolation", "linear");
+    for (const auto& k : j.at("keyframes")) {
+        channel.keyframes.push_back({k.at("t").get<float>(), k.at("value").get<float>()});
+    }
+    return channel;
+}
+
+static SceneNode ParseNode(const json& j, const std::string& scene_dir) {
+    SceneNode node;
+    node.id = j.at("id").get<std::string>();
+    node.name = GetOr<std::string>(j, "name", "");
+    node.type = GetOr<std::string>(j, "type", "transform");
+
+    if (j.contains("file")) {
+        node.file = ResolvePath(j["file"].get<std::string>(), scene_dir);
+    }
+
+    node.material = GetOr<std::string>(j, "material", "");
+    if (j.contains("parent") && !j["parent"].is_null()) {
+        node.parent = j["parent"].get<std::string>();
+    }
+    node.base_scale = GetOr(j, "scale", 1.0f);
+
+    if (j.contains("channels")) {
+        const auto& c = j["channels"];
+        if (c.contains("translation")) {
+            node.channels.translation = ParseChannelVec3(c["translation"]);
+        }
+        if (c.contains("rotation")) {
+            node.channels.rotation = ParseChannelQuat(c["rotation"]);
+        }
+        if (c.contains("scale")) {
+            node.channels.scale = ParseChannelFloat(c["scale"]);
+        }
+    }
+
+    return node;
 }
 
 // Media Parsing
@@ -258,6 +339,11 @@ static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap&
     return scene.AddMaterial(cloned);
 }
 
+static int32_t LookupNodeId(const json& obj, const Scene& scene) {
+    if (!obj.contains("node_id")) return -1;
+    return scene.GetNodeIntId(obj["node_id"].get<std::string>());
+}
+
 static void ParseSphere(const json& obj, const MaterialMap& mat_map, const MediaMap& media_map,
                         Scene& scene, int index) {
     uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
@@ -281,8 +367,10 @@ static void ParseSphere(const json& obj, const MaterialMap& mat_map, const Media
     }
     int32_t light_index = -1;
     uint16_t priority = 1;
+    int32_t node_id = LookupNodeId(obj, scene);
 
-    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority});
+    scene.AddSphere(
+        Sphere{center, radius, mat_id, light_index, inside, outside, priority, node_id});
 }
 
 static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
@@ -299,7 +387,9 @@ static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene,
     Vec3 p2 = ParseVec3(verts[2]);
     Vec3 p3 = ParseVec3(verts[3]);
 
-    scene.AddMesh(CreateQuad(p0, p1, p2, p3, mat_id));
+    Mesh m = CreateQuad(p0, p1, p2, p3, mat_id);
+    m.node_id = LookupNodeId(obj, scene);
+    scene.AddMesh(std::move(m));
 
     std::string comment = GetOr<std::string>(obj, "comment", "");
 }
@@ -342,49 +432,62 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
                                  ": failed to load OBJ file '" + filepath + "'");
     }
 
+    int32_t node_id = LookupNodeId(obj, scene);
+
     // Override material if specified (also applies object-level visible override)
     if (obj.contains("material") && !obj["material"].is_null()) {
         uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
-            scene.GetMutableMesh(static_cast<uint32_t>(i)).material_id = mat_id;
-        }
-    } else if (obj.contains("visible")) {
-        // No material override, but a visibility flag was set.  The OBJ may
-        // have loaded multiple sub-meshes with different materials; clone each
-        // unique material with the requested visibility.
-        bool want_visible = obj["visible"].get<bool>();
-        std::unordered_map<uint32_t, uint32_t> vis_cache;
-        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
-            uint32_t orig = mesh.material_id;
-            auto it = vis_cache.find(orig);
-            if (it != vis_cache.end()) {
-                mesh.material_id = it->second;
-            } else {
-                Material cloned = scene.GetMaterial(orig);
-                uint32_t new_id = orig;
-                if (cloned.visible != want_visible) {
-                    cloned.visible = want_visible;
-                    new_id = scene.AddMaterial(cloned);
+            mesh.material_id = mat_id;
+            mesh.node_id = node_id;
+        }
+    } else {
+        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+            scene.GetMutableMesh(static_cast<uint32_t>(i)).node_id = node_id;
+        }
+
+        if (obj.contains("visible")) {
+            // No material override, but a visibility flag was set.  The OBJ may
+            // have loaded multiple sub-meshes with different materials; clone each
+            // unique material with the requested visibility.
+            bool want_visible = obj["visible"].get<bool>();
+            std::unordered_map<uint32_t, uint32_t> vis_cache;
+            for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+                Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
+                uint32_t orig = mesh.material_id;
+                auto it = vis_cache.find(orig);
+                if (it != vis_cache.end()) {
+                    mesh.material_id = it->second;
+                } else {
+                    Material cloned = scene.GetMaterial(orig);
+                    uint32_t new_id = orig;
+                    if (cloned.visible != want_visible) {
+                        cloned.visible = want_visible;
+                        new_id = scene.AddMaterial(cloned);
+                    }
+                    vis_cache[orig] = new_id;
+                    mesh.material_id = new_id;
                 }
-                vis_cache[orig] = new_id;
-                mesh.material_id = new_id;
             }
         }
     }
 
     // Apply transform (Scale -> Rotate -> Translate) to all newly added meshes
-    bool has_transform =
-        (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
-         rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
-         translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
+    // ONLY if node_id is -1. If node_id is set, we use dynamic transforms.
+    if (node_id == -1) {
+        bool has_transform =
+            (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
+             rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
+             translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
 
-    if (has_transform) {
-        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
-            Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
-            ApplyTransform(mesh.p, translate, rotate_deg, obj_scale);
-            if (!mesh.n.empty()) {
-                ApplyRotationToNormals(mesh.n, rotate_deg);
+        if (has_transform) {
+            for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+                Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
+                ApplyTransform(mesh.p, translate, rotate_deg, obj_scale);
+                if (!mesh.n.empty()) {
+                    ApplyRotationToNormals(mesh.n, rotate_deg);
+                }
             }
         }
     }
@@ -499,18 +602,28 @@ static json OpenJSON(const std::string& filepath) {
 //------------------------------------------------------------------------------
 
 SceneConfig LoadSceneFile(const std::string& filepath) {
-    json j = OpenJSON(filepath);
+    json root = OpenJSON(filepath);
+
+    // Support both old flat format and new "scene" wrapper format
+    const json& j = root.contains("scene") ? root["scene"] : root;
 
     if (!j.contains("camera")) {
         throw std::runtime_error("Scene file missing 'camera' section: " + filepath);
     }
-    if (!j.contains("layers")) {
-        throw std::runtime_error("Scene file missing 'layers' section: " + filepath);
+
+    if (!j.contains("layers") && !j.contains("nodes")) {
+        throw std::runtime_error("Scene file must contain either 'layers' or 'nodes': " + filepath);
     }
 
     std::string scene_dir = ExtractDir(filepath);
 
     SceneConfig config{};
+
+    // Parse metadata (new format)
+    config.name = GetOr<std::string>(j, "name", "");
+    config.frame_rate = GetOr(j, "frame_rate", 24.0f);
+    config.start_time = GetOr(j, "start_time", 0.0f);
+    config.end_time = GetOr(j, "end_time", 0.0f);
 
     // Parse camera
     const auto& cam = j["camera"];
@@ -521,7 +634,7 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
     config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
     config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
 
-    // Output directory (local path or cloud URI — used as-is, not resolved)
+    // Output directory
     config.output_dir = GetOr<std::string>(j, "output_dir", "");
 
     // Resolve context paths
@@ -532,8 +645,22 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
     }
 
     // Resolve layer paths
-    for (const auto& p : j["layers"]) {
-        config.layer_paths.push_back(ResolvePath(p.get<std::string>(), scene_dir));
+    if (j.contains("layers")) {
+        for (const auto& p : j["layers"]) {
+            config.layer_paths.push_back(ResolvePath(p.get<std::string>(), scene_dir));
+        }
+    }
+
+    // Parse nodes (scene graph)
+    if (j.contains("nodes")) {
+        for (const auto& n : j["nodes"]) {
+            config.nodes.push_back(ParseNode(n, scene_dir));
+        }
+    }
+
+    // Parse render options if present in scene file
+    if (j.contains("render")) {
+        config.render_options = ParseRenderOptions(j);
     }
 
     return config;
