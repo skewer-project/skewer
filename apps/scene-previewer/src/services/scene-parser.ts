@@ -301,6 +301,7 @@ export function parseLayerData(json: unknown): LayerData {
 
 // --- scene.json manifest ---
 
+// Parses scene.json manifest and validates required fields.
 export function parseSceneManifest(json: unknown): SceneManifest {
 	if (!isObject(json)) throw new Error("scene.json: expected object");
 	if (!json.camera)
@@ -325,6 +326,7 @@ export function parseSceneManifest(json: unknown): SceneManifest {
 
 // --- Scene loading orchestrator ---
 
+// Loads scene.json plus layer/context files into a resolved scene.
 export async function loadScene(
 	dir: FileSystemDirectoryHandle,
 ): Promise<ResolvedScene> {

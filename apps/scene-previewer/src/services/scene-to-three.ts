@@ -12,6 +12,18 @@ import type {
 } from "../types/scene";
 import { getFile, readTextFile } from "./fs";
 
+function disposeMaterialTextures(material: THREE.Material) {
+	for (const value of Object.values(material)) {
+		if (value instanceof THREE.Texture) {
+			value.dispose();
+		} else if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item instanceof THREE.Texture) item.dispose();
+			}
+		}
+	}
+}
+
 // Extracts `mtllib <name>` lines from OBJ text.
 function parseMtllibNames(objText: string): string[] {
 	const names: string[] = [];
@@ -32,6 +44,7 @@ function parseMtlTexturePaths(mtlText: string): string[] {
 	return paths;
 }
 
+// Map scene material definitions to a Three.js material instance.
 export function makeThreeMaterial(mat: Material): THREE.Material {
 	const color = new THREE.Color(mat.albedo[0], mat.albedo[1], mat.albedo[2]);
 	const hasEmission = mat.emission.some((v) => v > 0);
@@ -90,6 +103,7 @@ async function buildObject(
 	obj: SceneObject,
 	materials: Record<string, THREE.Material>,
 	dir: FileSystemDirectoryHandle,
+	blobUrls: string[],
 ): Promise<THREE.Object3D | null> {
 	const fallback = new THREE.MeshLambertMaterial({ color: 0xcccccc });
 
@@ -152,7 +166,9 @@ async function buildObject(
 					if (urlMap.has(texName)) continue;
 					try {
 						const file = await getFile(dir, objBaseDir + texName);
-						urlMap.set(texName, URL.createObjectURL(file));
+						const url = URL.createObjectURL(file);
+						urlMap.set(texName, url);
+						blobUrls.push(url);
 					} catch {
 						// texture missing — MTLLoader will use a default color
 					}
@@ -201,12 +217,26 @@ async function buildObject(
 	}
 }
 
+export interface SceneGraphResult {
+	group: THREE.Group;
+	blobUrls: string[];
+}
+
+export function revokeBlobUrls(urls: string[]) {
+	for (const url of urls) {
+		URL.revokeObjectURL(url);
+	}
+}
+
+// Build a Three.js scene graph and track blob URLs for cleanup.
 export async function buildSceneGraph(
 	scene: ResolvedScene,
 	dir: FileSystemDirectoryHandle,
 	signal: AbortSignal,
-): Promise<THREE.Group> {
+): Promise<SceneGraphResult> {
 	const root = new THREE.Group();
+	const blobUrls: string[] = [];
+	const disposableGroups: THREE.Group[] = [];
 
 	const allLayers = [...scene.contexts, ...scene.layers];
 	for (let li = 0; li < allLayers.length; li++) {
@@ -217,6 +247,7 @@ export async function buildSceneGraph(
 
 		const layerGroup = new THREE.Group();
 		layerGroup.name = layer.name;
+		disposableGroups.push(layerGroup);
 
 		// Resolve materials for this layer
 		const threeMats: Record<string, THREE.Material> = {};
@@ -226,7 +257,9 @@ export async function buildSceneGraph(
 
 		// Build objects (in parallel per layer)
 		const built = await Promise.all(
-			layer.data.objects.map((obj) => buildObject(obj, threeMats, dir)),
+			layer.data.objects.map((obj) =>
+				buildObject(obj, threeMats, dir, blobUrls),
+			),
 		);
 		if (signal.aborted) break;
 
@@ -244,5 +277,27 @@ export async function buildSceneGraph(
 		root.add(layerGroup);
 	}
 
-	return root;
+	if (signal.aborted) {
+		revokeBlobUrls(blobUrls);
+		for (const group of disposableGroups) {
+			group.traverse((obj) => {
+				if (obj instanceof THREE.Mesh) {
+					obj.geometry?.dispose();
+					const material = obj.material;
+					if (Array.isArray(material)) {
+						for (const mat of material) {
+							disposeMaterialTextures(mat);
+							mat.dispose();
+						}
+					} else if (material) {
+						disposeMaterialTextures(material);
+						material.dispose();
+					}
+				}
+			});
+		}
+		return { group: root, blobUrls: [] };
+	}
+
+	return { group: root, blobUrls };
 }
