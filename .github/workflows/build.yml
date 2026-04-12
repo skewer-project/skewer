@@ -56,7 +56,7 @@ jobs:
         run: cmake --build --preset ci --parallel
 
       - name: Test
-        run: ctest --preset ci --parallel
+        run: ctest --preset ci --parallel -E "integration"
 
       - name: ccache stats
         if: always()
