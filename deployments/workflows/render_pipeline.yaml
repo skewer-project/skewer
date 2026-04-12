@@ -78,7 +78,7 @@ main:
                           call: googleapis.storage.v1.objects.get
                           args:
                             bucket: ${cache_bucket}
-                            object: '${layer.cache_key + "/manifest.json"}'
+                            object: ${layer.cache_key}
                           result: _manifest
                       - use_cache:
                           assign:
@@ -124,9 +124,9 @@ main:
                           call: googleapis.storage.v1.objects.insert
                           args:
                             bucket: ${cache_bucket}
-                            name: '${layer.cache_key + "/manifest.json"}'
-                            body:
-                              contentType: application/json
+                            uploadType: media
+                            name: ${layer.cache_key}
+                            body: '{"ok":true}'
                           result: _manifest_upload
                   except:
                     as: _manifest_err
