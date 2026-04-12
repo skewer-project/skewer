@@ -958,6 +958,28 @@ button.data-row {
 	color: var(--t0);
 }
 
+/* Text input (used in dialogs) */
+.text-input {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	color: var(--t0);
+	font-family: var(--mono);
+	font-size: 11px;
+	padding: 2px 5px;
+	width: 100%;
+	outline: none;
+	transition: border-color 0.12s;
+}
+
+.text-input:focus {
+	border-color: var(--amber-border);
+}
+
+.text-input::placeholder {
+	color: var(--t3);
+}
+
 /* Toggle button */
 .toggle-btn {
 	background: rgba(255, 255, 255, 0.04);
@@ -984,4 +1006,209 @@ button.data-row {
 	background: var(--amber-lo);
 	border-color: var(--amber-border);
 	color: var(--amber);
+}
+
+/* ── Layer add (+) button ─────────────── */
+
+.layer-sub-head-action {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.layer-add-btn {
+	background: none;
+	border: none;
+	color: var(--t3);
+	font-family: var(--mono);
+	font-size: 14px;
+	line-height: 1;
+	padding: 0 2px;
+	cursor: pointer;
+	transition: color 0.1s;
+	flex-shrink: 0;
+}
+
+.layer-add-btn:hover {
+	color: var(--amber);
+}
+
+/* ── Dialog overlay ───────────────────── */
+
+.dialog-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.55);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 200;
+}
+
+.dialog {
+	background: var(--bg);
+	border: 1px solid var(--border-mid);
+	width: 300px;
+	max-height: 80vh;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+}
+
+.dialog-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.dialog-title {
+	font-family: var(--display);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	color: var(--t0);
+}
+
+.dialog-body {
+	padding: 14px;
+	flex: 1;
+	overflow-y: auto;
+}
+
+.dialog-type-row {
+	margin-bottom: 10px;
+}
+
+.dialog-fields {
+	gap: 6px;
+}
+
+.dialog-hint {
+	font-size: 10px;
+	color: var(--t3);
+	margin-top: 8px;
+	letter-spacing: 0.02em;
+}
+
+.dialog-hint-error {
+	color: var(--red);
+}
+
+.dialog-footer {
+	display: flex;
+	gap: 0;
+	border-top: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.dialog-btn {
+	flex: 1;
+	background: transparent;
+	border: none;
+	font-family: var(--mono);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	padding: 9px 0;
+	cursor: pointer;
+	transition:
+		background 0.12s,
+		color 0.12s;
+}
+
+.dialog-btn-cancel {
+	color: var(--t3);
+	border-right: 1px solid var(--border);
+}
+
+.dialog-btn-cancel:hover {
+	color: var(--t1);
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.dialog-btn-confirm {
+	color: var(--amber);
+}
+
+.dialog-btn-confirm:hover:not(:disabled) {
+	background: var(--amber-lo);
+}
+
+.dialog-btn-confirm:disabled {
+	color: var(--t3);
+	cursor: default;
+	opacity: 0.5;
+}
+
+/* Delete object button (in geometry section of properties panel) */
+.delete-obj-btn {
+	margin-top: 10px;
+	width: 100%;
+	background: transparent;
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	color: var(--t3);
+	font-family: var(--mono);
+	font-size: 10.5px;
+	letter-spacing: 0.04em;
+	padding: 4px 0;
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		border-color 0.12s,
+		background 0.12s;
+}
+
+.delete-obj-btn:hover {
+	color: var(--red);
+	border-color: rgba(224, 92, 92, 0.4);
+	background: rgba(224, 92, 92, 0.06);
+}
+
+/* OBJ file picker row */
+.obj-file-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.obj-file-name {
+	flex: 1;
+	font-size: 10.5px;
+	color: var(--t1);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.obj-file-empty {
+	color: var(--t3);
+	font-style: italic;
+}
+
+.obj-browse-btn {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	color: var(--t2);
+	font-family: var(--mono);
+	font-size: 10px;
+	letter-spacing: 0.04em;
+	padding: 2px 8px;
+	cursor: pointer;
+	white-space: nowrap;
+	flex-shrink: 0;
+	transition:
+		color 0.12s,
+		border-color 0.12s,
+		background 0.12s;
+}
+
+.obj-browse-btn:hover {
+	color: var(--amber);
+	border-color: var(--amber-border);
+	background: var(--amber-lo);
 }

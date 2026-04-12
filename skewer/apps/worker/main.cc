@@ -27,12 +27,12 @@ struct HeartbeatGuard {
 
 using api::proto::coordinator::v1::CoordinatorService;
 using api::proto::coordinator::v1::GetWorkStreamRequest;
+using api::proto::coordinator::v1::GetWorkStreamResponse;
 using api::proto::coordinator::v1::RenderTask;
 using api::proto::coordinator::v1::ReportTaskProgressRequest;
 using api::proto::coordinator::v1::ReportTaskProgressResponse;
 using api::proto::coordinator::v1::ReportTaskResultRequest;
 using api::proto::coordinator::v1::ReportTaskResultResponse;
-using api::proto::coordinator::v1::WorkPackage;
 using grpc::Channel;
 using grpc::ClientContext;
 
@@ -78,10 +78,10 @@ void RunSkewerWorker(const std::string& coordinator_addr) {
         request.add_capabilities("skewer");  // may add more capabilities later
 
         // Actually get the stream work package
-        std::unique_ptr<grpc::ClientReader<WorkPackage>> stream(
+        std::unique_ptr<grpc::ClientReader<GetWorkStreamResponse>> stream(
             stub->GetWorkStream(&context, request));
 
-        WorkPackage package;
+        GetWorkStreamResponse package;
         while (stream->Read(&package)) {
             if (!package.has_render_task()) {
                 std::cerr << "[SKEWER]: Error: Received non-render task. Ignoring.\n";
