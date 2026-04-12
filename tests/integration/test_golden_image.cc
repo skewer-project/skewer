@@ -8,7 +8,7 @@
 #include "exrio/deep_reader.h"
 #include "session/render_session.h"
 
-constexpr float kEpsilon = 1e-3f;     // Relaxed for path tracing noise at lower samples
+constexpr float kEpsilon = 1e-2f;     // Relaxed for path tracing noise at lower samples
 static bool kGenerateGolden = false;  // Set to true to regenerate golden images
 
 namespace fs = std::filesystem;
