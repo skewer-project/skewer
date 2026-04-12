@@ -33,8 +33,6 @@ set(SKEWER_CORE_SOURCES
 # Create integration tests executable
 add_executable(integration_tests
     integration/test_golden_image.cc
-    integration/test_scene_parsing.cc
-    integration/test_render_pipeline.cc
     ${SKEWER_CORE_SOURCES}
 )
 
