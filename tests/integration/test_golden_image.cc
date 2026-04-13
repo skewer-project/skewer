@@ -9,7 +9,7 @@
 #include "session/render_session.h"
 
 constexpr float kEpsilon = 1e-1f;     // Very relaxed for ARM/x86 differences
-static bool kGenerateGolden = false;  // Set to true to regenerate golden images
+static bool kGenerateGolden = true;  // Set to true to regenerate golden images
 
 namespace fs = std::filesystem;
 
@@ -88,9 +88,9 @@ class GoldenImageTest : public ::testing::TestWithParam<TestCase> {
 
 TEST_P(GoldenImageTest, RendersIdentically) {
     // Skip golden image tests if CI environment detected (run in integration.yml instead)
-    if (std::getenv("CI") != nullptr) {
-        GTEST_SKIP_("Golden image tests run in integration.yml workflow");
-    }
+    // if (std::getenv("CI") != nullptr) {
+    //     GTEST_SKIP_("Golden image tests run in integration.yml workflow");
+    // }
 
     fs::path scenePath = fixturesDir_ / "golden_scenes" / sceneFolder_ / "scene.json";
     fs::path outputPath = tempDir_ / "test_render.exr";
@@ -105,7 +105,7 @@ TEST_P(GoldenImageTest, RendersIdentically) {
     session.Options().image_config.height = 450;
     session.Options().integrator_config.max_samples = 256;
     session.Options().integrator_config.noise_threshold = 0.075f;
-    session.Options().integrator_config.num_threads = 1;
+    session.Options().integrator_config.num_threads = 8;
     session.Options().integrator_config.enable_deep = true;
     session.RebuildFilm();
 
