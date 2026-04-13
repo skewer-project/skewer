@@ -38,7 +38,8 @@ inline float QuatDot(const Quat& a, const Quat& b) {
     return a.w * b.w + a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-// Rotation order matches legacy RotateEulerYXZ: apply Y, then X, then Z (radians).
+// Intrinsic YXZ: first rotate around local Y, then local X, then local Z.
+// Produces the same matrix as Three.js `rotation.order = "YXZ"`: R = Ry * Rx * Rz.
 inline Quat QuatFromEulerYXZ(float rx_rad, float ry_rad, float rz_rad) {
     float hx = 0.5f * rx_rad;
     float hy = 0.5f * ry_rad;
@@ -52,7 +53,7 @@ inline Quat QuatFromEulerYXZ(float rx_rad, float ry_rad, float rz_rad) {
     Quat qy{cy, 0.0f, sy, 0.0f};
     Quat qz{cz, 0.0f, 0.0f, sz};
 
-    return QuatMultiply(QuatMultiply(qz, qx), qy);
+    return QuatMultiply(QuatMultiply(qy, qx), qz);
 }
 
 inline Vec3 QuatRotate(const Quat& q, const Vec3& v) {
