@@ -29,6 +29,8 @@ function syncOrbitCameraToScene(
 	cam.fov = c.vfov;
 	cam.position.set(...c.look_from);
 	ctrl.target.set(...c.look_at);
+	cam.up.set(...c.vup);
+
 	cam.updateProjectionMatrix();
 	ctrl.update();
 }
