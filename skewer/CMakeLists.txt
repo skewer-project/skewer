@@ -61,6 +61,8 @@ endif()
 set(SKEWER_CORE_SOURCES
     src/session/render_session.cc
     src/scene/scene.cc
+    src/scene/interp_curve.cc
+    src/scene/animation.cc
     src/film/deep_segment_pool.cc
     src/film/film.cc
     src/film/image_buffer.cc
@@ -69,6 +71,7 @@ set(SKEWER_CORE_SOURCES
     src/accelerators/bvh.cc
     src/scene/light.cc
     src/io/obj_loader.cc
+    src/io/graph_from_json.cc
     src/io/scene_loader.cc
     src/io/image_io.cc
     src/materials/bsdf.cc
@@ -104,6 +107,9 @@ target_include_directories(skewer-worker
 )
 
 set_source_files_properties(src/io/scene_loader.cc PROPERTIES
+    COMPILE_OPTIONS "-fno-fast-math"
+)
+set_source_files_properties(src/io/graph_from_json.cc PROPERTIES
     COMPILE_OPTIONS "-fno-fast-math"
 )
 
