@@ -424,7 +424,6 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	}, []);
 
 	// --- Effect 2: rebuild scene objects on structural changes ---
-	// biome-ignore lint/correctness/useExhaustiveDependencies: sceneVersion is used only as a trigger, not read in the body
 	useEffect(() => {
 		const currentScene = scene;
 		if (!currentScene || !dirHandle) return;
