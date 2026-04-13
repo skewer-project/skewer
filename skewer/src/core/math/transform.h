@@ -49,6 +49,11 @@ inline Vec3 TRSApplyNormal(const TRS& trs, const Vec3& n) {
     return Normalize(QuatRotate(trs.rotation, inv_scaled));
 }
 
+inline bool TRSIsUniformScale(const TRS& trs, float eps = 1e-5f) {
+    float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
+    return std::fabs(sx - sy) <= eps && std::fabs(sy - sz) <= eps;
+}
+
 inline bool TRSIsIdentity(const TRS& trs) {
     if (std::fabs(trs.translation.x()) > Numeric::kNearZeroEpsilon ||
         std::fabs(trs.translation.y()) > Numeric::kNearZeroEpsilon ||
