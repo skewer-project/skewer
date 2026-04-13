@@ -15,8 +15,25 @@ import {
 	applyTransform,
 	buildSceneGraph,
 	makeThreeMaterial,
+	revokeBlobUrls,
 } from "../services/scene-to-three";
 import type { Material, ResolvedScene, Transform, Vec3 } from "../types/scene";
+
+/** Align perspective camera and orbit target with the scene file camera. */
+function syncOrbitCameraToScene(
+	cam: THREE.PerspectiveCamera,
+	ctrl: OrbitControls,
+	scene: ResolvedScene,
+) {
+	const c = scene.camera;
+	cam.fov = c.vfov;
+	cam.position.set(...c.look_from);
+	ctrl.target.set(...c.look_at);
+	cam.up.set(...c.vup);
+
+	cam.updateProjectionMatrix();
+	ctrl.update();
+}
 
 // ── Patch types for incremental Three.js updates ────────────
 
@@ -36,14 +53,60 @@ export type ThreePatch =
 	| { kind: "rebuild" };
 
 export interface ViewportHandle {
-	applyPatch(objectKey: string, patch: ThreePatch): void;
+	applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch): void;
+	/** Restore orbit camera position and target from the loaded scene JSON. */
+	resetCameraToScene(): void;
 }
 
 // ── Helpers ─────────────────────────────────────────────────
 
+function disposeMaterialTextures(material: THREE.Material) {
+	for (const value of Object.values(material)) {
+		if (value instanceof THREE.Texture) {
+			value.dispose();
+		} else if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item instanceof THREE.Texture) item.dispose();
+			}
+		}
+	}
+}
+
+function disposeMaterial(material: THREE.Material | THREE.Material[]) {
+	if (Array.isArray(material)) {
+		for (const mat of material) disposeMaterial(mat);
+		return;
+	}
+	disposeMaterialTextures(material);
+	material.dispose();
+}
+
+function getMaterialSide(
+	material: THREE.Material | THREE.Material[] | undefined,
+): THREE.Side | null {
+	if (!material) return null;
+	if (Array.isArray(material)) {
+		if (material.some((m) => m.side === THREE.DoubleSide)) {
+			return THREE.DoubleSide;
+		}
+		return material[0]?.side ?? null;
+	}
+	return material.side;
+}
+
+function disposeSceneGroup(group: THREE.Group) {
+	group.traverse((obj) => {
+		if (obj instanceof THREE.Mesh) {
+			obj.geometry?.dispose();
+			disposeMaterial(obj.material);
+		}
+	});
+}
+
 interface Props {
 	scene?: ResolvedScene | null;
 	dirHandle?: FileSystemDirectoryHandle | null;
+	// Incremented when the scene structure changes (add/remove/reorder objects).
 	sceneVersion: number;
 	selectedObjectKey: string | null;
 	onSelectObject: (key: string | null) => void;
@@ -101,21 +164,33 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const camera = useRef<THREE.PerspectiveCamera | null>(null);
 	const controls = useRef<OrbitControls | null>(null);
 	const sceneGroup = useRef<THREE.Group | null>(null);
+	const blobUrlsRef = useRef<string[]>([]);
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
-	// Keep a ref to scene so Effect 2 can read current data without depending on it
-	const sceneRef = useRef(scene);
-	sceneRef.current = scene;
+	// Used to avoid rebuilding the whole graph on minor edits.
+	const lastBuild = useRef<{
+		dirHandle: FileSystemDirectoryHandle | null;
+		sceneVersion: number | null;
+	}>({ dirHandle: null, sceneVersion: null });
+
 	// Track previous dirHandle to distinguish a new scene load from a sceneVersion bump
 	const prevDirHandle = useRef<FileSystemDirectoryHandle | null | undefined>(
 		undefined,
 	);
 
 	// ── Imperative handle: applyPatch ──
+	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
 	useImperativeHandle(
 		ref,
 		() => ({
-			applyPatch(objectKey: string, patch: ThreePatch) {
+			resetCameraToScene() {
+				const currentScene = scene;
+				const cam = camera.current;
+				const ctrl = controls.current;
+				if (!currentScene || !cam || !ctrl) return;
+				syncOrbitCameraToScene(cam, ctrl, currentScene);
+			},
+			applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
 				const grp = sceneGroup.current;
 				if (!grp) return;
 
@@ -163,7 +238,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					}
 				} else if (patch.kind === "material") {
 					// Update ALL objects in the layer that use this material name
-					const currentScene = sceneRef.current;
+					const currentScene = scene;
 					if (!currentScene) return;
 					const list =
 						patch.layerTag === "ctx"
@@ -188,10 +263,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 						const meshes = collectMeshesForKey(grp, key);
 						for (const m of meshes) {
 							if (m instanceof THREE.Mesh) {
-								if (m.material instanceof THREE.Material) {
-									m.material.dispose();
-								}
-								const oldSide = (m.material as THREE.Material)?.side;
+								const oldSide = getMaterialSide(m.material);
+								disposeMaterial(m.material);
 								m.material = newMat.clone();
 								if (oldSide === THREE.DoubleSide) {
 									(m.material as THREE.Material).side = THREE.DoubleSide;
@@ -205,10 +278,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					const newMat = makeThreeMaterial(patch.matData);
 					for (const m of meshes) {
 						if (m instanceof THREE.Mesh) {
-							if (m.material instanceof THREE.Material) {
-								m.material.dispose();
-							}
-							const oldSide = (m.material as THREE.Material)?.side;
+							const oldSide = getMaterialSide(m.material);
+							disposeMaterial(m.material);
 							m.material = newMat.clone();
 							if (oldSide === THREE.DoubleSide) {
 								(m.material as THREE.Material).side = THREE.DoubleSide;
@@ -219,7 +290,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				// kind === "rebuild" is handled by incrementing sceneVersion externally
 			},
 		}),
-		[],
+		[scene],
 	);
 
 	// --- Effect 1: one-time renderer / camera / controls setup ---
@@ -312,12 +383,41 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			cancelAnimationFrame(animId);
 			ro.disconnect();
 			ctrl.dispose();
+
+			const old = sceneGroup.current;
+			if (old) {
+				sc.remove(old);
+				disposeSceneGroup(old);
+			}
+			const oldUrls = blobUrlsRef.current;
+			if (oldUrls.length > 0) {
+				revokeBlobUrls(oldUrls);
+			}
+			const comp = composer.current;
+			if (comp) {
+				for (const pass of comp.passes) {
+					if ("dispose" in pass && typeof pass.dispose === "function") {
+						pass.dispose();
+					}
+				}
+				const compAny = comp as unknown as {
+					renderTarget1?: THREE.WebGLRenderTarget;
+					renderTarget2?: THREE.WebGLRenderTarget;
+				};
+				compAny.renderTarget1?.dispose();
+				compAny.renderTarget2?.dispose();
+				if ("dispose" in comp && typeof comp.dispose === "function") {
+					comp.dispose();
+				}
+			}
+
 			renderer.dispose();
 			container.removeChild(renderer.domElement);
 			threeScene.current = null;
 			camera.current = null;
 			controls.current = null;
 			sceneGroup.current = null;
+			blobUrlsRef.current = [];
 			composer.current = null;
 			outlinePass.current = null;
 		};
@@ -326,7 +426,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	// --- Effect 2: rebuild scene objects on structural changes ---
 	// biome-ignore lint/correctness/useExhaustiveDependencies: sceneVersion is used only as a trigger, not read in the body
 	useEffect(() => {
-		const currentScene = sceneRef.current;
+		const currentScene = scene;
 		if (!currentScene || !dirHandle) return;
 
 		const sc = threeScene.current;
@@ -345,25 +445,43 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			cam.updateProjectionMatrix();
 			ctrl.update();
 		}
+		syncOrbitCameraToScene(cam, ctrl, currentScene);
+
+		if (
+			lastBuild.current.dirHandle === dirHandle &&
+			lastBuild.current.sceneVersion === sceneVersion
+		) {
+			return;
+		}
+		lastBuild.current = { dirHandle, sceneVersion };
 
 		const abortController = new AbortController();
 
 		buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
-			(newGroup) => {
+			(result) => {
 				if (abortController.signal.aborted) return;
 
 				const old = sceneGroup.current;
-				if (old) sc.remove(old);
+				if (old) {
+					sc.remove(old);
+					disposeSceneGroup(old);
+				}
 
-				sc.add(newGroup);
-				sceneGroup.current = newGroup;
+				const oldUrls = blobUrlsRef.current;
+				if (oldUrls.length > 0) {
+					revokeBlobUrls(oldUrls);
+				}
+
+				sc.add(result.group);
+				sceneGroup.current = result.group;
+				blobUrlsRef.current = result.blobUrls;
 			},
 		);
 
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle, sceneVersion]);
+	}, [dirHandle, scene, sceneVersion]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {

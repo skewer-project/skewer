@@ -75,6 +75,7 @@ const LayerCard = memo(function LayerCard({
 }: {
 	layer: ResolvedLayer;
 	tag: "context" | "layer";
+	// Index into scene.contexts or scene.layers (used to build object/material keys).
 	layerIdx: number;
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
@@ -161,40 +162,44 @@ const LayerCard = memo(function LayerCard({
 					);
 				})}
 
-				<div className="layer-sub-head layer-sub-head-action">
-					<span>Objects</span>
-					<button
-						type="button"
-						className="layer-add-btn"
-						title="Add object"
-						onClick={(e) => {
-							e.stopPropagation();
-							setShowAddObject(true);
-						}}
-					>
-						+
-					</button>
-				</div>
-				{data.objects.map((obj, i) => {
-					const key = `${keyPrefix}:${layerIdx}:${i}`;
-					const isSelected = key === selectedObjectKey;
-					const label = objectLabel(obj);
-					return (
-						<button
-							type="button"
-							key={key}
-							className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
-							onClick={(e) => {
-								e.stopPropagation();
-								onSelectObject(isSelected ? null : key);
-							}}
-						>
-							<span className="data-type">#{i}</span>{" "}
-							<span className="data-name">{obj.type}</span>
-							{label && <span className="data-type"> {label}</span>}
-						</button>
-					);
-				})}
+				{data.objects.length > 0 && (
+					<>
+						<div className="layer-sub-head layer-sub-head-action">
+							<span>Objects</span>
+							<button
+								type="button"
+								className="layer-add-btn"
+								title="Add object"
+								onClick={(e) => {
+									e.stopPropagation();
+									setShowAddObject(true);
+								}}
+							>
+								+
+							</button>
+						</div>
+						{data.objects.map((obj, i) => {
+							const key = `${keyPrefix}:${layerIdx}:${i}`;
+							const isSelected = key === selectedObjectKey;
+							const label = objectLabel(obj);
+							return (
+								<button
+									type="button"
+									key={key}
+									className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+									onClick={(e) => {
+										e.stopPropagation();
+										onSelectObject(isSelected ? null : key);
+									}}
+								>
+									<span className="data-type">#{i}</span>{" "}
+									<span className="data-name">{obj.type}</span>
+									{label && <span className="data-type"> {label}</span>}
+								</button>
+							);
+						})}
+					</>
+				)}
 			</div>
 
 			{showAddObject && (
@@ -236,6 +241,7 @@ export function SceneInspector({
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
+	// Keys are string identifiers like "ctx:0:3" or "lyr:1:mat:metal".
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
 	onAddObject: (tag: "ctx" | "lyr", layerIdx: number, obj: SceneObject) => void;

@@ -13,19 +13,43 @@ import type {
 import { MaterialDropdown, NumberField, Toggle, Vec3Field } from "./controls";
 import type { ViewportHandle } from "./Viewport";
 
+// ── Shared base ───────────────────────────────────────────────
+
+interface SceneEditorBase {
+	scene: ResolvedScene;
+	// Uses an updater to keep edits immutable and batched.
+	onSceneEdit: (updater: (s: ResolvedScene) => ResolvedScene) => void;
+	viewportRef: RefObject<ViewportHandle | null>;
+}
+
 // ── Props ───────────────────────────────────────────────────
 
-interface Props {
-	scene: ResolvedScene;
+interface Props extends SceneEditorBase {
 	objectKey: string;
 	onSceneEdit: (updater: (s: ResolvedScene) => ResolvedScene) => void;
-	onRebuild: () => void;
 	onDeleteObject: () => void;
 	viewportRef: RefObject<ViewportHandle | null>;
 }
 
+// ── Material editor props ───────────────────────────────────
+
+interface MaterialEditorProps extends SceneEditorBase {
+	matKey: string;
+}
+
+// ── Geometry editor props ───────────────────────────────────
+
+interface EditorProps extends SceneEditorBase {
+	objectKey: string;
+	materialNames: string[];
+	layer: ResolvedLayer;
+	layerTag: string;
+	layerIdx: number;
+}
+
 // ── Scene mutation helpers ──────────────────────────────────
 
+// Update a single object while keeping the scene immutable.
 function updateObject(
 	scene: ResolvedScene,
 	objectKey: string,
@@ -46,6 +70,7 @@ function updateObject(
 	return { ...scene, [listKey]: newList };
 }
 
+// Update a single material within a layer/context.
 function updateMaterial(
 	scene: ResolvedScene,
 	objectKey: string,
@@ -66,6 +91,7 @@ function updateMaterial(
 }
 
 /** Parse an objectKey like "ctx:0:3" into the actual object + metadata. */
+// Resolve an objectKey into the layer/object/material tuple used by editors.
 function resolveObject(scene: ResolvedScene, key: string) {
 	const [tag, layerIdxStr, objIdxStr] = key.split(":");
 	const layerIdx = Number(layerIdxStr);
@@ -87,22 +113,12 @@ function resolveObject(scene: ResolvedScene, key: string) {
 
 // ── Geometry editors ────────────────────────────────────────
 
-interface EditorProps {
-	objectKey: string;
-	onSceneEdit: Props["onSceneEdit"];
-	onRebuild: Props["onRebuild"];
-	viewportRef: Props["viewportRef"];
-	materialNames: string[];
-	layer: ResolvedLayer;
-	layerTag: string;
-	layerIdx: number;
-}
-
 function SphereEditor({
 	obj,
 	objectKey,
 	onSceneEdit,
 	viewportRef,
+	scene,
 	materialNames,
 	layer,
 }: EditorProps & { obj: SphereObject }) {
@@ -118,7 +134,7 @@ function SphereEditor({
 							center: v,
 						})),
 					);
-					viewportRef.current?.applyPatch(objectKey, {
+					viewportRef.current?.applyPatch(scene, objectKey, {
 						kind: "sphere-center",
 						value: v,
 					});
@@ -136,7 +152,7 @@ function SphereEditor({
 							radius: v,
 						})),
 					);
-					viewportRef.current?.applyPatch(objectKey, {
+					viewportRef.current?.applyPatch(scene, objectKey, {
 						kind: "sphere-radius",
 						value: v,
 					});
@@ -155,7 +171,7 @@ function SphereEditor({
 					);
 					const matData = layer.data.materials[name];
 					if (matData) {
-						viewportRef.current?.applyPatch(objectKey, {
+						viewportRef.current?.applyPatch(scene, objectKey, {
 							kind: "assign-material",
 							matData,
 						});
@@ -171,6 +187,7 @@ function QuadEditor({
 	objectKey,
 	onSceneEdit,
 	viewportRef,
+	scene,
 	materialNames,
 	layer,
 }: EditorProps & { obj: QuadObject }) {
@@ -183,7 +200,7 @@ function QuadEditor({
 				vertices: newVerts,
 			})),
 		);
-		viewportRef.current?.applyPatch(objectKey, {
+		viewportRef.current?.applyPatch(scene, objectKey, {
 			kind: "quad-vertices",
 			value: newVerts,
 		});
@@ -214,7 +231,7 @@ function QuadEditor({
 					);
 					const matData = layer.data.materials[name];
 					if (matData) {
-						viewportRef.current?.applyPatch(objectKey, {
+						viewportRef.current?.applyPatch(scene, objectKey, {
 							kind: "assign-material",
 							matData,
 						});
@@ -229,8 +246,8 @@ function ObjEditor({
 	obj,
 	objectKey,
 	onSceneEdit,
-	onRebuild,
 	viewportRef,
+	scene,
 	materialNames,
 	layer,
 }: EditorProps & { obj: ObjFileObject }) {
@@ -248,7 +265,7 @@ function ObjEditor({
 				transform: newTransform,
 			})),
 		);
-		viewportRef.current?.applyPatch(objectKey, {
+		viewportRef.current?.applyPatch(scene, objectKey, {
 			kind: "obj-transform",
 			value: newTransform,
 		});
@@ -274,7 +291,7 @@ function ObjEditor({
 						);
 						const matData = layer.data.materials[name];
 						if (matData) {
-							viewportRef.current?.applyPatch(objectKey, {
+							viewportRef.current?.applyPatch(scene, objectKey, {
 								kind: "assign-material",
 								matData,
 							});
@@ -292,7 +309,6 @@ function ObjEditor({
 							auto_fit: v,
 						})),
 					);
-					onRebuild();
 				}}
 			/>
 			<Vec3Field
@@ -329,18 +345,18 @@ function MaterialEditor({
 	layerIdx,
 	onSceneEdit,
 	viewportRef,
-}: {
+	scene,
+}: SceneEditorBase & {
 	mat: Material;
 	matName: string;
+	// Object key for the layer that owns this material (ctx/lyr scope).
 	objectKey: string;
 	layerTag: string;
 	layerIdx: number;
-	onSceneEdit: Props["onSceneEdit"];
-	viewportRef: Props["viewportRef"];
 }) {
 	function applyMat(next: Material) {
 		onSceneEdit((s) => updateMaterial(s, objectKey, matName, () => next));
-		viewportRef.current?.applyPatch(objectKey, {
+		viewportRef.current?.applyPatch(scene, objectKey, {
 			kind: "material",
 			matData: next,
 			matName,
@@ -451,12 +467,7 @@ export function MaterialPropertiesPanel({
 	matKey,
 	onSceneEdit,
 	viewportRef,
-}: {
-	scene: ResolvedScene;
-	matKey: string;
-	onSceneEdit: Props["onSceneEdit"];
-	viewportRef: Props["viewportRef"];
-}) {
+}: MaterialEditorProps) {
 	// matKey format: "lyr:0:mat:marble"
 	const parts = matKey.split(":");
 	const tag = parts[0];
@@ -488,6 +499,7 @@ export function MaterialPropertiesPanel({
 						layerIdx={layerIdx}
 						onSceneEdit={onSceneEdit}
 						viewportRef={viewportRef}
+						scene={scene}
 					/>
 				</div>
 			</div>
@@ -501,7 +513,6 @@ export function PropertiesPanel({
 	scene,
 	objectKey,
 	onSceneEdit,
-	onRebuild,
 	onDeleteObject,
 	viewportRef,
 }: Props) {
@@ -514,8 +525,8 @@ export function PropertiesPanel({
 	const editorProps: EditorProps = {
 		objectKey,
 		onSceneEdit,
-		onRebuild,
 		viewportRef,
+		scene,
 		materialNames,
 		layer,
 		layerTag: tag,
@@ -560,6 +571,7 @@ export function PropertiesPanel({
 							layerIdx={resolved.layerIdx}
 							onSceneEdit={onSceneEdit}
 							viewportRef={viewportRef}
+							scene={scene}
 						/>
 					</div>
 				</div>

@@ -1,3 +1,4 @@
+import { Camera } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import {
@@ -257,7 +258,6 @@ function App() {
 								scene={scene}
 								objectKey={selectedObjectKey}
 								onSceneEdit={handleSceneEdit}
-								onRebuild={() => setSceneVersion((v) => v + 1)}
 								onDeleteObject={() => handleDeleteObject(selectedObjectKey)}
 								viewportRef={viewportRef}
 							/>
@@ -273,20 +273,33 @@ function App() {
 					</div>
 				)}
 
-				{/* Bottom-right: stats */}
+				{/* Bottom-right: reset camera + stats */}
 				{scene && (
-					<div className="panel hud-stats">
-						<span className="stat-tag stat-ctx">{scene.contexts.length}c</span>
-						<span className="stat-sep">/</span>
-						<span className="stat-tag stat-lyr">{scene.layers.length}L</span>
-						<span className="stat-sep">/</span>
-						<span className="stat-num">{totalObjects} obj</span>
-						{scene.output_dir && (
-							<>
-								<span className="stat-sep">&rarr;</span>
-								<span className="stat-dir">{scene.output_dir}</span>
-							</>
-						)}
+					<div className="hud-bottom-stack">
+						<button
+							type="button"
+							className="hud-reset-cam-btn"
+							title="Reset view to scene camera"
+							aria-label="Reset view to scene camera"
+							onClick={() => viewportRef.current?.resetCameraToScene()}
+						>
+							<Camera />
+						</button>
+						<div className="panel hud-stats">
+							<span className="stat-tag stat-ctx">
+								{scene.contexts.length}c
+							</span>
+							<span className="stat-sep">/</span>
+							<span className="stat-tag stat-lyr">{scene.layers.length}L</span>
+							<span className="stat-sep">/</span>
+							<span className="stat-num">{totalObjects} obj</span>
+							{scene.output_dir && (
+								<>
+									<span className="stat-sep">&rarr;</span>
+									<span className="stat-dir">{scene.output_dir}</span>
+								</>
+							)}
+						</div>
 					</div>
 				)}
 
