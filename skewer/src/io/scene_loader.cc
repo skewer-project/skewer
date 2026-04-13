@@ -336,7 +336,8 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
     size_t mesh_count_before = scene.MeshCount();
 
     // Load OBJ — when auto_fit is true, the loader normalizes to 2-unit cube.
-    // We pass Vec3(1,1,1) as scale here because we handle scaling ourselves via ApplyTransform.
+    // We pass Vec3(1,1,1) as scale here because we apply TRS (scale → rotate → translate) after
+    // load.
     if (!LoadOBJ(filepath, scene, Vec3(1.0f, 1.0f, 1.0f), auto_fit)) {
         throw std::runtime_error("Object at index " + std::to_string(index) +
                                  ": failed to load OBJ file '" + filepath + "'");
@@ -373,18 +374,17 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
         }
     }
 
-    // Apply transform (Scale -> Rotate -> Translate) to all newly added meshes
-    bool has_transform =
-        (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
-         rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
-         translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
-
-    if (has_transform) {
+    TRS trs = TRSFromEuler(translate, rotate_deg, obj_scale);
+    if (!TRSIsIdentity(trs)) {
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
-            ApplyTransform(mesh.p, translate, rotate_deg, obj_scale);
+            for (Vec3& v : mesh.p) {
+                v = TRSApplyPoint(trs, v);
+            }
             if (!mesh.n.empty()) {
-                ApplyRotationToNormals(mesh.n, rotate_deg);
+                for (Vec3& n : mesh.n) {
+                    n = TRSApplyNormal(trs, n);
+                }
             }
         }
     }
