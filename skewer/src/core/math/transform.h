@@ -1,6 +1,8 @@
 #ifndef SKWR_CORE_MATH_TRANSFORM_H_
 #define SKWR_CORE_MATH_TRANSFORM_H_
 
+#include <cmath>
+
 #include "core/math/constants.h"
 #include "core/math/quat.h"
 #include "core/math/utils.h"
@@ -38,7 +40,12 @@ inline Vec3 TRSApplyPoint(const TRS& trs, const Vec3& p) {
 }
 
 inline Vec3 TRSApplyNormal(const TRS& trs, const Vec3& n) {
-    Vec3 inv_scaled(n.x() / trs.scale.x(), n.y() / trs.scale.y(), n.z() / trs.scale.z());
+    float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
+    if (std::fabs(sx) < Numeric::kNearZeroEpsilon || std::fabs(sy) < Numeric::kNearZeroEpsilon ||
+        std::fabs(sz) < Numeric::kNearZeroEpsilon) {
+        return Normalize(QuatRotate(trs.rotation, n));
+    }
+    Vec3 inv_scaled(n.x() / sx, n.y() / sy, n.z() / sz);
     return Normalize(QuatRotate(trs.rotation, inv_scaled));
 }
 
@@ -54,10 +61,9 @@ inline bool TRSIsIdentity(const TRS& trs) {
         return false;
     }
     Quat rq = QuatNormalize(trs.rotation);
-    return std::fabs(rq.w - 1.0f) <= Numeric::kNearZeroEpsilon &&
-           std::fabs(rq.x) <= Numeric::kNearZeroEpsilon &&
-           std::fabs(rq.y) <= Numeric::kNearZeroEpsilon &&
-           std::fabs(rq.z) <= Numeric::kNearZeroEpsilon;
+    float imag_len = std::sqrt(rq.x * rq.x + rq.y * rq.y + rq.z * rq.z);
+    float angle = 2.0f * std::atan2(imag_len, std::fabs(rq.w));
+    return angle <= 1e-5f;
 }
 
 }  // namespace skwr

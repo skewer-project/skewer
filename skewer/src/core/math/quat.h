@@ -69,6 +69,8 @@ inline Quat QuatSlerp(const Quat& a, const Quat& b, float t) {
         d = -d;
     }
 
+    d = std::fmin(1.0f, std::fmax(0.0f, d));
+
     if (d > 0.9995f) {
         Quat r{a.w + t * (bn.w - a.w), a.x + t * (bn.x - a.x), a.y + t * (bn.y - a.y),
                a.z + t * (bn.z - a.z)};
@@ -76,10 +78,15 @@ inline Quat QuatSlerp(const Quat& a, const Quat& b, float t) {
     }
 
     float theta_0 = std::acos(d);
+    float sin_theta_0 = std::sin(theta_0);
+    if (sin_theta_0 <= 1e-6f) {
+        Quat r{a.w + t * (bn.w - a.w), a.x + t * (bn.x - a.x), a.y + t * (bn.y - a.y),
+               a.z + t * (bn.z - a.z)};
+        return QuatNormalize(r);
+    }
+
     float theta = theta_0 * t;
     float sin_theta = std::sin(theta);
-    float sin_theta_0 = std::sin(theta_0);
-
     float s0 = std::cos(theta) - d * sin_theta / sin_theta_0;
     float s1 = sin_theta / sin_theta_0;
     return Quat{a.w * s0 + bn.w * s1, a.x * s0 + bn.x * s1, a.y * s0 + bn.y * s1,

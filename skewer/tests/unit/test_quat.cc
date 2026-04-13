@@ -105,6 +105,16 @@ TEST(Quat, SlerpHemisphereFlip) {
     EXPECT_NEAR(r.z, 0.0f, 1e-4f);
 }
 
+TEST(Quat, SlerpClampsOversizedDot) {
+    Quat a{1.01f, 0.0f, 0.0f, 0.0f};
+    Quat b{1.01f, 0.0f, 0.0f, 0.0f};
+    Quat r = QuatSlerp(a, b, 0.25f);
+    r = QuatNormalize(r);
+    EXPECT_TRUE(std::isfinite(r.w) && std::isfinite(r.x) && std::isfinite(r.y) &&
+                std::isfinite(r.z));
+    EXPECT_NEAR(std::fabs(QuatDot(r, QuatNormalize(a))), 1.0f, 1e-4f);
+}
+
 TEST(Quat, Two90DegYEquals180DegY) {
     float hpi = MathConstants::kPi / 2.0f;
     Quat q90 = QuatNormalize(QuatFromEulerYXZ(0.0f, hpi, 0.0f));

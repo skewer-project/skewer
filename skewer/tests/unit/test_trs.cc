@@ -8,6 +8,31 @@
 
 namespace skwr {
 
+TEST(TRS, IdentityQuaternionNegativeW) {
+    TRS trs{};
+    trs.rotation = Quat{-1.0f, 0.0f, 0.0f, 0.0f};
+    EXPECT_TRUE(TRSIsIdentity(trs));
+}
+
+TEST(TRS, FullCircleEulerIsIdentityTRS) {
+    TRS trs =
+        TRSFromEuler(Vec3(0.0f, 0.0f, 0.0f), Vec3(360.0f, 0.0f, 0.0f), Vec3(1.0f, 1.0f, 1.0f));
+    EXPECT_TRUE(TRSIsIdentity(trs));
+}
+
+TEST(TRS, ApplyNormalDegenerateScaleUsesRotationOnly) {
+    TRS trs{};
+    trs.rotation = QuatNormalize(QuatFromEulerYXZ(0.0f, MathConstants::kPi / 4.0f, 0.0f));
+    trs.scale = Vec3(0.0f, 1.0f, 1.0f);
+    Vec3 n(0.0f, 1.0f, 0.0f);
+    Vec3 out = TRSApplyNormal(trs, n);
+    Vec3 expect = Normalize(QuatRotate(trs.rotation, n));
+    EXPECT_TRUE(std::isfinite(out.x()) && std::isfinite(out.y()) && std::isfinite(out.z()));
+    EXPECT_NEAR(out.x(), expect.x(), 1e-5f);
+    EXPECT_NEAR(out.y(), expect.y(), 1e-5f);
+    EXPECT_NEAR(out.z(), expect.z(), 1e-5f);
+}
+
 TEST(TRS, IdentityPointAndNormal) {
     TRS id{};
     Vec3 p(3.0f, -2.0f, 1.5f);
