@@ -1,0 +1,96 @@
+{
+  "materials": {
+    "gold_metal": {
+      "type": "metal",
+      "albedo": [
+        1,
+        0.843,
+        0
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true,
+      "roughness": 0.1
+    },
+    "silver_metal": {
+      "type": "metal",
+      "albedo": [
+        0.972,
+        0.96,
+        0.915
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true,
+      "roughness": 0.3
+    },
+    "copper_metal": {
+      "type": "metal",
+      "albedo": [
+        0.95,
+        0.64,
+        0.54
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true,
+      "roughness": 0.2
+    }
+  },
+  "objects": [
+    {
+      "type": "sphere",
+      "material": "gold_metal",
+      "center": [
+        -2,
+        1.5,
+        2
+      ],
+      "radius": 0.8
+    },
+    {
+      "type": "sphere",
+      "material": "silver_metal",
+      "center": [
+        0,
+        1.5,
+        2
+      ],
+      "radius": 0.8
+    },
+    {
+      "type": "sphere",
+      "material": "copper_metal",
+      "center": [
+        2,
+        1.5,
+        2
+      ],
+      "radius": 0.8
+    }
+  ]
+}
