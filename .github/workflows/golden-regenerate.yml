@@ -1,0 +1,53 @@
+name: Golden Image Regeneration
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  regenerate-goldens:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ccache \
+            clang-17 \
+            libopenexr-dev \
+            libimath-dev \
+            libpng-dev \
+            zlib1g-dev \
+            protobuf-compiler \
+            protobuf-compiler-grpc \
+            libprotobuf-dev \
+            libgrpc++-dev
+
+      - name: Configure
+        run: >
+          cmake --preset ci
+          -DCMAKE_C_COMPILER=clang-17
+          -DCMAKE_CXX_COMPILER=clang++-17
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build
+        run: cmake --build --preset ci --parallel
+
+      - name: Generate golden images
+        run: ctest --preset ci -R GoldenImageTest -V
+
+      - name: Upload golden images
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-images
+          path: |
+            tests/integration/fixtures/golden_images/*.exr
+            tests/integration/fixtures/golden_images/*.png

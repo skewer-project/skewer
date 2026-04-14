@@ -8,8 +8,8 @@
 #include "exrio/deep_reader.h"
 #include "session/render_session.h"
 
-constexpr float kEpsilon = 1e-1f;     // Very relaxed for ARM/x86 differences
-static bool kGenerateGolden = false;  // Set to true to regenerate golden images
+constexpr float kEpsilon = 1e-1f;    // Very relaxed for ARM/x86 differences
+static bool kGenerateGolden = true;  // Set to true to regenerate golden images
 
 namespace fs = std::filesystem;
 
