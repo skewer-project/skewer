@@ -7,6 +7,7 @@
 #include "core/math/quat.h"
 #include "core/math/utils.h"
 #include "core/math/vec3.h"
+#include "geometry/boundbox.h"
 
 namespace skwr {
 
@@ -39,6 +40,31 @@ inline Vec3 TRSApplyPoint(const TRS& trs, const Vec3& p) {
     return trs.translation + QuatRotate(trs.rotation, scaled);
 }
 
+inline Vec3 TRSInverseApplyPoint(const TRS& trs, const Vec3& p) {
+    Vec3 q = p - trs.translation;
+    Vec3 r = QuatRotate(QuatConjugate(trs.rotation), q);
+    float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
+    if (std::fabs(sx) < Numeric::kNearZeroEpsilon || std::fabs(sy) < Numeric::kNearZeroEpsilon ||
+        std::fabs(sz) < Numeric::kNearZeroEpsilon) {
+        return r;
+    }
+    return Vec3(r.x() / sx, r.y() / sy, r.z() / sz);
+}
+
+inline Vec3 TRSInverseApplyVector(const TRS& trs, const Vec3& v) {
+    Vec3 r = QuatRotate(QuatConjugate(trs.rotation), v);
+    float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
+    if (std::fabs(sx) < Numeric::kNearZeroEpsilon || std::fabs(sy) < Numeric::kNearZeroEpsilon ||
+        std::fabs(sz) < Numeric::kNearZeroEpsilon) {
+        return r;
+    }
+    return Vec3(r.x() / sx, r.y() / sy, r.z() / sz);
+}
+
+inline Vec3 TRSApplyVector(const TRS& trs, const Vec3& v) {
+    return QuatRotate(trs.rotation, trs.scale * v);
+}
+
 inline Vec3 TRSApplyNormal(const TRS& trs, const Vec3& n) {
     float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
     if (std::fabs(sx) < Numeric::kNearZeroEpsilon || std::fabs(sy) < Numeric::kNearZeroEpsilon ||
@@ -52,6 +78,20 @@ inline Vec3 TRSApplyNormal(const TRS& trs, const Vec3& n) {
 inline bool TRSIsUniformScale(const TRS& trs, float eps = 1e-5f) {
     float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
     return std::fabs(sx - sy) <= eps && std::fabs(sy - sz) <= eps;
+}
+
+inline BoundBox TransformBounds(const TRS& trs, const BoundBox& local) {
+    BoundBox world;
+    const Point3& mn = local.min();
+    const Point3& mx = local.max();
+    for (int i = 0; i < 8; ++i) {
+        float x = (i & 1) ? mx.x() : mn.x();
+        float y = (i & 2) ? mx.y() : mn.y();
+        float z = (i & 4) ? mx.z() : mn.z();
+        world.Expand(TRSApplyPoint(trs, Point3(x, y, z)));
+    }
+    world.PadToMinimums();
+    return world;
 }
 
 inline bool TRSIsIdentity(const TRS& trs) {
