@@ -8,10 +8,13 @@
 #include <stdexcept>
 
 #include "core/cpu_config.h"
+#include "core/math/constants.h"
 #include "core/math/quat.h"
 #include "core/math/transform.h"
 #include "core/math/vec3.h"
+#include "core/ray.h"
 #include "core/spectral/spectral_utils.h"
+#include "core/transport/surface_interaction.h"
 #include "geometry/mesh.h"
 #include "io/graph_from_json.h"
 #include "io/scene_loader.h"
@@ -105,7 +108,10 @@ TEST(SceneGraph, LoadLayerQuadFromFile) {
     LoadLayerFile(p.string(), scene);
     EXPECT_EQ(scene.MeshCount(), 1u);
     scene.Build();
-    EXPECT_FALSE(scene.Triangles().empty());
+    Ray r(Vec3(0.5f, 0.5f, 1.0f), Vec3(0.0f, 0.0f, -1.0f), 0.0f);
+    SurfaceInteraction si{};
+    EXPECT_TRUE(
+        scene.Intersect(r, RenderConstants::kRayOffsetEpsilon, MathConstants::kFloatInfinity, &si));
     std::filesystem::remove(p);
 }
 
@@ -142,10 +148,13 @@ TEST(SceneGraph, NestedTranslateFlatten) {
     scene.MergeGraphRoots({std::move(parent)});
     scene.Build();
 
-    ASSERT_FALSE(scene.Triangles().empty());
-    const Triangle& tri = scene.Triangles()[0];
-    EXPECT_NEAR(tri.p0.x(), 5.0f, 1e-4f);
-    EXPECT_NEAR(tri.p0.y(), 3.0f, 1e-4f);
+    Ray r(Vec3(5.33f, 3.33f, 1.0f), Vec3(0.0f, 0.0f, -1.0f), 0.0f);
+    SurfaceInteraction si{};
+    ASSERT_TRUE(
+        scene.Intersect(r, RenderConstants::kRayOffsetEpsilon, MathConstants::kFloatInfinity, &si));
+    EXPECT_NEAR(si.point.x(), 5.33f, 0.02f);
+    EXPECT_NEAR(si.point.y(), 3.33f, 0.02f);
+    EXPECT_NEAR(si.point.z(), 0.0f, 1e-3f);
 }
 
 TEST(SceneGraph, SphereUniformScaleWorld) {
@@ -215,7 +224,7 @@ TEST(SceneGraph, SphereNonUniformScaleThrows) {
     EXPECT_THROW(scene.Build(), std::runtime_error);
 }
 
-TEST(SceneGraph, BuildTwiceDoesNotDoubleTransform) {
+TEST(SceneGraph, BuildSingleTransformHitPosition) {
     Material mat{};
     mat.type = MaterialType::Lambertian;
     mat.albedo = {{0.8f, 0.8f, 0.8f}, 1.0f};
@@ -246,11 +255,12 @@ TEST(SceneGraph, BuildTwiceDoesNotDoubleTransform) {
 
     scene.MergeGraphRoots({std::move(parent)});
     scene.Build();
-    float x1 = scene.Triangles()[0].p0.x();
-    scene.Build();
-    float x2 = scene.Triangles()[0].p0.x();
-    EXPECT_NEAR(x1, x2, 1e-5f);
-    EXPECT_NEAR(x1, 1.0f, 1e-4f);
+    Ray r(Vec3(1.33f, 0.33f, 1.0f), Vec3(0.0f, 0.0f, -1.0f), 0.0f);
+    SurfaceInteraction si{};
+    ASSERT_TRUE(
+        scene.Intersect(r, RenderConstants::kRayOffsetEpsilon, MathConstants::kFloatInfinity, &si));
+    EXPECT_NEAR(si.point.x(), 1.33f, 0.02f);
+    EXPECT_NEAR(si.point.y(), 0.33f, 0.02f);
 }
 
 }  // namespace skwr

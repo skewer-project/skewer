@@ -69,6 +69,7 @@ set(SKEWER_CORE_SOURCES
     src/integrators/path_trace.cc
     src/integrators/normals.cc
     src/accelerators/bvh.cc
+    src/accelerators/tlas.cc
     src/scene/light.cc
     src/io/obj_loader.cc
     src/io/graph_from_json.cc
