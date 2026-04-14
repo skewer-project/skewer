@@ -62,6 +62,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(integration_tests PRIVATE -fno-fast-math)
 endif()
 
+if(SKEWER_GENERATE_GOLDEN)
+    target_compile_definitions(integration_tests PRIVATE SKEWER_GENERATE_GOLDEN=1)
+endif()
+
 # Auto-discover tests
 include(GoogleTest)
 gtest_discover_tests(integration_tests)

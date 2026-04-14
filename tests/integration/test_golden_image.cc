@@ -8,8 +8,12 @@
 #include "exrio/deep_reader.h"
 #include "session/render_session.h"
 
-constexpr float kEpsilon = 1e-1f;    // Very relaxed for ARM/x86 differences
-static bool kGenerateGolden = true;  // Set to true to regenerate golden images
+constexpr float kEpsilon = 1e-1f;  // Very relaxed for ARM/x86 differences
+#ifdef SKEWER_GENERATE_GOLDEN
+static bool kGenerateGolden = true;  // Set via CMake option
+#else
+static bool kGenerateGolden = false;  // Default: compare against goldens
+#endif
 
 namespace fs = std::filesystem;
 

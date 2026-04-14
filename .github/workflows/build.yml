@@ -48,6 +48,10 @@ jobs:
           -DCMAKE_CXX_COMPILER=clang++-17
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DSKEWER_GENERATE_GOLDEN=${{ vars.SKEWER_GENERATE_GOLDEN || 'OFF' }}
+
+      - name: Log golden regeneration flag
+        run: echo "SKEWER_GENERATE_GOLDEN=${{ vars.SKEWER_GENERATE_GOLDEN || 'OFF' }}"
 
       - name: Reset ccache stats
         run: ccache -z
@@ -59,7 +63,7 @@ jobs:
         run: ctest --preset ci --parallel -E "integration"
 
       - name: Upload golden images
-        if: always()
+        if: vars.SKEWER_GENERATE_GOLDEN == 'ON'
         uses: actions/upload-artifact@v4
         with:
           name: golden-images
