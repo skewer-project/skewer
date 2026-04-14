@@ -91,10 +91,11 @@ class GoldenImageTest : public ::testing::TestWithParam<TestCase> {
 };
 
 TEST_P(GoldenImageTest, RendersIdentically) {
-    // Skip golden image tests if CI environment detected (run in integration.yml instead)
-    // if (std::getenv("CI") != nullptr) {
-    //     GTEST_SKIP_("Golden image tests run in integration.yml workflow");
-    // }
+    // Skip golden image tests in CI unless regenerating or explicitly enabled.
+    if (std::getenv("CI") != nullptr && !kGenerateGolden &&
+        std::getenv("SKEWER_RUN_GOLDEN") == nullptr) {
+        GTEST_SKIP_("Golden image tests run in integration.yml workflow");
+    }
 
     fs::path scenePath = fixturesDir_ / "golden_scenes" / sceneFolder_ / "scene.json";
     fs::path outputPath = tempDir_ / "test_render.exr";

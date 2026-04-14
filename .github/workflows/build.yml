@@ -5,6 +5,7 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+    types: [opened, synchronize, labeled, unlabeled]
 
 jobs:
   build-and-test:
@@ -48,10 +49,6 @@ jobs:
           -DCMAKE_CXX_COMPILER=clang++-17
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          -DSKEWER_GENERATE_GOLDEN=${{ vars.SKEWER_GENERATE_GOLDEN || 'OFF' }}
-
-      - name: Log golden regeneration flag
-        run: echo "SKEWER_GENERATE_GOLDEN=${{ vars.SKEWER_GENERATE_GOLDEN || 'OFF' }}"
 
       - name: Reset ccache stats
         run: ccache -z
@@ -62,12 +59,42 @@ jobs:
       - name: Test
         run: ctest --preset ci --parallel -E "integration"
 
+      - name: Configure golden regeneration
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'regen-goldens')
+        run: >
+          cmake --preset ci
+          -DCMAKE_C_COMPILER=clang-17
+          -DCMAKE_CXX_COMPILER=clang++-17
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DSKEWER_GENERATE_GOLDEN=ON
+
+      - name: Rebuild integration tests for regen
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'regen-goldens')
+        run: cmake --build --preset ci --parallel --target integration_tests
+
+      - name: Generate golden images
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'regen-goldens')
+        run: ctest --preset ci -R GoldenImageTest -V
+
       - name: Upload golden images
-        if: vars.SKEWER_GENERATE_GOLDEN == 'ON'
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          contains(github.event.pull_request.labels.*.name, 'regen-goldens')
         uses: actions/upload-artifact@v4
         with:
           name: golden-images
-          if-no-files-found: ignore
+          if-no-files-found: error
           path: |
             tests/integration/fixtures/golden_images/*.exr
             tests/integration/fixtures/golden_images/*.png

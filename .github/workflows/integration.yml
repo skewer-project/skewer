@@ -11,6 +11,7 @@ jobs:
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 500M
+      SKEWER_RUN_GOLDEN: "1"
 
     steps:
       - uses: actions/checkout@v4
