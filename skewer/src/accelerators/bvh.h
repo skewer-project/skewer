@@ -44,7 +44,8 @@ class BVH {
 
     bool IsEmpty() const { return nodes_.empty(); }
     bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
-                   const std::vector<Triangle>& triangles) const;
+                   const std::vector<Triangle>& triangles,
+                   uint32_t* out_local_tri_index = nullptr) const;
 
   private:
     std::vector<BVHNode> nodes_;

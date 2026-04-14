@@ -210,7 +210,7 @@ void BVH::Subdivide(uint32_t node_idx, uint32_t first_tri, uint32_t tri_count,
 }
 
 bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si,
-                    const std::vector<Triangle>& triangles) const {
+                    const std::vector<Triangle>& triangles, uint32_t* out_local_tri_index) const {
     if (IsEmpty()) return false;
 
     bool hit_anything = false;
@@ -234,6 +234,9 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
                     if (IntersectTriangle(r, tri, t_min, closest_t, si)) {
                         hit_anything = true;
                         closest_t = si->t;
+                        if (out_local_tri_index) {
+                            *out_local_tri_index = node.left_first + i;
+                        }
                     }
                 }
             } else {
