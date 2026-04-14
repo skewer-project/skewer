@@ -46,8 +46,7 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
     front.z_back = zSplit;
     back.z = zSplit;
 
-    float totalThickness = s.z_back - s.z; // Thickness 
-
+    float totalThickness = s.z_back - s.z; // Thickness
     if (totalThickness <= 0.0f) return {front, back};  // Should never happen if IsVolume is checked
 
     float front_ratio = (zSplit - s.z) / totalThickness;
@@ -82,6 +81,79 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
     return {front, back};
 }
 
+void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
+                              const std::vector<unsigned int>& pixelSampleCounts,
+                              DeepRow& outputRow, float merge_threshold) {
+    // 1. Collect all raw samples into a temporary flat vector
+    // We reuse this vector across pixels to avoid re-allocation
+    static thread_local std::vector<RawSample> staging;
+    staging.clear();
+
+    for (size_t i = 0; i < pixelDataPtrs.size(); ++i) {
+        const float* data = pixelDataPtrs[i];
+        unsigned int count = pixelSampleCounts[i];
+
+        for (unsigned int s = 0; s < count; ++s) {
+            // Offset is sample_index * 6 channels
+            const float* sData = data + (s * 6);
+            // Order: R, G, B, A, Z, zback
+            staging.push_back({sData[0], sData[1], sData[2], sData[3], sData[4],
+                               sData[5]});  // Using Z for ZBack as well if not present
+        }
+    }
+
+    if (staging.empty()) {
+        outputRow.sample_counts[x] = 0;
+        if (x + 1 < outputRow.width) outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x];
+        return;
+    }
+
+    // 2. [Your Volumetric Splitting/Sorting Logic Here]
+    std::sort(staging.begin(), staging.end());
+
+    if (!staging.empty()) {
+        std::vector<RawSample> merged;
+        merged.reserve(staging.size());
+        float epsilon = merge_threshold;
+
+        size_t i = 0;
+        while (i < staging.size()) {
+            RawSample current = staging[i];
+            i++;
+
+            // Merge coincident samples using Beer-Lambert transmission blending
+            while (i < staging.size() && IsNearDepth(current, staging[i], epsilon)) {
+                current = BlendCoincidentSamples(current, staging[i]);
+                i++;
+            }
+
+            merged.push_back(current);
+        }
+
+        staging.swap(merged);
+    }
+
+    // 3. Write results back to the outputRow
+
+    float* outPtr = outputRow.GetPixelData(
+        x);  //! CONSIDER RESIZING THE OUTPUT ROW HERE IF STAGING SIZE EXCEEDS CURRENT CAPACITY
+
+    // Write the sorted samples back
+    for (size_t s = 0; s < staging.size(); ++s) {
+        float* dest = outPtr + (s * 6);
+        dest[0] = staging[s].r;
+        dest[1] = staging[s].g;
+        dest[2] = staging[s].b;
+        dest[3] = staging[s].a;
+        dest[4] = staging[s].z;
+        dest[5] = staging[s].z_back;  // If you have ZBack, write it here
+    }
+
+    // Update the output sample count for this pixel
+    outputRow.sample_counts[x] = static_cast<unsigned int>(staging.size());
+    if (x + 1 < outputRow.width)
+        outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x] + staging.size();
+}
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
