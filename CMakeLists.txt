@@ -47,4 +47,6 @@ if(SKEWER_COMBINED_BUILD_SKEWER)
 endif()
 
 # Integration tests
-add_subdirectory(tests)
+if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
+    add_subdirectory(tests)
+endif()

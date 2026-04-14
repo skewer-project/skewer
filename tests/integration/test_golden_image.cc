@@ -117,8 +117,7 @@ TEST_P(GoldenImageTest, RendersIdentically) {
     session.Render();
     session.Save();
 
-    bool firstRun = !fs::exists(goldenImagePath_) || kGenerateGolden;
-    if (firstRun) {
+    if (kGenerateGolden) {
         fs::copy_file(outputPath, goldenImagePath_, fs::copy_options::overwrite_existing);
         fs::path pngGolden = fixturesDir_ / "golden_images" / (sceneFolder_ + "_800x450.png");
         if (fs::exists(pngPath)) {
