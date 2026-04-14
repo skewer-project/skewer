@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
     Log("Starting processing...");
     std::vector<float> finalImage = ProcessAllEXR(opts, height, width, imagesInfo);
 
-    Log("\nWriting outputs...");
+    Log("\nWriting To PNG...");
     Timer writeTimer;
 
     try {
