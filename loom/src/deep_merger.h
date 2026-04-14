@@ -26,13 +26,15 @@ RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next
 std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit);
 
 // Takes raw sample data from multiple input rows for a single pixel, merges them, and writes to the
-// output row
+// output row. Each input file may have a z-depth offset applied to its samples.
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
-                              DeepRow& outputRow, float merge_threshold = 0.001f);
+                              const std::vector<float>& zOffsets, DeepRow& outputRow,
+                              float merge_threshold = 0.001f);
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
-                                 DeepRow& outputRow, float merge_threshold = 0.001f);
+                                 const std::vector<float>& zOffsets, DeepRow& outputRow,
+                                 float merge_threshold = 0.001f);
 
 #endif  // LOOM_SRC_DEEP_MERGER_H

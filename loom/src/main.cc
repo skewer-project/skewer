@@ -123,11 +123,11 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
         opts.input_z_offsets.push_back(0);  // Default offset for last file if not provided
     }
     // std::cerr << "There are " << opts.inputFiles.size() << " input files and " <<
-    // opts.inputZOffsets.size() << " Z offsets\n";
+    // opts.input_z_offsets.size() << " Z offsets\n";
 
-    // for (size_t i = 0; i < opts.inputZOffsets.size(); ++i) {
-    //     std::cerr << "Z Offset " << i << ": " << opts.inputZOffsets[i] << "\n";
-    // }
+    for (size_t i = 0; i < opts.input_z_offsets.size(); ++i) {
+        std::cerr << "Z Offset " << i << ": " << opts.input_z_offsets[i] << "\n";
+    }
 
     // Need at least one input and one output prefix
     if (opts.input_files.size() < 2) {

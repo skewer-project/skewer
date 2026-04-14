@@ -15,7 +15,7 @@ bool IsNearDepth(const RawSample& a, const RawSample& b, float epsilon) {
 }
 
 RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next) {
-    RawSample blended = current;
+    RawSample blended = current; // Copy of current
 
     // Volumetric transmission (Beer-Lambert addition)
     float t1 = 1.0f - current.a;
@@ -27,8 +27,7 @@ RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next
     float alphaSum = current.a + next.a;
     float scale = (alphaSum > 0.0f) ? blended.a / alphaSum : 0.0f;
 
-    blended.z = current.z;
-    blended.z_back = current.z_back;
+
     blended.r = (current.r + next.r) * scale;
     blended.g = (current.g + next.g) * scale;
     blended.b = (current.b + next.b) * scale;
@@ -83,7 +82,8 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
 
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
-                              DeepRow& outputRow, float merge_threshold) {
+                              const std::vector<float>& zOffsets, DeepRow& outputRow,
+                              float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     // We reuse this vector across pixels to avoid re-allocation
     static thread_local std::vector<RawSample> staging;
@@ -92,13 +92,19 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
     for (size_t i = 0; i < pixelDataPtrs.size(); ++i) {
         const float* data = pixelDataPtrs[i];
         unsigned int count = pixelSampleCounts[i];
+        float zOffset = (i < zOffsets.size()) ? zOffsets[i] : 0.0f;
 
         for (unsigned int s = 0; s < count; ++s) {
             // Offset is sample_index * 6 channels
             const float* sData = data + (s * 6);
             // Order: R, G, B, A, Z, zback
-            staging.push_back({sData[0], sData[1], sData[2], sData[3], sData[4],
-                               sData[5]});  // Using Z for ZBack as well if not present
+            RawSample sample{sData[0], sData[1], sData[2], sData[3], sData[4], sData[5]};
+            // Apply z-depth offset if non-zero
+            if (zOffset != 0.0f) {
+                sample.z += zOffset;
+                sample.z_back += zOffset;
+            }
+            staging.push_back(sample);
         }
     }
 
@@ -157,7 +163,8 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
-                                 DeepRow& outputRow, float merge_threshold) {
+                                 const std::vector<float>& zOffsets, DeepRow& outputRow,
+                                 float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     static thread_local std::vector<RawSample> staging;
     staging.clear();
@@ -165,10 +172,17 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     for (size_t i = 0; i < pixelDataPtrs.size(); ++i) {
         const float* data = pixelDataPtrs[i];
         unsigned int count = pixelSampleCounts[i];
+        float zOffset = (i < zOffsets.size()) ? zOffsets[i] : 0.0f;
 
         for (unsigned int s = 0; s < count; ++s) {
             const float* sData = data + (s * 6);
-            staging.push_back({sData[0], sData[1], sData[2], sData[3], sData[4], sData[5]});
+            RawSample sample{sData[0], sData[1], sData[2], sData[3], sData[4], sData[5]};
+            // Apply z-depth offset if non-zero
+            if (zOffset != 0.0f) {
+                sample.z += zOffset;
+                sample.z_back += zOffset;
+            }
+            staging.push_back(sample);
         }
     }
 

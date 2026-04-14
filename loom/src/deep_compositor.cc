@@ -154,7 +154,8 @@ void MergerWorker(int start_row, int end_row, PipelineContext& ctx) {
                 pixelSampleCounts.push_back(cnt);
                 runningPtrs[i] += cnt * 6;
             }
-            SortAndMergePixelsWithSplit(x, pixelDataPtrs, pixelSampleCounts, outputRow,
+            SortAndMergePixelsWithSplit(x, pixelDataPtrs, pixelSampleCounts,
+                                        ctx.opts.input_z_offsets, outputRow,
                                         ctx.opts.merge_threshold);
         }
         ctx.row_status[merge_y].store(MERGED);
