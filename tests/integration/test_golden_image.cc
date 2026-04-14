@@ -132,7 +132,7 @@ TEST_P(GoldenImageTest, RendersIdentically) {
     exrio::DeepImage goldenImage = exrio::loadDeepEXR(goldenImagePath_.string());
 
     EXPECT_TRUE(compareDeepImages(renderedImage, goldenImage, kEpsilon))
-        << " Rendered image differs from golden image - possible regression!";
+        << "Rendered image differs from golden image - possible regression!";
 }
 
 INSTANTIATE_TEST_SUITE_P(MaterialTests, GoldenImageTest, ::testing::ValuesIn(kTestCases),
