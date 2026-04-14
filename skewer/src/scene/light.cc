@@ -10,11 +10,11 @@ float LightPdfArea(const Scene& scene, int light_index) {
     const AreaLight& light = scene.Lights()[light_index];
 
     if (light.type == AreaLight::Sphere) {
-        const Sphere& s = scene.Spheres()[light.primitive_index];
+        const Sphere& s = scene.LightSpheres()[light.primitive_index];
         float area = 4.0f * MathConstants::kPi * s.radius * s.radius;
         return 1.0f / area;
     } else if (light.type == AreaLight::Triangle) {
-        const Triangle& t = scene.Triangles()[light.primitive_index];
+        const Triangle& t = scene.LightTriangles()[light.primitive_index];
         float area = 0.5f * Cross(t.e1, t.e2).Length();
         return (area > 0.0f) ? 1.0f / area : 0.0f;
     }
@@ -27,7 +27,7 @@ LightSample SampleLight(const Scene& scene, int light_index, RNG& rng) {
     result.emission = light.emission;
 
     if (light.type == AreaLight::Sphere) {
-        const Sphere& s = scene.Spheres()[light.primitive_index];
+        const Sphere& s = scene.LightSpheres()[light.primitive_index];
 
         Vec3 random_point = RandomUnitVector(rng);
         result.p = s.center + random_point * s.radius;
@@ -35,7 +35,7 @@ LightSample SampleLight(const Scene& scene, int light_index, RNG& rng) {
 
         result.pdf = LightPdfArea(scene, light_index);
     } else if (light.type == AreaLight::Triangle) {
-        const Triangle& t = scene.Triangles()[light.primitive_index];
+        const Triangle& t = scene.LightTriangles()[light.primitive_index];
 
         // Uniform sample on triangle (sqrt trick for uniform distribution)
         float r1 = rng.UniformFloat();
