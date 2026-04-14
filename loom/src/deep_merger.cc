@@ -24,6 +24,7 @@ RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next
 
     // Uniform interspersion: scale summed premultiplied colors by
     // alphaCombined / (alpha1 + alpha2) to avoid over-brightening.
+    blended.a = 1.0f - (t1 * t2);
     float alphaSum = current.a + next.a;
     float scale = (alphaSum > 0.0f) ? blended.a / alphaSum : 0.0f;
 
@@ -31,7 +32,7 @@ RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next
     blended.r = (current.r + next.r) * scale;
     blended.g = (current.g + next.g) * scale;
     blended.b = (current.b + next.b) * scale;
-    blended.a = 1.0f - (t1 * t2);
+    
 
     return blended;
 }
