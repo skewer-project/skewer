@@ -1,0 +1,112 @@
+{
+  "media": {
+    "cloud": {
+      "type": "nanovdb",
+      "file": "cloud_05_variant_0000.nvdb",
+      "sigma_s": [1, 1, 1],
+      "sigma_a": [0, 0, 0],
+      "g": 0.0,
+      "density_multiplier": 1.5,
+      "scale": 0.07,
+      "translate": [0.0, 0.0, 0.0]
+    }
+  },
+  "materials": {
+    "matte_white": {
+      "type": "lambertian",
+      "albedo": [0.9, 0.9, 0.9],
+      "emission": [0, 0, 0],
+      "opacity": [1, 1, 1],
+      "visible": true
+    },
+    "floor": {
+      "type": "lambertian",
+      "albedo": [0.5, 0.5, 0.5],
+      "emission": [0, 0, 0],
+      "opacity": [1, 1, 1],
+      "visible": true
+    },
+    "light": {
+      "type": "lambertian",
+      "albedo": [0.5, 0.5, 0.5],
+      "emission": [6, 6, 6],
+      "opacity": [1, 1, 1],
+      "visible": true
+    },
+    "red_light": {
+      "type": "lambertian",
+      "albedo": [0.5, 0.5, 0.5],
+      "emission": [4, 1, 1],
+      "opacity": [1, 1, 1],
+      "visible": true
+    }
+  },
+  "objects": [
+    {
+      "type": "sphere",
+      "material": "null",
+      "inside_medium": "cloud"
+    },
+    {
+      "type": "quad",
+      "material": "floor",
+      "vertices": [
+        [100, -2, -100],
+        [-100, -2, -100],
+        [-100, -2, 100],
+        [100, -2, 100]
+      ]
+    },
+    {
+      "type": "sphere",
+      "material": "matte_white",
+      "center": [0, 0, 1],
+      "radius": 1.5
+    },
+    {
+      "type": "quad",
+      "material": "light",
+      "vertices": [
+        [-1, 2, -7],
+        [1, 2, -7],
+        [0, 5, -6],
+        [0, 5, -6]
+      ]
+    },
+    {
+      "type": "quad",
+      "material": "light",
+      "vertices": [
+        [0, -1, -6],
+        [0, -1, -6],
+        [-1, 2, -7],
+        [1, 2, -7]
+      ]
+    },
+    {
+      "type": "sphere",
+      "material": "red_light",
+      "center": [-20, 15, -4],
+      "radius": 1
+    },
+    {
+      "type": "sphere",
+      "material": "red_light",
+      "center": [20, 15, -4],
+      "radius": 1
+    }
+  ],
+  "render": {
+    "integrator": "path_trace",
+    "max_samples": 2048,
+    "max_depth": 25,
+    "threads": 0,
+    "image": {
+      "width": 800,
+      "height": 450
+    },
+    "min_samples": 16,
+    "tile_size": 32,
+    "noise_threshold": 0.075
+  }
+}
