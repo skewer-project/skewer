@@ -58,6 +58,16 @@ jobs:
       - name: Test
         run: ctest --preset ci --parallel -E "integration"
 
+      - name: Upload golden images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-images
+          if-no-files-found: ignore
+          path: |
+            tests/integration/fixtures/golden_images/*.exr
+            tests/integration/fixtures/golden_images/*.png
+
       - name: ccache stats
         if: always()
         run: ccache -s
