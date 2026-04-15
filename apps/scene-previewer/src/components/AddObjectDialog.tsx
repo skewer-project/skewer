@@ -1,30 +1,31 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { writeTextFile } from "../services/fs";
-import type { ObjFileObject, SceneObject, Vec3 } from "../types/scene";
+import type { ObjNode, SceneNode, Vec3 } from "../types/scene";
 import { MaterialDropdown, NumberField, Toggle, Vec3Field } from "./controls";
 
-const OBJECT_TYPES = ["sphere", "quad", "obj"] as const;
+const OBJECT_TYPES = ["group", "sphere", "quad", "obj"] as const;
 type AddableType = (typeof OBJECT_TYPES)[number];
 
 export function AddObjectDialog({
+	parentKey,
 	materialNames,
 	dirHandle,
 	onAdd,
 	onCancel,
 }: {
+	parentKey: string;
 	materialNames: string[];
 	dirHandle: FileSystemDirectoryHandle;
-	onAdd: (obj: SceneObject) => void;
+	onAdd: (obj: SceneNode) => void;
 	onCancel: () => void;
 }) {
 	const [type, setType] = useState<AddableType>("sphere");
+	const [nodeName, setNodeName] = useState("");
 
-	// Sphere state
 	const [center, setCenter] = useState<Vec3>([0, 0, 0]);
 	const [radius, setRadius] = useState(1);
 
-	// Quad state — default: a 2×2 quad lying flat on y=0
 	const [verts, setVerts] = useState<[Vec3, Vec3, Vec3, Vec3]>([
 		[-1, 0, -1],
 		[1, 0, -1],
@@ -32,20 +33,27 @@ export function AddObjectDialog({
 		[-1, 0, 1],
 	]);
 
-	// OBJ state
 	const [file, setFile] = useState("");
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [copying, setCopying] = useState(false);
 	const [autoFit, setAutoFit] = useState(true);
 
-	// Shared material
 	const [material, setMaterial] = useState(materialNames[0] ?? "");
 
-	const needsMaterial = type !== "obj";
+	const needsMaterial = type === "sphere" || type === "quad";
 	const hasMaterial = materialNames.length > 0;
 	const canAdd =
-		(type === "obj" ? file.trim() !== "" : hasMaterial) &&
-		(needsMaterial ? hasMaterial : true);
+		(type === "obj"
+			? file.trim() !== ""
+			: type === "group"
+				? true
+				: hasMaterial) && (needsMaterial ? hasMaterial : true);
+
+	function attachName<N extends SceneNode>(n: N): N {
+		const name = nodeName.trim();
+		if (name) (n as { name?: string }).name = name;
+		return n;
+	}
 
 	async function handleBrowseObj() {
 		setFileError(null);
@@ -60,14 +68,12 @@ export function AddObjectDialog({
 				multiple: false,
 			});
 
-			// If the file is already inside the scene folder, use it directly.
 			const parts = await dirHandle.resolve(fileHandle);
 			if (parts) {
 				setFile(parts.join("/"));
 				return;
 			}
 
-			// Otherwise, copy the file into models/ inside the scene folder.
 			setCopying(true);
 			const picked = await fileHandle.getFile();
 			const content = await picked.text();
@@ -75,7 +81,6 @@ export function AddObjectDialog({
 			await writeTextFile(dirHandle, destPath, content);
 			setFile(destPath);
 		} catch (err) {
-			// Ignore user cancellation; surface real errors.
 			if (err instanceof Error && err.name !== "AbortError") {
 				setFileError(`Failed to copy file: ${err.message}`);
 			}
@@ -86,17 +91,33 @@ export function AddObjectDialog({
 
 	function handleAdd() {
 		if (!canAdd) return;
-		if (type === "sphere") {
-			onAdd({ type: "sphere", material, center, radius });
+		if (type === "group") {
+			onAdd(attachName({ kind: "group", children: [] }));
+		} else if (type === "sphere") {
+			onAdd(
+				attachName({
+					kind: "sphere",
+					material: material,
+					center,
+					radius,
+				}),
+			);
 		} else if (type === "quad") {
-			onAdd({ type: "quad", material, vertices: verts });
+			onAdd(
+				attachName({
+					kind: "quad",
+					material: material,
+					vertices: verts,
+				}),
+			);
 		} else {
-			const obj: ObjFileObject = {
-				type: "obj",
+			let obj: ObjNode = {
+				kind: "obj",
 				file: file.trim(),
 				auto_fit: autoFit,
 			};
 			if (material && hasMaterial) obj.material = material;
+			obj = attachName(obj);
 			onAdd(obj);
 		}
 	}
@@ -116,12 +137,27 @@ export function AddObjectDialog({
 		>
 			<div className="dialog">
 				<div className="dialog-header">
-					<span className="layer-tag layer-tag-lyr">OBJ</span>
-					<span className="dialog-title">Add Object</span>
+					<span className="layer-tag layer-tag-lyr">NODE</span>
+					<span className="dialog-title">Add node</span>
+				</div>
+				<div
+					className="dialog-hint"
+					style={{ padding: "0 1rem", opacity: 0.8 }}
+				>
+					Parent: {parentKey}
 				</div>
 
 				<div className="dialog-body">
-					{/* Type selector */}
+					<div className="kv-row dialog-type-row">
+						<span className="kv-key">name</span>
+						<input
+							className="mat-select"
+							style={{ flex: 1 }}
+							value={nodeName}
+							placeholder="optional"
+							onChange={(e) => setNodeName(e.target.value)}
+						/>
+					</div>
 					<div className="kv-row dialog-type-row">
 						<span className="kv-key">type</span>
 						<select
@@ -189,16 +225,18 @@ export function AddObjectDialog({
 								<Toggle label="fit" value={autoFit} onChange={setAutoFit} />
 							</>
 						)}
+					</div>
 
-						{hasMaterial && (
+					{hasMaterial && type !== "group" && (
+						<div className="kv-table dialog-fields">
 							<MaterialDropdown
 								label="mat"
 								value={material}
 								options={materialNames}
 								onChange={setMaterial}
 							/>
-						)}
-					</div>
+						</div>
+					)}
 
 					{needsMaterial && !hasMaterial && (
 						<div className="dialog-hint">
