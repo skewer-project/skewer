@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "deep_merger.h"
-#include "utils.h"
+#include <exrio/utils.h>
 
 namespace deep_compositor {
 
@@ -280,7 +280,7 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
     if (opts.deep_output && deep_image) {
         std::string deepPath = opts.output_prefix + "_merged.exr";
         exrio::writeDeepEXR(*deep_image, deepPath);
-        Log("  Wrote: " + deepPath);
+        exrio::log("  Wrote: " + deepPath);
     }
 
     return final_image;

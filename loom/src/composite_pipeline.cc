@@ -8,7 +8,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "utils.h"
+
+// Might need changes. Uses external namespace for internal tasks
 
 namespace exrio {
 
@@ -51,13 +52,13 @@ int SaveImageInfo(const Options& opts,
     for (size_t i = 0; i < opts.input_files.size(); ++i) {
         const std::string& filename = opts.input_files[i];
 
-        deep_compositor::LogVerbose("  [" + std::to_string(i + 1) + "/" +
-                                    std::to_string(opts.input_files.size()) + "] " + filename);
+        logVerbose("  [" + std::to_string(i + 1) + "/" +
+                   std::to_string(opts.input_files.size()) + "] " + filename);
         printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
         try {
             // Check if it's a deep EXR
             if (!exrio::isDeepEXR(filename)) {
-                deep_compositor::LogError("File is not a deep EXR: " + filename);
+                logError("File is not a deep EXR: " + filename);
                 return 1;
             }
 
@@ -65,16 +66,16 @@ int SaveImageInfo(const Options& opts,
             // Log statistics
             std::string stats =
                 "    " + std::to_string(img->getWidth()) + "x" + std::to_string(img->getHeight());
-            deep_compositor::LogVerbose(stats);
+            logVerbose(stats);
             if (!imagesInfo.empty()) {
                 if (img->getWidth() != imagesInfo[0]->getWidth() ||
                     img->getHeight() != imagesInfo[0]->getHeight()) {
-                    deep_compositor::LogError("Image dimensions mismatch: " + filename);
-                    deep_compositor::LogError(
+                    logError("Image dimensions mismatch: " + filename);
+                    logError(
                         "  Expected: " + std::to_string(imagesInfo[0]->getWidth()) + "x" +
                         std::to_string(imagesInfo[0]->getHeight()));
-                    deep_compositor::LogError("  Got: " + std::to_string(img->getWidth()) + "x" +
-                                              std::to_string(img->getHeight()));
+                    logError("  Got: " + std::to_string(img->getWidth()) + "x" +
+                             std::to_string(img->getHeight()));
                     return 1;
                 }
             }
@@ -82,14 +83,14 @@ int SaveImageInfo(const Options& opts,
             imagesInfo.push_back(std::move(img));
 
         } catch (const exrio::DeepReaderException& e) {
-            deep_compositor::LogError("Failed to load " + filename + ": " + e.what());
+            logError("Failed to load " + filename + ": " + e.what());
             return 1;
         } catch (const std::exception& e) {
-            deep_compositor::LogError("Unexpected error loading " + filename + ": " + e.what());
+            logError("Unexpected error loading " + filename + ": " + e.what());
             return 1;
         }
         if (!exrio::isDeepEXR(filename)) {
-            deep_compositor::LogError("File is not a deep EXR: " + filename);
+            logError("File is not a deep EXR: " + filename);
             return 1;
         }
     }
