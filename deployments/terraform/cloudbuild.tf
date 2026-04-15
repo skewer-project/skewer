@@ -68,6 +68,8 @@ resource "google_cloudbuild_trigger" "main_image_rebuild" {
   depends_on = [
     google_project_iam_member.cloudbuild_logs_writer,
     google_artifact_registry_repository_iam_member.cloudbuild_ar_writer,
+    google_cloud_run_v2_service_iam_member.cloudbuild_run_developer,
+    google_service_account_iam_member.cloudbuild_actAs_coordinator
   ]
 }
 
