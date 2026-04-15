@@ -2,22 +2,26 @@
 // Mirrors the parsing logic in skewer/src/io/scene_loader.cc.
 
 import type {
+	AnimatedTransform,
 	Camera,
 	DielectricMaterial,
 	ImageConfig,
+	InterpCurve,
+	Keyframe,
 	LambertianMaterial,
 	LayerData,
 	Material,
 	MetalMaterial,
-	ObjFileObject,
-	QuadObject,
+	NodeTransform,
+	ObjNode,
+	QuadNode,
 	RenderConfig,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneManifest,
-	SceneObject,
-	SphereObject,
-	Transform,
+	SceneNode,
+	SphereNode,
+	StaticTransform,
 	Vec3,
 } from "../types/scene";
 import { readJsonFile } from "./fs";
@@ -79,6 +83,14 @@ export function parseCamera(json: unknown): Camera {
 		vfov: num(json.vfov, "camera.vfov", 90),
 		aperture_radius: num(json.aperture_radius, "camera.aperture_radius", 0),
 		focus_distance: num(json.focus_distance, "camera.focus_distance", 1),
+		shutter_open:
+			json.shutter_open !== undefined
+				? num(json.shutter_open, "camera.shutter_open", 0)
+				: undefined,
+		shutter_close:
+			json.shutter_close !== undefined
+				? num(json.shutter_close, "camera.shutter_close", 0)
+				: undefined,
 	};
 }
 
@@ -122,85 +134,186 @@ export function parseMaterial(name: string, json: unknown): Material {
 	}
 }
 
-// --- Objects ---
+// --- Transforms ---
 
-function parseTransform(json: unknown): Transform {
-	if (!isObject(json)) throw new Error("transform: expected object");
-	const result: Transform = {};
-	if (json.translate !== undefined)
-		result.translate = parseVec3(json.translate, "transform.translate");
-	if (json.rotate !== undefined)
-		result.rotate = parseVec3(json.rotate, "transform.rotate");
-	if (json.scale !== undefined) {
-		if (typeof json.scale === "number") result.scale = json.scale;
-		else result.scale = parseVec3(json.scale, "transform.scale");
+function parseInterpCurve(v: unknown, field: string): InterpCurve {
+	if (typeof v === "string") {
+		if (
+			v === "linear" ||
+			v === "ease-in" ||
+			v === "ease-out" ||
+			v === "ease-in-out"
+		) {
+			return v;
+		}
+		throw new Error(`${field}: unknown interpolation preset "${v}"`);
 	}
-	return result;
+	if (!isObject(v))
+		throw new Error(`${field}: expected string or bezier object`);
+	if (v.bezier !== undefined) {
+		if (!Array.isArray(v.bezier) || v.bezier.length !== 4) {
+			throw new Error(`${field}.bezier: expected [x1,y1,x2,y2]`);
+		}
+		const b = v.bezier.map((x, i) => {
+			if (typeof x !== "number")
+				throw new Error(`${field}.bezier[${i}]: expected number`);
+			return x;
+		});
+		return { bezier: b as [number, number, number, number] };
+	}
+	throw new Error(
+		`${field}: expected interpolation string or { bezier: [...] }`,
+	);
 }
 
-function parseSphere(json: Record<string, unknown>): SphereObject {
+function parseKeyframe(json: unknown, field: string): Keyframe {
+	if (!isObject(json)) throw new Error(`${field}: expected object`);
+	const k: Keyframe = {
+		time: num(json.time, `${field}.time`),
+	};
+	if (json.translate !== undefined)
+		k.translate = parseVec3(json.translate, `${field}.translate`);
+	if (json.rotate !== undefined)
+		k.rotate = parseVec3(json.rotate, `${field}.rotate`);
+	if (json.scale !== undefined) {
+		if (typeof json.scale === "number") k.scale = json.scale;
+		else k.scale = parseVec3(json.scale, `${field}.scale`);
+	}
+	if (json.curve !== undefined)
+		k.curve = parseInterpCurve(json.curve, `${field}.curve`);
+	return k;
+}
+
+export function parseNodeTransform(
+	json: unknown,
+	field: string,
+): NodeTransform {
+	if (!isObject(json)) throw new Error(`${field}: expected object`);
+	if (json.keyframes !== undefined) {
+		if (!Array.isArray(json.keyframes)) {
+			throw new Error(`${field}.keyframes: expected array`);
+		}
+		if (json.keyframes.length < 1) {
+			throw new Error(`${field}.keyframes: expected at least one keyframe`);
+		}
+		const keyframes: Keyframe[] = [];
+		for (let i = 0; i < json.keyframes.length; i++) {
+			keyframes.push(
+				parseKeyframe(json.keyframes[i], `${field}.keyframes[${i}]`),
+			);
+		}
+		return { keyframes } satisfies AnimatedTransform;
+	}
+	const st: StaticTransform = {};
+	if (json.translate !== undefined)
+		st.translate = parseVec3(json.translate, `${field}.translate`);
+	if (json.rotate !== undefined)
+		st.rotate = parseVec3(json.rotate, `${field}.rotate`);
+	if (json.scale !== undefined) {
+		if (typeof json.scale === "number") st.scale = json.scale;
+		else st.scale = parseVec3(json.scale, `${field}.scale`);
+	}
+	return st;
+}
+
+function optNodeTransform(
+	json: Record<string, unknown>,
+	field: string,
+): NodeTransform | undefined {
+	if (json.transform === undefined) return undefined;
+	return parseNodeTransform(json.transform, `${field}.transform`);
+}
+
+function parseSphereLeaf(
+	json: Record<string, unknown>,
+	field: string,
+): SphereNode {
 	return {
-		type: "sphere",
-		material: str(json.material, "sphere.material"),
-		center: parseVec3(json.center, "sphere.center"),
-		radius: num(json.radius, "sphere.radius"),
+		kind: "sphere",
+		material: str(json.material, `${field}.material`),
+		center: parseVec3(json.center, `${field}.center`),
+		radius: num(json.radius, `${field}.radius`),
 		visible:
 			json.visible !== undefined
-				? bool(json.visible, "sphere.visible", true)
+				? bool(json.visible, `${field}.visible`, true)
 				: undefined,
 	};
 }
 
-function parseQuad(json: Record<string, unknown>): QuadObject {
+function parseQuadLeaf(json: Record<string, unknown>, field: string): QuadNode {
 	if (!Array.isArray(json.vertices) || json.vertices.length !== 4) {
-		throw new Error("quad.vertices: expected array of 4 points");
+		throw new Error(`${field}.vertices: expected array of 4 points`);
 	}
 	return {
-		type: "quad",
-		material: str(json.material, "quad.material"),
+		kind: "quad",
+		material: str(json.material, `${field}.material`),
 		vertices: [
-			parseVec3(json.vertices[0], "quad.vertices[0]"),
-			parseVec3(json.vertices[1], "quad.vertices[1]"),
-			parseVec3(json.vertices[2], "quad.vertices[2]"),
-			parseVec3(json.vertices[3], "quad.vertices[3]"),
+			parseVec3(json.vertices[0], `${field}.vertices[0]`),
+			parseVec3(json.vertices[1], `${field}.vertices[1]`),
+			parseVec3(json.vertices[2], `${field}.vertices[2]`),
+			parseVec3(json.vertices[3], `${field}.vertices[3]`),
 		],
 		visible:
 			json.visible !== undefined
-				? bool(json.visible, "quad.visible", true)
+				? bool(json.visible, `${field}.visible`, true)
 				: undefined,
 	};
 }
 
-function parseObjFile(json: Record<string, unknown>): ObjFileObject {
+function parseObjLeaf(
+	json: Record<string, unknown>,
+	field: string,
+): Omit<ObjNode, "transform"> {
 	return {
-		type: "obj",
-		file: str(json.file, "obj.file"),
+		kind: "obj",
+		file: str(json.file, `${field}.file`),
 		material: optStr(json.material),
 		auto_fit:
 			json.auto_fit !== undefined
-				? bool(json.auto_fit, "obj.auto_fit", true)
+				? bool(json.auto_fit, `${field}.auto_fit`, true)
 				: undefined,
 		visible:
 			json.visible !== undefined
-				? bool(json.visible, "obj.visible", true)
+				? bool(json.visible, `${field}.visible`, true)
 				: undefined,
-		transform:
-			json.transform !== undefined ? parseTransform(json.transform) : undefined,
 	};
 }
 
-export function parseObject(json: unknown, index: number): SceneObject {
-	if (!isObject(json)) throw new Error(`objects[${index}]: expected object`);
-	const type = str(json.type, `objects[${index}].type`);
+export function parseGraphNode(json: unknown, field: string): SceneNode {
+	if (!isObject(json)) throw new Error(`${field}: expected object`);
+
+	const name = optStr(json.name);
+	const transform = optNodeTransform(json, field);
+
+	const attachBase = <N extends SceneNode>(n: N): N => {
+		if (name !== undefined) n.name = name;
+		if (transform !== undefined) n.transform = transform;
+		return n;
+	};
+
+	if (json.children !== undefined) {
+		if (!Array.isArray(json.children)) {
+			throw new Error(`${field}.children: expected array`);
+		}
+		const children: SceneNode[] = [];
+		for (let i = 0; i < json.children.length; i++) {
+			children.push(
+				parseGraphNode(json.children[i], `${field}.children[${i}]`),
+			);
+		}
+		return attachBase({ kind: "group", children });
+	}
+
+	const type = str(json.type, `${field}.type`);
 	switch (type) {
 		case "sphere":
-			return parseSphere(json);
+			return attachBase(parseSphereLeaf(json, field));
 		case "quad":
-			return parseQuad(json);
+			return attachBase(parseQuadLeaf(json, field));
 		case "obj":
-			return parseObjFile(json);
+			return attachBase({ ...parseObjLeaf(json, field) } as ObjNode);
 		default:
-			throw new Error(`objects[${index}]: unknown type "${type}"`);
+			throw new Error(`${field}: unknown node type "${type}"`);
 	}
 }
 
@@ -218,7 +331,7 @@ function parseImageConfig(json: unknown): ImageConfig {
 
 function parseRenderConfig(json: unknown): RenderConfig {
 	if (!isObject(json)) throw new Error("render: expected object");
-	const maxSamples = json.max_samples ?? json.samples_per_pixel; // legacy alias
+	const maxSamples = json.max_samples ?? json.samples_per_pixel;
 	return {
 		integrator: json.integrator === "normals" ? "normals" : "path_trace",
 		max_samples: num(maxSamples, "render.max_samples", 200),
@@ -269,6 +382,15 @@ function parseRenderConfig(json: unknown): RenderConfig {
 export function parseLayerData(json: unknown): LayerData {
 	if (!isObject(json)) throw new Error("layer: expected object");
 
+	if (json.objects !== undefined) {
+		throw new Error(
+			"Layer must use 'graph' format — scene needs migration (found legacy \"objects\" field)",
+		);
+	}
+	if (!Array.isArray(json.graph)) {
+		throw new Error("layer.graph: expected array");
+	}
+
 	const materials: Record<string, Material> = {};
 	if (json.materials !== undefined) {
 		if (!isObject(json.materials))
@@ -278,18 +400,14 @@ export function parseLayerData(json: unknown): LayerData {
 		}
 	}
 
-	const objects: SceneObject[] = [];
-	if (json.objects !== undefined) {
-		if (!Array.isArray(json.objects))
-			throw new Error("layer.objects: expected array");
-		for (let i = 0; i < json.objects.length; i++) {
-			objects.push(parseObject(json.objects[i], i));
-		}
+	const graph: SceneNode[] = [];
+	for (let i = 0; i < json.graph.length; i++) {
+		graph.push(parseGraphNode(json.graph[i], `graph[${i}]`));
 	}
 
 	return {
 		materials,
-		objects,
+		graph,
 		render:
 			json.render !== undefined ? parseRenderConfig(json.render) : undefined,
 		visible:
@@ -301,7 +419,6 @@ export function parseLayerData(json: unknown): LayerData {
 
 // --- scene.json manifest ---
 
-// Parses scene.json manifest and validates required fields.
 export function parseSceneManifest(json: unknown): SceneManifest {
 	if (!isObject(json)) throw new Error("scene.json: expected object");
 	if (!json.camera)
@@ -326,7 +443,6 @@ export function parseSceneManifest(json: unknown): SceneManifest {
 
 // --- Scene loading orchestrator ---
 
-// Loads scene.json plus layer/context files into a resolved scene.
 export async function loadScene(
 	dir: FileSystemDirectoryHandle,
 ): Promise<ResolvedScene> {
