@@ -44,3 +44,15 @@ endif()
 if(SKEWER_COMBINED_BUILD_SKEWER)
     add_subdirectory(skewer)
 endif()
+
+# FetchContent deps (e.g. googletest) inherit directory compile options including -Werror.
+# Do not treat their warnings as build failures.
+if(BUILD_TESTING)
+    foreach(_skewer_3p_tgt IN ITEMS gtest gtest_main gmock gmock_main)
+        if(TARGET ${_skewer_3p_tgt})
+            if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+                target_compile_options(${_skewer_3p_tgt} PRIVATE -Wno-error)
+            endif()
+        endif()
+    endforeach()
+endif()

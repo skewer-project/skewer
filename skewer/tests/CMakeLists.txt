@@ -15,6 +15,8 @@ set(TEST_SOURCES
 add_executable(unit_tests
     unit/test_image_io.cc
     unit/test_film_alpha.cc
+    unit/test_quat.cc
+    unit/test_trs.cc
     ${TEST_SOURCES}
 )
 
