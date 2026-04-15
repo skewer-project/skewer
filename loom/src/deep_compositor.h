@@ -2,11 +2,11 @@
 #define LOOM_SRC_DEEP_COMPOSITOR_H
 
 #include <exrio/deep_image.h>
+#include <exrio/deep_stream_reader.h>
 
 #include <memory>
 #include <vector>
 
-#include "deep_info.h"
 #include "deep_options.h"
 
 namespace deep_compositor {
@@ -37,7 +37,7 @@ struct CompositorOptions {
  */
 
 std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
-                                 std::vector<std::unique_ptr<DeepInfo>>& imagesInfo);
+                                 std::vector<std::unique_ptr<exrio::DeepStreamReader>>& imagesInfo);
 
 // DeepImage deepMerge(const std::vector<DeepImage>& inputs,
 //                     const CompositorOptions& options = CompositorOptions(),

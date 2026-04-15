@@ -9,7 +9,6 @@
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
-#include "deep_info.h"
 #include "deep_options.h"
 #include "utils.h"
 
@@ -169,14 +168,14 @@ int main(int argc, char* argv[]) {
     Log("Loading inputs...");
     Timer loadTimer;
 
-    std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
+    std::vector<std::unique_ptr<exrio::DeepStreamReader>> imagesInfo;
 
     for (size_t i = 0; i < opts.input_files.size(); ++i) {
         const std::string& filename = opts.input_files[i];
 
         LogVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.input_files.size()) +
                    "] " + filename);
-        printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
+        printf("Psreloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
         try {
             // Check if it's a deep EXR
             if (!exrio::isDeepEXR(filename)) {
@@ -184,19 +183,19 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            auto img = std::make_unique<DeepInfo>(filename);
+            auto img = std::make_unique<exrio::DeepStreamReader>(filename);
             // Log statistics
             std::string stats =
-                "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
+                "    " + std::to_string(img->getWidth()) + "x" + std::to_string(img->getHeight());
             LogVerbose(stats);
             if (!imagesInfo.empty()) {
-                if (img->width() != imagesInfo[0]->width() ||
-                    img->height() != imagesInfo[0]->height()) {
+                if (img->getWidth() != imagesInfo[0]->getWidth() ||
+                    img->getHeight() != imagesInfo[0]->getHeight()) {
                     LogError("Image dimensions mismatch: " + filename);
-                    LogError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
-                             std::to_string(imagesInfo[0]->height()));
-                    LogError("  Got: " + std::to_string(img->width()) + "x" +
-                             std::to_string(img->height()));
+                    LogError("  Expected: " + std::to_string(imagesInfo[0]->getWidth()) + "x" +
+                             std::to_string(imagesInfo[0]->getHeight()));
+                    LogError("  Got: " + std::to_string(img->getWidth()) + "x" +
+                             std::to_string(img->getHeight()));
                     return 1;
                 }
             }
@@ -215,8 +214,8 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
-    int height = imagesInfo[0]->height();
-    int width = imagesInfo[0]->width();
+    int height = imagesInfo[0]->getHeight();
+    int width = imagesInfo[0]->getWidth();
 
     Log("Starting processing...");
     std::vector<float> finalImage = ProcessAllEXR(opts, height, width, imagesInfo);

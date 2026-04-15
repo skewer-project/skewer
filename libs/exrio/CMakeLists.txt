@@ -14,6 +14,8 @@ add_library(exrio STATIC
     src/deep_image.cc
     src/deep_reader.cc
     src/deep_writer.cc
+    src/deep_row.cc
+    src/deep_stream_reader.cc
     src/utils.cc
 )
 

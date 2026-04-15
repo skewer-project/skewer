@@ -3,8 +3,7 @@
 
 #include <utility>
 #include <vector>
-
-#include "deep_row.h"
+#include <exrio/deep_row.h>
 
 struct RawSample {
     float r, g, b, a, z, z_back;
@@ -29,12 +28,12 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit);
 // output row. Each input file may have a z-depth offset applied to its samples.
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
-                              const std::vector<float>& zOffsets, DeepRow& outputRow,
+                              const std::vector<float>& zOffsets, exrio::DeepRow& outputRow,
                               float merge_threshold = 0.001f);
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
-                                 const std::vector<float>& zOffsets, DeepRow& outputRow,
+                                 const std::vector<float>& zOffsets, exrio::DeepRow& outputRow,
                                  float merge_threshold = 0.001f);
 
 #endif  // LOOM_SRC_DEEP_MERGER_H

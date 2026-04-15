@@ -1,13 +1,13 @@
 #include "composite_pipeline.h"
 
 #include <exrio/deep_reader.h>
+#include <exrio/deep_stream_reader.h>
 #include <exrio/deep_writer.h>
 #include <exrio/utils.h>
 
 #include <stdexcept>
 #include <string>
 
-#include "deep_info.h"
 #include "utils.h"
 
 namespace exrio {
@@ -47,7 +47,7 @@ void WriteFlatOutputs(const std::vector<float>& flatRgba, const std::string& out
 }
 
 int SaveImageInfo(const Options& opts,
-                  std::vector<std::unique_ptr<deep_compositor::DeepInfo>>& imagesInfo) {
+                  std::vector<std::unique_ptr<exrio::DeepStreamReader>>& imagesInfo) {
     for (size_t i = 0; i < opts.input_files.size(); ++i) {
         const std::string& filename = opts.input_files[i];
 
@@ -61,20 +61,20 @@ int SaveImageInfo(const Options& opts,
                 return 1;
             }
 
-            auto img = std::make_unique<deep_compositor::DeepInfo>(filename);
+            auto img = std::make_unique<exrio::DeepStreamReader>(filename);
             // Log statistics
             std::string stats =
-                "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
+                "    " + std::to_string(img->getWidth()) + "x" + std::to_string(img->getHeight());
             deep_compositor::LogVerbose(stats);
             if (!imagesInfo.empty()) {
-                if (img->width() != imagesInfo[0]->width() ||
-                    img->height() != imagesInfo[0]->height()) {
+                if (img->getWidth() != imagesInfo[0]->getWidth() ||
+                    img->getHeight() != imagesInfo[0]->getHeight()) {
                     deep_compositor::LogError("Image dimensions mismatch: " + filename);
                     deep_compositor::LogError(
-                        "  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
-                        std::to_string(imagesInfo[0]->height()));
-                    deep_compositor::LogError("  Got: " + std::to_string(img->width()) + "x" +
-                                              std::to_string(img->height()));
+                        "  Expected: " + std::to_string(imagesInfo[0]->getWidth()) + "x" +
+                        std::to_string(imagesInfo[0]->getHeight()));
+                    deep_compositor::LogError("  Got: " + std::to_string(img->getWidth()) + "x" +
+                                              std::to_string(img->getHeight()));
                     return 1;
                 }
             }

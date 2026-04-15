@@ -1,11 +1,31 @@
-#ifndef LOOM_SRC_DEEP_ROW_H
-#define LOOM_SRC_DEEP_ROW_H
+#ifndef EXRIO_DEEP_ROW_H
+#define EXRIO_DEEP_ROW_H
 
 #include <memory>
 #include <vector>
 
-// A single row's worth of deep data for one file
-struct DeepRow {
+namespace exrio {
+
+/**
+ * A single row's worth of deep data with efficient flat storage
+ *
+ * Stores sample data in a contiguous block optimized for streaming I/O:
+ * - 6 floats per sample: R, G, B, A, Z (front depth), ZBack (back depth for volumes)
+ * - All samples laid out sequentially for cache efficiency
+ * - Per-pixel sample counts and offsets enable rapid random pixel access
+ *
+ * Memory layout:
+ *   all_samples buffer: [sample0_R, sample0_G, ..., sample0_ZBack, sample1_R, ...]
+ *   sample_offsets[x]: byte offset into all_samples where pixel x's samples begin
+ *   sample_counts[x]: number of samples for pixel x
+ *
+ * Typical usage in streaming pipelines:
+ *   1. Call Allocate(width, sample_counts_array) to initialize
+ *   2. Access pixel data via GetPixelData(x) or GetSampleData(x, n)
+ *   3. Call Clear() when done to deallocate
+ */
+class DeepRow {
+  public:
     // Using the "One big block" optimization to avoid fragmentation
     std::unique_ptr<float[]> all_samples = nullptr;
     int width = 0;
@@ -46,6 +66,8 @@ struct DeepRow {
     }
 
     // Normal Allocate given a size
+    // Initializes a row with max capacity; actual sample counts set to 0.
+    // Used when max capacity is known but actual counts may vary.
     void Allocate(size_t width, int max_samples) {
         this->width = width;
         sample_counts.assign(width, 0);
@@ -59,6 +81,8 @@ struct DeepRow {
     }
 
     // Allocate full block based on actual sample counts for the row
+    // Initializes offsets and total_samples based on the provided per-pixel counts.
+    // Used for allocating exactly what's needed (no wasted space).
     void Allocate(size_t width, const unsigned int* counts) {
         this->width = width;
         sample_counts.assign(counts, counts + width);
@@ -74,20 +98,48 @@ struct DeepRow {
         current_capacity = required;
     }
 
-    // Get pointer to the nth sample of pixel x
+    /**
+     * Get pointer to the nth sample of pixel x
+     * @param x Pixel x coordinate (0 to width-1)
+     * @param n Sample index (0 to sample_counts[x]-1)
+     * @return Pointer to sample data (6 floats: R,G,B,A,Z,ZBack) or nullptr if out of bounds
+     */
     float* GetSampleData(int x, int n) const {
         if (n >= static_cast<int>(sample_counts[x])) return nullptr;
         return all_samples.get() + (sample_offsets[x] + n) * 6;
     }
 
-    const float* GetPixelData(int x) const { return all_samples.get() + sample_offsets[x] * 6; }
+    /**
+     * Get pointer to all sample data for pixel x (read-only)
+     * @param x Pixel x coordinate (0 to width-1)
+     * @return Pointer to first sample of pixel x (6*sample_counts[x] floats total)
+     */
+    const float* GetPixelData(int x) const {
+        return all_samples.get() + sample_offsets[x] * 6;
+    }
 
-    // Non-const version for writing
-    float* GetPixelData(int x) { return all_samples.get() + sample_offsets[x] * 6; }
+    /**
+     * Get pointer to all sample data for pixel x (writable)
+     * @param x Pixel x coordinate (0 to width-1)
+     * @return Pointer to first sample of pixel x (6*sample_counts[x] floats total)
+     */
+    float* GetPixelData(int x) {
+        return all_samples.get() + sample_offsets[x] * 6;
+    }
 
-    unsigned int GetSampleCount(int x) const { return sample_counts[x]; }
+    /**
+     * Get the number of samples for a given pixel
+     * @param x Pixel x coordinate (0 to width-1)
+     * @return Sample count for pixel x
+     */
+    unsigned int GetSampleCount(int x) const {
+        return sample_counts[x];
+    }
 
-    // Cleanup
+    /**
+     * Cleanup and deallocate all sample data
+     * After calling Clear(), all pointers obtained via GetPixelData/GetSampleData are invalid.
+     */
     void Clear() {
         all_samples.reset();  // Safe memory delete
         sample_counts.clear();
@@ -97,6 +149,7 @@ struct DeepRow {
         current_capacity = 0;
     }
 
+    // Copy not allowed (inefficient for large buffers)
     DeepRow(const DeepRow&) = delete;
     DeepRow& operator=(const DeepRow&) = delete;
 
@@ -111,7 +164,16 @@ struct DeepRow {
     }
 };
 
-// Converts a row of deep data into a flattened RGBA image row
+/**
+ * Converts a row of deep data into a flattened RGBA image row
+ *
+ * Composites all deep samples in a row using front-to-back alpha blending:
+ * - For each pixel: blend samples back to front, early-out at ~1.0 alpha
+ * - Output layout: [x0_R, x0_G, x0_B, x0_A, x1_R, x1_G, x1_B, x1_A, ...]
+ *
+ * @param deepRow Input deep row with samples in R,G,B,A,Z,ZBack format
+ * @param rgbaOutput Output buffer (resized if needed to width*4 floats)
+ */
 inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
     size_t required = static_cast<size_t>(deepRow.width) * 4;
     if (rgbaOutput.size() < required) {
@@ -131,13 +193,15 @@ inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
             float b = sPtr[2];
             float a = sPtr[3];
 
-            // Standard Front-to-Back "Over"
+            // Standard Front-to-Back "Over" compositing
+            // weight = (1 - accumulated_alpha) controls contribution of this sample
             float weight = (1.0f - accA);
             accR += r * weight;
             accG += g * weight;
             accB += b * weight;
             accA += a * weight;
 
+            // Early exit: pixel is opaque
             if (accA >= 0.999f) break;
         }
 
@@ -151,4 +215,6 @@ inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
     }
 }
 
-#endif  // LOOM_SRC_DEEP_ROW_H
+}  // namespace exrio
+
+#endif  // EXRIO_DEEP_ROW_H

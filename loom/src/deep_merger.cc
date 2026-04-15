@@ -83,7 +83,7 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
 
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
-                              const std::vector<float>& zOffsets, DeepRow& outputRow,
+                              const std::vector<float>& zOffsets, exrio::DeepRow& outputRow,
                               float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     // We reuse this vector across pixels to avoid re-allocation
@@ -164,7 +164,7 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
-                                 const std::vector<float>& zOffsets, DeepRow& outputRow,
+                                 const std::vector<float>& zOffsets, exrio::DeepRow& outputRow,
                                  float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     static thread_local std::vector<RawSample> staging;
