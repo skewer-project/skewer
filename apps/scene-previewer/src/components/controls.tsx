@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Vec3 } from "../types/scene";
 
 // ── NumberField ─────────────────────────────────────────────
@@ -14,7 +14,7 @@ interface NumberFieldProps {
 	inline?: boolean;
 }
 
-export function NumberField({
+export const NumberField = memo(function NumberField({
 	label,
 	value,
 	onChange,
@@ -154,7 +154,7 @@ export function NumberField({
 			{input}
 		</div>
 	);
-}
+});
 
 // ── Vec3Field ───────────────────────────────────────────────
 
@@ -168,7 +168,7 @@ interface Vec3FieldProps {
 	step?: number;
 }
 
-export function Vec3Field({
+export const Vec3Field = memo(function Vec3Field({
 	label,
 	value,
 	onChange,
@@ -218,7 +218,7 @@ export function Vec3Field({
 			))}
 		</div>
 	);
-}
+});
 
 // ── Toggle ──────────────────────────────────────────────────
 
@@ -228,7 +228,11 @@ interface ToggleProps {
 	onChange: (v: boolean) => void;
 }
 
-export function Toggle({ label, value, onChange }: ToggleProps) {
+export const Toggle = memo(function Toggle({
+	label,
+	value,
+	onChange,
+}: ToggleProps) {
 	return (
 		<div className="kv-row">
 			<span className="kv-key">{label}</span>
@@ -241,7 +245,7 @@ export function Toggle({ label, value, onChange }: ToggleProps) {
 			</button>
 		</div>
 	);
-}
+});
 
 // ── MaterialDropdown ────────────────────────────────────────
 
@@ -252,7 +256,7 @@ interface MaterialDropdownProps {
 	onChange: (name: string) => void;
 }
 
-export function MaterialDropdown({
+export const MaterialDropdown = memo(function MaterialDropdown({
 	label,
 	value,
 	options,
@@ -274,4 +278,4 @@ export function MaterialDropdown({
 			</select>
 		</div>
 	);
-}
+});
