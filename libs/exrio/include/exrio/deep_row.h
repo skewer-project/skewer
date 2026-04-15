@@ -179,13 +179,14 @@ inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
     if (rgbaOutput.size() < required) {
         rgbaOutput.resize(required);
     }
-    const float* pixel_data = deepRow.all_samples.get();
+
     for (int x = 0; x < deepRow.width; ++x) {
-        int num_samples = deepRow.sample_counts[x];
+        unsigned int num_samples = deepRow.sample_counts[x];
+        const float* pixel_data = deepRow.all_samples.get() + deepRow.sample_offsets[x] * 6;
 
         float accR = 0, accG = 0, accB = 0, accA = 0;
 
-        for (int s = 0; s < num_samples; ++s) {
+        for (unsigned int s = 0; s < num_samples; ++s) {
             const float* sPtr = pixel_data + (s * 6);
 
             float r = sPtr[0];
@@ -210,8 +211,6 @@ inline void FlattenRow(const DeepRow& deepRow, std::vector<float>& rgbaOutput) {
         rgbaOutput[x * 4 + 1] = accG;
         rgbaOutput[x * 4 + 2] = accB;
         rgbaOutput[x * 4 + 3] = accA;
-
-        pixel_data += num_samples * 6;
     }
 }
 
