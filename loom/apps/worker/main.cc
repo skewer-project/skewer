@@ -1,225 +1,103 @@
-#include <grpcpp/grpcpp.h>
-
-#include <atomic>
-#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <random>
+#include <sstream>
 #include <string>
-#include <thread>
+#include <vector>
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
 #include "deep_info.h"
-#include "proto/coordinator/v1/coordinator.grpc.pb.h"
-#include "proto/coordinator/v1/coordinator.pb.h"
 
-struct HeartbeatGuard {
-    std::atomic<bool>& active;
-    std::thread& th;
-    ~HeartbeatGuard() {
-        active.store(false);
-        if (th.joinable()) {
-            th.join();
+// RunBatchMode composites a single frame as a Cloud Batch task.
+//
+// Required env vars (set by Cloud Workflows + Cloud Batch):
+//   BATCH_TASK_INDEX     — 0-based frame index (set automatically by Cloud Batch)
+//   LAYER_URI_PREFIXES   — comma-separated GCS FUSE paths for each rendered layer
+//   OUTPUT_URI_PREFIX    — GCS FUSE output directory for composited frames
+static int RunBatchMode() {
+    const char* task_index_str = std::getenv("BATCH_TASK_INDEX");
+    const char* layer_prefixes_env = std::getenv("LAYER_URI_PREFIXES");
+    const char* output_prefix_env = std::getenv("OUTPUT_URI_PREFIX");
+
+    if (!task_index_str || !layer_prefixes_env || !output_prefix_env) {
+        std::cerr << "[LOOM BATCH]: Missing required env vars (BATCH_TASK_INDEX, "
+                     "LAYER_URI_PREFIXES, OUTPUT_URI_PREFIX)\n";
+        return 1;
+    }
+
+    int frame = std::atoi(task_index_str) + 1;  // BATCH_TASK_INDEX is 0-based; frames are 1-based
+    char frame_str[8];
+    std::snprintf(frame_str, sizeof(frame_str), "%04d", frame);
+
+    // Build per-frame input file list from comma-separated layer prefixes
+    std::vector<std::string> input_files;
+    {
+        std::istringstream ss(layer_prefixes_env);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            if (token.empty()) continue;
+            if (token.back() != '/') token += '/';
+            input_files.push_back(token + "frame-" + frame_str + ".exr");
         }
     }
-};
 
-using api::proto::coordinator::v1::CompositeTask;
-using api::proto::coordinator::v1::CoordinatorService;
-using api::proto::coordinator::v1::GetWorkStreamRequest;
-using api::proto::coordinator::v1::ReportTaskProgressRequest;
-using api::proto::coordinator::v1::ReportTaskProgressResponse;
-using api::proto::coordinator::v1::ReportTaskResultRequest;
-using api::proto::coordinator::v1::ReportTaskResultResponse;
-using api::proto::coordinator::v1::GetWorkStreamResponse;
-using grpc::Channel;
-using grpc::ClientContext;
-using grpc::ClientReader;
-using grpc::Status;
-
-// Starts the loom worker loop.
-void RunLoomWorker(const std::string& coordinator_addr) {
-    // Generate a unique worker ID with time epoch and mersenne twister engine
-    std::random_device rd;  // workers may spawn in same millisecond so epoch alone is not enough
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(1000, 9999);
-
-    std::string worker_id =
-        "loom-worker-" +
-        std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + "-" +
-        std::to_string(dis(gen));
-
-    std::cout << "[LOOM]: Starting worker loop, ID: " << worker_id << "\n";
-    std::cout << "[LOOM]: Coordinator Address: " << coordinator_addr << "\n";
-
-    // Open a channel to the coordinator
-    std::shared_ptr<Channel> channel =
-        grpc::CreateChannel(coordinator_addr, grpc::InsecureChannelCredentials());
-    std::unique_ptr<CoordinatorService::Stub> stub = CoordinatorService::NewStub(channel);
-
-    // Cooldown timer before acquiring stream again on retry
-    int backoff_ms = 100;
-    const int max_backoff_ms = 30000;  // 30 seconds max
-
-    // Main registration loop with coordiantor
-    while (true) {
-        ClientContext context;
-        GetWorkStreamRequest request;
-        request.set_worker_id(worker_id);
-        request.add_capabilities("loom");
-
-        std::unique_ptr<ClientReader<GetWorkStreamResponse>> stream(stub->GetWorkStream(&context, request));
-
-        // Loop to read work packages from the coordinator
-        GetWorkStreamResponse package;
-        while (stream->Read(&package)) {
-            bool success = true;
-            std::string error_message = "";
-            std::string output_uri = "";
-
-            try {
-                if (package.has_composite_task()) {
-                    const CompositeTask& task = package.composite_task();
-                    output_uri = task.output_uri();
-                    std::cout << "[LOOM]: Starting CompositeTask: " << package.task_id()
-                              << " for frame " << package.frame_id() << "\n";
-
-                    // Load Phase
-                    std::vector<std::string> inputFiles(task.layer_uris().begin(),
-                                                        task.layer_uris().end());
-
-                    std::cout << "[Loom] -> Composite Inputs (" << inputFiles.size()
-                              << " files):\n";
-                    for (const auto& uri : inputFiles) {
-                        std::cout << "  - " << uri << "\n";
-                    }
-
-                    std::vector<float> z_offsets(inputFiles.size() > 1 ? inputFiles.size() - 1 : 0,
-                                                 0.0f);
-                    Options opts = {
-                        inputFiles,
-                        z_offsets,
-                        "",  // coordinator handles output prefixing and parsing
-                    };
-
-                    // Populate image info using opts
-                    std::vector<std::unique_ptr<deep_compositor::DeepInfo>> imagesInfo;
-                    int success = exrio::SaveImageInfo(opts, imagesInfo);
-                    if (success == 1) {
-                        std::cerr << "[Loom] Error: Failed to load worker options\n";
-                        continue;
-                    }
-
-                    // Process and write image in different formats
-                    std::cout << "[Loom] -> Writing result to: " << output_uri << "\n";
-
-                    // 1) Spawn heartbeat thread before expensive compositing begins
-                    std::atomic<bool> heartbeat_active(true);
-                    std::thread heartbeat_thread([&]() {
-                        while (heartbeat_active.load()) {
-                            for (int i = 0; i < 30;
-                                 ++i) {  // Sleep for 30s but check exit condition every second
-                                if (!heartbeat_active.load()) return;
-                                std::this_thread::sleep_for(std::chrono::seconds(1));
-                            }
-
-                            ClientContext hb_context;
-                            ReportTaskProgressRequest hb_req;
-                            hb_req.set_task_id(package.task_id());
-                            hb_req.set_worker_id(worker_id);
-                            hb_req.set_progress_percent(
-                                0.0);  // Polling real progress can go here later
-
-                            ReportTaskProgressResponse hb_res;
-                            stub->ReportTaskProgress(&hb_context, hb_req, &hb_res);
-                        }
-                    });
-                    HeartbeatGuard hb_guard{heartbeat_active, heartbeat_thread};
-
-                    int real_width = task.width();
-                    int real_height = task.height();
-                    if ((real_width == 0 || real_height == 0) && !imagesInfo.empty()) {
-                        real_width = imagesInfo[0]->width();
-                        real_height = imagesInfo[0]->height();
-                    }
-
-                    // Write deep EXR (handles if deep output is wanted)
-                    std::vector<float> finalImage =
-                        deep_compositor::ProcessAllEXR(opts, real_height, real_width, imagesInfo);
-                    // Writes flat outputs if needed
-                    exrio::WriteFlatOutputs(finalImage, output_uri, opts.flat_output,
-                                            opts.png_output, real_width, real_height);
-
-                    std::cout << "[Loom] -> Engine Composite execution completed.\n";
-
-                } else {
-                    std::cerr << "[LOOM]: Error: Received unsupported task type. Ignoring.\n";
-                    continue;
-                }
-            } catch (const std::exception& e) {
-                success = false;
-                error_message = e.what();
-                std::cerr << "[LOOM]: Task computation failed: " << error_message << "\n";
-            }
-
-            // Report the result
-            ClientContext report_context;
-
-            // Fail fast if the coordinator doesn't acknowledge within 10 seconds
-            std::chrono::system_clock::time_point deadline =
-                std::chrono::system_clock::now() + std::chrono::seconds(10);
-            report_context.set_deadline(deadline);
-
-            ReportTaskResultRequest report_req;
-            report_req.set_task_id(package.task_id());
-            report_req.set_job_id(package.job_id());
-            report_req.set_worker_id(worker_id);
-            report_req.set_success(success);
-            report_req.set_error_message(error_message);
-            report_req.set_output_uri(output_uri);
-
-            ReportTaskResultResponse report_res;
-            Status report_status = stub->ReportTaskResult(&report_context, report_req, &report_res);
-            if (!report_status.ok()) {
-                std::cerr << "[LOOM]: Failed to report task result: "
-                          << report_status.error_message() << "\n";
-            } else {
-                std::cout << "[LOOM]: Task " << package.task_id()
-                          << " result reported successfully.\n";
-            }
-        }
-
-        // If we get here, the stream closed (either coordinator shut it down, or a network error)
-        grpc::Status status = stream->Finish();
-        if (!status.ok()) {
-            std::cerr << "[LOOM]: Stream failed: " << status.error_message() << ". Retrying in "
-                      << backoff_ms << "ms...\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
-
-            backoff_ms *= 2;
-            if (backoff_ms > max_backoff_ms) {
-                backoff_ms = max_backoff_ms;
-            }
-
-        } else {
-            // Stream closed normally (Coordinator intentionally hung up after assigning a task)
-            // Reset backoff and immediately reconnect to ask for more work.
-            backoff_ms = 100;
-        }
+    if (input_files.empty()) {
+        std::cerr << "[LOOM BATCH]: No input files derived from LAYER_URI_PREFIXES\n";
+        return 1;
     }
+
+    std::string output_prefix = output_prefix_env;
+    if (!output_prefix.empty() && output_prefix.back() != '/') output_prefix += '/';
+    std::string output_path = output_prefix + "frame-" + frame_str + ".exr";
+
+    std::cout << "[LOOM BATCH]: Frame " << frame << " | " << input_files.size()
+              << " layers | output: " << output_path << "\n";
+    for (const auto& f : input_files) {
+        std::cout << "[LOOM BATCH]:   layer: " << f << "\n";
+    }
+
+    try {
+        std::vector<float> z_offsets(input_files.size() > 1 ? input_files.size() - 1 : 0, 0.0f);
+        Options opts{input_files, z_offsets, ""};
+
+        std::vector<std::unique_ptr<deep_compositor::DeepInfo>> imagesInfo;
+        if (exrio::SaveImageInfo(opts, imagesInfo) == 1) {
+            std::cerr << "[LOOM BATCH]: Failed to load image info\n";
+            return 1;
+        }
+
+        int width = 0, height = 0;
+        if (!imagesInfo.empty()) {
+            width = imagesInfo[0]->width();
+            height = imagesInfo[0]->height();
+        }
+
+        std::vector<float> flat_image =
+            deep_compositor::ProcessAllEXR(opts, height, width, imagesInfo);
+        exrio::WriteFlatOutputs(flat_image, output_path, /*flatOutput=*/true, /*pngOutput=*/true,
+                                width, height);
+
+        std::cout << "[LOOM BATCH]: Composite complete: " << output_path << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "[LOOM BATCH]: Composite failed: " << e.what() << "\n";
+        return 1;
+    }
+
+    return 0;
 }
 
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
-    // Determine coordinator address
-    std::string coordinator_addr = "localhost:50051";
-    if (const char* env_addr = std::getenv("COORDINATOR_ADDR")) {
-        coordinator_addr = env_addr;
+
+    // Cloud Batch sets BATCH_TASK_INDEX on every task VM.
+    if (!std::getenv("BATCH_TASK_INDEX")) {
+        std::cerr << "[LOOM BATCH]: BATCH_TASK_INDEX not set. "
+                     "This binary runs as a Cloud Batch task only.\n";
+        return 1;
     }
 
-    RunLoomWorker(coordinator_addr);
-    return 0;
+    return RunBatchMode();
 }

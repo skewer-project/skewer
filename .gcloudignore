@@ -1,0 +1,15 @@
+# Inherit all rules from .gitignore
+#!include:.gitignore
+
+# IDE configs not in .gitignore
+.cursor/
+
+# Docs and scripts — not needed in Docker build context
+docs/
+scripts/
+
+# Frontend app — not part of any Docker image
+apps/scene-previewer/
+
+# Node modules (may exist locally even if not committed)
+node_modules/
