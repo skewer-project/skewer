@@ -12,11 +12,15 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      GIT_LFS_SKIP_SMUDGE: "1"
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
+
+      - name: Fetch required LFS header
+        run: |
+          git lfs fetch --include="skewer/external/srgb_spec_data.h"
+          git lfs checkout
 
       - name: Install build tools
         run: |
