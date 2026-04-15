@@ -12,6 +12,9 @@ export interface Camera {
 	vfov: number;
 	aperture_radius: number;
 	focus_distance: number;
+	/** Motion blur shutter (default 0). */
+	shutter_open?: number;
+	shutter_close?: number;
 }
 
 // --- Materials ---
@@ -43,39 +46,77 @@ export interface DielectricMaterial extends MaterialBase {
 
 export type Material = LambertianMaterial | MetalMaterial | DielectricMaterial;
 
-// --- Objects ---
+// --- Transforms ---
 
-export interface Transform {
+export type InterpCurve =
+	| "linear"
+	| "ease-in"
+	| "ease-out"
+	| "ease-in-out"
+	| { bezier: [number, number, number, number] };
+
+export interface Keyframe {
+	time: number;
 	translate?: Vec3;
-	rotate?: Vec3; // degrees, applied YXZ order
+	rotate?: Vec3;
+	scale?: number | Vec3;
+	curve?: InterpCurve;
+}
+
+export interface StaticTransform {
+	translate?: Vec3;
+	rotate?: Vec3;
 	scale?: number | Vec3;
 }
 
-export interface SphereObject {
-	type: "sphere";
+export interface AnimatedTransform {
+	keyframes: Keyframe[];
+}
+
+export type NodeTransform = StaticTransform | AnimatedTransform;
+
+export function isAnimated(
+	t: NodeTransform | undefined,
+): t is AnimatedTransform {
+	return t !== undefined && Array.isArray((t as AnimatedTransform).keyframes);
+}
+
+// --- Graph nodes (JSON uses `type` on leaves; we use `kind` in TS) ---
+
+interface NodeBase {
+	name?: string;
+	transform?: NodeTransform;
+}
+
+export interface GroupNode extends NodeBase {
+	kind: "group";
+	children: SceneNode[];
+}
+
+export interface SphereNode extends NodeBase {
+	kind: "sphere";
 	material: string;
 	center: Vec3;
 	radius: number;
 	visible?: boolean;
 }
 
-export interface QuadObject {
-	type: "quad";
+export interface QuadNode extends NodeBase {
+	kind: "quad";
 	material: string;
 	vertices: [Vec3, Vec3, Vec3, Vec3];
 	visible?: boolean;
 }
 
-export interface ObjFileObject {
-	type: "obj";
+export interface ObjNode extends NodeBase {
+	kind: "obj";
 	file: string;
 	material?: string;
 	auto_fit?: boolean;
 	visible?: boolean;
-	transform?: Transform;
 }
 
-export type SceneObject = SphereObject | QuadObject | ObjFileObject;
+export type SceneNode = GroupNode | SphereNode | QuadNode | ObjNode;
 
 // --- Render settings ---
 
@@ -106,7 +147,7 @@ export interface RenderConfig {
 
 export interface LayerData {
 	materials: Record<string, Material>;
-	objects: SceneObject[];
+	graph: SceneNode[];
 	render?: RenderConfig;
 	visible?: boolean;
 }
@@ -115,16 +156,16 @@ export interface LayerData {
 
 export interface SceneManifest {
 	camera: Camera;
-	context: string[]; // relative paths to context JSON files
-	layers: string[]; // relative paths to layer JSON files
+	context: string[];
+	layers: string[];
 	output_dir: string;
 }
 
 // --- Resolved scene (what the app stores after loading) ---
 
 export interface ResolvedLayer {
-	name: string; // filename stem, e.g. "layer_room"
-	path: string; // relative path within the scene folder
+	name: string;
+	path: string;
 	data: LayerData;
 }
 

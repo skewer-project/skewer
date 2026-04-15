@@ -19,7 +19,7 @@
 			"albedo": [0.22, 0.4, 0.72]
 		}
 	},
-	"objects": [
+	"graph": [
 		{
 			"type": "sphere",
 			"material": "blue_matte",

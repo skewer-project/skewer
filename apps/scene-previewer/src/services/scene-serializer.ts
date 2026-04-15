@@ -2,16 +2,16 @@
 
 import type {
 	Camera,
+	InterpCurve,
+	Keyframe,
 	LayerData,
 	Material,
-	ObjFileObject,
-	QuadObject,
+	NodeTransform,
 	RenderConfig,
 	ResolvedScene,
-	SceneObject,
-	SphereObject,
-	Transform,
+	SceneNode,
 } from "../types/scene";
+import { isAnimated } from "../types/scene";
 import { writeTextFile } from "./fs";
 
 function jsonLine(value: unknown): string {
@@ -19,7 +19,7 @@ function jsonLine(value: unknown): string {
 }
 
 function serializeCamera(c: Camera): Record<string, unknown> {
-	return {
+	const o: Record<string, unknown> = {
 		look_from: c.look_from,
 		look_at: c.look_at,
 		vup: c.vup,
@@ -27,6 +27,11 @@ function serializeCamera(c: Camera): Record<string, unknown> {
 		aperture_radius: c.aperture_radius,
 		focus_distance: c.focus_distance,
 	};
+	const so = c.shutter_open ?? 0;
+	const sc = c.shutter_close ?? 0;
+	if (so !== 0) o.shutter_open = so;
+	if (sc !== 0) o.shutter_close = sc;
+	return o;
 }
 
 function serializeMaterial(m: Material): Record<string, unknown> {
@@ -49,56 +54,84 @@ function serializeMaterial(m: Material): Record<string, unknown> {
 	return o;
 }
 
-function serializeTransform(t: Transform): Record<string, unknown> {
+function serializeInterpCurve(c: InterpCurve): unknown {
+	if (typeof c === "string") return c;
+	return { bezier: c.bezier };
+}
+
+function serializeKeyframe(k: Keyframe): Record<string, unknown> {
+	const o: Record<string, unknown> = { time: k.time };
+	if (k.translate !== undefined) o.translate = k.translate;
+	if (k.rotate !== undefined) o.rotate = k.rotate;
+	if (k.scale !== undefined) o.scale = k.scale;
+	if (k.curve !== undefined) o.curve = serializeInterpCurve(k.curve);
+	return o;
+}
+
+function serializeNodeTransform(
+	t: NodeTransform | undefined,
+): Record<string, unknown> | undefined {
+	if (t === undefined) return undefined;
+	if (isAnimated(t)) {
+		return {
+			keyframes: t.keyframes.map(serializeKeyframe),
+		};
+	}
 	const o: Record<string, unknown> = {};
 	if (t.translate !== undefined) o.translate = t.translate;
 	if (t.rotate !== undefined) o.rotate = t.rotate;
 	if (t.scale !== undefined) o.scale = t.scale;
+	if (Object.keys(o).length === 0) return undefined;
 	return o;
 }
 
-function serializeSphere(o: SphereObject): Record<string, unknown> {
-	const j: Record<string, unknown> = {
-		type: "sphere",
-		material: o.material,
-		center: o.center,
-		radius: o.radius,
-	};
-	if (o.visible !== undefined) j.visible = o.visible;
-	return j;
-}
+function serializeSceneNode(node: SceneNode): Record<string, unknown> {
+	const xf = serializeNodeTransform(node.transform);
+	const name = node.name;
 
-function serializeQuad(o: QuadObject): Record<string, unknown> {
-	const j: Record<string, unknown> = {
-		type: "quad",
-		material: o.material,
-		vertices: o.vertices,
+	const withCommon = (j: Record<string, unknown>): Record<string, unknown> => {
+		if (name !== undefined) j.name = name;
+		if (xf !== undefined) j.transform = xf;
+		return j;
 	};
-	if (o.visible !== undefined) j.visible = o.visible;
-	return j;
-}
 
-function serializeObj(o: ObjFileObject): Record<string, unknown> {
+	if (node.kind === "group") {
+		const j: Record<string, unknown> = {};
+		if (name !== undefined) j.name = name;
+		if (xf !== undefined) j.transform = xf;
+		j.children = node.children.map(serializeSceneNode);
+		return j;
+	}
+
+	if (node.kind === "sphere") {
+		const j: Record<string, unknown> = {
+			type: "sphere",
+			material: node.material,
+			center: node.center,
+			radius: node.radius,
+		};
+		if (node.visible !== undefined) j.visible = node.visible;
+		return withCommon(j);
+	}
+
+	if (node.kind === "quad") {
+		const j: Record<string, unknown> = {
+			type: "quad",
+			material: node.material,
+			vertices: node.vertices,
+		};
+		if (node.visible !== undefined) j.visible = node.visible;
+		return withCommon(j);
+	}
+
 	const j: Record<string, unknown> = {
 		type: "obj",
-		file: o.file,
+		file: node.file,
 	};
-	if (o.material !== undefined) j.material = o.material;
-	if (o.auto_fit !== undefined) j.auto_fit = o.auto_fit;
-	if (o.visible !== undefined) j.visible = o.visible;
-	if (o.transform !== undefined) j.transform = serializeTransform(o.transform);
-	return j;
-}
-
-function serializeSceneObject(obj: SceneObject): Record<string, unknown> {
-	switch (obj.type) {
-		case "sphere":
-			return serializeSphere(obj);
-		case "quad":
-			return serializeQuad(obj);
-		case "obj":
-			return serializeObj(obj);
-	}
+	if (node.material !== undefined) j.material = node.material;
+	if (node.auto_fit !== undefined) j.auto_fit = node.auto_fit;
+	if (node.visible !== undefined) j.visible = node.visible;
+	return withCommon(j);
 }
 
 function serializeImageConfig(
@@ -141,7 +174,7 @@ function serializeLayerData(data: LayerData): Record<string, unknown> {
 	}
 	const o: Record<string, unknown> = {
 		materials,
-		objects: data.objects.map(serializeSceneObject),
+		graph: data.graph.map(serializeSceneNode),
 	};
 	if (data.render !== undefined) o.render = serializeRenderConfig(data.render);
 	if (data.visible !== undefined) o.visible = data.visible;
@@ -157,10 +190,6 @@ function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
 	};
 }
 
-/**
- * Writes all layer/context JSON files, then `scene.json`.
- * Last entry wins if the same relative path appears in both lists (should not happen from load).
- */
 export async function saveScene(
 	dir: FileSystemDirectoryHandle,
 	scene: ResolvedScene,
