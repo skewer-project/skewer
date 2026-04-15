@@ -1,0 +1,15 @@
+{
+  "materials": {},
+  "objects": [],
+  "render": {
+    "integrator": "path_trace",
+    "max_samples": 512,
+    "max_depth": 10,
+    "threads": 0,
+    "image": {
+      "width": 512,
+      "height": 512
+    },
+    "min_samples": 16
+  }
+}

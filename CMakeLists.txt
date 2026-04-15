@@ -17,6 +17,7 @@ find_package(Protobuf REQUIRED)
 option(SKEWER_COMBINED_BUILD_EXRIO "Build exrio helper library" ON)
 option(SKEWER_COMBINED_BUILD_LOOM "Build loom deep compositor" ON)
 option(SKEWER_COMBINED_BUILD_SKEWER "Build skewer deep renderer" ON)
+option(SKEWER_GENERATE_GOLDEN "Generate golden images in integration tests" OFF)
 
 if(SKEWER_COMBINED_BUILD_LOOM AND NOT SKEWER_COMBINED_BUILD_EXRIO)
     message(FATAL_ERROR "SKEWER_COMBINED_BUILD_LOOM=ON requires SKEWER_COMBINED_BUILD_EXRIO=ON")
@@ -43,4 +44,9 @@ endif()
 
 if(SKEWER_COMBINED_BUILD_SKEWER)
     add_subdirectory(skewer)
+endif()
+
+# Integration tests
+if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
+    add_subdirectory(tests)
 endif()
