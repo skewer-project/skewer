@@ -77,6 +77,8 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
     cam_vfov_ = config.vfov;
     cam_aperture_ = config.aperture_radius;
     cam_focus_dist_ = config.focus_distance;
+    cam_shutter_open_ = config.shutter_open;
+    cam_shutter_close_ = config.shutter_close;
 
     const bool multi_layer = config.layer_paths.size() > 1;
 
@@ -89,6 +91,7 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
         auto layer_scene = std::make_unique<Scene>();
         LoadContextIntoScene(config.context_paths, *layer_scene);
         LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
+        layer_scene->SetShutter(cam_shutter_open_, cam_shutter_close_);
         layer_scene->Build();
 
         auto& opts = lcfg.render_options;
@@ -109,7 +112,8 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
         float aspect = static_cast<float>(opts.image_config.width) /
                        static_cast<float>(opts.image_config.height);
         auto cam = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
-                                            aspect, cam_aperture_, cam_focus_dist_);
+                                            aspect, cam_aperture_, cam_focus_dist_,
+                                            cam_shutter_open_, cam_shutter_close_);
         ic.cam_w = -cam->GetW();
 
         auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
@@ -151,6 +155,8 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     }
     LayerConfig lcfg = LoadLayerFile(config.layer_paths[0], *scene_);
 
+    scene_->SetShutter(config.shutter_open, config.shutter_close);
+
     // 3. Build BVH acceleration structure
     scene_->Build();
 
@@ -170,12 +176,15 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     cam_vfov_ = config.vfov;
     cam_aperture_ = config.aperture_radius;
     cam_focus_dist_ = config.focus_distance;
+    cam_shutter_open_ = config.shutter_open;
+    cam_shutter_close_ = config.shutter_close;
 
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
     camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_);
+                                       cam_aperture_, cam_focus_dist_, cam_shutter_open_,
+                                       cam_shutter_close_);
 
     // 7. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
@@ -200,7 +209,8 @@ void RenderSession::RebuildFilm() {
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
     camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_);
+                                       cam_aperture_, cam_focus_dist_, cam_shutter_open_,
+                                       cam_shutter_close_);
     options_.integrator_config.cam_w = -camera_->GetW();
 
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);

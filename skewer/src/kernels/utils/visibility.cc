@@ -57,7 +57,7 @@ Spectrum EvaluateVisibility(const Scene& scene, Ray& ray, float max_dist, RNG& r
             // Advance the shadow ray past the surface
             Ray next_ray(
                 shadow_si.point + (shadow_ray.direction() * RenderConstants::kRayOffsetEpsilon),
-                shadow_ray.direction());
+                shadow_ray.direction(), shadow_ray.time());
             next_ray.vol_stack() = shadow_ray.vol_stack();
             shadow_ray = next_ray;
             remaining_dist -= shadow_si.t;

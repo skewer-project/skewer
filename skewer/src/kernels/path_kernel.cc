@@ -91,7 +91,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             /* Volume Next Event Estimation (Direct Lighting) */
             DirectLightSample dls;
             if (GenerateLightSample(mi.point, scene, rng, wl, &dls)) {
-                Ray shadow_ray(mi.point, dls.wi);
+                Ray shadow_ray(mi.point, dls.wi, r.time());
                 shadow_ray.vol_stack() = r.vol_stack();
 
                 Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
@@ -122,7 +122,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             // Note: For Henyey-Greenstein, the phase_eval / phase_pdf ratio is EXACTLY 1.0
             // The sampling routine perfectly importance samples the distribution so beta is
             // unchanged by the directional scatter itself
-            Ray next_r(mi.point, next_wi);
+            Ray next_r(mi.point, next_wi, r.time());
             next_r.vol_stack() = r.vol_stack();
             r = next_r;
             specular_bounce = false;
@@ -145,7 +145,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             // SHADING POLICY (Opacity & BSDF)
             if (si.material_id == kNullMaterialId) {
                 Ray next_ray(si.point + (r.direction() * RenderConstants::kRayOffsetEpsilon),
-                             r.direction());
+                             r.direction(), r.time());
                 next_ray.vol_stack() = r.vol_stack();
                 r = next_ray;
                 depth--;
@@ -207,8 +207,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 if (GenerateLightSample(
                         si.point + (si.n_shading * RenderConstants::kRayOffsetEpsilon), scene, rng,
                         wl, &dls)) {
-                    Ray shadow_ray(si.point + (dls.wi * RenderConstants::kRayOffsetEpsilon),
-                                   dls.wi);
+                    Ray shadow_ray(si.point + (dls.wi * RenderConstants::kRayOffsetEpsilon), dls.wi,
+                                   r.time());
                     shadow_ray.vol_stack() = r.vol_stack();
 
                     Spectrum Tr = EvaluateVisibility(scene, shadow_ray, dls.dist, rng, wl);
@@ -249,7 +249,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
 
                     prev_scatter_pdf = pdf;
                     beta *= weight;
-                    Ray next_r(si.point + (wi * RenderConstants::kRayOffsetEpsilon), wi);
+                    Ray next_r(si.point + (wi * RenderConstants::kRayOffsetEpsilon), wi, r.time());
                     next_r.vol_stack() = r.vol_stack();
 
                     // Update is_camera_path based on transmission
