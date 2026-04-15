@@ -3,14 +3,11 @@
 #include <algorithm>
 #include <cmath>
 
+#include "core/math/constants.h"
+
 namespace skwr {
 
-namespace {
-
-const float kBezierNewtonEps = 1e-6f;
-const int kBezierNewtonMaxIter = 32;
-
-}  // namespace
+namespace {}  // namespace
 
 BezierCurve::BezierCurve(float p1x, float p1y, float p2x, float p2y)
     : p1x_(p1x), p1y_(p1y), p2x_(p2x), p2y_(p2y) {}
@@ -40,11 +37,11 @@ float BezierCurve::SolveForT(float u) const {
 
     // Initial guess: u ~ t for monotonic timing curves
     float t = u;
-    for (int i = 0; i < kBezierNewtonMaxIter; ++i) {
+    for (int i = 0; i < Bezier::kBezierNewtonMaxIter; ++i) {
         float x = SampleX(t);
         float dx = SampleDX(t);
         float f = x - u;
-        if (std::fabs(f) < kBezierNewtonEps) break;
+        if (std::fabs(f) < Bezier::kBezierNewtonEps) break;
         if (std::fabs(dx) < 1e-8f) break;
         t -= f / dx;
         t = std::clamp(t, 0.0f, 1.0f);
