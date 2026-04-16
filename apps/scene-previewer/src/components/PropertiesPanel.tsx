@@ -1,8 +1,11 @@
 import type { RefObject } from "react";
+import { useMemo, useState } from "react";
 import { resolveNodeAtPath, updateNodeAtPath } from "../services/graph-path";
 import { evaluateTransformAt } from "../services/transform";
 import type {
 	AnimatedTransform,
+	InterpCurve,
+	Keyframe,
 	Material,
 	ObjNode,
 	QuadNode,
@@ -27,6 +30,8 @@ interface Props extends SceneEditorBase {
 	objectKey: string;
 	onDeleteObject: () => void;
 	viewportRef: RefObject<ViewportHandle | null>;
+	currentTime: number;
+	onTimeChange: (t: number) => void;
 }
 
 interface MaterialEditorProps extends SceneEditorBase {
@@ -79,59 +84,263 @@ function leafMaterialName(node: SceneNode): string | null {
 	return node.material ?? null;
 }
 
+function sortKeyframes(kfs: Keyframe[]): Keyframe[] {
+	return [...kfs].sort((a, b) => a.time - b.time);
+}
+
+type CurvePreset = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "custom";
+
+function curveToPreset(c: InterpCurve | undefined): CurvePreset {
+	if (c === undefined || c === "linear") return "linear";
+	if (c === "ease-in") return "ease-in";
+	if (c === "ease-out") return "ease-out";
+	if (c === "ease-in-out") return "ease-in-out";
+	return "custom";
+}
+
+function presetToCurve(
+	p: CurvePreset,
+	prev: InterpCurve | undefined,
+): InterpCurve {
+	if (p === "custom") {
+		if (typeof prev === "object" && "bezier" in prev) return prev;
+		return { bezier: [0.42, 0, 0.58, 1] };
+	}
+	return p;
+}
+
 function CommonTransformBlock({
 	node,
 	objectKey,
 	onSceneEdit,
 	viewportRef,
 	scene,
+	currentTime,
+	onTimeChange,
 }: {
 	node: SceneNode;
 	objectKey: string;
 	onSceneEdit: Props["onSceneEdit"];
 	viewportRef: Props["viewportRef"];
 	scene: ResolvedScene;
+	currentTime: number;
+	onTimeChange: Props["onTimeChange"];
 }) {
 	const animated = isAnimated(node.transform);
-	const evaluated = evaluateTransformAt(node.transform, 0);
+	const [kfSelIdx, setKfSelIdx] = useState(0);
+
+	const sortedKfs = useMemo(() => {
+		if (!isAnimated(node.transform)) return [];
+		return sortKeyframes(node.transform.keyframes);
+	}, [node.transform]);
+
+	const idx = Math.min(kfSelIdx, Math.max(0, sortedKfs.length - 1));
+	const selKf = sortedKfs[idx];
+
+	function replaceKeyframes(next: Keyframe[]) {
+		onSceneEdit((s) =>
+			updateNodeAtPath(s, objectKey, (o) => ({
+				...o,
+				transform: { keyframes: next },
+			})),
+		);
+	}
+
+	function patchKeyframeRow(rowIndex: number, partial: Partial<Keyframe>) {
+		if (!isAnimated(node.transform)) return;
+		const next = sortKeyframes(node.transform.keyframes);
+		next[rowIndex] = { ...next[rowIndex], ...partial };
+		replaceKeyframes(sortKeyframes(next));
+	}
 
 	if (animated && node.transform) {
-		const n = (node.transform as AnimatedTransform).keyframes.length;
+		const anim = node.transform as AnimatedTransform;
+		const bezier =
+			selKf && typeof selKf.curve === "object" && "bezier" in selKf.curve
+				? selKf.curve.bezier
+				: ([0.42, 0, 0.58, 1] as [number, number, number, number]);
+
 		return (
-			<div className="kv-table">
-				<div className="kv-row">
-					<span className="kv-key">motion</span>
-					<span className="kv-val">{n} keyframes, rendered at t=0</span>
-				</div>
-				<div className="kv-row">
-					<span className="kv-key">pos</span>
-					<span className="kv-val">
-						{(evaluated.translate ?? [0, 0, 0])
-							.map((x) => +x.toFixed(3))
-							.join(", ")}
-					</span>
-				</div>
-				<div className="kv-row">
-					<span className="kv-key">rot°</span>
-					<span className="kv-val">
-						{(evaluated.rotate ?? [0, 0, 0])
+			<div className="kv-table kf-editor">
+				<div className="kf-list">
+					{sortedKfs.map((kf, rowIdx) => {
+						const ev = evaluateTransformAt(anim, kf.time);
+						const summary = (ev.translate ?? [0, 0, 0])
 							.map((x) => +x.toFixed(2))
-							.join(", ")}
-					</span>
+							.join(", ");
+						const scalePart =
+							typeof kf.scale === "number"
+								? String(kf.scale)
+								: Array.isArray(kf.scale)
+									? kf.scale.join("x")
+									: "";
+						const rowKey = [
+							kf.time,
+							summary,
+							...(kf.translate ?? []),
+							...(kf.rotate ?? []),
+							scalePart,
+							JSON.stringify(kf.curve ?? null),
+						].join("|");
+						return (
+							<button
+								key={rowKey}
+								type="button"
+								className={`kf-row${rowIdx === idx ? " kf-row-selected" : ""}`}
+								onClick={() => {
+									onTimeChange(kf.time);
+									setKfSelIdx(rowIdx);
+								}}
+							>
+								<span className="kf-row-time">{kf.time.toFixed(2)}s</span>
+								<span className="kf-row-sum">{summary}</span>
+							</button>
+						);
+					})}
 				</div>
-				<div className="kv-row">
-					<span className="kv-key">scale</span>
-					<span className="kv-val">
-						{evaluated.scale === undefined
-							? "1"
-							: typeof evaluated.scale === "number"
-								? String(+evaluated.scale.toFixed(3))
-								: evaluated.scale.map((x) => +x.toFixed(3)).join(", ")}
-					</span>
+
+				{selKf && idx < sortedKfs.length - 1 && (
+					<div className="kv-row kf-curve-row">
+						<span className="kv-key">curve</span>
+						<select
+							className="mat-select kf-curve-select"
+							value={curveToPreset(selKf.curve)}
+							onChange={(e) => {
+								const p = e.target.value as CurvePreset;
+								patchKeyframeRow(idx, { curve: presetToCurve(p, selKf.curve) });
+							}}
+						>
+							<option value="linear">linear</option>
+							<option value="ease-in">ease-in</option>
+							<option value="ease-out">ease-out</option>
+							<option value="ease-in-out">ease-in-out</option>
+							<option value="custom">custom</option>
+						</select>
+					</div>
+				)}
+
+				{selKf && curveToPreset(selKf.curve) === "custom" && (
+					<div className="kf-bezier-grid">
+						{(["p1x", "p1y", "p2x", "p2y"] as const).map((label, i) => (
+							<NumberField
+								key={label}
+								label={label}
+								value={bezier[i]}
+								step={0.01}
+								onChange={(v) => {
+									const b = [...bezier] as [number, number, number, number];
+									b[i] = v;
+									patchKeyframeRow(idx, { curve: { bezier: b } });
+								}}
+							/>
+						))}
+					</div>
+				)}
+
+				{selKf && (
+					<>
+						<NumberField
+							label="time"
+							value={selKf.time}
+							step={0.05}
+							onChange={(v) => {
+								patchKeyframeRow(idx, { time: v });
+							}}
+						/>
+						<Vec3Field
+							label="pos"
+							value={selKf.translate ?? [0, 0, 0]}
+							onChange={(v) => patchKeyframeRow(idx, { translate: v })}
+						/>
+						<Vec3Field
+							label="rot"
+							value={selKf.rotate ?? [0, 0, 0]}
+							step={1}
+							onChange={(v) => patchKeyframeRow(idx, { rotate: v })}
+						/>
+						{typeof selKf.scale === "number" || selKf.scale === undefined ? (
+							<NumberField
+								label="scale"
+								value={typeof selKf.scale === "number" ? selKf.scale : 1}
+								min={0.001}
+								step={0.1}
+								onChange={(v) => patchKeyframeRow(idx, { scale: v })}
+							/>
+						) : (
+							<Vec3Field
+								label="scale"
+								value={selKf.scale}
+								min={0.001}
+								step={0.1}
+								onChange={(v) => patchKeyframeRow(idx, { scale: v })}
+							/>
+						)}
+					</>
+				)}
+
+				<div className="kf-actions">
+					<button
+						type="button"
+						className="delete-obj-btn kf-action-btn"
+						onClick={() => {
+							const st = evaluateTransformAt(anim, currentTime);
+							const newKf: Keyframe = {
+								time: currentTime,
+								translate: st.translate,
+								rotate: st.rotate,
+								scale: st.scale,
+								curve: "linear",
+							};
+							const eps = 1e-4;
+							if (
+								anim.keyframes.some((k) => Math.abs(k.time - currentTime) < eps)
+							) {
+								return;
+							}
+							replaceKeyframes(sortKeyframes([...anim.keyframes, newKf]));
+						}}
+					>
+						add keyframe
+					</button>
+					<button
+						type="button"
+						className="delete-obj-btn kf-action-btn"
+						onClick={() => {
+							const next = sortKeyframes(anim.keyframes).filter(
+								(_, j) => j !== idx,
+							);
+							if (next.length === 0) return;
+							replaceKeyframes(next);
+							setKfSelIdx(0);
+						}}
+					>
+						delete keyframe
+					</button>
+					<button
+						type="button"
+						className="delete-obj-btn kf-action-btn"
+						onClick={() => {
+							const st = evaluateTransformAt(anim, currentTime);
+							onSceneEdit((s) =>
+								updateNodeAtPath(s, objectKey, (o) => ({
+									...o,
+									transform: st,
+								})),
+							);
+							viewportRef.current?.applyPatch(scene, objectKey, {
+								kind: "node-transform",
+								value: st,
+							});
+						}}
+					>
+						convert to static
+					</button>
 				</div>
 			</div>
 		);
 	}
+
+	const evaluated = evaluateTransformAt(node.transform, 0);
 
 	const pos: Vec3 = evaluated.translate ?? [0, 0, 0];
 	const rot: Vec3 = evaluated.rotate ?? [0, 0, 0];
@@ -182,6 +391,35 @@ function CommonTransformBlock({
 					onChange={(v) => patchTransform({ scale: v })}
 				/>
 			)}
+			<button
+				type="button"
+				className="delete-obj-btn kf-action-btn"
+				onClick={() => {
+					const next: AnimatedTransform = {
+						keyframes: [
+							{
+								time: 0,
+								translate: pos,
+								rotate: rot,
+								scale:
+									typeof evaluated.scale === "number" ||
+									evaluated.scale === undefined
+										? scale
+										: vecScale,
+								curve: "linear",
+							},
+						],
+					};
+					onSceneEdit((s) =>
+						updateNodeAtPath(s, objectKey, (o) => ({
+							...o,
+							transform: next,
+						})),
+					);
+				}}
+			>
+				animate
+			</button>
 		</div>
 	);
 }
@@ -544,6 +782,8 @@ export function PropertiesPanel({
 	onSceneEdit,
 	onDeleteObject,
 	viewportRef,
+	currentTime,
+	onTimeChange,
 }: Props) {
 	const resolved = resolveNodeAtPath(scene, objectKey);
 	if (!resolved) return null;
@@ -611,11 +851,14 @@ export function PropertiesPanel({
 				<div className="inspector-section-head">Transform</div>
 				<div className="properties-body">
 					<CommonTransformBlock
+						key={objectKey}
 						node={node}
 						objectKey={objectKey}
 						onSceneEdit={onSceneEdit}
 						viewportRef={viewportRef}
 						scene={scene}
+						currentTime={currentTime}
+						onTimeChange={onTimeChange}
 					/>
 				</div>
 			</div>

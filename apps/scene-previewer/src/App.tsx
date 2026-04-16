@@ -1,21 +1,25 @@
 import { Camera } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
 import { SceneInspector } from "./components/SceneInspector";
+import { Timeline } from "./components/Timeline";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
 import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
+	resolveNodeAtPath,
 } from "./services/graph-path";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
+import { getAnimationRange } from "./services/transform";
 import type { Material, ResolvedScene, SceneNode } from "./types/scene";
+import { isAnimated } from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
@@ -52,7 +56,10 @@ function App() {
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+	const [currentTime, setCurrentTime] = useState(0);
+	const [isPlaying, setIsPlaying] = useState(false);
 	const viewportRef = useRef<ViewportHandle>(null);
+	const animRangeRef = useRef({ start: 0, end: 0 });
 
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
 		setScene(s);
@@ -62,6 +69,8 @@ function App() {
 		setSelectedMaterialKey(null);
 		setSceneVersion((v) => v + 1);
 		setHasUnsavedChanges(false);
+		setCurrentTime(0);
+		setIsPlaying(false);
 		addRecentScene(dir.name, dir);
 	}
 
@@ -181,6 +190,53 @@ function App() {
 			)
 		: 0;
 
+	const animRange = useMemo(
+		() => (scene ? getAnimationRange(scene) : { start: 0, end: 0 }),
+		[scene],
+	);
+	animRangeRef.current = animRange;
+
+	const selectedKeyframeTimes = useMemo(() => {
+		if (!scene || !selectedObjectKey) return undefined;
+		const r = resolveNodeAtPath(scene, selectedObjectKey);
+		const tr = r?.node.transform;
+		if (!tr || !isAnimated(tr)) return undefined;
+		return [...tr.keyframes].map((k) => k.time).sort((a, b) => a - b);
+	}, [scene, selectedObjectKey]);
+
+	useEffect(() => {
+		if (!isPlaying || !scene) return;
+		let id = 0;
+		let last = performance.now();
+		const tick = (now: number) => {
+			const dt = (now - last) / 1000;
+			last = now;
+			setCurrentTime((t) => {
+				const { start, end } = animRangeRef.current;
+				const len = end - start;
+				if (len <= 1e-6) return start;
+				let next = t + dt;
+				while (next > end) next -= len;
+				return next;
+			});
+			id = requestAnimationFrame(tick);
+		};
+		id = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(id);
+	}, [isPlaying, scene]);
+
+	useEffect(() => {
+		if (!scene) return;
+		const onKey = (event: KeyboardEvent) => {
+			if (event.code !== "Space") return;
+			if (isEditableTarget(event.target)) return;
+			event.preventDefault();
+			setIsPlaying((p) => !p);
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [scene]);
+
 	return (
 		<div className="app-root">
 			{/* Full-screen viewport */}
@@ -190,6 +246,7 @@ function App() {
 					scene={scene}
 					dirHandle={dirHandle}
 					sceneVersion={sceneVersion}
+					currentTime={currentTime}
 					selectedObjectKey={selectedObjectKey}
 					onSelectObject={handleSelectObject}
 				/>
@@ -246,6 +303,8 @@ function App() {
 								onSceneEdit={handleSceneEdit}
 								onDeleteObject={() => handleDeleteObject(selectedObjectKey)}
 								viewportRef={viewportRef}
+								currentTime={currentTime}
+								onTimeChange={setCurrentTime}
 							/>
 						)}
 						{selectedMaterialKey && (
@@ -260,6 +319,17 @@ function App() {
 				)}
 
 				{/* Bottom-right: reset camera + stats */}
+				{scene && (
+					<Timeline
+						currentTime={currentTime}
+						onTimeChange={setCurrentTime}
+						isPlaying={isPlaying}
+						onTogglePlay={() => setIsPlaying((p) => !p)}
+						animRange={animRange}
+						selectedKeyframeTimes={selectedKeyframeTimes}
+					/>
+				)}
+
 				{scene && (
 					<div className="hud-bottom-stack">
 						<button

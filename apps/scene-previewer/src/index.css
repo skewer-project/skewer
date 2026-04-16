@@ -194,7 +194,7 @@ body {
 	top: 62px;
 	left: 16px;
 	width: 318px;
-	max-height: calc(100dvh - 94px);
+	max-height: calc(100dvh - 94px - 52px);
 	overflow-y: auto;
 	overflow-x: hidden;
 	scrollbar-width: thin;
@@ -213,11 +213,118 @@ body {
 	background: var(--border-mid);
 }
 
+/* ── Timeline (animation scrubber) ──────── */
+
+.timeline {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 0 14px;
+	border-radius: 0;
+	border-top: 1px solid var(--border);
+	border-left: none;
+	border-right: none;
+	border-bottom: none;
+	z-index: 12;
+}
+
+.timeline-controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-shrink: 0;
+}
+
+.timeline-play-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-mid);
+	color: var(--amber);
+	cursor: pointer;
+	transition:
+		border-color 0.12s,
+		background 0.12s;
+}
+
+.timeline-play-btn:hover {
+	border-color: var(--amber-border);
+	background: var(--amber-lo);
+}
+
+.timeline-time {
+	font-variant-numeric: tabular-nums;
+	color: var(--t1);
+	font-size: 11px;
+	min-width: 52px;
+}
+
+.timeline-track {
+	flex: 1;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	touch-action: none;
+}
+
+.timeline-track-inner {
+	position: relative;
+	width: 100%;
+	height: 8px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 2px;
+	border: 1px solid var(--border-mid);
+}
+
+.timeline-playhead {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 2px;
+	height: 20px;
+	background: var(--amber);
+	border-radius: 1px;
+	box-shadow: 0 0 6px rgba(232, 165, 60, 0.35);
+	pointer-events: none;
+	z-index: 2;
+}
+
+.timeline-kf-marker {
+	position: absolute;
+	top: 50%;
+	z-index: 1;
+	transform: translate(-50%, -50%) rotate(45deg);
+	width: 5px;
+	height: 5px;
+	background: var(--t2);
+	border: 1px solid var(--t3);
+	pointer-events: none;
+}
+
+.timeline-end-label {
+	flex-shrink: 0;
+	color: var(--t3);
+	font-variant-numeric: tabular-nums;
+	font-size: 10.5px;
+	min-width: 40px;
+	text-align: right;
+}
+
 /* ── Bottom-right stack: reset camera + stats ──────── */
 
 .hud-bottom-stack {
 	position: absolute;
-	bottom: 16px;
+	bottom: 72px;
 	right: 16px;
 	display: flex;
 	flex-direction: column;
@@ -944,7 +1051,7 @@ button.data-row {
 	top: 62px;
 	right: 16px;
 	width: 284px;
-	max-height: calc(100dvh - 94px);
+	max-height: calc(100dvh - 94px - 52px);
 	overflow-y: auto;
 	overflow-x: hidden;
 	scrollbar-width: thin;
@@ -1387,4 +1494,88 @@ button.data-row {
 	color: var(--amber);
 	border-color: var(--amber-border);
 	background: var(--amber-lo);
+}
+
+/* ── Keyframe editor (properties) ──────── */
+
+.kf-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-bottom: 8px;
+	max-height: 140px;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-mid) transparent;
+}
+
+.kf-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 5px 8px;
+	margin: 0;
+	font: inherit;
+	font-size: 10.5px;
+	text-align: left;
+	color: var(--t2);
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	cursor: pointer;
+	transition:
+		background 0.1s,
+		border-color 0.1s;
+}
+
+.kf-row:hover {
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--t1);
+}
+
+.kf-row-selected {
+	background: var(--amber-lo);
+	border-color: var(--amber-border);
+	color: var(--t0);
+}
+
+.kf-row-time {
+	font-variant-numeric: tabular-nums;
+	color: var(--amber);
+	flex-shrink: 0;
+	min-width: 44px;
+}
+
+.kf-row-sum {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: inherit;
+}
+
+.kf-curve-row {
+	margin-top: 4px;
+}
+
+.kf-curve-select {
+	margin-top: 0;
+}
+
+.kf-bezier-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 4px 8px;
+	margin-bottom: 6px;
+}
+
+.kf-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.kf-action-btn {
+	margin-top: 0;
 }
