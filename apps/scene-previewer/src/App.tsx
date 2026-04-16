@@ -1,4 +1,4 @@
-import { Camera } from "lucide-react";
+import { Camera, Maximize, Move, Rotate3d } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import {
@@ -12,6 +12,7 @@ import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
+	updateNodeAtPath,
 } from "./services/graph-path";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
@@ -38,6 +39,12 @@ function App() {
 	);
 	const [selectedMaterialKey, setSelectedMaterialKey] = useState<string | null>(
 		null,
+	);
+	const [transformMode, setTransformMode] = useState<
+		"translate" | "rotate" | "scale"
+	>("translate");
+	const [transformSpace, setTransformSpace] = useState<"world" | "local">(
+		"world",
 	);
 
 	const handleSelectObject = useCallback((key: string | null) => {
@@ -99,6 +106,21 @@ function App() {
 			setSelectedObjectKey(null);
 		},
 		[handleSceneEdit],
+	);
+
+	const handleTransformChange = useCallback(
+		(objectKey: string, transform: import("./types/scene").StaticTransform) => {
+			if (!scene) return;
+			handleSceneEdit((s) =>
+				updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform })),
+			);
+			setHasUnsavedChanges(true);
+			viewportRef.current?.applyPatch(scene, objectKey, {
+				kind: "node-transform",
+				value: transform,
+			});
+		},
+		[handleSceneEdit, scene],
 	);
 
 	useEffect(() => {
@@ -192,6 +214,9 @@ function App() {
 					sceneVersion={sceneVersion}
 					selectedObjectKey={selectedObjectKey}
 					onSelectObject={handleSelectObject}
+					transformMode={transformMode}
+					transformSpace={transformSpace}
+					onTransformChange={handleTransformChange}
 				/>
 			</div>
 
@@ -219,6 +244,57 @@ function App() {
 					)}
 					{error && <span className="error-msg">{error}</span>}
 				</div>
+
+				{/* Transform mode toolbar */}
+				{scene && selectedObjectKey && (
+					<div className="panel hud-toolbar">
+						<div className="toolbar-group">
+							<button
+								type="button"
+								className={`toolbar-btn ${transformMode === "translate" ? "active" : ""}`}
+								title="Move (G)"
+								onClick={() => setTransformMode("translate")}
+							>
+								<Move size={16} />
+							</button>
+							<button
+								type="button"
+								className={`toolbar-btn ${transformMode === "rotate" ? "active" : ""}`}
+								title="Rotate (R)"
+								onClick={() => setTransformMode("rotate")}
+							>
+								<Rotate3d size={16} />
+							</button>
+							<button
+								type="button"
+								className={`toolbar-btn ${transformMode === "scale" ? "active" : ""}`}
+								title="Scale (S)"
+								onClick={() => setTransformMode("scale")}
+							>
+								<Maximize size={16} />
+							</button>
+						</div>
+						<div className="toolbar-sep" />
+						<div className="toolbar-group">
+							<button
+								type="button"
+								className={`toolbar-btn ${transformSpace === "world" ? "active" : ""}`}
+								title="World (.)"
+								onClick={() => setTransformSpace("world")}
+							>
+								Global
+							</button>
+							<button
+								type="button"
+								className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
+								title="Local (,)"
+								onClick={() => setTransformSpace("local")}
+							>
+								Local
+							</button>
+						</div>
+					</div>
+				)}
 
 				{/* Left sidebar: scene inspector */}
 				{scene && dirHandle && (
