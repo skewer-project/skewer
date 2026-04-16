@@ -11,13 +11,17 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutlinePass } from "three/examples/jsm/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { collectLeafKeysForMaterial } from "../services/graph-path";
+import {
+	collectAnimatedNodes,
+	collectLeafKeysForMaterial,
+} from "../services/graph-path";
 import {
 	applyStaticTransformToObject3D,
 	buildSceneGraph,
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
+import { evaluateTransformAt } from "../services/transform";
 import type {
 	Material,
 	ResolvedScene,
@@ -113,6 +117,8 @@ interface Props {
 	dirHandle?: FileSystemDirectoryHandle | null;
 	// Incremented when the scene structure changes (add/remove/reorder objects).
 	sceneVersion: number;
+	/** Global animation time (seconds); drives animated node transforms. */
+	currentTime?: number;
 	selectedObjectKey: string | null;
 	onSelectObject: (key: string | null) => void;
 }
@@ -156,8 +162,31 @@ function findGroupByKey(
 	return found;
 }
 
+function applyAnimatedNodesAtTime(
+	root: THREE.Group,
+	resolvedScene: ResolvedScene,
+	time: number,
+) {
+	for (const { objectKey, transform } of collectAnimatedNodes(resolvedScene)) {
+		const nodeGrp = findGroupByKey(root, objectKey);
+		if (nodeGrp) {
+			applyStaticTransformToObject3D(
+				nodeGrp,
+				evaluateTransformAt(transform, time),
+			);
+		}
+	}
+}
+
 export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{ scene, dirHandle, sceneVersion, selectedObjectKey, onSelectObject },
+	{
+		scene,
+		dirHandle,
+		sceneVersion,
+		currentTime = 0,
+		selectedObjectKey,
+		onSelectObject,
+	},
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -181,6 +210,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	);
 	const latestSceneRef = useRef(scene);
 	latestSceneRef.current = scene;
+	const currentTimeRef = useRef(currentTime);
+	currentTimeRef.current = currentTime;
 
 	// ── Imperative handle: applyPatch ──
 	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
@@ -468,6 +499,14 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				sc.add(result.group);
 				sceneGroup.current = result.group;
 				blobUrlsRef.current = result.blobUrls;
+				const builtScene = latestSceneRef.current;
+				if (builtScene) {
+					applyAnimatedNodesAtTime(
+						result.group,
+						builtScene,
+						currentTimeRef.current,
+					);
+				}
 			},
 		);
 
@@ -489,6 +528,14 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 		outline.selectedObjects = collectMeshesForKey(grp, selectedObjectKey);
 	}, [selectedObjectKey]);
+
+	// --- Effect: apply animated transforms at currentTime ---
+	useEffect(() => {
+		const grp = sceneGroup.current;
+		const currentScene = scene;
+		if (!grp || !currentScene) return;
+		applyAnimatedNodesAtTime(grp, currentScene, currentTime);
+	}, [scene, currentTime]);
 
 	// --- Click handler for raycasting ---
 	const handleClick = useCallback(
