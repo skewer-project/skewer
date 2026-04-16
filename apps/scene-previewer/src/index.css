@@ -304,10 +304,11 @@ body {
 	top: 50%;
 	z-index: 1;
 	transform: translate(-50%, -50%) rotate(45deg);
-	width: 5px;
-	height: 5px;
-	background: var(--t2);
-	border: 1px solid var(--t3);
+	width: 7px;
+	height: 7px;
+	background: rgba(224, 217, 200, 0.92);
+	border: 1px solid rgba(232, 165, 60, 0.65);
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
 	pointer-events: none;
 }
 

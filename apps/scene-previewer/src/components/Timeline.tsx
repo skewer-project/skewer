@@ -7,8 +7,8 @@ export interface TimelineProps {
 	isPlaying: boolean;
 	onTogglePlay: () => void;
 	animRange: { start: number; end: number };
-	/** Keyframe times for the selected object (diamond markers). */
-	selectedKeyframeTimes?: number[];
+	/** Unique keyframe times across all animated nodes (diamond markers). */
+	keyframeTimes?: number[];
 }
 
 export function Timeline({
@@ -17,7 +17,7 @@ export function Timeline({
 	isPlaying,
 	onTogglePlay,
 	animRange,
-	selectedKeyframeTimes,
+	keyframeTimes,
 }: TimelineProps) {
 	const trackRef = useRef<HTMLDivElement>(null);
 	const draggingRef = useRef(false);
@@ -102,7 +102,7 @@ export function Timeline({
 			>
 				<div className="timeline-track-inner">
 					{hasSpan &&
-						selectedKeyframeTimes?.map((t) => {
+						keyframeTimes?.map((t) => {
 							const f = (t - animRange.start) / span;
 							if (f < 0 || f > 1) return null;
 							return (

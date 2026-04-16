@@ -281,3 +281,16 @@ export function getAnimationRange(scene: ResolvedScene): {
 	if (!any) return { start: 0, end: 0 };
 	return { start: minT, end: maxT };
 }
+
+/** Unique keyframe times from every animated node (timeline markers). */
+export function collectSceneKeyframeTimes(scene: ResolvedScene): number[] {
+	const times = new Set<number>();
+	for (const layer of [...scene.contexts, ...scene.layers]) {
+		visitSceneNodes(layer.data.graph, (node) => {
+			const tr = node.transform;
+			if (!isAnimated(tr)) return;
+			for (const k of tr.keyframes) times.add(k.time);
+		});
+	}
+	return [...times].sort((a, b) => a - b);
+}

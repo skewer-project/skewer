@@ -13,13 +13,14 @@ import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
-	resolveNodeAtPath,
 } from "./services/graph-path";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
-import { getAnimationRange } from "./services/transform";
+import {
+	collectSceneKeyframeTimes,
+	getAnimationRange,
+} from "./services/transform";
 import type { Material, ResolvedScene, SceneNode } from "./types/scene";
-import { isAnimated } from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
@@ -196,13 +197,10 @@ function App() {
 	);
 	animRangeRef.current = animRange;
 
-	const selectedKeyframeTimes = useMemo(() => {
-		if (!scene || !selectedObjectKey) return undefined;
-		const r = resolveNodeAtPath(scene, selectedObjectKey);
-		const tr = r?.node.transform;
-		if (!tr || !isAnimated(tr)) return undefined;
-		return [...tr.keyframes].map((k) => k.time).sort((a, b) => a - b);
-	}, [scene, selectedObjectKey]);
+	const timelineKeyframeTimes = useMemo(
+		() => (scene ? collectSceneKeyframeTimes(scene) : []),
+		[scene],
+	);
 
 	useEffect(() => {
 		if (!isPlaying || !scene) return;
@@ -326,7 +324,7 @@ function App() {
 						isPlaying={isPlaying}
 						onTogglePlay={() => setIsPlaying((p) => !p)}
 						animRange={animRange}
-						selectedKeyframeTimes={selectedKeyframeTimes}
+						keyframeTimes={timelineKeyframeTimes}
 					/>
 				)}
 
