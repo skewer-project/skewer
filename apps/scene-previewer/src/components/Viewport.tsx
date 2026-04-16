@@ -7,6 +7,7 @@ import {
 } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutlinePass } from "three/examples/jsm/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
@@ -115,6 +116,12 @@ interface Props {
 	sceneVersion: number;
 	selectedObjectKey: string | null;
 	onSelectObject: (key: string | null) => void;
+	/** Transform gizmo mode: "translate" | "rotate" | "scale" */
+	transformMode?: "translate" | "rotate" | "scale";
+	/** Coordinate space: "world" | "local" */
+	transformSpace?: "world" | "local";
+	/** Called when gizmo transform changes */
+	onTransformChange?: (objectKey: string, transform: StaticTransform) => void;
 }
 
 /** Walk up the Three.js parent chain to find the first object with an objectKey. */
@@ -157,7 +164,16 @@ function findGroupByKey(
 }
 
 export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{ scene, dirHandle, sceneVersion, selectedObjectKey, onSelectObject },
+	{
+		scene,
+		dirHandle,
+		sceneVersion,
+		selectedObjectKey,
+		onSelectObject,
+		transformMode = "translate",
+		transformSpace = "world",
+		onTransformChange,
+	},
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -169,6 +185,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const blobUrlsRef = useRef<string[]>([]);
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
+	const transformControls = useRef<TransformControls | null>(null);
+	const gizmoProxy = useRef<THREE.Group | null>(null);
 	// Used to avoid rebuilding the whole graph on minor edits.
 	const lastBuild = useRef<{
 		dirHandle: FileSystemDirectoryHandle | null;
@@ -180,7 +198,9 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		undefined,
 	);
 	const latestSceneRef = useRef(scene);
-	latestSceneRef.current = scene;
+	useEffect(() => {
+		latestSceneRef.current = scene;
+	}, [scene]);
 
 	// ── Imperative handle: applyPatch ──
 	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
@@ -337,6 +357,30 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		sc.add(grp);
 		sceneGroup.current = grp;
 
+		const proxy = new THREE.Group();
+		proxy.name = "GizmoProxy";
+		// proxy.matrixAutoUpdate = false;
+		proxy.updateMatrixWorld = function (force?: boolean) {
+			if (this.userData.target) {
+				const target = this.userData.target as THREE.Group;
+				
+				// Sync target -> proxy only when not dragging
+				if (!this.userData.isDragging) {
+					const box = new THREE.Box3().setFromObject(target);
+					const center = new THREE.Vector3();
+					if (!box.isEmpty()) box.getCenter(center);
+					else target.getWorldPosition(center);
+
+					this.position.copy(center);
+					this.quaternion.copy(target.quaternion);
+					this.scale.copy(target.scale);
+				}
+			}
+			THREE.Object3D.prototype.updateMatrixWorld.call(this, force);
+		};
+		sc.add(proxy);
+		gizmoProxy.current = proxy;
+
 		// Post-processing with OutlinePass
 		const comp = new EffectComposer(renderer);
 		comp.addPass(new RenderPass(sc, cam));
@@ -357,6 +401,21 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 		composer.current = comp;
 		outlinePass.current = outline;
+
+		// TransformControls (gizmo)
+		const tctrl = new TransformControls(cam, renderer.domElement);
+		tctrl.setSize(0.75);
+		tctrl.setSpace("world");
+		tctrl.setMode("translate");
+		sc.add(tctrl.getHelper());
+		transformControls.current = tctrl;
+
+		tctrl.addEventListener("dragging-changed", (event) => {
+			ctrl.enabled = !event.value;
+			if (gizmoProxy.current) {
+				gizmoProxy.current.userData.isDragging = event.value;
+			}
+		});
 
 		// Resize
 		const ro = new ResizeObserver(() => {
@@ -382,6 +441,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			cancelAnimationFrame(animId);
 			ro.disconnect();
 			ctrl.dispose();
+			tctrl.dispose();
 
 			const old = sceneGroup.current;
 			if (old) {
@@ -419,6 +479,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			blobUrlsRef.current = [];
 			composer.current = null;
 			outlinePass.current = null;
+			transformControls.current = null;
+			gizmoProxy.current = null;
 		};
 	}, []);
 
@@ -489,6 +551,137 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 		outline.selectedObjects = collectMeshesForKey(grp, selectedObjectKey);
 	}, [selectedObjectKey]);
+
+	// --- Effect 4: attach TransformControls to selected object ---
+	const latestTransformRef = useRef<{
+		objectKey: string | null;
+		mode: "translate" | "rotate" | "scale";
+		space: "world" | "local";
+	}>({ objectKey: null, mode: "translate", space: "world" });
+
+	useEffect(() => {
+		const tctrl = transformControls.current;
+		const grp = sceneGroup.current;
+		if (!tctrl || !grp) return;
+
+		const objectKey = selectedObjectKey;
+		const mode = transformMode ?? "translate";
+		const space = transformSpace ?? "world";
+
+		if (mode !== latestTransformRef.current.mode) {
+			tctrl.setMode(mode);
+			latestTransformRef.current.mode = mode;
+		}
+		if (space !== latestTransformRef.current.space) {
+			tctrl.setSpace(space);
+			latestTransformRef.current.space = space;
+		}
+
+		if (
+			objectKey &&
+			(objectKey !== latestTransformRef.current.objectKey ||
+				mode !== latestTransformRef.current.mode)
+		) {
+			const nodeGrp = findGroupByKey(grp, objectKey);
+			const proxy = gizmoProxy.current;
+			if (nodeGrp && proxy) {
+				delete proxy.userData.startProxyMatrix;
+				delete proxy.userData.startTargetMatrix;
+
+				const box = new THREE.Box3().setFromObject(nodeGrp);
+				const center = new THREE.Vector3();
+				if (!box.isEmpty()) box.getCenter(center);
+				else nodeGrp.getWorldPosition(center);
+
+				proxy.position.copy(center);
+				proxy.quaternion.copy(nodeGrp.quaternion);
+				proxy.scale.copy(nodeGrp.scale);
+				proxy.userData.target = nodeGrp;
+				proxy.userData.isDragging = false;
+				proxy.updateMatrixWorld(true);
+
+				tctrl.attach(proxy);
+				latestTransformRef.current.objectKey = objectKey;
+			}
+		} else if (!objectKey) {
+			tctrl.detach();
+			latestTransformRef.current.objectKey = null;
+		}
+	}, [selectedObjectKey, transformMode, transformSpace]);
+
+	// --- Effect 5: handle gizmo transform changes ---
+	useEffect(() => {
+		const tctrl = transformControls.current;
+		if (!tctrl || !onTransformChange || !selectedObjectKey) return;
+
+		const onChange = () => {
+			const proxy = tctrl.object;
+			if (!proxy || !proxy.userData.target) return;
+			
+			const target = proxy.userData.target as THREE.Group;
+			const startProxyMat = proxy.userData.startProxyMatrix as THREE.Matrix4 | undefined;
+			const startTargetMat = proxy.userData.startTargetMatrix as THREE.Matrix4 | undefined;
+
+			// Ensure proxy matrix is fresh before math
+			proxy.updateMatrix();
+
+			// Update target from proxy relative transformation
+			if (startProxyMat && startTargetMat) {
+				const invStartProxy = new THREE.Matrix4().copy(startProxyMat).invert();
+				// delta = proxy * startProxy^-1
+				const delta = new THREE.Matrix4().multiplyMatrices(proxy.matrix, invStartProxy);
+				// target = delta * startTarget
+				const newTargetMat = new THREE.Matrix4().multiplyMatrices(delta, startTargetMat);
+				
+				newTargetMat.decompose(target.position, target.quaternion, target.scale);
+			}
+
+			target.updateMatrixWorld(true);
+
+			const pos = target.position;
+			const rot = target.rotation;
+			const scl = target.scale;
+
+			const transform: StaticTransform = {
+				translate: [pos.x, pos.y, pos.z],
+				rotate: [
+					THREE.MathUtils.radToDeg(rot.x),
+					THREE.MathUtils.radToDeg(rot.y),
+					THREE.MathUtils.radToDeg(rot.z),
+				],
+				scale:
+					transformMode === "scale"
+						? [scl.x, scl.y, scl.z]
+						: scl.x === 1 && scl.y === 1 && scl.z === 1
+							? undefined
+							: [scl.x, scl.y, scl.z],
+			};
+			onTransformChange(selectedObjectKey, transform);
+		};
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const onDraggingChanged = (event: any) => {
+			const proxy = tctrl.object;
+			if (proxy && proxy.userData.target) {
+				if (event.value) {
+					proxy.updateMatrix();
+					proxy.userData.target.updateMatrix();
+					proxy.userData.startProxyMatrix = proxy.matrix.clone();
+					proxy.userData.startTargetMatrix = proxy.userData.target.matrix.clone();
+				} else {
+					onChange();
+				}
+			}
+		};
+
+		tctrl.addEventListener("change", onChange);
+		tctrl.addEventListener("dragging-changed", onDraggingChanged);
+
+		return () => {
+			tctrl.removeEventListener("change", onChange);
+			tctrl.removeEventListener("dragging-changed", onDraggingChanged);
+		};
+	}, [selectedObjectKey, transformMode, onTransformChange]);
 
 	// --- Click handler for raycasting ---
 	const handleClick = useCallback(
