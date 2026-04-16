@@ -1,540 +1,734 @@
 import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useRef,
 } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutlinePass } from "three/examples/jsm/postprocessing/OutlinePass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { collectLeafKeysForMaterial } from "../services/graph-path";
 import {
-  applyTransform,
-  buildSceneGraph,
-  makeThreeMaterial,
-  revokeBlobUrls,
+	applyStaticTransformToObject3D,
+	buildSceneGraph,
+	makeThreeMaterial,
+	revokeBlobUrls,
 } from "../services/scene-to-three";
-import type { Material, ResolvedScene, Transform, Vec3 } from "../types/scene";
+import type {
+	Material,
+	ResolvedScene,
+	StaticTransform,
+	Vec3,
+} from "../types/scene";
+
+/** Align perspective camera and orbit target with the scene file camera. */
+function syncOrbitCameraToScene(
+	cam: THREE.PerspectiveCamera,
+	ctrl: OrbitControls,
+	sceneData: ResolvedScene,
+) {
+	const c = sceneData.camera;
+	cam.fov = c.vfov;
+	cam.position.set(...c.look_from);
+	ctrl.target.set(...c.look_at);
+	cam.up.set(...c.vup);
+	cam.updateProjectionMatrix();
+	ctrl.update();
+}
 
 // ── Patch types for incremental Three.js updates ────────────
 
 export type ThreePatch =
-  | { kind: "sphere-center"; value: Vec3 }
-  | { kind: "sphere-radius"; value: number }
-  | { kind: "quad-vertices"; value: [Vec3, Vec3, Vec3, Vec3] }
-  | { kind: "obj-transform"; value: Transform }
-  | {
-      kind: "material";
-      matData: Material;
-      matName: string;
-      layerTag: string;
-      layerIdx: number;
-    }
-  | { kind: "assign-material"; matData: Material }
-  | { kind: "rebuild" };
+	| { kind: "sphere-center"; value: Vec3 }
+	| { kind: "sphere-radius"; value: number }
+	| { kind: "quad-vertices"; value: [Vec3, Vec3, Vec3, Vec3] }
+	| { kind: "node-transform"; value: StaticTransform }
+	| {
+			kind: "material";
+			matData: Material;
+			matName: string;
+			layerTag: string;
+			layerIdx: number;
+	  }
+	| { kind: "assign-material"; matData: Material }
+	| { kind: "rebuild" };
 
 export interface ViewportHandle {
-  applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch): void;
+	applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch): void;
+	/** Restore orbit camera position, target, and up vector from the loaded scene JSON. */
+	resetCameraToScene(): void;
 }
 
 // ── Helpers ─────────────────────────────────────────────────
 
 function disposeMaterialTextures(material: THREE.Material) {
-  for (const value of Object.values(material)) {
-    if (value instanceof THREE.Texture) {
-      value.dispose();
-    } else if (Array.isArray(value)) {
-      for (const item of value) {
-        if (item instanceof THREE.Texture) item.dispose();
-      }
-    }
-  }
+	for (const value of Object.values(material)) {
+		if (value instanceof THREE.Texture) {
+			value.dispose();
+		} else if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item instanceof THREE.Texture) item.dispose();
+			}
+		}
+	}
 }
 
 function disposeMaterial(material: THREE.Material | THREE.Material[]) {
-  if (Array.isArray(material)) {
-    for (const mat of material) disposeMaterial(mat);
-    return;
-  }
-  disposeMaterialTextures(material);
-  material.dispose();
+	if (Array.isArray(material)) {
+		for (const mat of material) disposeMaterial(mat);
+		return;
+	}
+	disposeMaterialTextures(material);
+	material.dispose();
 }
 
 function getMaterialSide(
-  material: THREE.Material | THREE.Material[] | undefined,
+	material: THREE.Material | THREE.Material[] | undefined,
 ): THREE.Side | null {
-  if (!material) return null;
-  if (Array.isArray(material)) {
-    if (material.some((m) => m.side === THREE.DoubleSide)) {
-      return THREE.DoubleSide;
-    }
-    return material[0]?.side ?? null;
-  }
-  return material.side;
+	if (!material) return null;
+	if (Array.isArray(material)) {
+		if (material.some((m) => m.side === THREE.DoubleSide)) {
+			return THREE.DoubleSide;
+		}
+		return material[0]?.side ?? null;
+	}
+	return material.side;
 }
 
 function disposeSceneGroup(group: THREE.Group) {
-  group.traverse((obj) => {
-    if (obj instanceof THREE.Mesh) {
-      obj.geometry?.dispose();
-      disposeMaterial(obj.material);
-    }
-  });
+	group.traverse((obj) => {
+		if (obj instanceof THREE.Mesh) {
+			obj.geometry?.dispose();
+			disposeMaterial(obj.material);
+		}
+	});
 }
 
 interface Props {
-  scene?: ResolvedScene | null;
-  dirHandle?: FileSystemDirectoryHandle | null;
-  // Incremented when the scene structure changes (add/remove/reorder objects).
-  sceneVersion: number;
-  selectedObjectKey: string | null;
-  onSelectObject: (key: string | null) => void;
+	scene?: ResolvedScene | null;
+	dirHandle?: FileSystemDirectoryHandle | null;
+	// Incremented when the scene structure changes (add/remove/reorder objects).
+	sceneVersion: number;
+	selectedObjectKey: string | null;
+	onSelectObject: (key: string | null) => void;
+	/** Transform gizmo mode: "translate" | "rotate" | "scale" */
+	transformMode?: "translate" | "rotate" | "scale";
+	/** Coordinate space: "world" | "local" */
+	transformSpace?: "world" | "local";
+	/** Called when gizmo transform changes */
+	onTransformChange?: (objectKey: string, transform: StaticTransform) => void;
 }
 
 /** Walk up the Three.js parent chain to find the first object with an objectKey. */
 function findObjectKey(obj: THREE.Object3D): string | null {
-  let cur: THREE.Object3D | null = obj;
-  while (cur) {
-    if (cur.userData.objectKey) return cur.userData.objectKey as string;
-    cur = cur.parent;
-  }
-  return null;
+	let cur: THREE.Object3D | null = obj;
+	while (cur) {
+		if (cur.userData.objectKey) return cur.userData.objectKey as string;
+		cur = cur.parent;
+	}
+	return null;
 }
 
 /** Collect all meshes under sceneGroup that match the given objectKey. */
 function collectMeshesForKey(
-  sceneGroup: THREE.Group,
-  key: string,
+	sceneGroup: THREE.Group,
+	key: string,
 ): THREE.Object3D[] {
-  const meshes: THREE.Object3D[] = [];
-  sceneGroup.traverse((child) => {
-    if (child instanceof THREE.Mesh && child.userData.objectKey === key) {
-      meshes.push(child);
-    }
-  });
-  return meshes;
+	const meshes: THREE.Object3D[] = [];
+	sceneGroup.traverse((child) => {
+		if (child instanceof THREE.Mesh && child.userData.objectKey === key) {
+			meshes.push(child);
+		}
+	});
+	return meshes;
 }
 
-/** Find the top-level object (direct child of a layer group) for a given key. */
-function findTopLevelObject(
-  sceneGroup: THREE.Group,
-  key: string,
-): THREE.Object3D | null {
-  let found: THREE.Object3D | null = null;
-  for (const layerGroup of sceneGroup.children) {
-    for (const child of layerGroup.children) {
-      if (child.userData.objectKey === key) {
-        found = child;
-        break;
-      }
-    }
-    if (found) break;
-  }
-  return found;
+/** First Group in the scene whose root carries this objectKey (node transform target). */
+function findGroupByKey(
+	sceneGroup: THREE.Group,
+	key: string,
+): THREE.Group | null {
+	let found: THREE.Group | null = null;
+	sceneGroup.traverse((obj) => {
+		if (found) return;
+		if (obj instanceof THREE.Group && obj.userData.objectKey === key) {
+			found = obj;
+		}
+	});
+	return found;
 }
 
 export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-  { scene, dirHandle, sceneVersion, selectedObjectKey, onSelectObject },
-  ref,
+	{
+		scene,
+		dirHandle,
+		sceneVersion,
+		selectedObjectKey,
+		onSelectObject,
+		transformMode = "translate",
+		transformSpace = "world",
+		onTransformChange,
+	},
+	ref,
 ) {
-  const containerRef = useRef<HTMLDivElement>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
 
-  const threeScene = useRef<THREE.Scene | null>(null);
-  const camera = useRef<THREE.PerspectiveCamera | null>(null);
-  const controls = useRef<OrbitControls | null>(null);
-  const sceneGroup = useRef<THREE.Group | null>(null);
-  const blobUrlsRef = useRef<string[]>([]);
-  const composer = useRef<EffectComposer | null>(null);
-  const outlinePass = useRef<OutlinePass | null>(null);
-  // Used to avoid rebuilding the whole graph on minor edits.
-  const lastBuild = useRef<{
-    dirHandle: FileSystemDirectoryHandle | null;
-    sceneVersion: number | null;
-  }>({ dirHandle: null, sceneVersion: null });
+	const threeScene = useRef<THREE.Scene | null>(null);
+	const camera = useRef<THREE.PerspectiveCamera | null>(null);
+	const controls = useRef<OrbitControls | null>(null);
+	const sceneGroup = useRef<THREE.Group | null>(null);
+	const blobUrlsRef = useRef<string[]>([]);
+	const composer = useRef<EffectComposer | null>(null);
+	const outlinePass = useRef<OutlinePass | null>(null);
+	const transformControls = useRef<TransformControls | null>(null);
+	const gizmoProxy = useRef<THREE.Group | null>(null);
+	// Used to avoid rebuilding the whole graph on minor edits.
+	const lastBuild = useRef<{
+		dirHandle: FileSystemDirectoryHandle | null;
+		sceneVersion: number | null;
+	}>({ dirHandle: null, sceneVersion: null });
 
-  // Track previous dirHandle to distinguish a new scene load from a sceneVersion bump
-  const prevDirHandle = useRef<FileSystemDirectoryHandle | null | undefined>(
-    undefined,
-  );
+	// Track previous dirHandle to distinguish a new scene load from a sceneVersion bump
+	const prevDirHandle = useRef<FileSystemDirectoryHandle | null | undefined>(
+		undefined,
+	);
+	const latestSceneRef = useRef(scene);
+	useEffect(() => {
+		latestSceneRef.current = scene;
+	}, [scene]);
 
-  // ── Imperative handle: applyPatch ──
-  // Live, incremental updates for edit controls; full rebuilds happen elsewhere.
-  useImperativeHandle(
-    ref,
-    () => ({
-      applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
-        const grp = sceneGroup.current;
-        if (!grp) return;
+	// ── Imperative handle: applyPatch ──
+	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
+	useImperativeHandle(
+		ref,
+		() => ({
+			resetCameraToScene() {
+				const currentScene = latestSceneRef.current;
+				const cam = camera.current;
+				const ctrl = controls.current;
+				if (!currentScene || !cam || !ctrl) return;
+				syncOrbitCameraToScene(cam, ctrl, currentScene);
+			},
+			applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
+				const grp = sceneGroup.current;
+				if (!grp) return;
 
-        if (patch.kind === "sphere-center") {
-          const meshes = collectMeshesForKey(grp, objectKey);
-          for (const m of meshes) m.position.set(...patch.value);
-        } else if (patch.kind === "sphere-radius") {
-          const meshes = collectMeshesForKey(grp, objectKey);
-          for (const m of meshes) {
-            if (m instanceof THREE.Mesh) {
-              m.geometry.dispose();
-              m.geometry = new THREE.SphereGeometry(patch.value, 32, 16);
-            }
-          }
-        } else if (patch.kind === "quad-vertices") {
-          const meshes = collectMeshesForKey(grp, objectKey);
-          const [p0, p1, p2, p3] = patch.value;
-          for (const m of meshes) {
-            if (m instanceof THREE.Mesh) {
-              const pos = m.geometry.getAttribute("position");
-              if (pos) {
-                const arr = pos.array as Float32Array;
-                // Triangle 1: p0, p1, p2
-                arr.set(p0, 0);
-                arr.set(p1, 3);
-                arr.set(p2, 6);
-                // Triangle 2: p0, p2, p3
-                arr.set(p0, 9);
-                arr.set(p2, 12);
-                arr.set(p3, 15);
-                pos.needsUpdate = true;
-                m.geometry.computeVertexNormals();
-                m.geometry.computeBoundingSphere();
-              }
-            }
-          }
-        } else if (patch.kind === "obj-transform") {
-          const obj = findTopLevelObject(grp, objectKey);
-          if (obj) {
-            // Reset transform, then reapply
-            obj.position.set(0, 0, 0);
-            obj.rotation.set(0, 0, 0);
-            obj.scale.set(1, 1, 1);
-            applyTransform(obj, patch.value);
-          }
-        } else if (patch.kind === "material") {
-          // Update ALL objects in the layer that use this material name
-          const currentScene = scene;
-          if (!currentScene) return;
-          const list =
-            patch.layerTag === "ctx"
-              ? currentScene.contexts
-              : currentScene.layers;
-          const layer = list[patch.layerIdx];
-          if (!layer) return;
+				if (patch.kind === "sphere-center") {
+					const meshes = collectMeshesForKey(grp, objectKey);
+					for (const m of meshes) m.position.set(...patch.value);
+				} else if (patch.kind === "sphere-radius") {
+					const meshes = collectMeshesForKey(grp, objectKey);
+					for (const m of meshes) {
+						if (m instanceof THREE.Mesh) {
+							m.geometry.dispose();
+							m.geometry = new THREE.SphereGeometry(patch.value, 32, 16);
+						}
+					}
+				} else if (patch.kind === "quad-vertices") {
+					const meshes = collectMeshesForKey(grp, objectKey);
+					const [p0, p1, p2, p3] = patch.value;
+					for (const m of meshes) {
+						if (m instanceof THREE.Mesh) {
+							const pos = m.geometry.getAttribute("position");
+							if (pos) {
+								const arr = pos.array as Float32Array;
+								// Triangle 1: p0, p1, p2
+								arr.set(p0, 0);
+								arr.set(p1, 3);
+								arr.set(p2, 6);
+								// Triangle 2: p0, p2, p3
+								arr.set(p0, 9);
+								arr.set(p2, 12);
+								arr.set(p3, 15);
+								pos.needsUpdate = true;
+								m.geometry.computeVertexNormals();
+								m.geometry.computeBoundingSphere();
+							}
+						}
+					}
+				} else if (patch.kind === "node-transform") {
+					const nodeGrp = findGroupByKey(grp, objectKey);
+					if (nodeGrp) {
+						applyStaticTransformToObject3D(nodeGrp, patch.value);
+					}
+				} else if (patch.kind === "material") {
+					// Update ALL objects in the layer that use this material name
+					const currentScene = scene;
+					if (!currentScene) return;
+					const list =
+						patch.layerTag === "ctx"
+							? currentScene.contexts
+							: currentScene.layers;
+					const layer = list[patch.layerIdx];
+					if (!layer) return;
 
-          // Find all object keys in this layer that reference the edited material
-          const tag = patch.layerTag;
-          const li = patch.layerIdx;
-          const keysToUpdate: string[] = [];
-          for (let oi = 0; oi < layer.data.objects.length; oi++) {
-            const obj = layer.data.objects[oi];
-            if (obj.material === patch.matName) {
-              keysToUpdate.push(`${tag}:${li}:${oi}`);
-            }
-          }
+					// Find all object keys in this layer that reference the edited material
+					const tag = patch.layerTag;
+					const li = patch.layerIdx;
+					const keysToUpdate = collectLeafKeysForMaterial(
+						layer.data,
+						tag as "ctx" | "lyr",
+						li,
+						patch.matName,
+					);
 
-          const newMat = makeThreeMaterial(patch.matData);
-          for (const key of keysToUpdate) {
-            const meshes = collectMeshesForKey(grp, key);
-            for (const m of meshes) {
-              if (m instanceof THREE.Mesh) {
-                const oldSide = getMaterialSide(m.material);
-                disposeMaterial(m.material);
-                m.material = newMat.clone();
-                if (oldSide === THREE.DoubleSide) {
-                  (m.material as THREE.Material).side = THREE.DoubleSide;
-                }
-              }
-            }
-          }
-        } else if (patch.kind === "assign-material") {
-          // Reassign material for a single object
-          const meshes = collectMeshesForKey(grp, objectKey);
-          const newMat = makeThreeMaterial(patch.matData);
-          for (const m of meshes) {
-            if (m instanceof THREE.Mesh) {
-              const oldSide = getMaterialSide(m.material);
-              disposeMaterial(m.material);
-              m.material = newMat.clone();
-              if (oldSide === THREE.DoubleSide) {
-                (m.material as THREE.Material).side = THREE.DoubleSide;
-              }
-            }
-          }
-        }
-        // kind === "rebuild" is handled by incrementing sceneVersion externally
-      },
-    }),
-    [],
-  );
+					const newMat = makeThreeMaterial(patch.matData);
+					for (const key of keysToUpdate) {
+						const meshes = collectMeshesForKey(grp, key);
+						for (const m of meshes) {
+							if (m instanceof THREE.Mesh) {
+								const oldSide = getMaterialSide(m.material);
+								disposeMaterial(m.material);
+								m.material = newMat.clone();
+								if (oldSide === THREE.DoubleSide) {
+									(m.material as THREE.Material).side = THREE.DoubleSide;
+								}
+							}
+						}
+					}
+				} else if (patch.kind === "assign-material") {
+					// Reassign material for a single object
+					const meshes = collectMeshesForKey(grp, objectKey);
+					const newMat = makeThreeMaterial(patch.matData);
+					for (const m of meshes) {
+						if (m instanceof THREE.Mesh) {
+							const oldSide = getMaterialSide(m.material);
+							disposeMaterial(m.material);
+							m.material = newMat.clone();
+							if (oldSide === THREE.DoubleSide) {
+								(m.material as THREE.Material).side = THREE.DoubleSide;
+							}
+						}
+					}
+				}
+				// kind === "rebuild" is handled by incrementing sceneVersion externally
+			},
+		}),
+		[],
+	);
 
-  // --- Effect 1: one-time renderer / camera / controls setup ---
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+	// --- Effect 1: one-time renderer / camera / controls setup ---
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
+		const renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(container.clientWidth, container.clientHeight);
+		container.appendChild(renderer.domElement);
 
-    const sc = new THREE.Scene();
-    sc.background = new THREE.Color(0x0c0d0f);
-    threeScene.current = sc;
+		const sc = new THREE.Scene();
+		sc.background = new THREE.Color(0x0c0d0f);
+		threeScene.current = sc;
 
-    const cam = new THREE.PerspectiveCamera(
-      50,
-      container.clientWidth / container.clientHeight,
-      0.01,
-      1000,
-    );
-    cam.position.set(5, 4, 7);
-    camera.current = cam;
+		const cam = new THREE.PerspectiveCamera(
+			50,
+			container.clientWidth / container.clientHeight,
+			0.01,
+			1000,
+		);
+		cam.position.set(5, 4, 7);
+		camera.current = cam;
 
-    const ctrl = new OrbitControls(cam, renderer.domElement);
-    ctrl.enableDamping = true;
-    ctrl.dampingFactor = 0.08;
-    controls.current = ctrl;
+		const ctrl = new OrbitControls(cam, renderer.domElement);
+		ctrl.enableDamping = true;
+		ctrl.dampingFactor = 0.08;
+		controls.current = ctrl;
 
-    // Axes (X=red, Y=green, Z=blue)
-    const axes = new THREE.AxesHelper(2);
-    (axes.material as THREE.LineBasicMaterial).depthTest = false;
-    axes.renderOrder = 1;
-    sc.add(axes);
+		// Axes (X=red, Y=green, Z=blue)
+		const axes = new THREE.AxesHelper(2);
+		(axes.material as THREE.LineBasicMaterial).depthTest = false;
+		axes.renderOrder = 1;
+		sc.add(axes);
 
-    // Lights
-    sc.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-    sun.position.set(5, 10, 7);
-    sc.add(sun);
+		// Lights
+		sc.add(new THREE.AmbientLight(0xffffff, 0.4));
+		const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+		sun.position.set(5, 10, 7);
+		sc.add(sun);
 
-    // Scene-object group
-    const grp = new THREE.Group();
-    sc.add(grp);
-    sceneGroup.current = grp;
+		// Scene-object group
+		const grp = new THREE.Group();
+		sc.add(grp);
+		sceneGroup.current = grp;
 
-    // Post-processing with OutlinePass
-    const comp = new EffectComposer(renderer);
-    comp.addPass(new RenderPass(sc, cam));
+		const proxy = new THREE.Group();
+		proxy.name = "GizmoProxy";
+		sc.add(proxy);
+		gizmoProxy.current = proxy;
 
-    const outline = new OutlinePass(
-      new THREE.Vector2(container.clientWidth, container.clientHeight),
-      sc,
-      cam,
-    );
-    outline.edgeStrength = 3;
-    outline.edgeGlow = 0.3;
-    outline.edgeThickness = 1.2;
-    outline.visibleEdgeColor.set(0xe8a53c); // amber
-    outline.hiddenEdgeColor.set(0xe8a53c);
-    outline.pulsePeriod = 0;
-    comp.addPass(outline);
-    comp.addPass(new OutputPass());
+		// Post-processing with OutlinePass
+		const comp = new EffectComposer(renderer);
+		comp.addPass(new RenderPass(sc, cam));
 
-    composer.current = comp;
-    outlinePass.current = outline;
+		const outline = new OutlinePass(
+			new THREE.Vector2(container.clientWidth, container.clientHeight),
+			sc,
+			cam,
+		);
+		outline.edgeStrength = 3;
+		outline.edgeGlow = 0.3;
+		outline.edgeThickness = 1.2;
+		outline.visibleEdgeColor.set(0xe8a53c); // amber
+		outline.hiddenEdgeColor.set(0xe8a53c);
+		outline.pulsePeriod = 0;
+		comp.addPass(outline);
+		comp.addPass(new OutputPass());
 
-    // Resize
-    const ro = new ResizeObserver(() => {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      cam.aspect = w / h;
-      cam.updateProjectionMatrix();
-      renderer.setSize(w, h);
-      comp.setSize(w, h);
-    });
-    ro.observe(container);
+		composer.current = comp;
+		outlinePass.current = outline;
 
-    // Render loop
-    let animId: number;
-    function animate() {
-      animId = requestAnimationFrame(animate);
-      ctrl.update();
-      comp.render();
-    }
-    animate();
+		// TransformControls (gizmo)
+		const tctrl = new TransformControls(cam, renderer.domElement);
+		tctrl.setSize(0.75);
+		tctrl.setSpace("world");
+		tctrl.setMode("translate");
+		sc.add(tctrl.getHelper());
+		transformControls.current = tctrl;
 
-    return () => {
-      cancelAnimationFrame(animId);
-      ro.disconnect();
-      ctrl.dispose();
+		tctrl.addEventListener("dragging-changed", (event) => {
+			ctrl.enabled = !event.value;
+			if (gizmoProxy.current) {
+				gizmoProxy.current.userData.isDragging = event.value;
+			}
+		});
 
-      const old = sceneGroup.current;
-      if (old) {
-        sc.remove(old);
-        disposeSceneGroup(old);
-      }
-      const oldUrls = blobUrlsRef.current;
-      if (oldUrls.length > 0) {
-        revokeBlobUrls(oldUrls);
-      }
-      const comp = composer.current;
-      if (comp) {
-        for (const pass of comp.passes) {
-          if ("dispose" in pass && typeof pass.dispose === "function") {
-            pass.dispose();
-          }
-        }
-        const compAny = comp as unknown as {
-          renderTarget1?: THREE.WebGLRenderTarget;
-          renderTarget2?: THREE.WebGLRenderTarget;
-        };
-        compAny.renderTarget1?.dispose();
-        compAny.renderTarget2?.dispose();
-        if ("dispose" in comp && typeof comp.dispose === "function") {
-          comp.dispose();
-        }
-      }
+		// Resize
+		const ro = new ResizeObserver(() => {
+			const w = container.clientWidth;
+			const h = container.clientHeight;
+			cam.aspect = w / h;
+			cam.updateProjectionMatrix();
+			renderer.setSize(w, h);
+			comp.setSize(w, h);
+		});
+		ro.observe(container);
 
-      renderer.dispose();
-      container.removeChild(renderer.domElement);
-      threeScene.current = null;
-      camera.current = null;
-      controls.current = null;
-      sceneGroup.current = null;
-      blobUrlsRef.current = [];
-      composer.current = null;
-      outlinePass.current = null;
-    };
-  }, []);
+		// Render loop
+		let animId: number;
+		function animate() {
+			animId = requestAnimationFrame(animate);
+			ctrl.update();
+			comp.render();
+		}
+		animate();
 
-  // --- Effect 2: rebuild scene objects on structural changes ---
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sceneVersion is used only as a trigger, not read in the body
-  useEffect(() => {
-    const currentScene = scene;
-    if (!currentScene || !dirHandle) return;
+		return () => {
+			cancelAnimationFrame(animId);
+			ro.disconnect();
+			const proxy = gizmoProxy.current;
+			const grp = sceneGroup.current;
+			if (proxy && grp && proxy.userData.target) {
+				grp.attach(proxy.userData.target as THREE.Group);
+				proxy.userData.target = null;
+			}
+			ctrl.dispose();
+			tctrl.dispose();
 
-    const sc = threeScene.current;
-    const cam = camera.current;
-    const ctrl = controls.current;
-    if (!sc || !cam || !ctrl) return;
+			const old = sceneGroup.current;
+			if (old) {
+				sc.remove(old);
+				disposeSceneGroup(old);
+			}
+			const oldUrls = blobUrlsRef.current;
+			if (oldUrls.length > 0) {
+				revokeBlobUrls(oldUrls);
+			}
+			const comp = composer.current;
+			if (comp) {
+				for (const pass of comp.passes) {
+					if ("dispose" in pass && typeof pass.dispose === "function") {
+						pass.dispose();
+					}
+				}
+				const compAny = comp as unknown as {
+					renderTarget1?: THREE.WebGLRenderTarget;
+					renderTarget2?: THREE.WebGLRenderTarget;
+				};
+				compAny.renderTarget1?.dispose();
+				compAny.renderTarget2?.dispose();
+				if ("dispose" in comp && typeof comp.dispose === "function") {
+					comp.dispose();
+				}
+			}
 
-    // Only reset the camera when a new scene is loaded (dirHandle changed),
-    // not on sceneVersion bumps — otherwise edits reset the viewport angle.
-    const isNewScene = dirHandle !== prevDirHandle.current;
-    prevDirHandle.current = dirHandle;
-    if (isNewScene) {
-      cam.fov = currentScene.camera.vfov;
-      cam.position.set(...currentScene.camera.look_from);
-      ctrl.target.set(...currentScene.camera.look_at);
-      cam.updateProjectionMatrix();
-      ctrl.update();
-    }
+			renderer.dispose();
+			container.removeChild(renderer.domElement);
+			threeScene.current = null;
+			camera.current = null;
+			controls.current = null;
+			sceneGroup.current = null;
+			blobUrlsRef.current = [];
+			composer.current = null;
+			outlinePass.current = null;
+			transformControls.current = null;
+			gizmoProxy.current = null;
+		};
+	}, []);
 
-    if (
-      lastBuild.current.dirHandle === dirHandle &&
-      lastBuild.current.sceneVersion === sceneVersion
-    ) {
-      return;
-    }
-    lastBuild.current = { dirHandle, sceneVersion };
+	// --- Effect 2: rebuild scene objects on structural changes ---
+	useEffect(() => {
+		const currentScene = scene;
+		if (!currentScene || !dirHandle) return;
 
-    const abortController = new AbortController();
+		const sc = threeScene.current;
+		const cam = camera.current;
+		const ctrl = controls.current;
+		if (!sc || !cam || !ctrl) return;
 
-    buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
-      (result) => {
-        if (abortController.signal.aborted) return;
+		// Only reset the camera when a new scene is loaded (dirHandle changed),
+		// not on sceneVersion bumps — otherwise edits reset the viewport angle.
+		const isNewScene = dirHandle !== prevDirHandle.current;
+		prevDirHandle.current = dirHandle;
+		if (isNewScene) {
+			syncOrbitCameraToScene(cam, ctrl, currentScene);
+		}
 
-        const old = sceneGroup.current;
-        if (old) {
-          sc.remove(old);
-          disposeSceneGroup(old);
-        }
+		if (
+			lastBuild.current.dirHandle === dirHandle &&
+			lastBuild.current.sceneVersion === sceneVersion
+		) {
+			return;
+		}
+		lastBuild.current = { dirHandle, sceneVersion };
 
-        const oldUrls = blobUrlsRef.current;
-        if (oldUrls.length > 0) {
-          revokeBlobUrls(oldUrls);
-        }
+		const abortController = new AbortController();
 
-        sc.add(result.group);
-        sceneGroup.current = result.group;
-        blobUrlsRef.current = result.blobUrls;
-      },
-    );
+		buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
+			(result) => {
+				if (abortController.signal.aborted) return;
 
-    return () => {
-      abortController.abort();
-    };
-  }, [dirHandle, scene, sceneVersion]);
+				const old = sceneGroup.current;
+				if (old) {
+					sc.remove(old);
+					disposeSceneGroup(old);
+				}
 
-  // --- Effect 3: update outline when selection changes ---
-  useEffect(() => {
-    const outline = outlinePass.current;
-    const grp = sceneGroup.current;
-    if (!outline) return;
+				const oldUrls = blobUrlsRef.current;
+				if (oldUrls.length > 0) {
+					revokeBlobUrls(oldUrls);
+				}
 
-    if (!selectedObjectKey || !grp) {
-      outline.selectedObjects = [];
-      return;
-    }
+				sc.add(result.group);
+				sceneGroup.current = result.group;
+				blobUrlsRef.current = result.blobUrls;
+			},
+		);
 
-    outline.selectedObjects = collectMeshesForKey(grp, selectedObjectKey);
-  }, [selectedObjectKey]);
+		return () => {
+			abortController.abort();
+		};
+	}, [dirHandle, scene, sceneVersion]);
 
-  // --- Click handler for raycasting ---
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const container = containerRef.current;
-      const cam = camera.current;
-      const grp = sceneGroup.current;
-      if (!container || !cam || !grp) return;
+	// --- Effect 3: update outline when selection changes ---
+	useEffect(() => {
+		const outline = outlinePass.current;
+		const grp = sceneGroup.current;
+		if (!outline) return;
 
-      // Only handle plain left-clicks (no drag)
-      if (e.button !== 0) return;
+		if (!selectedObjectKey || !grp) {
+			outline.selectedObjects = [];
+			return;
+		}
 
-      const rect = container.getBoundingClientRect();
-      const mouse = new THREE.Vector2(
-        ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        -((e.clientY - rect.top) / rect.height) * 2 + 1,
-      );
+		outline.selectedObjects = collectMeshesForKey(grp, selectedObjectKey);
+	}, [selectedObjectKey]);
 
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, cam);
-      const hits = raycaster.intersectObjects(grp.children, true);
+	// --- Effect 4: attach TransformControls to selected object ---
+	const latestTransformRef = useRef<{
+		objectKey: string | null;
+		mode: "translate" | "rotate" | "scale";
+		space: "world" | "local";
+	}>({ objectKey: null, mode: "translate", space: "world" });
 
-      if (hits.length > 0) {
-        const key = findObjectKey(hits[0].object);
-        if (key) {
-          // Toggle off if clicking same object
-          onSelectObject(key === selectedObjectKey ? null : key);
-          return;
-        }
-      }
-      // Click on empty space — deselect
-      onSelectObject(null);
-    },
-    [selectedObjectKey, onSelectObject],
-  );
+	useEffect(() => {
+		const tctrl = transformControls.current;
+		const grp = sceneGroup.current;
+		if (!tctrl || !grp) return;
 
-  // Track mouse-down position to distinguish clicks from drags
-  const mouseDown = useRef<{ x: number; y: number } | null>(null);
+		const objectKey = selectedObjectKey;
+		const mode = transformMode ?? "translate";
+		const space = transformSpace ?? "world";
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    mouseDown.current = { x: e.clientX, y: e.clientY };
-  }, []);
+		if (mode !== latestTransformRef.current.mode) {
+			tctrl.setMode(mode);
+			latestTransformRef.current.mode = mode;
+		}
+		if (space !== latestTransformRef.current.space) {
+			tctrl.setSpace(space);
+			latestTransformRef.current.space = space;
+		}
 
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!mouseDown.current) return;
-      const dx = e.clientX - mouseDown.current.x;
-      const dy = e.clientY - mouseDown.current.y;
-      mouseDown.current = null;
-      // Only treat as click if mouse barely moved (not a drag/orbit)
-      if (dx * dx + dy * dy < 9) {
-        handleClick(e);
-      }
-    },
-    [handleClick],
-  );
+		if (
+			objectKey &&
+			(objectKey !== latestTransformRef.current.objectKey ||
+				mode !== latestTransformRef.current.mode)
+		) {
+			const nodeGrp = findGroupByKey(grp, objectKey);
+			const proxy = gizmoProxy.current;
+			if (nodeGrp && proxy) {
+				if (proxy.userData.target && proxy.userData.target !== nodeGrp) {
+					grp.attach(proxy.userData.target as THREE.Group);
+					proxy.userData.target = null;
+				}
 
-  return (
-    <div
-      ref={containerRef}
-      role="application"
-      aria-label="3D scene viewport"
-      style={{ width: "100%", height: "100%" }}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-    />
-  );
+				delete proxy.userData.startProxyMatrix;
+				delete proxy.userData.startTargetMatrix;
+
+				const box = new THREE.Box3().setFromObject(nodeGrp);
+				const center = new THREE.Vector3();
+				if (!box.isEmpty()) box.getCenter(center);
+				else nodeGrp.getWorldPosition(center);
+
+				proxy.position.copy(center);
+				proxy.quaternion.copy(nodeGrp.quaternion);
+				proxy.scale.copy(nodeGrp.scale);
+				proxy.userData.target = nodeGrp;
+				proxy.userData.isDragging = false;
+				proxy.updateMatrixWorld(true);
+
+				tctrl.attach(proxy);
+				latestTransformRef.current.objectKey = objectKey;
+			}
+		} else if (!objectKey) {
+			const proxy = gizmoProxy.current;
+			if (proxy && proxy.userData.target) {
+				// Detach and put target back into the scene group
+				grp.attach(proxy.userData.target);
+				proxy.userData.target = null;
+			}
+			tctrl.detach();
+			latestTransformRef.current.objectKey = null;
+		}
+	}, [selectedObjectKey, transformMode, transformSpace]);
+
+	// --- Effect 5: handle gizmo transform changes ---
+	useEffect(() => {
+		const tctrl = transformControls.current;
+		if (!tctrl || !onTransformChange || !selectedObjectKey) return;
+
+		const onChange = () => {
+			const proxy = tctrl.object;
+			if (!proxy || !proxy.userData.target) return;
+			
+			const target = proxy.userData.target as THREE.Group;
+
+			// To get the true world transform of the target (which is now a child of proxy),
+			// we temporarily detach it to the scene group, read its values, and reattach it.
+			const grp = sceneGroup.current;
+			if (!grp) return;
+
+			grp.attach(target);
+
+			const pos = target.position;
+			const rot = target.rotation;
+			const scl = target.scale;
+
+			const transform: StaticTransform = {
+				translate: [pos.x, pos.y, pos.z],
+				rotate: [
+					THREE.MathUtils.radToDeg(rot.x),
+					THREE.MathUtils.radToDeg(rot.y),
+					THREE.MathUtils.radToDeg(rot.z),
+				],
+				scale:
+					transformMode === "scale"
+						? [scl.x, scl.y, scl.z]
+						: scl.x === 1 && scl.y === 1 && scl.z === 1
+							? undefined
+							: [scl.x, scl.y, scl.z],
+			};
+
+			proxy.attach(target);
+
+			onTransformChange(selectedObjectKey, transform);
+		};
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const onDraggingChanged = (event: any) => {
+			if (!event.value) {
+				onChange();
+			}
+		};
+
+		tctrl.addEventListener("change", onChange);
+		tctrl.addEventListener("dragging-changed", onDraggingChanged);
+
+		return () => {
+			tctrl.removeEventListener("change", onChange);
+			tctrl.removeEventListener("dragging-changed", onDraggingChanged);
+		};
+	}, [selectedObjectKey, transformMode, onTransformChange]);
+
+	// --- Click handler for raycasting ---
+	const handleClick = useCallback(
+		(e: React.MouseEvent<HTMLDivElement>) => {
+			const container = containerRef.current;
+			const cam = camera.current;
+			const grp = sceneGroup.current;
+			if (!container || !cam || !grp) return;
+
+			// Only handle plain left-clicks (no drag)
+			if (e.button !== 0) return;
+
+			const rect = container.getBoundingClientRect();
+			const mouse = new THREE.Vector2(
+				((e.clientX - rect.left) / rect.width) * 2 - 1,
+				-((e.clientY - rect.top) / rect.height) * 2 + 1,
+			);
+
+			const raycaster = new THREE.Raycaster();
+			raycaster.setFromCamera(mouse, cam);
+			const hits = raycaster.intersectObjects(grp.children, true);
+
+			if (hits.length > 0) {
+				const key = findObjectKey(hits[0].object);
+				if (key) {
+					// Toggle off if clicking same object
+					onSelectObject(key === selectedObjectKey ? null : key);
+					return;
+				}
+			}
+			// Click on empty space — deselect
+			onSelectObject(null);
+		},
+		[selectedObjectKey, onSelectObject],
+	);
+
+	// Track mouse-down position to distinguish clicks from drags
+	const mouseDown = useRef<{ x: number; y: number } | null>(null);
+
+	const handleMouseDown = useCallback((e: React.MouseEvent) => {
+		mouseDown.current = { x: e.clientX, y: e.clientY };
+	}, []);
+
+	const handleMouseUp = useCallback(
+		(e: React.MouseEvent<HTMLDivElement>) => {
+			if (!mouseDown.current) return;
+			const dx = e.clientX - mouseDown.current.x;
+			const dy = e.clientY - mouseDown.current.y;
+			mouseDown.current = null;
+			// Only treat as click if mouse barely moved (not a drag/orbit)
+			if (dx * dx + dy * dy < 9) {
+				handleClick(e);
+			}
+		},
+		[handleClick],
+	);
+
+	return (
+		<div
+			ref={containerRef}
+			role="application"
+			aria-label="3D scene viewport"
+			style={{ width: "100%", height: "100%" }}
+			onMouseDown={handleMouseDown}
+			onMouseUp={handleMouseUp}
+		/>
+	);
 });
