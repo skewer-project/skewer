@@ -272,6 +272,7 @@ const LayerCard = memo(function LayerCard({
 	useEffect(() => {
 		const add = ancestorOpenKeys(selectedObjectKey);
 		if (add.length === 0) return;
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setExpandedPaths((prev) => {
 			const n = new Set(prev);
 			for (const k of add) n.add(k);
