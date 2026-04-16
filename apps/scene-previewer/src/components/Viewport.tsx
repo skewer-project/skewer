@@ -359,25 +359,6 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 		const proxy = new THREE.Group();
 		proxy.name = "GizmoProxy";
-		// proxy.matrixAutoUpdate = false;
-		proxy.updateMatrixWorld = function (force?: boolean) {
-			if (this.userData.target) {
-				const target = this.userData.target as THREE.Group;
-				
-				// Sync target -> proxy only when not dragging
-				if (!this.userData.isDragging) {
-					const box = new THREE.Box3().setFromObject(target);
-					const center = new THREE.Vector3();
-					if (!box.isEmpty()) box.getCenter(center);
-					else target.getWorldPosition(center);
-
-					this.position.copy(center);
-					this.quaternion.copy(target.quaternion);
-					this.scale.copy(target.scale);
-				}
-			}
-			THREE.Object3D.prototype.updateMatrixWorld.call(this, force);
-		};
 		sc.add(proxy);
 		gizmoProxy.current = proxy;
 
@@ -440,6 +421,12 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		return () => {
 			cancelAnimationFrame(animId);
 			ro.disconnect();
+			const proxy = gizmoProxy.current;
+			const grp = sceneGroup.current;
+			if (proxy && grp && proxy.userData.target) {
+				grp.attach(proxy.userData.target as THREE.Group);
+				proxy.userData.target = null;
+			}
 			ctrl.dispose();
 			tctrl.dispose();
 
@@ -585,6 +572,11 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			const nodeGrp = findGroupByKey(grp, objectKey);
 			const proxy = gizmoProxy.current;
 			if (nodeGrp && proxy) {
+				if (proxy.userData.target && proxy.userData.target !== nodeGrp) {
+					grp.attach(proxy.userData.target as THREE.Group);
+					proxy.userData.target = null;
+				}
+
 				delete proxy.userData.startProxyMatrix;
 				delete proxy.userData.startTargetMatrix;
 
@@ -604,6 +596,12 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				latestTransformRef.current.objectKey = objectKey;
 			}
 		} else if (!objectKey) {
+			const proxy = gizmoProxy.current;
+			if (proxy && proxy.userData.target) {
+				// Detach and put target back into the scene group
+				grp.attach(proxy.userData.target);
+				proxy.userData.target = null;
+			}
 			tctrl.detach();
 			latestTransformRef.current.objectKey = null;
 		}
@@ -619,24 +617,13 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			if (!proxy || !proxy.userData.target) return;
 			
 			const target = proxy.userData.target as THREE.Group;
-			const startProxyMat = proxy.userData.startProxyMatrix as THREE.Matrix4 | undefined;
-			const startTargetMat = proxy.userData.startTargetMatrix as THREE.Matrix4 | undefined;
 
-			// Ensure proxy matrix is fresh before math
-			proxy.updateMatrix();
+			// To get the true world transform of the target (which is now a child of proxy),
+			// we temporarily detach it to the scene group, read its values, and reattach it.
+			const grp = sceneGroup.current;
+			if (!grp) return;
 
-			// Update target from proxy relative transformation
-			if (startProxyMat && startTargetMat) {
-				const invStartProxy = new THREE.Matrix4().copy(startProxyMat).invert();
-				// delta = proxy * startProxy^-1
-				const delta = new THREE.Matrix4().multiplyMatrices(proxy.matrix, invStartProxy);
-				// target = delta * startTarget
-				const newTargetMat = new THREE.Matrix4().multiplyMatrices(delta, startTargetMat);
-				
-				newTargetMat.decompose(target.position, target.quaternion, target.scale);
-			}
-
-			target.updateMatrixWorld(true);
+			grp.attach(target);
 
 			const pos = target.position;
 			const rot = target.rotation;
@@ -656,21 +643,16 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 							? undefined
 							: [scl.x, scl.y, scl.z],
 			};
+
+			proxy.attach(target);
+
 			onTransformChange(selectedObjectKey, transform);
 		};
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const onDraggingChanged = (event: any) => {
-			const proxy = tctrl.object;
-			if (proxy && proxy.userData.target) {
-				if (event.value) {
-					proxy.updateMatrix();
-					proxy.userData.target.updateMatrix();
-					proxy.userData.startProxyMatrix = proxy.matrix.clone();
-					proxy.userData.startTargetMatrix = proxy.userData.target.matrix.clone();
-				} else {
-					onChange();
-				}
+			if (!event.value) {
+				onChange();
 			}
 		};
 
