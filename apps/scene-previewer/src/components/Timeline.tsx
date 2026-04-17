@@ -1,5 +1,6 @@
 import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
+import { KeyframeMarker } from "./KeyframeMarker";
 
 export interface TimelineProps {
 	currentTime: number;
@@ -106,10 +107,11 @@ export function Timeline({
 							const f = (t - animRange.start) / span;
 							if (f < 0 || f > 1) return null;
 							return (
-								<div
-									key={`kf-marker-${t}`}
-									className="timeline-kf-marker"
-									style={{ left: `${f * 100}%` }}
+								<KeyframeMarker
+									key={`kf-${t}`}
+									fraction={f}
+									variant="header"
+									title={`${t.toFixed(2)}s`}
 								/>
 							);
 						})}
