@@ -3,9 +3,13 @@
 #include <exrio/deep_image.h>
 #include <exrio/deep_writer.h>
 
+#include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
+#include <string>
 
 #include "core/cpu_config.h"
 #include "core/math/vec3.h"
@@ -65,75 +69,225 @@ static std::pair<std::string, std::string> LayerOutputPaths(const std::string& l
     return {prefix + stem + ".png", prefix + stem + ".exr"};
 }
 
+// Insert ".NNNN" immediately before the final extension (e.g. beauty.png → beauty.0042.png).
+static std::string InsertFrameBeforeExtension(const std::string& path, int frame_idx) {
+    char frame_buf[16];
+    std::snprintf(frame_buf, sizeof(frame_buf), ".%04d", frame_idx);
+
+    const size_t dot = path.rfind('.');
+    if (dot == std::string::npos) {
+        return path + frame_buf;
+    }
+    return path.substr(0, dot) + frame_buf + path.substr(dot);
+}
+
+static std::pair<std::string, std::string> LayerOutputPathsWithFrame(const std::string& layer_path,
+                                                                     const std::string& output_dir,
+                                                                     int frame_idx) {
+    auto [png, exr] = LayerOutputPaths(layer_path, output_dir);
+    return {InsertFrameBeforeExtension(png, frame_idx), InsertFrameBeforeExtension(exr, frame_idx)};
+}
+
+static std::string LayerStemFromPath(const std::string& layer_path) {
+    size_t slash = layer_path.find_last_of("/\\");
+    std::string base = (slash != std::string::npos) ? layer_path.substr(slash + 1) : layer_path;
+    size_t dot = base.rfind('.');
+    return (dot != std::string::npos) ? base.substr(0, dot) : base;
+}
+
+static bool LayerStemMatches(const std::string& layer_path, const std::string& stem_or_path) {
+    if (layer_path == stem_or_path) return true;
+    return LayerStemFromPath(layer_path) == stem_or_path;
+}
+
+static void RenderLayerPass(const SceneConfig& config, const std::string& layer_path,
+                            float shutter_open, float shutter_close,
+                            const std::pair<std::string, std::string>& out_paths,
+                            int thread_override, bool multi_layer) {
+    auto layer_scene = std::make_unique<Scene>();
+    LoadContextIntoScene(config.context_paths, *layer_scene);
+    LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
+    layer_scene->SetShutter(shutter_open, shutter_close);
+    layer_scene->Build();
+
+    RenderOptions opts = lcfg.render_options;
+    auto& ic = opts.integrator_config;
+
+    if (multi_layer) {
+        ic.enable_deep = true;
+        ic.transparent_background = true;
+    }
+    if (thread_override > 0) ic.num_threads = thread_override;
+
+    opts.image_config.outfile = out_paths.first;
+    opts.image_config.exrfile = out_paths.second;
+
+    float aspect =
+        static_cast<float>(opts.image_config.width) / static_cast<float>(opts.image_config.height);
+    auto cam = std::make_unique<Camera>(config.look_from, config.look_at, config.vup, config.vfov,
+                                        aspect, config.aperture_radius, config.focus_distance,
+                                        shutter_open, shutter_close);
+    ic.cam_w = -cam->GetW();
+
+    auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
+    auto integ = CreateIntegrator(opts.integrator_type);
+
+    const auto& lic = opts.integrator_config;
+    std::cout << "[Session] " << opts.image_config.width << "x" << opts.image_config.height
+              << " | Samples: " << lic.max_samples << " | Depth: " << lic.max_depth << "\n";
+
+    integ->Render(*layer_scene, *cam, film.get(), ic);
+
+    film->WriteImage(opts.image_config.outfile);
+    std::cout << "[Session] Wrote " << opts.image_config.outfile << "\n";
+
+    if (ic.enable_deep) {
+        exrio::DeepImage img = film->BuildDeepImage();
+        exrio::writeDeepEXR(img, opts.image_config.exrfile);
+        std::cout << "[Session] Wrote " << opts.image_config.exrfile << "\n";
+    }
+}
+
 void RenderSession::RenderScene(const std::string& scene_file, int thread_override) {
+    RenderScene(scene_file, RenderCliOptions{}, thread_override);
+}
+
+void RenderSession::RenderScene(const std::string& scene_file, const RenderCliOptions& cli,
+                                int thread_override) {
     std::cout << "[Session] Rendering scene: " << scene_file << "\n";
 
     SceneConfig config = LoadSceneFile(scene_file);
 
-    // Store shared camera params (used by RebuildFilm)
     cam_look_from_ = config.look_from;
     cam_look_at_ = config.look_at;
     cam_vup_ = config.vup;
     cam_vfov_ = config.vfov;
     cam_aperture_ = config.aperture_radius;
     cam_focus_dist_ = config.focus_distance;
-    cam_shutter_open_ = config.shutter_open;
-    cam_shutter_close_ = config.shutter_close;
+    if (config.animation) {
+        cam_shutter_open_ = config.animation->start;
+        cam_shutter_close_ = config.animation->start;
+    } else {
+        cam_shutter_open_ = config.shutter_open;
+        cam_shutter_close_ = config.shutter_close;
+    }
+
+    if (cli.statics_only && cli.only_listed_frames) {
+        throw std::runtime_error("--statics-only cannot be combined with --frame or --frames");
+    }
+    if (cli.only_listed_frames && !config.animation) {
+        throw std::runtime_error("--frame / --frames require an \"animation\" block in the scene");
+    }
+
+    const int num_anim_frames = config.animation ? config.animation->NumFrames() : 0;
+
+    if (cli.only_listed_frames) {
+        for (int idx : cli.frame_indices) {
+            if (idx < 0 || idx >= num_anim_frames) {
+                throw std::runtime_error("Frame index " + std::to_string(idx) +
+                                         " out of range [0, " + std::to_string(num_anim_frames) +
+                                         ")");
+            }
+        }
+    }
 
     const bool multi_layer = config.layer_paths.size() > 1;
+    const bool frame_mode = cli.only_listed_frames && !cli.statics_only;
 
     for (size_t i = 0; i < config.layer_paths.size(); ++i) {
         const std::string& layer_path = config.layer_paths[i];
         std::cout << "[Session] Layer " << (i + 1) << "/" << config.layer_paths.size() << ": "
                   << layer_path << "\n";
 
-        // Fresh scene per layer
-        auto layer_scene = std::make_unique<Scene>();
-        LoadContextIntoScene(config.context_paths, *layer_scene);
-        LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
-        layer_scene->SetShutter(cam_shutter_open_, cam_shutter_close_);
-        layer_scene->Build();
+        LayerAnimationFlags anim_flags = PeekLayerAnimationFlags(layer_path);
 
-        auto& opts = lcfg.render_options;
-        auto& ic = opts.integrator_config;
-
-        // Multi-layer renders always produce deep EXRs with transparent backgrounds
-        if (multi_layer) {
-            ic.enable_deep = true;
-            ic.transparent_background = true;
+        if (anim_flags.animated && !config.animation) {
+            throw std::runtime_error(
+                "Layer has \"animated\": true but scene has no \"animation\" block: " + layer_path);
         }
-        if (thread_override > 0) ic.num_threads = thread_override;
 
-        // Output filenames derived from layer filename + scene-level output_dir
-        auto [png_out, exr_out] = LayerOutputPaths(layer_path, config.output_dir);
-        opts.image_config.outfile = png_out;
-        opts.image_config.exrfile = exr_out;
+        if (config.animation && !anim_flags.animated_key_present) {
+            std::cerr << "[Warning] Layer \"" << layer_path
+                      << "\" omits \"animated\"; defaulting to false.\n";
+        }
 
-        float aspect = static_cast<float>(opts.image_config.width) /
-                       static_cast<float>(opts.image_config.height);
-        auto cam = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_,
-                                            aspect, cam_aperture_, cam_focus_dist_,
-                                            cam_shutter_open_, cam_shutter_close_);
-        ic.cam_w = -cam->GetW();
+        if (anim_flags.animated) {
+            if (cli.statics_only) {
+                continue;
+            }
+            const AnimationConfig& anim = *config.animation;
+            std::vector<int> frames;
+            if (cli.only_listed_frames) {
+                frames = cli.frame_indices;
+            } else {
+                frames.reserve(static_cast<size_t>(num_anim_frames));
+                for (int f = 0; f < num_anim_frames; ++f) {
+                    frames.push_back(f);
+                }
+            }
 
-        auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
-        auto integ = CreateIntegrator(opts.integrator_type);
-
-        const auto& lic = opts.integrator_config;
-        std::cout << "[Session] " << opts.image_config.width << "x" << opts.image_config.height
-                  << " | Samples: " << lic.max_samples << " | Depth: " << lic.max_depth << "\n";
-
-        integ->Render(*layer_scene, *cam, film.get(), ic);
-
-        film->WriteImage(opts.image_config.outfile);
-        std::cout << "[Session] Wrote " << opts.image_config.outfile << "\n";
-
-        if (ic.enable_deep) {
-            exrio::DeepImage img = film->BuildDeepImage();
-            exrio::writeDeepEXR(img, opts.image_config.exrfile);
-            std::cout << "[Session] Wrote " << opts.image_config.exrfile << "\n";
+            for (int frame_idx : frames) {
+                auto [open_s, close_s] = anim.FrameWindow(frame_idx);
+                auto outs = LayerOutputPathsWithFrame(layer_path, config.output_dir, frame_idx);
+                std::cout << "[Session] Frame " << frame_idx << " (shutter " << open_s << " — "
+                          << close_s << ")\n";
+                RenderLayerPass(config, layer_path, open_s, close_s, outs, thread_override,
+                                multi_layer);
+            }
+        } else {
+            if (frame_mode) {
+                continue;
+            }
+            float open_s = config.shutter_open;
+            float close_s = config.shutter_close;
+            if (config.animation) {
+                open_s = config.animation->start;
+                close_s = config.animation->start;
+            }
+            auto outs = LayerOutputPaths(layer_path, config.output_dir);
+            RenderLayerPass(config, layer_path, open_s, close_s, outs, thread_override,
+                            multi_layer);
         }
     }
+}
+
+void RenderSession::RenderFrame(const std::string& scene_file, const std::string& layer_stem,
+                                int frame_idx, int thread_override) {
+    SceneConfig config = LoadSceneFile(scene_file);
+    if (!config.animation) {
+        throw std::runtime_error("RenderFrame requires a scene with an \"animation\" block");
+    }
+
+    const int num_anim_frames = config.animation->NumFrames();
+    if (frame_idx < 0 || frame_idx >= num_anim_frames) {
+        throw std::runtime_error("Frame index " + std::to_string(frame_idx) + " out of range [0, " +
+                                 std::to_string(num_anim_frames) + ")");
+    }
+
+    std::string matched;
+    for (const auto& p : config.layer_paths) {
+        if (LayerStemMatches(p, layer_stem)) {
+            matched = p;
+            break;
+        }
+    }
+    if (matched.empty()) {
+        throw std::runtime_error("No layer matching \"" + layer_stem + "\" in scene");
+    }
+
+    LayerAnimationFlags anim_flags = PeekLayerAnimationFlags(matched);
+    if (!anim_flags.animated) {
+        throw std::runtime_error("RenderFrame target layer is not marked animated: " + matched);
+    }
+
+    const bool multi_layer = config.layer_paths.size() > 1;
+    auto [open_s, close_s] = config.animation->FrameWindow(frame_idx);
+    auto outs = LayerOutputPathsWithFrame(matched, config.output_dir, frame_idx);
+
+    std::cout << "[Session] RenderFrame: " << matched << " @ frame " << frame_idx << " (shutter "
+              << open_s << " — " << close_s << ")\n";
+
+    RenderLayerPass(config, matched, open_s, close_s, outs, thread_override, multi_layer);
 }
 
 /**

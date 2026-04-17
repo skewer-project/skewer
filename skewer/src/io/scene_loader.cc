@@ -570,6 +570,14 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
     return config;
 }
 
+LayerAnimationFlags PeekLayerAnimationFlags(const std::string& filepath) {
+    json j = OpenJSON(filepath);
+    LayerAnimationFlags f{};
+    f.animated_key_present = j.contains("animated");
+    f.animated = GetOr(j, "animated", false);
+    return f;
+}
+
 LayerConfig LoadLayerFile(const std::string& filepath, Scene& scene) {
     json j = OpenJSON(filepath);
 

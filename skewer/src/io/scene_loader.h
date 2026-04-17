@@ -89,6 +89,13 @@ SceneConfig LoadSceneFile(const std::string& filepath);
 // Throws std::runtime_error if the file contains a "camera" key.
 LayerConfig LoadLayerFile(const std::string& filepath, Scene& scene);
 
+// Read only the animated flags from a layer JSON (no geometry load).
+struct LayerAnimationFlags {
+    bool animated = false;
+    bool animated_key_present = false;
+};
+LayerAnimationFlags PeekLayerAnimationFlags(const std::string& filepath);
+
 // Merge context layer files into a Scene (adds their materials + objects/lights).
 void LoadContextIntoScene(const std::vector<std::string>& context_paths, Scene& scene);
 

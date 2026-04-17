@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "film/film.h"
 #include "session/render_options.h"
@@ -22,6 +23,15 @@ class Camera;
 class Integrator;
 class Film;
 
+// CLI / batch options for RenderScene (default: full sequence — static layers once,
+// animated layers for every frame in the scene animation range).
+struct RenderCliOptions {
+    bool statics_only = false;
+    // When true, only animated layers run, using frame_indices (see below).
+    bool only_listed_frames = false;
+    std::vector<int> frame_indices;
+};
+
 class RenderSession {
   public:
     RenderSession();
@@ -31,6 +41,14 @@ class RenderSession {
     // Output filenames are derived from each layer filename
     // (e.g. layer_character.json → layer_character.png / .exr).
     void RenderScene(const std::string& scene_file, int thread_override = 0);
+    void RenderScene(const std::string& scene_file, const RenderCliOptions& cli,
+                     int thread_override = 0);
+
+    // Render a single animated layer at one frame (for workers / programmatic use).
+    // layer_stem matches the layer file basename without extension (e.g. "character" for
+    // character.json).
+    void RenderFrame(const std::string& scene_file, const std::string& layer_stem, int frame_idx,
+                     int thread_override = 0);
 
     // Update the film buffer if options (like samples_per_pixel) have changed
     void RebuildFilm();
