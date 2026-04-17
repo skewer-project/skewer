@@ -6,7 +6,7 @@
 			"emission": [4.0, 4.0, 4.0]
 		}
 	},
-	"objects": [
+	"graph": [
 		{
 			"type": "quad",
 			"material": "light",
