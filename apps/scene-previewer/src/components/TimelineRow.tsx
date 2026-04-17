@@ -4,7 +4,7 @@ import { KeyframeMarker } from "./KeyframeMarker";
 
 export interface TimelineRowProps {
 	track: AnimatedNodeTrack;
-	animRange: { start: number; end: number };
+	viewRange: { start: number; end: number };
 	span: number;
 	hasSpan: boolean;
 	/** Placeholder for future per-property graph view. */
@@ -13,7 +13,7 @@ export interface TimelineRowProps {
 
 export function TimelineRow({
 	track,
-	animRange,
+	viewRange,
 	span,
 	hasSpan,
 }: TimelineRowProps) {
@@ -33,7 +33,7 @@ export function TimelineRow({
 			<div className="timeline-row-track">
 				{hasSpan &&
 					track.keyframes.map((kf) => {
-						const f = (kf.time - animRange.start) / span;
+						const f = (kf.time - viewRange.start) / span;
 						if (f < 0 || f > 1) return null;
 						return (
 							<KeyframeMarker

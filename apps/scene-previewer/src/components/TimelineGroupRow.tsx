@@ -8,7 +8,7 @@ export interface TimelineGroupRowProps {
 	onToggle: () => void;
 	/** True when this group key has child animated tracks. */
 	isGroup: boolean;
-	animRange: { start: number; end: number };
+	viewRange: { start: number; end: number };
 	span: number;
 	hasSpan: boolean;
 }
@@ -17,7 +17,7 @@ export function TimelineGroupRow({
 	track,
 	collapsed,
 	onToggle,
-	animRange,
+	viewRange,
 	span,
 	hasSpan,
 }: TimelineGroupRowProps) {
@@ -50,7 +50,7 @@ export function TimelineGroupRow({
 				{/* Show the group's own keyframes if it has any */}
 				{hasSpan &&
 					track.keyframes.map((kf) => {
-						const f = (kf.time - animRange.start) / span;
+						const f = (kf.time - viewRange.start) / span;
 						if (f < 0 || f > 1) return null;
 						return (
 							<KeyframeMarker
