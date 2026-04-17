@@ -7,7 +7,10 @@
 // and returns camera/render configuration.
 //==============================================================================================
 
+#include <cmath>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "core/math/vec3.h"
@@ -18,10 +21,34 @@ namespace skwr {
 // Forward declarations
 class Scene;
 
+// Scene-level animation timeline (optional on scene.json).
+struct AnimationConfig {
+    float start = 0.0f;
+    float end = 0.0f;
+    float fps = 24.0f;
+    float shutter_angle = 180.0f;
+
+    // end is exclusive: duration = end - start in seconds.
+    int NumFrames() const {
+        const double duration = static_cast<double>(end) - static_cast<double>(start);
+        return static_cast<int>(std::lround(duration * static_cast<double>(fps)));
+    }
+
+    // Frame i covers [shutter_open, shutter_close] in scene time (seconds).
+    std::pair<float, float> FrameWindow(int frame_idx) const {
+        const float t0 = start + static_cast<float>(frame_idx) / fps;
+        const float dt = (shutter_angle / 360.0f) / fps;
+        return {t0, t0 + dt};
+    }
+};
+
 // Per-layer render config extracted from a layer JSON
 struct LayerConfig {
     RenderOptions render_options;
     bool visible = true;  // layer-level visibility
+    bool animated = false;
+    bool animated_key_present =
+        false;  // false if JSON omits "animated" (warn when scene has animation)
 };
 
 // Full scene config parsed from scene.json — camera and layer/context file paths.
@@ -47,6 +74,10 @@ struct SceneConfig {
     // Layer stems are appended: "gs://bucket/renders/" + "layer_foo" + ".exr"
     // Empty string means outputs are written to the current working directory.
     std::string output_dir;
+
+    // Optional animation timeline; when set, per-layer shutter uses FrameWindow / static time at
+    // start.
+    std::optional<AnimationConfig> animation;
 };
 
 // Load a scene.json file. Parses camera, context refs, and layer refs.
