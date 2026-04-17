@@ -17,6 +17,7 @@ import {
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
+	collectAnimatedNodeTracks,
 	collectSceneKeyframeTimes,
 	getAnimationRange,
 } from "./services/transform";
@@ -202,6 +203,11 @@ function App() {
 		[scene],
 	);
 
+	const timelineTracks = useMemo(
+		() => (scene ? collectAnimatedNodeTracks(scene) : []),
+		[scene],
+	);
+
 	useEffect(() => {
 		if (!isPlaying || !scene) return;
 		let id = 0;
@@ -325,6 +331,7 @@ function App() {
 						onTogglePlay={() => setIsPlaying((p) => !p)}
 						animRange={animRange}
 						keyframeTimes={timelineKeyframeTimes}
+						tracks={timelineTracks}
 					/>
 				)}
 

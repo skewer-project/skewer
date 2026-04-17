@@ -213,24 +213,37 @@ body {
 	background: var(--border-mid);
 }
 
-/* ── Timeline (animation scrubber) ──────── */
+/* ── Timeline ──────────────────────────── */
 
-.timeline {
+/* Shared horizontal insets so scrubber and dope-sheet track columns align. */
+:root {
+	--timeline-track-inset: 14px;
+}
+
+/* Outer shell: anchored at bottom, grows upward when expanded. */
+.timeline-shell {
 	position: absolute;
 	bottom: 0;
 	left: 0;
 	right: 0;
+	display: flex;
+	flex-direction: column;
+	z-index: 12;
+}
+
+/* 48px scrubber row (replaces the old .timeline). */
+.timeline-scrubber {
 	height: 48px;
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	padding: 0 14px;
+	padding: 0 var(--timeline-track-inset);
 	border-radius: 0;
 	border-top: 1px solid var(--border);
 	border-left: none;
 	border-right: none;
 	border-bottom: none;
-	z-index: 12;
+	flex-shrink: 0;
 }
 
 .timeline-controls {
@@ -319,6 +332,178 @@ body {
 	font-size: 10.5px;
 	min-width: 40px;
 	text-align: right;
+}
+
+/* Expand/collapse chevron in the scrubber */
+.timeline-chevron-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	margin-left: 4px;
+	flex-shrink: 0;
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--t3);
+	cursor: pointer;
+	transition: color 0.12s, border-color 0.12s;
+}
+
+.timeline-chevron-btn:hover {
+	color: var(--t1);
+	border-color: var(--border-mid);
+}
+
+.timeline-chevron-icon {
+	transition: transform 0.18s ease;
+}
+
+.timeline-chevron-open {
+	transform: rotate(180deg);
+}
+
+/* ── Dope-sheet panel (expands above scrubber) ──────── */
+
+.timeline-dope-sheet {
+	border-top: 1px solid var(--border);
+	border-left: none;
+	border-right: none;
+	border-bottom: none;
+	border-radius: 0;
+	overflow-y: auto;
+	max-height: min(40vh, 280px);
+	min-height: 60px;
+}
+
+.timeline-dope-inner {
+	position: relative;
+}
+
+/* Full-height playhead overlay — aligns with row track diamonds.
+   220px = label column width; --timeline-track-inset = padding on each side. */
+.timeline-dope-playhead {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background: rgba(232, 165, 60, 0.4);
+	pointer-events: none;
+	z-index: 2;
+	left: calc(
+		220px + var(--timeline-track-inset) +
+		var(--playhead-frac, 0) *
+		(100% - 220px - 2 * var(--timeline-track-inset))
+	);
+	transform: translateX(-50%);
+}
+
+.timeline-dope-empty {
+	padding: 12px var(--timeline-track-inset);
+	color: var(--t3);
+	font-size: 11px;
+}
+
+/* One row: [label 220px | track flex-1] */
+.timeline-row {
+	display: grid;
+	grid-template-columns: 220px 1fr;
+	height: 22px;
+	align-items: center;
+	border-bottom: 1px solid transparent;
+}
+
+.timeline-row:nth-child(even) {
+	background: rgba(255, 255, 255, 0.018);
+}
+
+.timeline-group-row {
+	background: rgba(255, 255, 255, 0.028);
+}
+
+.timeline-group-row:nth-child(even) {
+	background: rgba(255, 255, 255, 0.038);
+}
+
+.timeline-row-label {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	overflow: hidden;
+	white-space: nowrap;
+	border-right: 1px solid var(--border);
+	height: 100%;
+	padding-right: 6px;
+	flex-shrink: 0;
+}
+
+.timeline-row-leaf-spacer {
+	display: inline-block;
+	width: 16px;
+	flex-shrink: 0;
+}
+
+.timeline-row-expand {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	padding: 0;
+	flex-shrink: 0;
+	background: transparent;
+	border: none;
+	color: var(--t3);
+	cursor: pointer;
+}
+
+.timeline-row-expand:hover {
+	color: var(--t1);
+}
+
+.timeline-row-expand-icon {
+	transition: transform 0.14s ease;
+}
+
+.timeline-row-expand-open {
+	transform: rotate(90deg);
+}
+
+.timeline-row-kind-badge {
+	font-size: 9px;
+	color: var(--t3);
+	font-family: var(--mono);
+	flex-shrink: 0;
+	letter-spacing: 0.02em;
+}
+
+.timeline-row-name {
+	font-size: 11px;
+	color: var(--t1);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Track area: same horizontal padding as scrubber so diamonds align */
+.timeline-row-track {
+	position: relative;
+	height: 100%;
+	padding: 0 var(--timeline-track-inset);
+}
+
+/* Small row diamond (5px vs scrubber 7px) */
+.timeline-row-kf {
+	position: absolute;
+	top: 50%;
+	z-index: 1;
+	transform: translate(-50%, -50%) rotate(45deg);
+	width: 5px;
+	height: 5px;
+	background: rgba(224, 217, 200, 0.75);
+	border: 1px solid rgba(232, 165, 60, 0.5);
+	pointer-events: none;
 }
 
 /* ── Bottom-right stack: reset camera + stats ──────── */

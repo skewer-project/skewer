@@ -45,11 +45,17 @@ export function TimelineDopeSheet({
 	return (
 		<div className="timeline-dope-sheet panel">
 			<div className="timeline-dope-inner">
-				{/* Full-height playhead overlay */}
+				{/* Full-height playhead overlay aligned to the track column.
+			     Uses a CSS custom property so calc() can resolve the position
+			     accounting for the fixed 220px label column and track inset. */}
 				{hasSpan && (
 					<div
 						className="timeline-dope-playhead"
-						style={{ left: `${playheadPct}%` }}
+						style={
+							{
+								"--playhead-frac": playheadFrac,
+							} as React.CSSProperties
+						}
 					/>
 				)}
 

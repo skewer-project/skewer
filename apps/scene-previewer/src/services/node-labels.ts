@@ -16,7 +16,11 @@ export function displayLabel(node: SceneNode, pathKey: string): string {
 }
 
 export function kindShort(node: SceneNode): string {
-	switch (node.kind) {
+	return kindShortFromKind(node.kind);
+}
+
+export function kindShortFromKind(kind: SceneNode["kind"]): string {
+	switch (kind) {
 		case "group":
 			return "GRP";
 		case "sphere":

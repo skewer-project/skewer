@@ -1,6 +1,6 @@
-import { KeyframeMarker } from "./KeyframeMarker";
+import { kindShortFromKind } from "../services/node-labels";
 import type { AnimatedNodeTrack } from "../services/transform";
-import { kindShort } from "../services/node-labels";
+import { KeyframeMarker } from "./KeyframeMarker";
 
 export interface TimelineRowProps {
 	track: AnimatedNodeTrack;
@@ -27,7 +27,7 @@ export function TimelineRow({
 				title={track.label}
 			>
 				<span className="timeline-row-leaf-spacer" aria-hidden />
-				<span className="timeline-row-kind-badge">{kindShort({ kind: track.kind } as Parameters<typeof kindShort>[0])}</span>
+				<span className="timeline-row-kind-badge">{kindShortFromKind(track.kind)}</span>
 				<span className="timeline-row-name">{track.label}</span>
 			</div>
 			<div className="timeline-row-track">
