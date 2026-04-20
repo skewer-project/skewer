@@ -347,7 +347,7 @@ submit_batch_render_animated:
           - cache_fuse: '${fuse_cache + "/" + layer.cache_key}'
           - context_fuse_csv: ""
           # task_count = ceil(num_frames / frames_per_task)
-          - task_count: '${(num_frames + frames_per_task - 1) / frames_per_task}'
+          - task_count: '${int((num_frames + frames_per_task - 1) / frames_per_task)}'
 
     - build_context_csv_animated:
         for:
