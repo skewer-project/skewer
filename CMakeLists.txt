@@ -33,10 +33,6 @@ endif()
 # Build gRPC Proto Stubs
 add_subdirectory(api)
 
-if(SKEWER_COMBINED_BUILD_SKEWER OR SKEWER_COMBINED_BUILD_LOOM)
-    add_subdirectory(libs/worker)
-endif()
-
 if(SKEWER_COMBINED_BUILD_LOOM)
     add_subdirectory(loom)
 endif()

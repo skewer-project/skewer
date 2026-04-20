@@ -30,7 +30,7 @@ COPY . .
 
 # Run the CMake build specifically for the Skewer target
 RUN cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF
-RUN cmake --build --preset release --target skewer-worker --parallel 1
+RUN cmake --build --preset release --target skewer-worker --parallel 4
 
 # Stage 2: Create a minimal runner image
 FROM ubuntu:24.04

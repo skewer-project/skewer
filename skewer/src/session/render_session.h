@@ -53,6 +53,11 @@ class RenderSession {
     // Update the film buffer if options (like samples_per_pixel) have changed
     void RebuildFilm();
 
+    // Load a single layer file with explicit camera params (for pipeline batch mode).
+    // context_paths are loaded first to provide lighting/invisible geometry.
+    void LoadLayerDirect(const std::string& layer_file, Vec3 look_from, Vec3 look_at, Vec3 vup,
+                         float vfov, const std::vector<std::string>& context_paths = {});
+
     // --- Legacy API (used by the cloud worker until Phase 5) ---
     void LoadSceneFromFile(const std::string& scene_file, int thread_override = 0);
     void Render();
