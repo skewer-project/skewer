@@ -1,13 +1,17 @@
 # Skewer Render Pipeline
 #
 # Orchestrates parallel layer rendering via Cloud Batch then composites all layers.
+# Layers are classified as "static" (rendered once) or "animated" (rendered in
+# frame chunks) by the coordinator before this workflow is invoked.
 #
 # Args (passed by the coordinator via CreateExecution):
 #   pipeline_id             - string, unique run identifier
 #   project_id              - string, GCP project
 #   region                  - string, e.g. "us-west2"
-#   num_frames              - int, total frames to render
-#   layers                  - list of {layer_id, scene_uri, cache_key, enable_cache}
+#   num_frames              - int, total frames (derived from scene animation block)
+#   frames_per_task         - int, animated frames rendered per Batch task (default 8)
+#   layers                  - list of {layer_id, layer_uri, scene_uri, context_uris,
+#                                      mode, cache_key, enable_cache}
 #   data_bucket             - string, GCS bucket name for render outputs
 #   cache_bucket            - string, GCS bucket name for layer cache
 #   skewer_image            - string, Artifact Registry URI for skewer-worker
@@ -36,6 +40,7 @@ main:
           - region: ${args.region}
           - pipeline_id: ${args.pipeline_id}
           - num_frames: ${args.num_frames}
+          - frames_per_task: ${args.frames_per_task}
           - data_bucket: ${args.data_bucket}
           - cache_bucket: ${args.cache_bucket}
           - skewer_image: ${args.skewer_image}
@@ -54,14 +59,13 @@ main:
           - subnet: ${args.subnet}
           - batch_sa: ${args.batch_sa}
           - composite_output_prefix: ${args.composite_output_prefix}
-          - camera: ${args.camera}
-          - context_uris: ${args.context_uris}
           - layer_output_prefixes: {}
+          - layer_output_modes: {}
           - layer_output_gcs: {}
 
     - render_layers:
         parallel:
-          shared: [layer_output_prefixes]
+          shared: [layer_output_prefixes, layer_output_modes]
           for:
             value: layer
             in: ${args.layers}
@@ -83,6 +87,7 @@ main:
                       - use_cache:
                           assign:
                             - layer_output_prefixes[layer.layer_id]: '${"/mnt/" + cache_bucket + "/" + layer.cache_key}'
+                            - layer_output_modes[layer.layer_id]: ${layer.mode}
                   except:
                     as: _cache_miss
                     steps:
@@ -91,13 +96,17 @@ main:
               - skip_render:
                   next: layer_end
               - do_render:
-                  call: submit_batch_render
+                  switch:
+                    - condition: '${layer.mode == "static"}'
+                      next: render_static
+                  next: render_animated
+              - render_static:
+                  call: submit_batch_render_static
                   args:
                     project_id: ${project_id}
                     region: ${region}
                     pipeline_id: ${pipeline_id}
                     layer: ${layer}
-                    num_frames: ${num_frames}
                     data_bucket: ${data_bucket}
                     cache_bucket: ${cache_bucket}
                     skewer_image: ${skewer_image}
@@ -109,24 +118,57 @@ main:
                     network: ${network}
                     subnet: ${subnet}
                     batch_sa: ${batch_sa}
-                    camera: ${camera}
-                    context_uris: ${context_uris}
-                  result: render_output_prefix
+                  result: static_output_prefix
+              - record_static_output:
+                  assign:
+                    - layer_output_prefixes[layer.layer_id]: ${static_output_prefix}
+                    - layer_output_modes[layer.layer_id]: "static"
+                  next: write_cache_manifest
+              - render_animated:
+                  call: submit_batch_render_animated
+                  args:
+                    project_id: ${project_id}
+                    region: ${region}
+                    pipeline_id: ${pipeline_id}
+                    layer: ${layer}
+                    num_frames: ${num_frames}
+                    frames_per_task: ${frames_per_task}
+                    data_bucket: ${data_bucket}
+                    cache_bucket: ${cache_bucket}
+                    skewer_image: ${skewer_image}
+                    machine_type: ${skewer_machine_type}
+                    cpu_milli: ${skewer_cpu_milli}
+                    memory_mib: ${skewer_memory_mib}
+                    provisioning_model: ${skewer_provisioning_model}
+                    max_retry_count: ${skewer_max_retry_count}
+                    network: ${network}
+                    subnet: ${subnet}
+                    batch_sa: ${batch_sa}
+                  result: animated_output_prefix
+              - record_animated_output:
+                  assign:
+                    - layer_output_prefixes[layer.layer_id]: ${animated_output_prefix}
+                    - layer_output_modes[layer.layer_id]: "animated"
+                  next: write_cache_manifest
               - write_cache_manifest:
                   switch:
                     - condition: '${layer.enable_cache AND layer.cache_key != ""}'
                       next: do_write_manifest
-                  next: record_render_output
+                  next: layer_end
               - do_write_manifest:
                   try:
                     steps:
+                      - build_manifest:
+                          assign:
+                            - _dq: '"'
+                            - manifest_body: ${"{" + _dq + "ok" + _dq + ":true," + _dq + "mode" + _dq + ":" + _dq + layer.mode + _dq + "," + _dq + "num_frames" + _dq + ":" + string(num_frames) + "}"}
                       - upload_manifest:
                           call: googleapis.storage.v1.objects.insert
                           args:
                             bucket: ${cache_bucket}
                             uploadType: media
                             name: ${layer.cache_key}
-                            body: '{"ok":true}'
+                            body: ${manifest_body}
                           result: _manifest_upload
                   except:
                     as: _manifest_err
@@ -136,9 +178,6 @@ main:
                           args:
                             text: '${layer.layer_id + " cache manifest write failed: " + string(_manifest_err)}'
                             severity: WARNING
-              - record_render_output:
-                  assign:
-                    - layer_output_prefixes[layer.layer_id]: ${render_output_prefix}
               - layer_end:
                   assign:
                     - _done: null
@@ -159,6 +198,7 @@ main:
           region: ${region}
           pipeline_id: ${pipeline_id}
           layer_output_prefixes: ${layer_output_prefixes}
+          layer_output_modes: ${layer_output_modes}
           num_frames: ${num_frames}
           data_bucket: ${data_bucket}
           cache_bucket: ${cache_bucket}
@@ -180,46 +220,43 @@ main:
           output_uri: ${composite_output_prefix}
           layer_outputs: ${layer_output_gcs}
 
-# ── Subworkflow: submit_batch_render ──────────────────────────────────────────
+# ── Subworkflow: submit_batch_render_static ───────────────────────────────────
 #
-# Submits a Cloud Batch job to render all frames of a single layer.
-# Returns the cache_key (used as output prefix in the cache bucket) or the
-# data-bucket render prefix.
+# Renders a static layer once (taskCount=1). The worker writes static.exr.
+# Returns the FUSE output prefix for the layer.
 
-submit_batch_render:
-  params: [project_id, region, pipeline_id, layer, num_frames, data_bucket,
-           cache_bucket, skewer_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, network, subnet, batch_sa, camera,
-           context_uris]
+submit_batch_render_static:
+  params: [project_id, region, pipeline_id, layer, data_bucket, cache_bucket,
+           skewer_image, machine_type, cpu_milli, memory_mib,
+           provisioning_model, max_retry_count, network, subnet, batch_sa]
   steps:
-    - init_render:
+    - init_static:
         assign:
-          - job_id: '${pipeline_id + "-" + layer.layer_id}'
+          - job_id: '${pipeline_id + "-" + layer.layer_id + "-static"}'
           - fuse_data: '${"/mnt/" + data_bucket}'
           - fuse_cache: '${"/mnt/" + cache_bucket}'
-          # Convert gs://bucket/path  →  /mnt/bucket/path for GCS FUSE
           - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
           - output_fuse: '${fuse_data + "/renders/" + pipeline_id + "/" + layer.layer_id}'
           - cache_fuse: '${fuse_cache + "/" + layer.cache_key}'
           - context_fuse_csv: ""
 
-    - build_context_csv:
+    - build_context_csv_static:
         for:
           value: ctx_uri
-          in: ${context_uris}
+          in: ${layer.context_uris}
           steps:
-            - append_context:
+            - append_context_static:
                 assign:
                   - context_fuse_csv: '${if(context_fuse_csv == "", text.replace_all(ctx_uri, "gs://", "/mnt/"), context_fuse_csv + "," + text.replace_all(ctx_uri, "gs://", "/mnt/"))}'
 
-    - create_render_job:
+    - create_static_job:
         call: googleapis.batch.v1.projects.locations.jobs.create
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
           body:
             taskGroups:
-              - taskCount: ${num_frames}
+              - taskCount: 1
                 taskCountPerNode: 1
                 taskSpec:
                   computeResource:
@@ -228,9 +265,6 @@ submit_batch_render:
                   maxRetryCount: ${max_retry_count}
                   maxRunDuration: "14400s"
                   runnables:
-                    # Wait for GCS FUSE mounts to be ready before starting the
-                    # container. The Batch agent sets up FUSE asynchronously; without
-                    # this script the container races the mount and stat() fails.
                     - script:
                         text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
                     - container:
@@ -243,21 +277,13 @@ submit_batch_render:
                     variables:
                       BATCH_MODE: "true"
                       SCENE_URI: ${scene_fuse}
+                      LAYER_ID: ${layer.layer_id}
+                      LAYER_MODE: "static"
+                      FRAMES_PER_TASK: "1"
+                      NUM_FRAMES: "1"
                       OUTPUT_URI_PREFIX: ${output_fuse}
                       CACHE_PREFIX: ${cache_fuse}
-                      NUM_FRAMES: ${string(num_frames)}
-                      PIPELINE_LAYER: "true"
                       CONTEXT_URIS: ${context_fuse_csv}
-                      CAM_FROM_X: ${string(camera.from_x)}
-                      CAM_FROM_Y: ${string(camera.from_y)}
-                      CAM_FROM_Z: ${string(camera.from_z)}
-                      CAM_AT_X: ${string(camera.at_x)}
-                      CAM_AT_Y: ${string(camera.at_y)}
-                      CAM_AT_Z: ${string(camera.at_z)}
-                      CAM_VUP_X: ${string(camera.vup_x)}
-                      CAM_VUP_Y: ${string(camera.vup_y)}
-                      CAM_VUP_Z: ${string(camera.vup_z)}
-                      CAM_VFOV: ${string(camera.vfov)}
                   volumes:
                     - gcs:
                         remotePath: ${data_bucket}
@@ -281,32 +307,144 @@ submit_batch_render:
                 email: ${batch_sa}
             logsPolicy:
               destination: CLOUD_LOGGING
-        result: render_job
+        result: static_job
 
-    - poll_render:
+    - poll_static:
         call: poll_batch_job
         args:
-          job_name: ${render_job.name}
-        result: final_render_state
+          job_name: ${static_job.name}
+        result: final_static_state
 
-    - check_render_result:
+    - check_static_result:
         switch:
-          - condition: '${final_render_state != "SUCCEEDED"}'
+          - condition: '${final_static_state != "SUCCEEDED"}'
             steps:
-              - render_failed:
-                  raise: '${layer.layer_id + " render failed: " + final_render_state}'
+              - static_failed:
+                  raise: '${layer.layer_id + " static render failed: " + final_static_state}'
 
-    - return_render_prefix:
+    - return_static_prefix:
+        return: ${output_fuse}
+
+# ── Subworkflow: submit_batch_render_animated ─────────────────────────────────
+#
+# Renders an animated layer in frame chunks (taskCount = ceil(num_frames / frames_per_task)).
+# Each task handles FRAMES_PER_TASK consecutive frames.
+# The worker writes frame-NNNN.exr for each frame in its assigned chunk.
+# Returns the FUSE output prefix for the layer.
+
+submit_batch_render_animated:
+  params: [project_id, region, pipeline_id, layer, num_frames, frames_per_task,
+           data_bucket, cache_bucket, skewer_image, machine_type, cpu_milli, memory_mib,
+           provisioning_model, max_retry_count, network, subnet, batch_sa]
+  steps:
+    - init_animated:
+        assign:
+          - job_id: '${pipeline_id + "-" + layer.layer_id + "-animated"}'
+          - fuse_data: '${"/mnt/" + data_bucket}'
+          - fuse_cache: '${"/mnt/" + cache_bucket}'
+          - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
+          - output_fuse: '${fuse_data + "/renders/" + pipeline_id + "/" + layer.layer_id}'
+          - cache_fuse: '${fuse_cache + "/" + layer.cache_key}'
+          - context_fuse_csv: ""
+          # task_count = ceil(num_frames / frames_per_task)
+          - task_count: '${(num_frames + frames_per_task - 1) / frames_per_task}'
+
+    - build_context_csv_animated:
+        for:
+          value: ctx_uri
+          in: ${layer.context_uris}
+          steps:
+            - append_context_animated:
+                assign:
+                  - context_fuse_csv: '${if(context_fuse_csv == "", text.replace_all(ctx_uri, "gs://", "/mnt/"), context_fuse_csv + "," + text.replace_all(ctx_uri, "gs://", "/mnt/"))}'
+
+    - create_animated_job:
+        call: googleapis.batch.v1.projects.locations.jobs.create
+        args:
+          parent: '${"projects/" + project_id + "/locations/" + region}'
+          jobId: ${job_id}
+          body:
+            taskGroups:
+              - taskCount: ${task_count}
+                taskCountPerNode: 1
+                taskSpec:
+                  computeResource:
+                    cpuMilli: ${cpu_milli}
+                    memoryMib: ${memory_mib}
+                  maxRetryCount: ${max_retry_count}
+                  maxRunDuration: "14400s"
+                  runnables:
+                    - script:
+                        text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
+                    - container:
+                        imageUri: ${skewer_image}
+                        entrypoint: /usr/local/bin/skewer-worker
+                        volumes:
+                          - '${fuse_data + ":" + fuse_data + ":rw"}'
+                          - '${fuse_cache + ":" + fuse_cache + ":rw"}'
+                  environment:
+                    variables:
+                      BATCH_MODE: "true"
+                      SCENE_URI: ${scene_fuse}
+                      LAYER_ID: ${layer.layer_id}
+                      LAYER_MODE: "animated"
+                      FRAMES_PER_TASK: ${string(frames_per_task)}
+                      NUM_FRAMES: ${string(num_frames)}
+                      OUTPUT_URI_PREFIX: ${output_fuse}
+                      CACHE_PREFIX: ${cache_fuse}
+                      CONTEXT_URIS: ${context_fuse_csv}
+                  volumes:
+                    - gcs:
+                        remotePath: ${data_bucket}
+                      mountPath: ${fuse_data}
+                    - gcs:
+                        remotePath: ${cache_bucket}
+                      mountPath: ${fuse_cache}
+            allocationPolicy:
+              tags:
+                - skewer-batch-worker
+              instances:
+                - policy:
+                    machineType: ${machine_type}
+                    provisioningModel: ${provisioning_model}
+              network:
+                networkInterfaces:
+                  - network: ${network}
+                    subnetwork: ${subnet}
+                    noExternalIpAddress: true
+              serviceAccount:
+                email: ${batch_sa}
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: animated_job
+
+    - poll_animated:
+        call: poll_batch_job
+        args:
+          job_name: ${animated_job.name}
+        result: final_animated_state
+
+    - check_animated_result:
+        switch:
+          - condition: '${final_animated_state != "SUCCEEDED"}'
+            steps:
+              - animated_failed:
+                  raise: '${layer.layer_id + " animated render failed: " + final_animated_state}'
+
+    - return_animated_prefix:
         return: ${output_fuse}
 
 # ── Subworkflow: submit_batch_composite ───────────────────────────────────────
 #
 # Submits a Cloud Batch job to composite all rendered layers into final frames.
+# Static layers contribute static.exr to every frame; animated layers contribute
+# frame-NNNN.exr. Layer mode information is passed as parallel comma-separated lists.
 
 submit_batch_composite:
-  params: [project_id, region, pipeline_id, layer_output_prefixes, num_frames, data_bucket,
-           cache_bucket, composite_output_prefix, loom_image, machine_type, cpu_milli,
-           memory_mib, provisioning_model, max_retry_count, network, subnet, batch_sa]
+  params: [project_id, region, pipeline_id, layer_output_prefixes, layer_output_modes,
+           num_frames, data_bucket, cache_bucket, composite_output_prefix,
+           loom_image, machine_type, cpu_milli, memory_mib,
+           provisioning_model, max_retry_count, network, subnet, batch_sa]
   steps:
     - init_composite:
         assign:
@@ -315,15 +453,17 @@ submit_batch_composite:
           - fuse_cache: '${"/mnt/" + cache_bucket}'
           - composite_fuse: '${text.replace_all(composite_output_prefix, "gs://", "/mnt/")}'
           - layer_prefixes_csv: ""
+          - layer_modes_csv: ""
 
-    - build_layer_csv:
+    - build_layer_csvs:
         for:
           value: layer_key
           in: '${keys(layer_output_prefixes)}'
           steps:
-            - append_prefix:
+            - append_prefix_and_mode:
                 assign:
                   - layer_prefixes_csv: '${if(layer_prefixes_csv == "", layer_output_prefixes[layer_key], layer_prefixes_csv + "," + layer_output_prefixes[layer_key])}'
+                  - layer_modes_csv: '${if(layer_modes_csv == "", layer_output_modes[layer_key], layer_modes_csv + "," + layer_output_modes[layer_key])}'
 
     - create_composite_job:
         call: googleapis.batch.v1.projects.locations.jobs.create
@@ -341,9 +481,6 @@ submit_batch_composite:
                   maxRetryCount: ${max_retry_count}
                   maxRunDuration: "14400s"
                   runnables:
-                    # Wait for GCS FUSE mounts to be ready before starting the
-                    # container. The Batch agent sets up FUSE asynchronously; without
-                    # this script the container races the mount and stat() fails.
                     - script:
                         text: '${"mkdir -p " + fuse_data + " " + fuse_cache}'
                     - container:
@@ -356,6 +493,7 @@ submit_batch_composite:
                     variables:
                       BATCH_MODE: "true"
                       LAYER_URI_PREFIXES: ${layer_prefixes_csv}
+                      LAYER_MODES: ${layer_modes_csv}
                       OUTPUT_URI_PREFIX: ${composite_fuse}
                   volumes:
                     - gcs:
