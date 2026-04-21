@@ -26,6 +26,7 @@
 #   loom_memory_mib         - int, memory request per composite task in MiB
 #   loom_provisioning_model - string, "SPOT" or "STANDARD"
 #   loom_max_retry_count    - int, automatic retries for composite task failures
+#   loom_parallelism        - int, max concurrent composite tasks (caps VM usage)
 #   network                 - string, VPC self_link
 #   subnet                  - string, subnet self_link
 #   batch_sa                - string, batch worker service account email
@@ -55,6 +56,7 @@ main:
           - loom_memory_mib: ${args.loom_memory_mib}
           - loom_provisioning_model: ${args.loom_provisioning_model}
           - loom_max_retry_count: ${args.loom_max_retry_count}
+          - loom_parallelism: ${args.loom_parallelism}
           - network: ${args.network}
           - subnet: ${args.subnet}
           - batch_sa: ${args.batch_sa}
@@ -209,6 +211,7 @@ main:
           memory_mib: ${loom_memory_mib}
           provisioning_model: ${loom_provisioning_model}
           max_retry_count: ${loom_max_retry_count}
+          parallelism: ${loom_parallelism}
           network: ${network}
           subnet: ${subnet}
           batch_sa: ${batch_sa}
@@ -444,7 +447,7 @@ submit_batch_composite:
   params: [project_id, region, pipeline_id, layer_output_prefixes, layer_output_modes,
            num_frames, data_bucket, cache_bucket, composite_output_prefix,
            loom_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, network, subnet, batch_sa]
+           provisioning_model, max_retry_count, parallelism, network, subnet, batch_sa]
   steps:
     - init_composite:
         assign:
@@ -473,6 +476,7 @@ submit_batch_composite:
           body:
             taskGroups:
               - taskCount: ${num_frames}
+                parallelism: ${parallelism}
                 taskCountPerNode: 1
                 taskSpec:
                   computeResource:

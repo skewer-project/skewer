@@ -41,6 +41,7 @@ type GCPManager struct {
 	loomMemoryMiB           int
 	loomProvisioningModel   string
 	loomMaxRetryCount       int
+	loomParallelism         int
 	network                 string
 	subnet                  string
 	batchSA                 string
@@ -81,6 +82,7 @@ func NewGCPManager(ctx context.Context) (*GCPManager, error) {
 		loomMemoryMiB:           getEnvIntOrDefault("LOOM_BATCH_MEMORY_MIB", 32768),
 		loomProvisioningModel:   getEnvOrDefault("LOOM_BATCH_PROVISIONING_MODEL", "STANDARD"),
 		loomMaxRetryCount:       getEnvIntOrDefault("LOOM_BATCH_MAX_RETRY_COUNT", 2),
+		loomParallelism:         getEnvIntOrDefault("LOOM_BATCH_PARALLELISM", 16),
 		network:                 mustEnv("VPC_NETWORK"),
 		subnet:                  mustEnv("VPC_SUBNET"),
 		batchSA:                 mustEnv("BATCH_SA_EMAIL"),
@@ -217,6 +219,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"loom_memory_mib":           m.loomMemoryMiB,
 		"loom_provisioning_model":   m.loomProvisioningModel,
 		"loom_max_retry_count":      m.loomMaxRetryCount,
+		"loom_parallelism":          m.loomParallelism,
 		"network":                   m.network,
 		"subnet":                    m.subnet,
 		"batch_sa":                  m.batchSA,
