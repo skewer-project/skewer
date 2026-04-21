@@ -282,7 +282,6 @@ void Scene::Build() {
     if (graph_root_) {
         spheres_.clear();
         ExtractInstancesFromGraph(*graph_root_, {});
-        graph_root_.reset();
 
         float mid_t = 0.5f * (shutter_open_ + shutter_close_);
 
