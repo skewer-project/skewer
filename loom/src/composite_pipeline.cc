@@ -27,8 +27,10 @@ void WriteFlatOutputs(const std::vector<float>& flatRgba, const std::string& out
 
         if (pngOutput) {
             std::string pngPath = outputUri;
-            // Ensure we have an extension if not provided
-            if (pngPath.find('.') == std::string::npos) {
+            size_t dot = pngPath.rfind('.');
+            if (dot != std::string::npos) {
+                pngPath = pngPath.substr(0, dot) + ".png";
+            } else {
                 pngPath += ".png";
             }
 
