@@ -1,9 +1,16 @@
 steps:
+  # Fetch LFS objects (Cloud Build's default checkout only pulls pointer files)
+  - name: gcr.io/cloud-builders/git
+    id: lfs-fetch
+    args:
+      - lfs
+      - pull
+
   # Build Go coordinator image
   - name: gcr.io/cloud-builders/docker
     id: build-coordinator
     waitFor:
-      - '-'
+      - lfs-fetch
     entrypoint: bash
     args:
       - -c
@@ -28,7 +35,7 @@ steps:
   - name: gcr.io/cloud-builders/docker
     id: build-skewer
     waitFor:
-      - '-'
+      - lfs-fetch
     entrypoint: bash
     args:
       - -c
@@ -53,7 +60,7 @@ steps:
   - name: gcr.io/cloud-builders/docker
     id: build-loom
     waitFor:
-      - '-'
+      - lfs-fetch
     entrypoint: bash
     args:
       - -c
