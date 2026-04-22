@@ -6,7 +6,7 @@ steps:
     args:
       - -c
       - |
-        apt-get install -y git-lfs
+        apt-get update && apt-get install -y git-lfs
         git lfs pull
 
   # Build Go coordinator image
@@ -22,12 +22,14 @@ steps:
         docker pull ${_AR_BASE}/skewer-coordinator:latest || true
         docker build \
           --target builder \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
           --cache-from ${_AR_BASE}/skewer-coordinator:builder \
           -t ${_AR_BASE}/skewer-coordinator:builder \
           -f deployments/docker/Dockerfile.coordinator \
           .
         docker push ${_AR_BASE}/skewer-coordinator:builder
         docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
           --cache-from ${_AR_BASE}/skewer-coordinator:builder \
           --cache-from ${_AR_BASE}/skewer-coordinator:latest \
           -t ${_AR_BASE}/skewer-coordinator:latest \
@@ -47,12 +49,14 @@ steps:
         docker pull ${_AR_BASE}/skewer-worker:latest || true
         docker build \
           --target builder \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
           --cache-from ${_AR_BASE}/skewer-worker:builder \
           -t ${_AR_BASE}/skewer-worker:builder \
           -f deployments/docker/Dockerfile.skewer \
           .
         docker push ${_AR_BASE}/skewer-worker:builder
         docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
           --cache-from ${_AR_BASE}/skewer-worker:builder \
           --cache-from ${_AR_BASE}/skewer-worker:latest \
           -t ${_AR_BASE}/skewer-worker:latest \
@@ -72,12 +76,14 @@ steps:
         docker pull ${_AR_BASE}/loom-worker:latest || true
         docker build \
           --target builder \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
           --cache-from ${_AR_BASE}/loom-worker:builder \
           -t ${_AR_BASE}/loom-worker:builder \
           -f deployments/docker/Dockerfile.loom \
           .
         docker push ${_AR_BASE}/loom-worker:builder
         docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
           --cache-from ${_AR_BASE}/loom-worker:builder \
           --cache-from ${_AR_BASE}/loom-worker:latest \
           -t ${_AR_BASE}/loom-worker:latest \
@@ -136,3 +142,5 @@ options:
   # Custom build service accounts must send logs somewhere other than the
   # default Cloud Build bucket.
   logging: CLOUD_LOGGING_ONLY
+  env:
+    - 'DOCKER_BUILDKIT=1'
