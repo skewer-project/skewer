@@ -32,6 +32,16 @@ renders/
 # generated images
 *.ppm
 
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars
+
+# Go binaries
+/coordinator
+/cli
+
 .claude/
 opencode.json
 

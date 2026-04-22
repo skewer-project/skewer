@@ -45,6 +45,11 @@ constexpr float kWeightBlue = 0.0722f;
 constexpr float kWeightBlueSquared = kWeightBlue * kWeightBlue;
 }  // namespace Rec709
 
+namespace Bezier {
+constexpr float kBezierNewtonEps = 1e-6f;
+constexpr int kBezierNewtonMaxIter = 32;
+}  // namespace Bezier
+
 }  // namespace skwr
 
 #endif  // SKWR_CORE_MATH_CONSTANTS_H_
