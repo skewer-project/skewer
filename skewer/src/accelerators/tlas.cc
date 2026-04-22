@@ -13,6 +13,8 @@ namespace skwr {
 
 namespace {
 
+// Converts local-space intersection data back to world space using the same TRS that transformed
+// the ray into local space, keeping normals and tangents consistent with the world-space geometry.
 static void TransformHitToWorld(const TRS& world_from_local, const Ray& world_ray,
                                 SurfaceInteraction* si) {
     si->point = TRSApplyPoint(world_from_local, si->point);
@@ -29,6 +31,8 @@ static constexpr int kSAHBins = 16;
 static constexpr float kCostTraverse = 1.0f;
 static constexpr float kCostIntersect = 4.0f;
 
+// Build reorders instances for cache-friendly traversal (same assumption as BLAS triangle reorder).
+// The caller must keep instances in sync with the TLAS used for intersection.
 void TLAS::Build(std::vector<Instance>& instances) {
     if (instances.empty()) {
         nodes_.clear();
@@ -41,6 +45,7 @@ void TLAS::Build(std::vector<Instance>& instances) {
     std::vector<BVHPrimitiveInfo> primitive_info(instances.size());
     for (size_t i = 0; i < instances.size(); ++i) {
         primitive_info[i].original_index = (uint32_t)i;
+        // world_bounds is motion-expanded over the shutter interval (computed during scene build).
         primitive_info[i].bounds = instances[i].world_bounds;
         primitive_info[i].bounds.PadToMinimums();
         primitive_info[i].centroid = instances[i].world_bounds.Centroid();
@@ -52,6 +57,8 @@ void TLAS::Build(std::vector<Instance>& instances) {
 
     Subdivide(0, 0, (uint32_t)instances.size(), primitive_info, instances);
 
+    // Instances are reordered to match BVH traversal order (same assumption as BLAS triangle
+    // reorder).
     std::vector<Instance> ordered;
     ordered.reserve(instances.size());
     for (const auto& info : primitive_info) {
@@ -60,6 +67,8 @@ void TLAS::Build(std::vector<Instance>& instances) {
     instances = std::move(ordered);
 }
 
+// SAH binning uses instance centroids in world space; degenerate or poorly fitting bounds may
+// produce unbalanced splits.
 void TLAS::Subdivide(uint32_t node_idx, uint32_t first_inst, uint32_t inst_count,
                      std::vector<BVHPrimitiveInfo>& primitive_info,
                      std::vector<Instance>& instances) {
@@ -180,6 +189,7 @@ void TLAS::Subdivide(uint32_t node_idx, uint32_t first_inst, uint32_t inst_count
               instances);
 }
 
+// Ray time drives animation sampling; instances and blases must correspond to TLAS build order.
 bool TLAS::Intersect(const Ray& ray, float t_min, float t_max, SurfaceInteraction* si,
                      const std::vector<BLAS>& blases,
                      const std::vector<Instance>& instances) const {
@@ -203,6 +213,8 @@ bool TLAS::Intersect(const Ray& ray, float t_min, float t_max, SurfaceInteractio
             if (node.tri_count > 0) {
                 for (uint32_t i = 0; i < node.tri_count; ++i) {
                     const Instance& inst = instances[node.left_first + i];
+                    // Evaluate instance transform at ray shutter time; static instances use
+                    // pre-baked transform to avoid redundant chain evaluation.
                     TRS world_from_local =
                         inst.is_static ? inst.static_world_from_local
                                        : EvaluateTransformChain(inst.transform_chain, ray.time());
@@ -218,6 +230,7 @@ bool TLAS::Intersect(const Ray& ray, float t_min, float t_max, SurfaceInteractio
                         hit_anything = true;
                         closest_t = si->t;
                         TransformHitToWorld(world_from_local, ray, si);
+                        // tri_light_indices are in BLAS triangle order (post-BVH reorder).
                         if (tri_idx < inst.tri_light_indices.size()) {
                             si->light_index = inst.tri_light_indices[tri_idx];
                         } else {
