@@ -2,65 +2,73 @@
 #define SKWR_CORE_MATH_TRANSFORM_H_
 
 #include <cmath>
-#include <vector>
 
 #include "core/math/constants.h"
+#include "core/math/quat.h"
 #include "core/math/utils.h"
 #include "core/math/vec3.h"
 
 namespace skwr {
 
-// Rotate a point by Euler angles (in radians), applied in Y-X-Z order.
-inline Vec3 RotateEulerYXZ(const Vec3& p, float rx, float ry, float rz) {
-    // Y rotation (yaw)
-    float cy = std::cos(ry), sy = std::sin(ry);
-    Vec3 r1(cy * p.x() + sy * p.z(), p.y(), -sy * p.x() + cy * p.z());
+struct TRS {
+    Vec3 translation{0.0f, 0.0f, 0.0f};
+    Quat rotation{};
+    Vec3 scale{1.0f, 1.0f, 1.0f};
+};
 
-    // X rotation (pitch)
-    float cx = std::cos(rx), sx = std::sin(rx);
-    Vec3 r2(r1.x(), cx * r1.y() - sx * r1.z(), sx * r1.y() + cx * r1.z());
-
-    // Z rotation (roll)
-    float cz = std::cos(rz), sz = std::sin(rz);
-    return Vec3(cz * r2.x() - sz * r2.y(), sz * r2.x() + cz * r2.y(), r2.z());
-}
-
-// Apply Scale -> Rotate -> Translate to a set of vertex positions.
-// Rotation angles are in degrees. Scale is per-axis.
-inline void ApplyTransform(std::vector<Vec3>& vertices, const Vec3& translate,
-                           const Vec3& rotate_deg, const Vec3& scale) {
+inline TRS TRSFromEuler(const Vec3& translate, const Vec3& rotate_deg, const Vec3& scale) {
     float rx = DegreesToRadians(rotate_deg.x());
     float ry = DegreesToRadians(rotate_deg.y());
     float rz = DegreesToRadians(rotate_deg.z());
-
-    bool has_rotation = (rx != 0.0f || ry != 0.0f || rz != 0.0f);
-
-    for (auto& v : vertices) {
-        // Scale
-        v = Vec3(v.x() * scale.x(), v.y() * scale.y(), v.z() * scale.z());
-
-        // Rotate
-        if (has_rotation) {
-            v = RotateEulerYXZ(v, rx, ry, rz);
-        }
-
-        // Translate
-        v = v + translate;
-    }
+    return TRS{translate, QuatNormalize(QuatFromEulerYXZ(rx, ry, rz)), scale};
 }
 
-// Apply the same rotation to normal vectors (no scale/translate).
-// Normals need to be re-normalized after rotation.
-inline void ApplyRotationToNormals(std::vector<Vec3>& normals, const Vec3& rotate_deg) {
-    float rx = DegreesToRadians(rotate_deg.x());
-    float ry = DegreesToRadians(rotate_deg.y());
-    float rz = DegreesToRadians(rotate_deg.z());
+inline TRS Compose(const TRS& parent, const TRS& child) {
+    TRS out{};
+    out.scale = parent.scale * child.scale;
+    out.rotation = QuatNormalize(QuatMultiply(parent.rotation, child.rotation));
+    Vec3 st =
+        Vec3(child.translation.x() * parent.scale.x(), child.translation.y() * parent.scale.y(),
+             child.translation.z() * parent.scale.z());
+    out.translation = parent.translation + QuatRotate(parent.rotation, st);
+    return out;
+}
 
-    if (rx == 0.0f && ry == 0.0f && rz == 0.0f) return;
+inline Vec3 TRSApplyPoint(const TRS& trs, const Vec3& p) {
+    Vec3 scaled = trs.scale * p;
+    return trs.translation + QuatRotate(trs.rotation, scaled);
+}
 
-    for (auto& n : normals) {
-        n = Normalize(RotateEulerYXZ(n, rx, ry, rz));
+inline Vec3 TRSApplyNormal(const TRS& trs, const Vec3& n) {
+    float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
+    if (std::fabs(sx) < Numeric::kNearZeroEpsilon || std::fabs(sy) < Numeric::kNearZeroEpsilon ||
+        std::fabs(sz) < Numeric::kNearZeroEpsilon) {
+        return Normalize(QuatRotate(trs.rotation, n));
     }
+    Vec3 inv_scaled(n.x() / sx, n.y() / sy, n.z() / sz);
+    return Normalize(QuatRotate(trs.rotation, inv_scaled));
+}
+
+inline bool TRSIsUniformScale(const TRS& trs, float eps = 1e-5f) {
+    float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
+    return std::fabs(sx - sy) <= eps && std::fabs(sy - sz) <= eps;
+}
+
+inline bool TRSIsIdentity(const TRS& trs) {
+    if (std::fabs(trs.translation.x()) > Numeric::kNearZeroEpsilon ||
+        std::fabs(trs.translation.y()) > Numeric::kNearZeroEpsilon ||
+        std::fabs(trs.translation.z()) > Numeric::kNearZeroEpsilon) {
+        return false;
+    }
+    if (std::fabs(trs.scale.x() - 1.0f) > Numeric::kNearZeroEpsilon ||
+        std::fabs(trs.scale.y() - 1.0f) > Numeric::kNearZeroEpsilon ||
+        std::fabs(trs.scale.z() - 1.0f) > Numeric::kNearZeroEpsilon) {
+        return false;
+    }
+    Quat rq = QuatNormalize(trs.rotation);
+    float imag_len = std::sqrt(rq.x * rq.x + rq.y * rq.y + rq.z * rq.z);
+    float angle = 2.0f * std::atan2(imag_len, std::fabs(rq.w));
+    return angle <= 1e-5f;
 }
 
 }  // namespace skwr

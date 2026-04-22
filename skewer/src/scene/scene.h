@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "accelerators/bvh.h"
@@ -15,6 +16,7 @@
 #include "media/mediums.h"
 #include "media/nano_vdb_medium.h"
 #include "scene/light.h"
+#include "scene/scene_graph.h"
 
 namespace skwr {
 
@@ -50,7 +52,11 @@ class Scene {
     const std::vector<NanoVDBMedium>& nanovdb_media() const { return nanovdb_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
 
-    void Build();  // Construct the BVH from the shapes list
+    void Build();  // Flatten scene graph (if any), then construct the BVH from the shapes list
+
+    void MergeGraphRoots(std::vector<SceneNode>&& roots);
+
+    bool HasGraph() const { return graph_root_.has_value(); }
 
     // THE CRITICAL HOT-PATH FUNCTION
     // The Integrator calls this millions of times.
@@ -58,6 +64,9 @@ class Scene {
     bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
 
   private:
+    void FlattenGraph(const SceneNode& node, const TRS& parent_world);
+
+    std::optional<SceneNode> graph_root_;
     std::vector<Sphere> spheres_;
     std::vector<Material> materials_;
     std::vector<ImageTexture> textures_;
