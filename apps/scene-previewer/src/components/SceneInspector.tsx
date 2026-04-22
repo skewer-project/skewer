@@ -1,6 +1,6 @@
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { ChevronRight } from "lucide-react";
-import { memo, type ReactNode, useCallback, useEffect, useState } from "react";
+import { memo, type ReactNode, useCallback, useMemo, useState } from "react";
 import {
 	countGraphNodes,
 	formatObjectPathKey,
@@ -269,15 +269,16 @@ const LayerCard = memo(function LayerCard({
 		() => new Set(),
 	);
 
-	useEffect(() => {
-		const add = ancestorOpenKeys(selectedObjectKey);
-		if (add.length === 0) return;
-		setExpandedPaths((prev) => {
-			const n = new Set(prev);
-			for (const k of add) n.add(k);
-			return n;
-		});
-	}, [selectedObjectKey]);
+	const autoExpanded = useMemo(
+		() => new Set(ancestorOpenKeys(selectedObjectKey)),
+		[selectedObjectKey],
+	);
+
+	const mergedExpanded = useMemo(() => {
+		const merged = new Set(expandedPaths);
+		for (const k of autoExpanded) merged.add(k);
+		return merged;
+	}, [expandedPaths, autoExpanded]);
 
 	const nodeCount = countGraphNodes(data.graph);
 
@@ -384,7 +385,7 @@ const LayerCard = memo(function LayerCard({
 								pathKey={pathKey}
 								depth={0}
 								selectedObjectKey={selectedObjectKey}
-								expandedPaths={expandedPaths}
+								expandedPaths={mergedExpanded}
 								onToggleExpand={toggleExpand}
 								onSelectObject={onSelectObject}
 								onAddChild={openAddDialog}

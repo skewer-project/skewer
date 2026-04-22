@@ -180,7 +180,9 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		undefined,
 	);
 	const latestSceneRef = useRef(scene);
-	latestSceneRef.current = scene;
+	useEffect(() => {
+		latestSceneRef.current = scene;
+	}, [scene]);
 
 	// ── Imperative handle: applyPatch ──
 	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
