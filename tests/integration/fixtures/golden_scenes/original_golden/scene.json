@@ -1,0 +1,18 @@
+{
+  "camera": {
+    "look_from": [0, 5, -8],
+    "look_at": [0, 1, 0],
+    "vup": [0, 1, 0],
+    "vfov": 45,
+    "aperture_radius": 0,
+    "focus_distance": 1
+  },
+  "context": ["ctx_lighting.json"],
+  "layers": [
+    "layer_walls.json",
+    "layer_spheres.json",
+    "layer_metal.json",
+    "layer_glass.json"
+  ],
+  "output_dir": "output"
+}

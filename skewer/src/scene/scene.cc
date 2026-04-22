@@ -1,9 +1,12 @@
 #include "scene/scene.h"
 
+#include <cmath>
 #include <cstdint>
+#include <stdexcept>
 
 #include "accelerators/bvh.h"
 #include "core/cpu_config.h"
+#include "core/math/transform.h"
 #include "core/math/vec3.h"
 #include "core/transport/surface_interaction.h"
 #include "geometry/intersect_sphere.h"
@@ -16,7 +19,83 @@
 
 namespace skwr {
 
+void Scene::MergeGraphRoots(std::vector<SceneNode>&& roots) {
+    if (roots.empty()) {
+        return;
+    }
+    if (!graph_root_) {
+        SceneNode synthetic;
+        synthetic.type = NodeType::Group;
+        synthetic.children = std::move(roots);
+        graph_root_ = std::move(synthetic);
+        return;
+    }
+    for (auto& r : roots) {
+        graph_root_->children.push_back(std::move(r));
+    }
+}
+
+void Scene::FlattenGraph(const SceneNode& node, const TRS& parent_world) {
+    TRS local = node.anim_transform.Evaluate(0.0f);
+    TRS world = Compose(parent_world, local);
+
+    switch (node.type) {
+        case NodeType::Group:
+            for (const SceneNode& ch : node.children) {
+                FlattenGraph(ch, world);
+            }
+            break;
+        case NodeType::Mesh:
+            for (uint32_t mesh_id : node.mesh_ids) {
+                if (TRSIsIdentity(world)) {
+                    continue;
+                }
+                Mesh& mesh = GetMutableMesh(mesh_id);
+                for (Vec3& v : mesh.p) {
+                    v = TRSApplyPoint(world, v);
+                }
+                if (!mesh.n.empty()) {
+                    for (Vec3& n : mesh.n) {
+                        n = TRSApplyNormal(world, n);
+                    }
+                }
+            }
+            break;
+        case NodeType::Sphere: {
+            if (!node.sphere_data.has_value()) {
+                throw std::runtime_error("Sphere node missing sphere_data");
+            }
+            const SphereData& sd = *node.sphere_data;
+            if (sd.center_is_world) {
+                if (!TRSIsIdentity(world)) {
+                    throw std::runtime_error(
+                        "Sphere with world-space center (e.g. NanoVDB) requires identity world "
+                        "transform");
+                }
+                AddSphere(Sphere{sd.center, sd.radius, sd.material_id, sd.light_index,
+                                 sd.interior_medium, sd.exterior_medium, sd.priority});
+            } else {
+                if (!TRSIsUniformScale(world)) {
+                    throw std::runtime_error(
+                        "Sphere requires uniform scale; non-uniform world scale is not supported");
+                }
+                float s = world.scale.x();
+                Vec3 c = TRSApplyPoint(world, sd.center);
+                float r = sd.radius * std::fabs(s);
+                AddSphere(Sphere{c, r, sd.material_id, sd.light_index, sd.interior_medium,
+                                 sd.exterior_medium, sd.priority});
+            }
+            break;
+        }
+    }
+}
+
 void Scene::Build() {
+    if (graph_root_) {
+        FlattenGraph(*graph_root_, TRS{});
+        graph_root_.reset();
+    }
+
     triangles_.clear();
     lights_.clear();
 
@@ -89,7 +168,7 @@ void Scene::Build() {
         const Material* mat = (triangles_[i].material_id != kNullMaterialId)
                                   ? &materials_[triangles_[i].material_id]
                                   : nullptr;
-        if (mat->IsEmissive()) {
+        if (mat != nullptr && mat->IsEmissive()) {
             AreaLight light;
             light.type = AreaLight::Triangle;
             light.primitive_index = i;
@@ -98,7 +177,7 @@ void Scene::Build() {
             triangles_[i].light_index = static_cast<int32_t>(lights_.size() - 1);
         }
     }
-    inv_light_count_ = 1.0f / lights_.size();
+    inv_light_count_ = lights_.empty() ? 0.0f : 1.0f / static_cast<float>(lights_.size());
 }
 
 bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const {

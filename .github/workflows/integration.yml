@@ -1,0 +1,67 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  integration-tests:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 500M
+      SKEWER_RUN_GOLDEN: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch required LFS assets
+        run: |
+          git lfs fetch --include="skewer/external/srgb_spec_data.h,tests/integration/**"
+          git lfs checkout
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-ccache-integration-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'skewer/CMakeLists.txt', 'skewer/tests/CMakeLists.txt', 'loom/CMakeLists.txt', 'libs/exrio/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-integration-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ccache \
+            clang-17 \
+            libopenexr-dev \
+            libimath-dev \
+            libpng-dev \
+            zlib1g-dev \
+            protobuf-compiler \
+            protobuf-compiler-grpc \
+            libprotobuf-dev \
+            libgrpc++-dev
+
+      - name: Configure
+        run: >
+          cmake --preset ci
+          -DCMAKE_C_COMPILER=clang-17
+          -DCMAKE_CXX_COMPILER=clang++-17
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Reset ccache stats
+        run: ccache -z
+
+      - name: Build
+        run: cmake --build --preset ci --parallel
+
+      - name: Run integration tests
+        run: ./build/ci/tests/integration_tests
+
+      - name: ccache stats
+        if: always()
+        run: ccache -s
