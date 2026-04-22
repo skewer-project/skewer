@@ -30,7 +30,6 @@ images/
 renders/
 
 # generated images
-*.exr
 *.ppm
 
 # Terraform
