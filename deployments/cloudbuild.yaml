@@ -2,9 +2,12 @@ steps:
   # Fetch LFS objects (Cloud Build's default checkout only pulls pointer files)
   - name: gcr.io/cloud-builders/git
     id: lfs-fetch
+    entrypoint: bash
     args:
-      - lfs
-      - pull
+      - -c
+      - |
+        apt-get install -y git-lfs
+        git lfs pull
 
   # Build Go coordinator image
   - name: gcr.io/cloud-builders/docker
