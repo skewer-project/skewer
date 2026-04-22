@@ -4,176 +4,64 @@ package api.proto.coordinator.v1;
 
 option go_package = "github.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1";
 
-/*
-   Server: Coordinator
-   Clients: User + Renderer workers + Compositor worker
-*/
-
-/*
-   Container service:
-   Manages the DAG (Directed Acyclic Graph) of Render/Composite Jobs
-   and distributes granular Tasks to GKE workers.
-*/
-
+// CoordinatorService is the external API for the Skewer rendering pipeline.
+// Workers communicate directly with Cloud Batch/Workflows, not this service.
 service CoordinatorService {
-  // External API for CLI
-  rpc SubmitJob(SubmitJobRequest) returns (SubmitJobResponse);
-  rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
-  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
-
-  // Internal API for Skewer and Loom GKE Workers
-  rpc GetWorkStream(GetWorkStreamRequest) returns (stream GetWorkStreamResponse);
-  rpc ReportTaskResult(ReportTaskResultRequest) returns (ReportTaskResultResponse);
-  rpc ReportTaskProgress(ReportTaskProgressRequest) returns (ReportTaskProgressResponse);
+    rpc SubmitPipeline(SubmitPipelineRequest) returns (SubmitPipelineResponse);
+    rpc GetPipelineStatus(GetPipelineStatusRequest) returns (GetPipelineStatusResponse);
+    rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
 }
 
-///* "Job" Submission Level *///
-message SubmitJobRequest {
-  string job_id = 1; // UUID of job for tracking
-  string job_name = 2; // eg. "smoke_layer", "ball_layer", "final_composite"
-
-  repeated string depends_on = 3;
-
-  // General job information
-  int32 num_frames = 4;
-  int32 width = 5;
-  int32 height = 6;
-
-  oneof job_type {
-    RenderJob render_job = 7;
-    CompositeJob composite_job = 8;
-  }
+// PipelineLayer describes a single render layer within a pipeline.
+message PipelineLayer {
+    string layer_id = 1;   // Unique identifier for this layer (e.g. "smoke", "character")
+    string scene_uri = 2;  // GCS path to scene JSON (e.g. gs://bucket/scenes/smoke.json)
+    bool enable_cache = 3; // When true, use content-hash layer caching
 }
 
-message RenderJob {
-  string scene_uri = 1;
-  int32 max_samples = 2; // max number of rays shot per pixel e.g., 1024
-  string output_uri_prefix = 3; // gs://bucket/renders/smoke/
-  bool enable_deep = 4;
-  int32 threads = 5;
-
-  // Adaptive sampling. When noise_threshold > 0, pixels that converge below
-  // the threshold stop sampling early. 0 disables adaptive sampling.
-  float noise_threshold = 6;
-  int32 min_samples = 7; // Minimum samples before convergence check (default 0 = use scene JSON)
-  int32 adaptive_step = 8; // Samples between convergence checks (default 0 = use scene JSON)
+// Camera parameters shared across all layers in a pipeline.
+message CameraParams {
+    repeated float look_from = 1; // [x, y, z]
+    repeated float look_at = 2;   // [x, y, z]
+    repeated float vup = 3;       // [x, y, z] (default 0,1,0)
+    float vfov = 4;               // Vertical field of view in degrees (default 90)
 }
 
-message CompositeJob {
-  // The layers to combine. For frame x, Loom will look for:
-  // gs://bucket/renders/smoke/frame-0005.exr and gs://bucket/renders/person/frame-0005.exr
-  repeated string layer_uri_prefixes = 1;
-  string output_uri_prefix = 2;
+message SubmitPipelineRequest {
+    string pipeline_id = 1;                 // Optional; server generates a UUID if empty
+    int32 num_frames = 2;                   // Total frames to render across all layers
+    repeated PipelineLayer layers = 3;
+    string composite_output_uri_prefix = 4; // GCS prefix for final composited frames
+    CameraParams camera = 5;               // Camera shared by all layers
+    repeated string context_uris = 6;      // GCS paths to context JSON files (lighting, invisible geo)
 }
 
-message SubmitJobResponse {
-  string job_id = 1;
+message SubmitPipelineResponse {
+    string pipeline_id = 1;
 }
 
-///* Job Tracking API for User *///
-message GetJobStatusRequest {
-  string job_id = 1;
+message GetPipelineStatusRequest {
+    string pipeline_id = 1;
 }
 
-message GetJobStatusResponse {
-  enum JobStatus {
-    JOB_STATUS_UNSPECIFIED = 0;
-    JOB_STATUS_PENDING_DEPENDENCIES = 1; // waiting for dependency jobs
-    JOB_STATUS_QUEUED = 2;
-    JOB_STATUS_RUNNING = 3;
-    JOB_STATUS_COMPLETED = 4;
-    JOB_STATUS_FAILED = 5;
-  }
-  JobStatus job_status = 1;
-  float progress_percent = 2;
-  string error_message = 3;
+message GetPipelineStatusResponse {
+    enum PipelineStatus {
+        PIPELINE_STATUS_UNSPECIFIED = 0;
+        PIPELINE_STATUS_RUNNING = 1;
+        PIPELINE_STATUS_SUCCEEDED = 2;
+        PIPELINE_STATUS_FAILED = 3;
+        PIPELINE_STATUS_CANCELLED = 4;
+    }
+    PipelineStatus status = 1;
+    string error_message = 2;
+    map<string, string> layer_outputs = 3; // layer_id -> GCS output prefix
+    string composite_output = 4;           // GCS prefix of final composited frames
 }
 
-message CancelJobRequest {
-  string job_id = 1;
+message CancelPipelineRequest {
+    string pipeline_id = 1;
 }
 
-message CancelJobResponse {
-  bool success = 1;
-}
-
-///* Worker Execution *///
-message GetWorkStreamRequest {
-  string worker_id = 1; // UUID of skewer/loom pod
-
-  // Any tags to ensure workers only get tasks they can handle
-  // e.g., ["gpu", "skewer"] or ["high-mem", "loom"]
-  repeated string capabilities = 2;
-}
-
-message GetWorkStreamResponse {
-  string job_id = 1;
-  string task_id = 2;
-  string frame_id = 3;
-
-  oneof payload {
-    // Run by Skewer: Render a sample chunk
-    RenderTask render_task = 4;
-
-    // Run by Loom: Ingests final Deep EXRs from entirely different Jobs (e.g. Smoke + Person)
-    // and deep-merges them
-    CompositeTask composite_task = 5;
-  }
-}
-
-message RenderTask {
-  // Scene information
-  string scene_uri = 1;
-  int32 width = 2;
-  int32 height = 3;
-
-  string output_uri = 4; // gs://bucket/renders/smoke/frame-0005-chunk-0.exr
-  bool enable_deep = 5;
-  int32 threads = 6;
-
-  // Adaptive sampling (forwarded from RenderJob)
-  float noise_threshold = 7;
-  int32 min_samples = 8;
-  int32 adaptive_step = 9;
-  int32 max_samples = 10;
-}
-
-message CompositeTask {
-  // The merged, FINAL Deep EXR frames from different Render Jobs to holdout/blend (after they've
-  // been "merged" from sample splitting)
-  repeated string layer_uris = 1;
-
-  int32 width = 2;
-  int32 height = 3;
-
-  string output_uri = 4; // flattened 2D image
-}
-
-///* Worker Reporting *///
-message ReportTaskResultRequest {
-  // Identification of the job task and worker (may need to add frame number)
-  string task_id = 1;
-  string job_id = 2;
-  string worker_id = 3;
-
-  // Generic response information
-  bool success = 4;
-  string error_message = 5;
-  string output_uri = 6;
-
-  int64 execution_time_ms = 7; // for metrics
-}
-
-message ReportTaskResultResponse {
-  bool acknowledged = 1;
-}
-
-message ReportTaskProgressRequest {
-  string task_id = 1;
-  string worker_id = 2;
-  float progress_percent = 3;
-}
-
-message ReportTaskProgressResponse {
-  bool acknowledged = 1;
+message CancelPipelineResponse {
+    bool success = 1;
 }

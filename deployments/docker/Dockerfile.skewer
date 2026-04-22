@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     clang-17 \
     cmake \
+    ccache \
     libopenexr-dev \
     libimath-dev \
     zlib1g-dev \
@@ -21,7 +22,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-ENV CC=clang-17 CXX=clang++-17
+ENV CC="ccache clang-17" CXX="ccache clang++-17"
+ENV CCACHE_DIR=/ccache
 
 WORKDIR /app
 
@@ -29,8 +31,12 @@ WORKDIR /app
 COPY . .
 
 # Run the CMake build specifically for the Skewer target
-RUN cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF
-RUN cmake --build --preset release --target skewer-worker --parallel 1
+# Use BuildKit cache mounts for ccache and CMake build directory
+RUN --mount=type=cache,id=skewer-ccache,target=/ccache \
+    --mount=type=cache,id=skewer-build,target=/app/build,sharing=locked \
+    cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF && \
+    cmake --build --preset release --target skewer-worker --parallel 4 && \
+    cp /app/build/release/skewer/skewer-worker /tmp/skewer-worker
 
 # Stage 2: Create a minimal runner image
 FROM ubuntu:24.04
@@ -48,7 +54,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/build/release/skewer/skewer-worker /usr/local/bin/skewer-worker
+COPY --from=builder /tmp/skewer-worker /usr/local/bin/skewer-worker
 
 # Create a dedicated, non-root system user and group; prepare /data for WORKDIR
 # (K8s mounts the repo here — image /data is replaced at runtime, but WORKDIR

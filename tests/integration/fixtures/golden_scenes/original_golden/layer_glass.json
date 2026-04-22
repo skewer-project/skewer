@@ -1,0 +1,99 @@
+{
+  "materials": {
+    "glass_clear": {
+      "type": "dielectric",
+      "albedo": [
+        1,
+        1,
+        1
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true,
+      "ior": 1.5,
+      "roughness": 0
+    },
+    "glass_ruby": {
+      "type": "dielectric",
+      "albedo": [
+        1,
+        0.1,
+        0.1
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true,
+      "ior": 1.5,
+      "roughness": 0.05
+    },
+    "glass_diamond": {
+      "type": "dielectric",
+      "albedo": [
+        1,
+        1,
+        1
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true,
+      "ior": 2.42,
+      "roughness": 0
+    }
+  },
+  "objects": [
+    {
+      "type": "sphere",
+      "material": "glass_clear",
+      "center": [
+        -2,
+        3,
+        3
+      ],
+      "radius": 0.7
+    },
+    {
+      "type": "sphere",
+      "material": "glass_ruby",
+      "center": [
+        0,
+        3,
+        3
+      ],
+      "radius": 0.7
+    },
+    {
+      "type": "sphere",
+      "material": "glass_diamond",
+      "center": [
+        2,
+        3,
+        3
+      ],
+      "radius": 0.7
+    }
+  ]
+}

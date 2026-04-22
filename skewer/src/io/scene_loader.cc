@@ -15,6 +15,7 @@
 #include "core/spectral/spectral_curve.h"
 #include "core/spectral/spectral_utils.h"
 #include "geometry/sphere.h"
+#include "io/graph_from_json.h"
 #include "io/obj_loader.h"
 #include "materials/material.h"
 #include "materials/texture.h"
@@ -22,6 +23,7 @@
 #include "media/nano_vdb_medium.h"
 #include "scene/mesh_utils.h"
 #include "scene/scene.h"
+#include "scene/scene_graph.h"
 #include "session/render_options.h"
 
 using json = nlohmann::json;
@@ -206,7 +208,7 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
 }
 
 //------------------------------------------------------------------------------
-// Object Parsing
+// Graph parsing
 //------------------------------------------------------------------------------
 
 static uint16_t LookupMedium(const json& obj, const MediaMap& media_map, const std::string& key) {
@@ -258,100 +260,26 @@ static uint32_t LookupMaterialWithVisibility(const json& obj, const MaterialMap&
     return scene.AddMaterial(cloned);
 }
 
-static void ParseSphere(const json& obj, const MaterialMap& mat_map, const MediaMap& media_map,
-                        Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
-
-    uint16_t inside = LookupMedium(obj, media_map, "inside_medium");
-    uint16_t outside = LookupMedium(obj, media_map, "outside_medium");
-
-    Vec3 center(0.0f, 0.0f, 0.0f);
-    float radius = 1.0f;
-
-    uint16_t med_index = ExtractMediumIndex(inside);
-    MediumType med_type = ExtractMediumType(inside);
-
-    if (inside != kVacuumMediumId && med_type == MediumType::NanoVDB) {
-        const NanoVDBMedium& medium = scene.nanovdb_media()[med_index];
-        center = medium.Center();
-        radius = medium.BoundingRadius() * 1.05f;  // padding
-    } else {
-        center = ParseVec3(obj.at("center"));
-        radius = obj.at("radius").get<float>();
-    }
-    int32_t light_index = -1;
-    uint16_t priority = 1;
-
-    scene.AddSphere(Sphere{center, radius, mat_id, light_index, inside, outside, priority});
-}
-
-static void ParseQuad(const json& obj, const MaterialMap& mat_map, Scene& scene, int index) {
-    uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
-
-    const auto& verts = obj.at("vertices");
-    if (!verts.is_array() || verts.size() != 4) {
-        throw std::runtime_error("Object at index " + std::to_string(index) +
-                                 ": quad 'vertices' must be array of 4 points");
-    }
-
-    Vec3 p0 = ParseVec3(verts[0]);
-    Vec3 p1 = ParseVec3(verts[1]);
-    Vec3 p2 = ParseVec3(verts[2]);
-    Vec3 p3 = ParseVec3(verts[3]);
-
-    scene.AddMesh(CreateQuad(p0, p1, p2, p3, mat_id));
-
-    std::string comment = GetOr<std::string>(obj, "comment", "");
-}
-
-static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, int index,
-                     const std::string& scene_dir) {
+static void LoadObjMeshes(const json& obj, const MaterialMap& mat_map, Scene& scene, int index,
+                          const std::string& scene_dir) {
     std::string file = obj.at("file").get<std::string>();
     std::string filepath = ResolvePath(file, scene_dir);
 
     bool auto_fit = GetOr(obj, "auto_fit", true);
 
-    // Parse transform
-    Vec3 translate(0.0f, 0.0f, 0.0f);
-    Vec3 rotate_deg(0.0f, 0.0f, 0.0f);
-    Vec3 obj_scale(1.0f, 1.0f, 1.0f);
-
-    if (obj.contains("transform")) {
-        const auto& t = obj["transform"];
-        translate = GetVec3Or(t, "translate", Vec3(0.0f, 0.0f, 0.0f));
-        rotate_deg = GetVec3Or(t, "rotate", Vec3(0.0f, 0.0f, 0.0f));
-
-        // Scale can be a scalar or a [x,y,z] array
-        if (t.contains("scale")) {
-            if (t["scale"].is_number()) {
-                float s = t["scale"].get<float>();
-                obj_scale = Vec3(s, s, s);
-            } else {
-                obj_scale = ParseVec3(t["scale"]);
-            }
-        }
-    }
-
-    // Record mesh count before loading so we can apply transforms to new meshes
     size_t mesh_count_before = scene.MeshCount();
 
-    // Load OBJ — when auto_fit is true, the loader normalizes to 2-unit cube.
-    // We pass Vec3(1,1,1) as scale here because we handle scaling ourselves via ApplyTransform.
     if (!LoadOBJ(filepath, scene, Vec3(1.0f, 1.0f, 1.0f), auto_fit)) {
-        throw std::runtime_error("Object at index " + std::to_string(index) +
-                                 ": failed to load OBJ file '" + filepath + "'");
+        throw std::runtime_error("Graph node " + std::to_string(index) + ": failed to load OBJ '" +
+                                 filepath + "'");
     }
 
-    // Override material if specified (also applies object-level visible override)
     if (obj.contains("material") && !obj["material"].is_null()) {
         uint32_t mat_id = LookupMaterialWithVisibility(obj, mat_map, scene, index);
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
             scene.GetMutableMesh(static_cast<uint32_t>(i)).material_id = mat_id;
         }
     } else if (obj.contains("visible")) {
-        // No material override, but a visibility flag was set.  The OBJ may
-        // have loaded multiple sub-meshes with different materials; clone each
-        // unique material with the requested visibility.
         bool want_visible = obj["visible"].get<bool>();
         std::unordered_map<uint32_t, uint32_t> vis_cache;
         for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
@@ -372,46 +300,119 @@ static void ParseObj(const json& obj, const MaterialMap& mat_map, Scene& scene, 
             }
         }
     }
-
-    // Apply transform (Scale -> Rotate -> Translate) to all newly added meshes
-    bool has_transform =
-        (obj_scale.x() != 1.0f || obj_scale.y() != 1.0f || obj_scale.z() != 1.0f ||
-         rotate_deg.x() != 0.0f || rotate_deg.y() != 0.0f || rotate_deg.z() != 0.0f ||
-         translate.x() != 0.0f || translate.y() != 0.0f || translate.z() != 0.0f);
-
-    if (has_transform) {
-        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
-            Mesh& mesh = scene.GetMutableMesh(static_cast<uint32_t>(i));
-            ApplyTransform(mesh.p, translate, rotate_deg, obj_scale);
-            if (!mesh.n.empty()) {
-                ApplyRotationToNormals(mesh.n, rotate_deg);
-            }
-        }
-    }
 }
 
-static void ParseObjects(const json& j, const MaterialMap& mat_map, const MediaMap& media_map,
-                         Scene& scene, const std::string& scene_dir) {
-    if (!j.contains("objects")) {
-        return;
+static SceneNode ParseGraphNode(const json& j, const MaterialMap& mat_map,
+                                const MediaMap& media_map, Scene& scene,
+                                const std::string& scene_dir, const std::string& path_label) {
+    SceneNode node;
+
+    if (j.contains("name") && j["name"].is_string()) {
+        node.name = j["name"].get<std::string>();
     }
 
-    const auto& objects = j["objects"];
-    for (int i = 0; i < static_cast<int>(objects.size()); i++) {
-        const auto& obj = objects[i];
-        std::string type = obj.at("type").get<std::string>();
+    if (j.contains("transform")) {
+        node.anim_transform = ParseAnimatedTransformJson(j["transform"]);
+    } else {
+        node.anim_transform = ParseAnimatedTransformJson(json::object());
+    }
 
-        if (type == "sphere") {
-            ParseSphere(obj, mat_map, media_map, scene, i);
-        } else if (type == "quad") {
-            ParseQuad(obj, mat_map, scene, i);
-        } else if (type == "obj") {
-            ParseObj(obj, mat_map, scene, i, scene_dir);
-        } else {
-            throw std::runtime_error("Object at index " + std::to_string(i) + ": unknown type '" +
-                                     type + "'");
+    if (j.contains("children")) {
+        if (!j["children"].is_array()) {
+            throw std::runtime_error("Graph node " + path_label + ": 'children' must be an array");
         }
+        node.type = NodeType::Group;
+        int ci = 0;
+        for (const auto& ch : j["children"]) {
+            node.children.push_back(
+                ParseGraphNode(ch, mat_map, media_map, scene, scene_dir,
+                               path_label + ".children[" + std::to_string(ci++) + "]"));
+        }
+        return node;
     }
+
+    std::string typ = j.at("type").get<std::string>();
+
+    if (typ == "sphere") {
+        node.type = NodeType::Sphere;
+        uint32_t mat_id = LookupMaterialWithVisibility(j, mat_map, scene, -1);
+
+        uint16_t inside = LookupMedium(j, media_map, "inside_medium");
+        uint16_t outside = LookupMedium(j, media_map, "outside_medium");
+
+        SphereData sd{};
+        sd.material_id = mat_id;
+        sd.light_index = -1;
+        sd.interior_medium = inside;
+        sd.exterior_medium = outside;
+        sd.priority = 1;
+
+        uint16_t med_index = ExtractMediumIndex(inside);
+        MediumType med_type = ExtractMediumType(inside);
+
+        if (inside != kVacuumMediumId && med_type == MediumType::NanoVDB) {
+            const NanoVDBMedium& medium = scene.nanovdb_media()[med_index];
+            sd.center = medium.Center();
+            sd.radius = medium.BoundingRadius() * 1.05f;
+            sd.center_is_world = true;
+        } else {
+            sd.center = ParseVec3(j.at("center"));
+            sd.radius = j.at("radius").get<float>();
+            sd.center_is_world = false;
+        }
+        node.sphere_data = sd;
+        return node;
+    }
+
+    if (typ == "quad") {
+        node.type = NodeType::Mesh;
+        uint32_t mat_id = LookupMaterialWithVisibility(j, mat_map, scene, -1);
+
+        const auto& verts = j.at("vertices");
+        if (!verts.is_array() || verts.size() != 4) {
+            throw std::runtime_error("Graph node " + path_label +
+                                     ": quad 'vertices' must be array of 4 points");
+        }
+
+        Vec3 p0 = ParseVec3(verts[0]);
+        Vec3 p1 = ParseVec3(verts[1]);
+        Vec3 p2 = ParseVec3(verts[2]);
+        Vec3 p3 = ParseVec3(verts[3]);
+
+        uint32_t mid = scene.AddMesh(CreateQuad(p0, p1, p2, p3, mat_id));
+        node.mesh_ids.push_back(mid);
+        return node;
+    }
+
+    if (typ == "obj") {
+        node.type = NodeType::Mesh;
+        size_t mesh_count_before = scene.MeshCount();
+        LoadObjMeshes(j, mat_map, scene, -1, scene_dir);
+        for (size_t i = mesh_count_before; i < scene.MeshCount(); i++) {
+            node.mesh_ids.push_back(static_cast<uint32_t>(i));
+        }
+        return node;
+    }
+
+    throw std::runtime_error("Graph node " + path_label + ": unknown type '" + typ + "'");
+}
+
+static void ParseGraph(const json& j, const MaterialMap& mat_map, const MediaMap& media_map,
+                       Scene& scene, const std::string& scene_dir, const std::string& filepath) {
+    if (!j.contains("graph")) {
+        throw std::runtime_error("Layer file must use 'graph' format: " + filepath);
+    }
+    const auto& g = j["graph"];
+    if (!g.is_array()) {
+        throw std::runtime_error("'graph' must be an array in: " + filepath);
+    }
+    std::vector<SceneNode> roots;
+    roots.reserve(g.size());
+    for (size_t i = 0; i < g.size(); i++) {
+        roots.push_back(ParseGraphNode(g[i], mat_map, media_map, scene, scene_dir,
+                                       "graph[" + std::to_string(i) + "]"));
+    }
+    scene.MergeGraphRoots(std::move(roots));
 }
 
 //------------------------------------------------------------------------------
@@ -553,7 +554,7 @@ LayerConfig LoadLayerFile(const std::string& filepath, Scene& scene) {
 
     MaterialMap mat_map = ParseMaterials(j, scene, scene_dir, layer_visible);
     MediaMap media_map = ParseMedia(j, scene, scene_dir);
-    ParseObjects(j, mat_map, media_map, scene, scene_dir);
+    ParseGraph(j, mat_map, media_map, scene, scene_dir, filepath);
 
     LayerConfig lcfg{};
     lcfg.visible = layer_visible;
@@ -572,7 +573,7 @@ void LoadContextIntoScene(const std::vector<std::string>& context_paths, Scene& 
         std::string ctx_dir = ExtractDir(path);
         MaterialMap mat_map = ParseMaterials(j, scene, ctx_dir);
         MediaMap media_map = ParseMedia(j, scene, ctx_dir);
-        ParseObjects(j, mat_map, media_map, scene, ctx_dir);
+        ParseGraph(j, mat_map, media_map, scene, ctx_dir, path);
     }
 }
 

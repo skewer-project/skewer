@@ -1,0 +1,147 @@
+steps:
+  # Fetch LFS objects (Cloud Build's default checkout only pulls pointer files)
+  - name: gcr.io/cloud-builders/git
+    id: lfs-fetch
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        apt-get update && apt-get install -y --no-install-recommends git-lfs
+        rm -rf /var/lib/apt/lists/*
+        git lfs pull
+
+  # Build Go coordinator image
+  - name: gcr.io/cloud-builders/docker
+    id: build-coordinator
+    waitFor:
+      - lfs-fetch
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker pull ${_AR_BASE}/skewer-coordinator:builder || true
+        docker pull ${_AR_BASE}/skewer-coordinator:latest || true
+        docker build \
+          --target builder \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/skewer-coordinator:builder \
+          -t ${_AR_BASE}/skewer-coordinator:builder \
+          -f deployments/docker/Dockerfile.coordinator \
+          .
+        docker push ${_AR_BASE}/skewer-coordinator:builder
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/skewer-coordinator:builder \
+          --cache-from ${_AR_BASE}/skewer-coordinator:latest \
+          -t ${_AR_BASE}/skewer-coordinator:latest \
+          -f deployments/docker/Dockerfile.coordinator \
+          .
+
+  # Build skewer render worker image (C++ — needs high-CPU machine)
+  - name: gcr.io/cloud-builders/docker
+    id: build-skewer
+    waitFor:
+      - lfs-fetch
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker pull ${_AR_BASE}/skewer-worker:builder || true
+        docker pull ${_AR_BASE}/skewer-worker:latest || true
+        docker build \
+          --target builder \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/skewer-worker:builder \
+          -t ${_AR_BASE}/skewer-worker:builder \
+          -f deployments/docker/Dockerfile.skewer \
+          .
+        docker push ${_AR_BASE}/skewer-worker:builder
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/skewer-worker:builder \
+          --cache-from ${_AR_BASE}/skewer-worker:latest \
+          -t ${_AR_BASE}/skewer-worker:latest \
+          -f deployments/docker/Dockerfile.skewer \
+          .
+
+  # Build loom composite worker image (C++ — runs in parallel with skewer build)
+  - name: gcr.io/cloud-builders/docker
+    id: build-loom
+    waitFor:
+      - lfs-fetch
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker pull ${_AR_BASE}/loom-worker:builder || true
+        docker pull ${_AR_BASE}/loom-worker:latest || true
+        docker build \
+          --target builder \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/loom-worker:builder \
+          -t ${_AR_BASE}/loom-worker:builder \
+          -f deployments/docker/Dockerfile.loom \
+          .
+        docker push ${_AR_BASE}/loom-worker:builder
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/loom-worker:builder \
+          --cache-from ${_AR_BASE}/loom-worker:latest \
+          -t ${_AR_BASE}/loom-worker:latest \
+          -f deployments/docker/Dockerfile.loom \
+          .
+
+  # Push all images
+  - name: gcr.io/cloud-builders/docker
+    id: push-coordinator
+    waitFor:
+      - build-coordinator
+    args:
+      - push
+      - ${_AR_BASE}/skewer-coordinator:latest
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-skewer
+    waitFor:
+      - build-skewer
+    args:
+      - push
+      - ${_AR_BASE}/skewer-worker:latest
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-loom
+    waitFor:
+      - build-loom
+    args:
+      - push
+      - ${_AR_BASE}/loom-worker:latest
+
+  # Deploy the updated coordinator image to Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy-coordinator
+    waitFor:
+      - push-coordinator
+    args:
+      - gcloud
+      - run
+      - deploy
+      - skewer-coordinator
+      - --image=${_AR_BASE}/skewer-coordinator:latest
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --quiet
+
+substitutions:
+  # Override with your Artifact Registry base path:
+  # e.g. us-west2-docker.pkg.dev/skwr-ucd/skewer
+  _AR_BASE: us-west2-docker.pkg.dev/$PROJECT_ID/skewer
+  _REGION: us-west2
+
+options:
+  # Sized to run the two C++ image builds concurrently at 4 compile threads each.
+  machineType: E2_HIGHCPU_8
+  # Custom build service accounts must send logs somewhere other than the
+  # default Cloud Build bucket.
+  logging: CLOUD_LOGGING_ONLY
+  env:
+    - 'DOCKER_BUILDKIT=1'
