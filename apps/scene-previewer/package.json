@@ -10,6 +10,8 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
+		"@radix-ui/react-collapsible": "^1.1.12",
+		"lucide-react": "^0.562.0",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
 		"three": "^0.183.2"

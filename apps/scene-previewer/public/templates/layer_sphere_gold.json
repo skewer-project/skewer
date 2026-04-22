@@ -19,7 +19,7 @@
 			"albedo": [0.83, 0.68, 0.22]
 		}
 	},
-	"objects": [
+	"graph": [
 		{
 			"type": "sphere",
 			"material": "gold",
