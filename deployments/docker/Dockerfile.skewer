@@ -22,9 +22,8 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-ENV CC=clang-17 CXX=clang++-17
+ENV CC="ccache clang-17" CXX="ccache clang++-17"
 ENV CCACHE_DIR=/ccache
-ENV PATH="/usr/lib/ccache:$PATH"
 
 WORKDIR /app
 
@@ -33,8 +32,8 @@ COPY . .
 
 # Run the CMake build specifically for the Skewer target
 # Use BuildKit cache mounts for ccache and CMake build directory
-RUN --mount=type=cache,target=/ccache \
-    --mount=type=cache,target=/app/build \
+RUN --mount=type=cache,id=skewer-ccache,target=/ccache \
+    --mount=type=cache,id=skewer-build,target=/app/build,sharing=locked \
     cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF && \
     cmake --build --preset release --target skewer-worker --parallel 4 && \
     cp /app/build/release/skewer/skewer-worker /tmp/skewer-worker

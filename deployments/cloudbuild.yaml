@@ -6,7 +6,8 @@ steps:
     args:
       - -c
       - |
-        apt-get update && apt-get install -y git-lfs
+        apt-get update && apt-get install -y --no-install-recommends git-lfs
+        rm -rf /var/lib/apt/lists/*
         git lfs pull
 
   # Build Go coordinator image
