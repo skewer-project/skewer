@@ -132,6 +132,41 @@ void RenderSession::RenderScene(const std::string& scene_file, int thread_overri
     }
 }
 
+void RenderSession::LoadLayerDirect(const std::string& layer_file, Vec3 look_from, Vec3 look_at,
+                                    Vec3 vup, float vfov,
+                                    const std::vector<std::string>& context_paths) {
+    std::cout << "[Session] Loading layer directly: " << layer_file << "\n";
+
+    scene_ = std::make_unique<Scene>();
+    if (!context_paths.empty()) {
+        std::cout << "[Session] Loading " << context_paths.size() << " context file(s)\n";
+        LoadContextIntoScene(context_paths, *scene_);
+    }
+    LayerConfig lcfg = LoadLayerFile(layer_file, *scene_);
+    scene_->Build();
+
+    options_ = lcfg.render_options;
+
+    cam_look_from_ = look_from;
+    cam_look_at_ = look_at;
+    cam_vup_ = vup;
+    cam_vfov_ = vfov;
+
+    float aspect = static_cast<float>(options_.image_config.width) /
+                   static_cast<float>(options_.image_config.height);
+    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
+                                       cam_aperture_, cam_focus_dist_);
+
+    film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
+    integrator_ = CreateIntegrator(options_.integrator_type);
+    options_.integrator_config.cam_w = -camera_->GetW();
+
+    const auto& ic = options_.integrator_config;
+    std::cout << "[Session] Ready: " << options_.image_config.width << "x"
+              << options_.image_config.height << " | Max Samples: " << ic.max_samples
+              << " | Max Depth: " << ic.max_depth << "\n";
+}
+
 /**
  * Load a scene from a JSON config file.
  * Sets up everything: scene geometry, materials, camera, film, and integrator.
