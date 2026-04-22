@@ -13,8 +13,14 @@ import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
+	resolveNodeAtPath,
 	updateNodeAtPath,
 } from "./services/graph-path";
+import {
+	applyStaticTransformToAnimatedAtTime,
+	evaluateTransformAt,
+} from "./services/transform";
+import { isAnimated } from "./types/scene";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
@@ -121,16 +127,38 @@ function App() {
 	const handleTransformChange = useCallback(
 		(objectKey: string, transform: import("./types/scene").StaticTransform) => {
 			if (!scene) return;
+			const ctx = resolveNodeAtPath(scene, objectKey);
+			if (ctx) {
+				const tr = ctx.node.transform;
+				if (tr !== undefined && isAnimated(tr)) {
+					const nextAnim = applyStaticTransformToAnimatedAtTime(
+						tr,
+						currentTime,
+						transform,
+					);
+					const evaluated = evaluateTransformAt(nextAnim, currentTime);
+					handleSceneEdit((s) =>
+						updateNodeAtPath(s, objectKey, (o) => ({
+							...o,
+							transform: nextAnim,
+						})),
+					);
+					viewportRef.current?.applyPatch(scene, objectKey, {
+						kind: "node-transform",
+						value: evaluated,
+					});
+					return;
+				}
+			}
 			handleSceneEdit((s) =>
 				updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform })),
 			);
-			setHasUnsavedChanges(true);
 			viewportRef.current?.applyPatch(scene, objectKey, {
 				kind: "node-transform",
 				value: transform,
 			});
 		},
-		[handleSceneEdit, scene],
+		[handleSceneEdit, scene, currentTime],
 	);
 
 	useEffect(() => {
@@ -267,6 +295,7 @@ function App() {
 					dirHandle={dirHandle}
 					sceneVersion={sceneVersion}
 					currentTime={currentTime}
+					isPlaying={isPlaying}
 					selectedObjectKey={selectedObjectKey}
 					onSelectObject={handleSelectObject}
 					transformMode={transformMode}

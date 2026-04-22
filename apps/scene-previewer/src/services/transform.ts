@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type {
+	AnimatedTransform,
 	InterpCurve,
 	Keyframe,
 	NodeTransform,
@@ -221,6 +222,46 @@ export function evaluateTransformAt(
 	localU = Math.min(1, Math.max(0, localU));
 	const alpha = evaluateBezierEasing(k0.curve, localU);
 	return interpolateResolved(k0, k1, alpha);
+}
+
+const KEYFRAME_TIME_MATCH_EPS = 1e-4;
+
+function sortKeyframesByTime(kfs: Keyframe[]): Keyframe[] {
+	return [...kfs].sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Add or update the keyframe at `time` with TRS from a gizmo (or other) static edit.
+ * Preserves `curve` (and other fields) on an existing key at this time. New keys
+ * get `curve: "linear"`.
+ */
+export function applyStaticTransformToAnimatedAtTime(
+	anim: AnimatedTransform,
+	time: number,
+	trs: StaticTransform,
+): AnimatedTransform {
+	const keyframes = [...anim.keyframes];
+	const j = keyframes.findIndex(
+		(k) => Math.abs(k.time - time) < KEYFRAME_TIME_MATCH_EPS,
+	);
+	if (j >= 0) {
+		const old = keyframes[j];
+		keyframes[j] = {
+			...old,
+			translate: trs.translate ?? [0, 0, 0],
+			rotate: trs.rotate ?? [0, 0, 0],
+			scale: trs.scale,
+		};
+	} else {
+		keyframes.push({
+			time,
+			translate: trs.translate,
+			rotate: trs.rotate,
+			scale: trs.scale,
+			curve: "linear",
+		});
+	}
+	return { keyframes: sortKeyframesByTime(keyframes) };
 }
 
 export function applyStaticTransformToObject3D(

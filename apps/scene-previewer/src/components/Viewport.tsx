@@ -22,6 +22,7 @@ import {
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
+import { resolveNodeAtPath } from "../services/graph-path";
 import { evaluateTransformAt } from "../services/transform";
 import type {
 	Material,
@@ -29,6 +30,7 @@ import type {
 	StaticTransform,
 	Vec3,
 } from "../types/scene";
+import { isAnimated } from "../types/scene";
 
 /** Align perspective camera and orbit target with the scene file camera. */
 function syncOrbitCameraToScene(
@@ -120,6 +122,8 @@ interface Props {
 	sceneVersion: number;
 	/** Global animation time (seconds); drives animated node transforms. */
 	currentTime?: number;
+	/** When true, the transform gizmo is disabled (no edit / commit while the timeline plays). */
+	isPlaying?: boolean;
 	selectedObjectKey: string | null;
 	onSelectObject: (key: string | null) => void;
 	/** Transform gizmo mode: "translate" | "rotate" | "scale" */
@@ -191,6 +195,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		dirHandle,
 		sceneVersion,
 		currentTime = 0,
+		isPlaying = false,
 		selectedObjectKey,
 		onSelectObject,
 		transformMode = "translate",
@@ -210,6 +215,17 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	const outlinePass = useRef<OutlinePass | null>(null);
 	const transformControls = useRef<TransformControls | null>(null);
 	const gizmoProxy = useRef<THREE.Group | null>(null);
+	const gizmoAnchorTmp = useRef(new THREE.Vector3());
+	/** Drives gizmo re-attach after scene graph rebuild; reset when the Three tree is replaced. */
+	const latestTransformRef = useRef<{
+		objectKey: string | null;
+		mode: "translate" | "rotate" | "scale";
+		space: "world" | "local";
+	}>({ objectKey: null, mode: "translate", space: "world" });
+	const isPlayingRef = useRef(isPlaying);
+	useEffect(() => {
+		isPlayingRef.current = isPlaying;
+	}, [isPlaying]);
 	// Used to avoid rebuilding the whole graph on minor edits.
 	const lastBuild = useRef<{
 		dirHandle: FileSystemDirectoryHandle | null;
@@ -531,6 +547,14 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			(result) => {
 				if (abortController.signal.aborted) return;
 
+				const proxy = gizmoProxy.current;
+				const tctrl = transformControls.current;
+				if (proxy?.userData.target) {
+					proxy.userData.target = null;
+				}
+				tctrl?.detach();
+				latestTransformRef.current.objectKey = null;
+
 				const old = sceneGroup.current;
 				if (old) {
 					sc.remove(old);
@@ -576,12 +600,6 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 	}, [selectedObjectKey]);
 
 	// --- Effect 4: attach TransformControls to selected object ---
-	const latestTransformRef = useRef<{
-		objectKey: string | null;
-		mode: "translate" | "rotate" | "scale";
-		space: "world" | "local";
-	}>({ objectKey: null, mode: "translate", space: "world" });
-
 	useEffect(() => {
 		const tctrl = transformControls.current;
 		const grp = sceneGroup.current;
@@ -616,10 +634,14 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				delete proxy.userData.startProxyMatrix;
 				delete proxy.userData.startTargetMatrix;
 
-				const box = new THREE.Box3().setFromObject(nodeGrp);
-				const center = new THREE.Vector3();
-				if (!box.isEmpty()) box.getCenter(center);
-				else nodeGrp.getWorldPosition(center);
+				const center = gizmoAnchorTmp.current;
+				if (nodeGrp.userData.sceneNodeKind === "group") {
+					nodeGrp.getWorldPosition(center);
+				} else {
+					const box = new THREE.Box3().setFromObject(nodeGrp);
+					if (!box.isEmpty()) box.getCenter(center);
+					else nodeGrp.getWorldPosition(center);
+				}
 
 				proxy.position.copy(center);
 				proxy.quaternion.copy(nodeGrp.quaternion);
@@ -643,12 +665,19 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		}
 	}, [selectedObjectKey, transformMode, transformSpace]);
 
+	// --- Disable transform gizmo while timeline is playing ---
+	useEffect(() => {
+		const tctrl = transformControls.current;
+		if (tctrl) tctrl.enabled = !isPlaying;
+	}, [isPlaying]);
+
 	// --- Effect 5: handle gizmo transform changes ---
 	useEffect(() => {
 		const tctrl = transformControls.current;
 		if (!tctrl || !onTransformChange || !selectedObjectKey) return;
 
 		const onChange = () => {
+			if (isPlayingRef.current) return;
 			const proxy = tctrl.object;
 			if (!proxy || !proxy.userData.target) return;
 
@@ -685,6 +714,20 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			onTransformChange(selectedObjectKey, transform);
 		};
 
+		/** Static transforms: commit on every gizmo `change` for live scene updates. */
+		const onChangeDuringDrag = () => {
+			if (isPlayingRef.current) return;
+			const s = latestSceneRef.current;
+			if (!s) {
+				onChange();
+				return;
+			}
+			const hit = resolveNodeAtPath(s, selectedObjectKey);
+			const tr = hit?.node.transform;
+			if (tr !== undefined && isAnimated(tr)) return;
+			onChange();
+		};
+
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const onDraggingChanged = (event: any) => {
 			if (!event.value) {
@@ -692,22 +735,49 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			}
 		};
 
-		tctrl.addEventListener("change", onChange);
+		tctrl.addEventListener("change", onChangeDuringDrag);
 		tctrl.addEventListener("dragging-changed", onDraggingChanged);
 
 		return () => {
-			tctrl.removeEventListener("change", onChange);
+			tctrl.removeEventListener("change", onChangeDuringDrag);
 			tctrl.removeEventListener("dragging-changed", onDraggingChanged);
 		};
 	}, [selectedObjectKey, transformMode, onTransformChange]);
 
-	// --- Effect: apply animated transforms at currentTime ---
+	// --- Effect: apply animated transforms at currentTime; keep gizmo proxy aligned to playhead ---
 	useEffect(() => {
 		const grp = sceneGroup.current;
 		const currentScene = scene;
 		if (!grp || !currentScene) return;
 		applyAnimatedNodesAtTime(grp, currentScene, currentTime);
-	}, [scene, currentTime]);
+
+		const tctrl = transformControls.current;
+		const proxy = gizmoProxy.current;
+		if (
+			!tctrl ||
+			!selectedObjectKey ||
+			!proxy?.userData.target ||
+			proxy.userData.isDragging
+		) {
+			return;
+		}
+		const target = proxy.userData.target as THREE.Group;
+		const nodeGrp = findGroupByKey(grp, selectedObjectKey);
+		if (!nodeGrp || nodeGrp !== target) return;
+
+		const center = gizmoAnchorTmp.current;
+		if (nodeGrp.userData.sceneNodeKind === "group") {
+			nodeGrp.getWorldPosition(center);
+		} else {
+			const box = new THREE.Box3().setFromObject(nodeGrp);
+			if (!box.isEmpty()) box.getCenter(center);
+			else nodeGrp.getWorldPosition(center);
+		}
+		proxy.position.copy(center);
+		proxy.quaternion.copy(nodeGrp.quaternion);
+		proxy.scale.copy(nodeGrp.scale);
+		proxy.updateMatrixWorld(true);
+	}, [scene, currentTime, selectedObjectKey]);
 
 	// --- Click handler for raycasting ---
 	const handleClick = useCallback(
