@@ -1,10 +1,11 @@
-import { Camera } from "lucide-react";
+import { Camera, Cloud } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
+import { RenderSettingsDialog } from "./components/RenderSettingsDialog";
 import { SceneInspector } from "./components/SceneInspector";
 import { Timeline } from "./components/Timeline";
 import type { ViewportHandle } from "./components/Viewport";
@@ -56,6 +57,7 @@ function App() {
 	}, []);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
+	const [showRenderDialog, setShowRenderDialog] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -262,6 +264,19 @@ function App() {
 					>
 						Skewer
 					</button>
+					{scene && (
+						<button
+							type="button"
+							className="open-btn"
+							onClick={() => setShowRenderDialog(true)}
+						>
+							<Cloud
+								size={14}
+								style={{ verticalAlign: "middle", marginRight: "6px" }}
+							/>
+							Render
+						</button>
+					)}
 					{scene && hasUnsavedChanges && (
 						<button
 							type="button"
@@ -355,6 +370,18 @@ function App() {
 							)}
 						</div>
 					</div>
+				)}
+
+				{/* Render Dialog */}
+				{scene && showRenderDialog && (
+					<RenderSettingsDialog
+						scene={scene}
+						onCancel={() => setShowRenderDialog(false)}
+						onRender={(config) => {
+							setShowRenderDialog(false);
+							// Backend integration will go here
+						}}
+					/>
 				)}
 
 				{/* Landing page */}
