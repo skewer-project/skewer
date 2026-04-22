@@ -213,6 +213,11 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
     latestSceneRef.current = scene;
   }, [scene]);
 
+  const currentTimeRef = useRef(currentTime);
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
   // ── Imperative handle: applyPatch ──
   // Live, incremental updates for edit controls; full rebuilds happen elsewhere.
   useImperativeHandle(

@@ -377,7 +377,7 @@ function App() {
 					<RenderSettingsDialog
 						scene={scene}
 						onCancel={() => setShowRenderDialog(false)}
-						onRender={(config) => {
+						onRender={(_config) => {
 							setShowRenderDialog(false);
 							// Backend integration will go here
 						}}

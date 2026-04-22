@@ -4,7 +4,7 @@ import type { RenderConfig, ResolvedScene } from "../types/scene";
 import { NumberField, Toggle } from "./controls";
 
 export function RenderSettingsDialog({
-	scene,
+	scene: _scene,
 	onRender,
 	onCancel,
 }: {
