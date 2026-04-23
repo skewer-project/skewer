@@ -210,12 +210,10 @@ export const Vec2Field = memo(function Vec2Field({
 	);
 
 	return (
-		<div className="vec2-row" style={!label ? { gridTemplateColumns: "1fr 1fr" } : undefined}>
-			{label && (
-				<span className="kv-key" style={{ alignSelf: "center" }}>
-					{label}
-				</span>
-			)}
+		<div className="vec2-row">
+			<span className="kv-key" style={{ alignSelf: "center" }}>
+				{label || ""}
+			</span>
 			{([0, 1] as const).map((i) => (
 				<div key={componentLabels[i]} className="vec3-cell">
 					<span className="vec3-component">{componentLabels[i]}</span>
