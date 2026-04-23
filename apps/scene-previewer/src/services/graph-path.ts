@@ -1,11 +1,13 @@
 // Path keys: "lyr:0:2/3/1" → layer 0, indices [2,3,1] into nested graph.
 
 import type {
+	AnimatedTransform,
 	LayerData,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneNode,
 } from "../types/scene";
+import { isAnimated } from "../types/scene";
 
 export interface ParsedObjectPath {
 	tag: "ctx" | "lyr";
@@ -294,4 +296,44 @@ export function countGraphNodes(nodes: SceneNode[]): number {
 		if (n.kind === "group") c += countGraphNodes(n.children);
 	}
 	return c;
+}
+
+export interface AnimatedNodeEntry {
+	objectKey: string;
+	transform: AnimatedTransform;
+}
+
+function collectAnimatedInGraph(
+	nodes: SceneNode[],
+	tag: "ctx" | "lyr",
+	layerIdx: number,
+	prefix: number[],
+	out: AnimatedNodeEntry[],
+) {
+	for (let i = 0; i < nodes.length; i++) {
+		const n = nodes[i];
+		const path = [...prefix, i];
+		const key = formatObjectPathKey(tag, layerIdx, path);
+		const tr = n.transform;
+		if (tr !== undefined && isAnimated(tr)) {
+			out.push({ objectKey: key, transform: tr });
+		}
+		if (n.kind === "group") {
+			collectAnimatedInGraph(n.children, tag, layerIdx, path, out);
+		}
+	}
+}
+
+/** Object keys whose transforms are animated (for time-based viewport updates). */
+export function collectAnimatedNodes(
+	scene: ResolvedScene,
+): AnimatedNodeEntry[] {
+	const out: AnimatedNodeEntry[] = [];
+	for (let li = 0; li < scene.contexts.length; li++) {
+		collectAnimatedInGraph(scene.contexts[li].data.graph, "ctx", li, [], out);
+	}
+	for (let li = 0; li < scene.layers.length; li++) {
+		collectAnimatedInGraph(scene.layers[li].data.graph, "lyr", li, [], out);
+	}
+	return out;
 }

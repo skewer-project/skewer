@@ -209,6 +209,7 @@ async function buildNode(
 		evaluateTransformAt(node.transform, 0),
 	);
 	nodeGroup.userData.objectKey = objectKey;
+	nodeGroup.userData.sceneNodeKind = node.kind;
 
 	function tagSubtree(root: THREE.Object3D) {
 		root.traverse((child) => {
