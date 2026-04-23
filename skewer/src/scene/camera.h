@@ -16,7 +16,9 @@ namespace skwr {
 class Camera {
   public:
     Camera(const Vec3& look_from, const Vec3& look_at, const Vec3& vup, float vfov,
-           float aspect_ratio, float aperture_radius = 0.0f, float focus_distance = 1.0f) {
+           float aspect_ratio, float aperture_radius = 0.0f, float focus_distance = 1.0f,
+           float shutter_open = 0.0f, float shutter_close = 0.0f)
+        : shutter_open_(shutter_open), shutter_close_(shutter_close) {
         auto theta = vfov * MathConstants::kPi / 180.0f;
         auto h = std::tan(theta / 2.0f);
         auto viewport_height = 2.0f * h;
@@ -47,7 +49,9 @@ class Camera {
             offset = u_ * rd.x() + v_ * rd.y();
         }
         Vec3 focal_point = lower_left_corner_ + horizontal_ * s + vertical_ * t;
-        return Ray(origin_ + offset, Normalize(focal_point - origin_ - offset));
+        Vec3 dir = Normalize(focal_point - origin_ - offset);
+        float ray_time = shutter_open_ + rng.UniformFloat() * (shutter_close_ - shutter_open_);
+        return Ray(origin_ + offset, dir, ray_time);
     }
 
     Vec3 GetW() const { return w_; }
@@ -60,6 +64,8 @@ class Camera {
     Vec3 vertical_;
     Vec3 u_, v_, w_;
     float lens_radius_ = 0.0f;
+    float shutter_open_ = 0.0f;
+    float shutter_close_ = 0.0f;
 };
 
 }  // namespace skwr

@@ -27,6 +27,23 @@ struct AnimatedTransform {
     void SortKeyframes();
 };
 
+inline TRS EvaluateTransformChain(const std::vector<AnimatedTransform>& chain, float t) {
+    TRS acc{};
+    for (const auto& at : chain) {
+        acc = Compose(acc, at.Evaluate(t));
+    }
+    return acc;
+}
+
+inline bool TransformChainIsStatic(const std::vector<AnimatedTransform>& chain) {
+    for (const auto& at : chain) {
+        if (!at.IsStatic()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace skwr
 
 #endif
