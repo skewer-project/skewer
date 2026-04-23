@@ -21,6 +21,8 @@ export function RenderConfirmDialog({
 	const isAnimation = endFrame > startFrame;
 
 	return createPortal(
+		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
+		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
 		<div
 			className="dialog-overlay"
 			onClick={(e) => e.target === e.currentTarget && onCancel()}
@@ -32,7 +34,10 @@ export function RenderConfirmDialog({
 				</div>
 
 				<div className="dialog-body">
-					<div className="dialog-hint" style={{ marginBottom: "20px", textAlign: "left" }}>
+					<div
+						className="dialog-hint"
+						style={{ marginBottom: "20px", textAlign: "left" }}
+					>
 						Confirm render {isAnimation ? "animation" : "image"} with the
 						following settings:
 					</div>
