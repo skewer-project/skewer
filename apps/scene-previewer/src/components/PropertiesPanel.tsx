@@ -158,7 +158,7 @@ function CommonTransformBlock({
 		const bezier =
 			selKf && typeof selKf.curve === "object" && "bezier" in selKf.curve
 				? selKf.curve.bezier
-				: ([0.42, 0, 0.58, 1] as [number, number, number, number]);
+				: ([0.42, 0, 0.58, 1] as [number, number, number, number]); // use "ease-in-out" as default timing curve
 
 		return (
 			<div className="kv-table kf-editor">

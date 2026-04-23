@@ -40,17 +40,6 @@ inline Vec3 TRSApplyPoint(const TRS& trs, const Vec3& p) {
     return trs.translation + QuatRotate(trs.rotation, scaled);
 }
 
-inline Vec3 TRSInverseApplyPoint(const TRS& trs, const Vec3& p) {
-    Vec3 q = p - trs.translation;
-    Vec3 r = QuatRotate(QuatConjugate(trs.rotation), q);
-    float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
-    if (std::fabs(sx) < Numeric::kNearZeroEpsilon || std::fabs(sy) < Numeric::kNearZeroEpsilon ||
-        std::fabs(sz) < Numeric::kNearZeroEpsilon) {
-        return r;
-    }
-    return Vec3(r.x() / sx, r.y() / sy, r.z() / sz);
-}
-
 inline Vec3 TRSInverseApplyVector(const TRS& trs, const Vec3& v) {
     Vec3 r = QuatRotate(QuatConjugate(trs.rotation), v);
     float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
@@ -59,6 +48,11 @@ inline Vec3 TRSInverseApplyVector(const TRS& trs, const Vec3& v) {
         return r;
     }
     return Vec3(r.x() / sx, r.y() / sy, r.z() / sz);
+}
+
+inline Vec3 TRSInverseApplyPoint(const TRS& trs, const Vec3& p) {
+    Vec3 q = p - trs.translation;
+    return TRSInverseApplyVector(trs, q);
 }
 
 inline Vec3 TRSApplyVector(const TRS& trs, const Vec3& v) {

@@ -1,0 +1,27 @@
+{
+  "camera": {
+    "look_from": [
+      0,
+      1.5,
+      -5
+    ],
+    "look_at": [
+      0,
+      0,
+      1
+    ],
+    "vup": [
+      0,
+      1,
+      0
+    ],
+    "vfov": 50,
+    "aperture_radius": 0,
+    "focus_distance": 1
+  },
+  "context": [],
+  "layers": [
+    "layer.json"
+  ],
+  "output_dir": ""
+}

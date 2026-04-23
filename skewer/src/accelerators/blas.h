@@ -9,6 +9,8 @@
 
 namespace skwr {
 
+// Bottom-Level Acceleration Structure: a BVH over a single mesh's triangles in local space.
+// Multiple Instances can reference the same BLAS with different transform chains.
 struct BLAS {
     BVH bvh;
     std::vector<Triangle> triangles;
