@@ -95,6 +95,7 @@ body {
 	display: flex;
 	align-items: stretch;
 	height: 34px;
+	width: 318px;
 }
 
 .wordmark {
@@ -1151,6 +1152,15 @@ button.data-row {
 .vec3-row {
 	display: grid;
 	grid-template-columns: 40px 1fr 1fr 1fr;
+	gap: 0 6px;
+	align-items: center;
+	min-height: 1.7lh;
+}
+
+/* Vec2 row: label + 2 number inputs */
+.vec2-row {
+	display: grid;
+	grid-template-columns: 40px 1fr 1fr;
 	gap: 0 6px;
 	align-items: center;
 	min-height: 1.7lh;

@@ -12,6 +12,10 @@ interface NumberFieldProps {
 	step?: number;
 	/** If true, renders only the input (no label column). Used inside Vec3Field. */
 	inline?: boolean;
+	/** If true, disables the drag-to-scrub behavior on the label. */
+	noScrub?: boolean;
+	/** If true, forces the value to be an integer. */
+	integer?: boolean;
 }
 
 export const NumberField = memo(function NumberField({
@@ -22,6 +26,8 @@ export const NumberField = memo(function NumberField({
 	max,
 	step = 0.1,
 	inline,
+	noScrub,
+	integer,
 }: NumberFieldProps) {
 	const format = useCallback((n: number) => `${+n.toFixed(4)}`, []);
 
@@ -52,14 +58,15 @@ export const NumberField = memo(function NumberField({
 
 	const flush = useCallback(
 		(raw: string) => {
-			const n = Number.parseFloat(raw);
+			let n = Number.parseFloat(raw);
 			if (Number.isNaN(n)) return;
+			if (integer) n = Math.round(n);
 			const clamped = clamp(n);
 			setDraft(format(clamped));
 			setIsEditing(false);
 			latestOnChange.current(clamped);
 		},
-		[clamp, format],
+		[clamp, format, integer],
 	);
 
 	// Derive display value in render: use draft when editing, otherwise formatted prop value
@@ -90,7 +97,8 @@ export const NumberField = memo(function NumberField({
 			const cur = Number.parseFloat(draft);
 			if (Number.isNaN(cur)) return;
 			const delta = e.key === "ArrowUp" ? step : -step;
-			const clamped = clamp(cur + delta);
+			let clamped = clamp(cur + delta);
+			if (integer) clamped = Math.round(clamped);
 			setDraft(format(clamped));
 			setIsEditing(false);
 			latestOnChange.current(clamped);
@@ -101,6 +109,7 @@ export const NumberField = memo(function NumberField({
 	const scrubStart = useRef<{ x: number; val: number } | null>(null);
 
 	const handlePointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
+		if (noScrub) return;
 		e.preventDefault();
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 		cancelDebounce();
@@ -114,7 +123,8 @@ export const NumberField = memo(function NumberField({
 	const handlePointerMove = (e: React.PointerEvent<HTMLSpanElement>) => {
 		if (!scrubStart.current) return;
 		const dx = e.clientX - scrubStart.current.x;
-		const newVal = clamp(scrubStart.current.val + dx * step);
+		let newVal = clamp(scrubStart.current.val + dx * step);
+		if (integer) newVal = Math.round(newVal);
 		setDraft(format(newVal));
 		setIsEditing(true);
 		latestOnChange.current(newVal);
@@ -152,6 +162,76 @@ export const NumberField = memo(function NumberField({
 				{label}
 			</span>
 			{input}
+		</div>
+	);
+});
+
+// ── Vec2Field ───────────────────────────────────────────────
+
+interface Vec2FieldProps {
+	label?: string;
+	value: [number, number];
+	onChange: (v: [number, number]) => void;
+	componentLabels?: [string, string];
+	min?: number;
+	max?: number;
+	step?: number;
+	integer?: boolean;
+}
+
+export const Vec2Field = memo(function Vec2Field({
+	label,
+	value,
+	onChange,
+	componentLabels = ["w", "h"],
+	min,
+	max,
+	step = 1,
+	integer,
+}: Vec2FieldProps) {
+	const latestOnChange = useRef(onChange);
+	const latestValue = useRef(value);
+
+	useEffect(() => {
+		latestOnChange.current = onChange;
+	}, [onChange]);
+
+	useEffect(() => {
+		latestValue.current = value;
+	}, [value]);
+
+	const handleComponent = useCallback(
+		(idx: 0 | 1) => (n: number) => {
+			const v = [...latestValue.current] as [number, number];
+			v[idx] = n;
+			latestOnChange.current(v);
+		},
+		[],
+	);
+
+	return (
+		<div className="vec2-row" style={!label ? { gridTemplateColumns: "1fr 1fr" } : undefined}>
+			{label && (
+				<span className="kv-key" style={{ alignSelf: "center" }}>
+					{label}
+				</span>
+			)}
+			{([0, 1] as const).map((i) => (
+				<div key={componentLabels[i]} className="vec3-cell">
+					<span className="vec3-component">{componentLabels[i]}</span>
+					<NumberField
+						label=""
+						value={value[i]}
+						onChange={handleComponent(i)}
+						min={min}
+						max={max}
+						step={step}
+						inline
+						integer={integer}
+						noScrub={integer}
+					/>
+				</div>
+			))}
 		</div>
 	);
 });

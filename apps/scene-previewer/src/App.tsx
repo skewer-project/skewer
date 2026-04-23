@@ -5,7 +5,7 @@ import {
 	MaterialPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
-import { RenderSettingsDialog } from "./components/RenderSettingsDialog";
+import { RenderConfirmDialog } from "./components/RenderConfirmDialog";
 import { SceneInspector } from "./components/SceneInspector";
 import { Timeline } from "./components/Timeline";
 import type { ViewportHandle } from "./components/Viewport";
@@ -21,7 +21,12 @@ import {
 	collectSceneKeyframeTimes,
 	getAnimationRange,
 } from "./services/transform";
-import type { Material, ResolvedScene, SceneNode } from "./types/scene";
+import type {
+	Material,
+	RenderConfig,
+	ResolvedScene,
+	SceneNode,
+} from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
@@ -45,6 +50,23 @@ function App() {
 	const [selectedMaterialKey, setSelectedMaterialKey] = useState<string | null>(
 		null,
 	);
+
+	const [renderSettings, setRenderSettings] = useState<RenderConfig>({
+		integrator: "path_trace",
+		max_samples: 128,
+		min_samples: 16,
+		max_depth: 8,
+		threads: 0,
+		noise_threshold: 0.01,
+		enable_deep: false,
+		image: {
+			width: 1920,
+			height: 1080,
+		},
+	});
+	const [renderStartTime, setRenderStartTime] = useState(0);
+	const [renderEndTime, setRenderEndTime] = useState(0);
+	const [renderFps, setRenderFps] = useState(24);
 
 	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
@@ -268,6 +290,7 @@ function App() {
 						<button
 							type="button"
 							className="open-btn"
+							style={{ flex: 1 }}
 							onClick={() => setShowRenderDialog(true)}
 						>
 							<Cloud
@@ -302,6 +325,14 @@ function App() {
 							onAddGraphNode={handleAddGraphNode}
 							onAddMaterial={handleAddMaterial}
 							dirHandle={dirHandle}
+							renderSettings={renderSettings}
+							onRenderSettingsChange={setRenderSettings}
+							startTime={renderStartTime}
+							onStartTimeChange={setRenderStartTime}
+							endTime={renderEndTime}
+							onEndTimeChange={setRenderEndTime}
+							fps={renderFps}
+							onFpsChange={setRenderFps}
 						/>
 					</div>
 				)}
@@ -372,13 +403,22 @@ function App() {
 					</div>
 				)}
 
-				{/* Render Dialog */}
+				{/* Render Confirmation Dialog */}
 				{scene && showRenderDialog && (
-					<RenderSettingsDialog
-						scene={scene}
+					<RenderConfirmDialog
+						settings={renderSettings}
+						startTime={renderStartTime}
+						endTime={renderEndTime}
+						fps={renderFps}
 						onCancel={() => setShowRenderDialog(false)}
-						onRender={(_config) => {
+						onConfirm={() => {
 							setShowRenderDialog(false);
+							console.log("Cloud Render Job Confirmed:", {
+								renderSettings,
+								renderStartTime,
+								renderEndTime,
+								renderFps,
+							});
 							// Backend integration will go here
 						}}
 					/>
