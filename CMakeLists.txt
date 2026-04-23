@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
     add_compile_options(-isystem /usr/local/include)
     link_directories(/usr/local/lib)
 endif()
@@ -16,7 +16,6 @@ endif()
 
 include(CTest)
 
-find_package(OpenSSL REQUIRED)
 find_package(gRPC REQUIRED)
 find_package(Protobuf REQUIRED)
 
