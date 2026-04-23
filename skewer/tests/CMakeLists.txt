@@ -16,6 +16,7 @@ set(SKEWER_SCENE_TEST_SOURCES
     ../src/scene/interp_curve.cc
     ../src/scene/animation.cc
     ../src/accelerators/bvh.cc
+    ../src/accelerators/tlas.cc
     ../src/scene/light.cc
     ../src/io/graph_from_json.cc
     ../src/io/scene_loader.cc
@@ -40,6 +41,8 @@ add_executable(unit_tests
     unit/test_interp_curve.cc
     unit/test_animation.cc
     unit/test_scene_graph.cc
+    unit/test_tlas.cc
+    unit/test_motion_blur.cc
     ${TEST_SOURCES}
     ${SKEWER_SCENE_TEST_SOURCES}
 )

@@ -34,6 +34,8 @@ struct SceneConfig {
     float vfov = 90.0f;
     float aperture_radius = 0.0f;
     float focus_distance = 1.0f;
+    float shutter_open = 0.0f;
+    float shutter_close = 0.0f;
 
     // Context layer paths (resolved to absolute paths)
     std::vector<std::string> context_paths;

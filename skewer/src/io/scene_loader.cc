@@ -521,6 +521,8 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
     config.vfov = GetOr(cam, "vfov", 90.0f);
     config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
     config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
+    config.shutter_open = GetOr(cam, "shutter_open", 0.0f);
+    config.shutter_close = GetOr(cam, "shutter_close", 0.0f);
 
     // Output directory (local path or cloud URI — used as-is, not resolved)
     config.output_dir = GetOr<std::string>(j, "output_dir", "");

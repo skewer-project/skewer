@@ -12,7 +12,7 @@ class Scene;
 // A lightweight reference to an emissive primitive in the Scene
 struct AreaLight {
     enum Type { Sphere, Triangle } type;
-    uint32_t primitive_index;  // Index into scene.spheres_ or scene.meshes_
+    uint32_t primitive_index;  // Index into scene.LightSpheres() or scene.LightTriangles()
     SpectralCurve emission;    // cache the emission
     // BoundBox bounds;           // Bounding Box for optimization
 };
