@@ -3,6 +3,8 @@ import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { KeyframeMarker } from "./KeyframeMarker";
 
+const TRACK_INSET_PX = 14;
+
 export interface TimelineScrubberProps {
 	currentTime: number;
 	onTimeChange: (time: number) => void;
@@ -31,14 +33,16 @@ export function TimelineScrubber({
 	const span = animRange.end - animRange.start;
 	const hasSpan = span > 1e-6;
 
+	// Account for padding: 0 14px on .timeline-track so click→time matches the visual playhead.
 	const timeFromClientX = useCallback(
 		(clientX: number) => {
 			const el = trackRef.current;
 			if (!el) return animRange.start;
 			const r = el.getBoundingClientRect();
-			const w = r.width;
-			const x = Math.min(w, Math.max(0, clientX - r.left));
-			const u = w > 0 ? x / w : 0;
+			const insetWidth = r.width - 2 * TRACK_INSET_PX;
+			if (insetWidth <= 0) return animRange.start;
+			const x = Math.min(insetWidth, Math.max(0, clientX - r.left - TRACK_INSET_PX));
+			const u = insetWidth > 0 ? x / insetWidth : 0;
 			if (!hasSpan) return animRange.start;
 			return animRange.start + u * span;
 		},
@@ -79,21 +83,42 @@ export function TimelineScrubber({
 	return (
 		<div className="timeline-scrubber panel">
 			<div className="timeline-controls">
-				<button
-					type="button"
-					className="timeline-play-btn"
-					onPointerDown={onPlayPointerDown}
-					onClick={onTogglePlay}
-					aria-label={isPlaying ? "Pause" : "Play"}
-					title={isPlaying ? "Pause (Space)" : "Play (Space)"}
-				>
-					{isPlaying ? (
-						<Pause size={14} strokeWidth={2} aria-hidden />
-					) : (
-						<Play size={14} strokeWidth={2} aria-hidden />
-					)}
-				</button>
-				<span className="timeline-time">{currentTime.toFixed(2)}s</span>
+				<div className="timeline-controls-left">
+					<button
+						type="button"
+						className="timeline-play-btn"
+						onPointerDown={onPlayPointerDown}
+						onClick={onTogglePlay}
+						aria-label={isPlaying ? "Pause" : "Play"}
+						title={isPlaying ? "Pause (Space)" : "Play (Space)"}
+					>
+						{isPlaying ? (
+							<Pause size={14} strokeWidth={2} aria-hidden />
+						) : (
+							<Play size={14} strokeWidth={2} aria-hidden />
+						)}
+					</button>
+					<span className="timeline-time">{currentTime.toFixed(2)}s</span>
+				</div>
+				<div className="timeline-controls-right">
+					<span className="timeline-end-label">
+						{hasSpan ? `${animRange.end.toFixed(2)}s` : "—"}
+					</span>
+					<button
+						type="button"
+						className="timeline-chevron-btn"
+						onClick={onToggleExpand}
+						aria-label={expanded ? "Collapse dope-sheet" : "Expand dope-sheet"}
+						title={expanded ? "Collapse timeline" : "Expand timeline"}
+					>
+						<ChevronUp
+							className={`timeline-chevron-icon${expanded ? " timeline-chevron-open" : ""}`}
+							size={14}
+							strokeWidth={2}
+							aria-hidden
+						/>
+					</button>
+				</div>
 			</div>
 			<div
 				ref={trackRef}
@@ -126,23 +151,6 @@ export function TimelineScrubber({
 					/>
 				</div>
 			</div>
-			<span className="timeline-end-label">
-				{hasSpan ? `${animRange.end.toFixed(2)}s` : "—"}
-			</span>
-			<button
-				type="button"
-				className="timeline-chevron-btn"
-				onClick={onToggleExpand}
-				aria-label={expanded ? "Collapse dope-sheet" : "Expand dope-sheet"}
-				title={expanded ? "Collapse timeline" : "Expand timeline"}
-			>
-				<ChevronUp
-					className={`timeline-chevron-icon${expanded ? " timeline-chevron-open" : ""}`}
-					size={14}
-					strokeWidth={2}
-					aria-hidden
-				/>
-			</button>
 		</div>
 	);
 }

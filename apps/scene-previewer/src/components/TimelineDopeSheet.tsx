@@ -14,12 +14,16 @@ export interface TimelineDopeSheetProps {
 	tracks: AnimatedNodeTrack[];
 	animRange: { start: number; end: number };
 	currentTime: number;
+	onTimeChange?: (t: number) => void;
+	onKeyframeMove?: (trackKey: string, oldTime: number, newTime: number) => void;
 }
 
 export function TimelineDopeSheet({
 	tracks,
 	animRange,
 	currentTime,
+	onTimeChange,
+	onKeyframeMove,
 }: TimelineDopeSheetProps) {
 	const animSpan = animRange.end - animRange.start;
 
@@ -62,8 +66,17 @@ export function TimelineDopeSheet({
 		return track.ancestorKeys.every((k) => !collapsedGroups.has(k));
 	}
 
-	// Non-passive wheel handler so we can preventDefault and stop page scroll.
 	const innerRef = useRef<HTMLDivElement>(null);
+
+	// Keep viewRange in refs for event handlers so they don't need re-registration.
+	const viewRangeRef = useRef(viewRange);
+	viewRangeRef.current = viewRange;
+	const viewSpanRef = useRef(viewSpan);
+	viewSpanRef.current = viewSpan;
+	const viewHasSpanRef = useRef(viewHasSpan);
+	viewHasSpanRef.current = viewHasSpan;
+
+	// Non-passive wheel handler so we can preventDefault and stop page scroll.
 	useEffect(() => {
 		const el = innerRef.current;
 		if (!el) return;
@@ -75,7 +88,6 @@ export function TimelineDopeSheet({
 			const trackWidth = rect.width - LABEL_WIDTH_PX - 2 * TRACK_INSET_PX;
 			if (trackWidth <= 0) return;
 
-			// Time value under the cursor.
 			const frac = Math.max(0, Math.min(1, (e.clientX - trackLeft) / trackWidth));
 
 			setViewRange((prev) => {
@@ -97,9 +109,53 @@ export function TimelineDopeSheet({
 	// animSpan is a derived number; including it keeps the max-span cap current.
 	}, [animSpan]);
 
+	// Click-to-scrub: pointer capture in the track column area.
+	const scrubbingRef = useRef(false);
+	const onTimeChangeRef = useRef(onTimeChange);
+	onTimeChangeRef.current = onTimeChange;
+
+	function timeFromClientX(clientX: number): number {
+		const el = innerRef.current;
+		if (!el) return viewRangeRef.current.start;
+		const rect = el.getBoundingClientRect();
+		const trackLeft = rect.left + LABEL_WIDTH_PX + TRACK_INSET_PX;
+		const trackWidth = rect.width - LABEL_WIDTH_PX - 2 * TRACK_INSET_PX;
+		if (trackWidth <= 0) return viewRangeRef.current.start;
+		const frac = Math.max(0, Math.min(1, (clientX - trackLeft) / trackWidth));
+		return viewRangeRef.current.start + frac * viewSpanRef.current;
+	}
+
+	const onInnerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+		if (!onTimeChangeRef.current || !viewHasSpanRef.current) return;
+		const el = innerRef.current;
+		if (!el) return;
+		// Only activate in the track column (right of label + inset).
+		const rect = el.getBoundingClientRect();
+		if (e.clientX < rect.left + LABEL_WIDTH_PX + TRACK_INSET_PX) return;
+		e.currentTarget.setPointerCapture(e.pointerId);
+		scrubbingRef.current = true;
+		onTimeChangeRef.current(timeFromClientX(e.clientX));
+	};
+
+	const onInnerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+		if (!scrubbingRef.current || !onTimeChangeRef.current) return;
+		onTimeChangeRef.current(timeFromClientX(e.clientX));
+	};
+
+	const onInnerPointerUp = () => {
+		scrubbingRef.current = false;
+	};
+
 	return (
 		<div className="timeline-dope-sheet panel">
-			<div className="timeline-dope-inner" ref={innerRef}>
+			<div
+				className="timeline-dope-inner"
+				ref={innerRef}
+				onPointerDown={onInnerPointerDown}
+				onPointerMove={onInnerPointerMove}
+				onPointerUp={onInnerPointerUp}
+				onPointerCancel={onInnerPointerUp}
+			>
 				{/* Full-height playhead overlay aligned to the track column. */}
 				{viewHasSpan && (
 					<div
@@ -124,6 +180,7 @@ export function TimelineDopeSheet({
 									viewRange={viewRange}
 									span={viewSpan}
 									hasSpan={viewHasSpan}
+									onKeyframeMove={onKeyframeMove}
 								/>
 							);
 						}
@@ -134,6 +191,7 @@ export function TimelineDopeSheet({
 								viewRange={viewRange}
 								span={viewSpan}
 								hasSpan={viewHasSpan}
+								onKeyframeMove={onKeyframeMove}
 							/>
 						);
 					})

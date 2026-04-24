@@ -13,6 +13,7 @@ export interface TimelineProps {
 	keyframeTimes?: number[];
 	/** Per-node tracks for the dope-sheet panel. */
 	tracks?: AnimatedNodeTrack[];
+	onKeyframeMove?: (trackKey: string, oldTime: number, newTime: number) => void;
 }
 
 export function Timeline({
@@ -23,6 +24,7 @@ export function Timeline({
 	animRange,
 	keyframeTimes,
 	tracks,
+	onKeyframeMove,
 }: TimelineProps) {
 	const [expanded, setExpanded] = useState(false);
 
@@ -33,6 +35,8 @@ export function Timeline({
 					tracks={tracks ?? []}
 					animRange={animRange}
 					currentTime={currentTime}
+					onTimeChange={onTimeChange}
+					onKeyframeMove={onKeyframeMove}
 				/>
 			)}
 			<TimelineScrubber
