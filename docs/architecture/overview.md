@@ -1,52 +1,57 @@
 # Architecture Overview
 
-Skewer is a distributed deep rendering system with three main components:
+Skewer is a serverless, distributed deep rendering system with three main components orchestrated on Google Cloud Platform:
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│     CLI     │────▶│ Coordinator │────▶│   Workers   │
-│  (skewer-)  │     │   (Go/gRPC) │     │ (C++/Skewer)│
-│   cli       │     │             │     │ + Loom      │
-└─────────────┘     └─────────────┘     └─────────────┘
-       │                   │                   │
-       │             ┌─────┴─────┐         ┌─────┴─────┐
-       │             │    DAG    │         │ Deep EXR  │
-       │             │  Scheduler│         │  Output   │
-       │             └───────────┘         └───────────┘
-       │
-       ▼
-┌─────────────┐
-│   Scene     │
-│   Files     │
-└─────────────┘
+┌─────────────┐     ┌───────────────┐     ┌────────────────┐
+│     CLI     │────▶│  Coordinator  │────▶│ Cloud Workflow │
+│  (skewer-)  │     │  (Cloud Run)  │     │(Orchestration) │
+│   cli       │     │               │     └────────┬───────┘
+└─────────────┘     └───────────────┘              │
+       │                    │                      │
+       │              ┌─────┴─────┐        ┌───────┴───────┐
+       │              │ Validation│        │  Cloud Batch  │
+       │              │     &     │        │    Workers    │
+       │              │ Submission│        │ (C++/Skewer)  │
+       │              └───────────┘        └───────────────┘
+       │                                           │
+       ▼                                           │
+┌─────────────┐                             ┌──────┴──────┐
+│   Scene     │                             │  GCS FUSE   │
+│   Files     │                             │  Data/Cache │
+└─────────────┘                             └─────────────┘
 ```
 
 ## Components
 
-| Component | Language | Description |
+| Component | Platform | Description |
 |-----------|----------|-------------|
-| **CLI** | Go | User interface for submitting jobs |
-| **Coordinator** | Go | Manages job DAG, schedules tasks, provisions workers |
-| **Skewer** | C++ | Ray-tracing renderer with deep EXR support |
-| **Loom** | C++ | Deep compositor for merging layers |
+| **CLI** | Go (Local) | User interface for submitting jobs and tracking progress. |
+| **Coordinator** | Cloud Run (Go) | Stateless API that validates jobs and initiates Cloud Workflow executions. |
+| **Workflow** | Cloud Workflows | Managed DAG that orchestrates parallel rendering and compositing tasks. |
+| **Workers** | Cloud Batch (C++) | Ephemeral VM-based workers (Skewer for rendering, Loom for compositing). |
 
 ## Data Flow
 
-1. **User** submits job via CLI with scene JSON
-2. **Coordinator** breaks job into atomic tasks (frame chunks)
-3. **Workers** pull tasks via gRPC stream, render deep EXRs
-4. **Loom** composites final output from deep EXR layers
-5. **Results** written to GCS or local filesystem
+1. **User** submits job via CLI with scene JSON.
+2. **Coordinator** (Cloud Run) validates the job and triggers a **Cloud Workflow** execution.
+3. **Cloud Workflow** shatters the job into parallel **Cloud Batch** tasks (one per layer/frame).
+4. **Cloud Batch** spins up worker VMs:
+    * **Skewer** workers render deep EXR layers.
+    * **Loom** workers composite the final output from rendered layers.
+5. **Storage** is handled via **GCS FUSE**; workers mount `gs://` buckets to `/mnt/` for POSIX access.
+6. **Results** are written back to the GCS Data Bucket.
 
 ## Communication
 
-- **gRPC** - Between Coordinator and Workers (protobuf-defined API)
-- **GCS** - Heavy data (images) stored in Google Cloud Storage
-- **URI Paths** - Lightweight metadata in protobuf messages
+- **gRPC / HTTPS** - Between CLI, Coordinator, and Cloud Workflows.
+- **Cloud Batch API** - Used by Workflows to manage worker lifecycles.
+- **GCS FUSE** - Used by workers for high-throughput data I/O.
+- **Artifact Registry** - Hosts multi-stage Docker images for all components.
 
 ## See Also
 
-- [Coordinator](coordinator.md) - Job scheduling and worker management
-- [Skewer](skewer.md) - Renderer architecture
-- [Loom](loom.md) - Compositor architecture
-- [gRPC API](../api/grpc.md) - Protocol definition
+- [Coordinator](coordinator.md) - Submission and validation layer
+- [Skewer](skewer.md) - Renderer architecture and Batch profile
+- [Loom](loom.md) - Compositor architecture and Batch profile
+- [GCP Deployment](../deployment/gcp.md) - Infrastructure and Terraform
