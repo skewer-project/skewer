@@ -13,6 +13,7 @@ import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
+	updateNodeAtPath,
 } from "./services/graph-path";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
@@ -21,6 +22,7 @@ import {
 	collectSceneKeyframeTimes,
 	getAnimationRange,
 } from "./services/transform";
+import { isAnimated } from "./types/scene";
 import type { Material, ResolvedScene, SceneNode } from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
@@ -102,6 +104,23 @@ function App() {
 			setSaving(false);
 		}
 	}
+
+	const handleKeyframeMove = useCallback(
+		(trackKey: string, oldTime: number, newTime: number) => {
+			handleSceneEdit((s) =>
+				updateNodeAtPath(s, trackKey, (node) => {
+					if (!isAnimated(node.transform)) return node;
+					const kfs = node.transform.keyframes
+						.map((k) =>
+							Math.abs(k.time - oldTime) < 1e-6 ? { ...k, time: newTime } : k,
+						)
+						.sort((a, b) => a.time - b.time);
+					return { ...node, transform: { keyframes: kfs } };
+				}),
+			);
+		},
+		[handleSceneEdit],
+	);
 
 	const handleDeleteObject = useCallback(
 		(objectKey: string) => {
@@ -332,6 +351,8 @@ function App() {
 						animRange={animRange}
 						keyframeTimes={timelineKeyframeTimes}
 						tracks={timelineTracks}
+						onKeyframeMove={handleKeyframeMove}
+						onSelectObject={handleSelectObject}
 					/>
 				)}
 

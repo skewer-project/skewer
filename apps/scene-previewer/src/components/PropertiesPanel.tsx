@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { resolveNodeAtPath, updateNodeAtPath } from "../services/graph-path";
 import { evaluateTransformAt } from "../services/transform";
 import type {
@@ -133,6 +133,12 @@ function CommonTransformBlock({
 		if (!isAnimated(node.transform)) return [];
 		return sortKeyframes(node.transform.keyframes);
 	}, [node.transform]);
+
+	// Auto-select the keyframe whose time matches currentTime (e.g. from dope-sheet click).
+	useEffect(() => {
+		const matchIdx = sortedKfs.findIndex((k) => Math.abs(k.time - currentTime) < 1e-4);
+		if (matchIdx >= 0) setKfSelIdx(matchIdx);
+	}, [currentTime, sortedKfs]);
 
 	const idx = Math.min(kfSelIdx, Math.max(0, sortedKfs.length - 1));
 	const selKf = sortedKfs[idx];

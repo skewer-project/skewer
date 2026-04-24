@@ -16,6 +16,8 @@ export interface TimelineDopeSheetProps {
 	currentTime: number;
 	onTimeChange?: (t: number) => void;
 	onKeyframeMove?: (trackKey: string, oldTime: number, newTime: number) => void;
+	/** Called when a keyframe is clicked; selects the node in the properties panel. */
+	onSelectObject?: (key: string | null) => void;
 }
 
 export function TimelineDopeSheet({
@@ -24,6 +26,7 @@ export function TimelineDopeSheet({
 	currentTime,
 	onTimeChange,
 	onKeyframeMove,
+	onSelectObject,
 }: TimelineDopeSheetProps) {
 	const animSpan = animRange.end - animRange.start;
 
@@ -109,6 +112,12 @@ export function TimelineDopeSheet({
 	// animSpan is a derived number; including it keeps the max-span cap current.
 	}, [animSpan]);
 
+	// Keyframe click: select the object in the properties panel + seek to kf time.
+	const handleKeyframeClick = (trackKey: string, kfTime: number) => {
+		onTimeChange?.(kfTime);
+		onSelectObject?.(trackKey);
+	};
+
 	// Click-to-scrub: pointer capture in the track column area.
 	const scrubbingRef = useRef(false);
 	const onTimeChangeRef = useRef(onTimeChange);
@@ -181,6 +190,7 @@ export function TimelineDopeSheet({
 									span={viewSpan}
 									hasSpan={viewHasSpan}
 									onKeyframeMove={onKeyframeMove}
+									onKeyframeClick={handleKeyframeClick}
 								/>
 							);
 						}
@@ -192,6 +202,7 @@ export function TimelineDopeSheet({
 								span={viewSpan}
 								hasSpan={viewHasSpan}
 								onKeyframeMove={onKeyframeMove}
+								onKeyframeClick={handleKeyframeClick}
 							/>
 						);
 					})

@@ -231,13 +231,12 @@ body {
 	z-index: 12;
 }
 
-/* 48px scrubber row (replaces the old .timeline). */
+/* 48px scrubber row — uses same 220px|1fr grid as dope-sheet rows so playheads align. */
 .timeline-scrubber {
 	height: 48px;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 0 var(--timeline-track-inset);
+	display: grid;
+	grid-template-columns: 220px 1fr;
+	align-items: stretch;
 	border-radius: 0;
 	border-top: 1px solid var(--border);
 	border-left: none;
@@ -246,11 +245,25 @@ body {
 	flex-shrink: 0;
 }
 
+/* Left 220px column: play controls + end-label + chevron, matching the label column. */
 .timeline-controls {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	flex-shrink: 0;
+	justify-content: space-between;
+	padding: 0 6px 0 var(--timeline-track-inset);
+	border-right: 1px solid var(--border);
+}
+
+.timeline-controls-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.timeline-controls-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 
 .timeline-play-btn {
@@ -281,13 +294,13 @@ body {
 	min-width: 52px;
 }
 
+/* Right 1fr column: the track slider, inset to match .timeline-row-track. */
 .timeline-track {
-	flex: 1;
-	height: 32px;
 	display: flex;
 	align-items: center;
 	cursor: pointer;
 	touch-action: none;
+	padding: 0 var(--timeline-track-inset);
 }
 
 .timeline-track-inner {
@@ -326,11 +339,10 @@ body {
 }
 
 .timeline-end-label {
-	flex-shrink: 0;
 	color: var(--t3);
 	font-variant-numeric: tabular-nums;
 	font-size: 10.5px;
-	min-width: 40px;
+	min-width: 36px;
 	text-align: right;
 }
 
@@ -342,8 +354,6 @@ body {
 	width: 22px;
 	height: 22px;
 	padding: 0;
-	margin-left: 4px;
-	flex-shrink: 0;
 	background: transparent;
 	border: 1px solid transparent;
 	color: var(--t3);
@@ -503,7 +513,17 @@ body {
 	height: 5px;
 	background: rgba(224, 217, 200, 0.75);
 	border: 1px solid rgba(232, 165, 60, 0.5);
-	pointer-events: none;
+}
+
+.timeline-row-kf.draggable {
+	cursor: grab;
+}
+
+.timeline-row-kf.dragging {
+	cursor: grabbing;
+	background: var(--amber);
+	border-color: var(--amber);
+	box-shadow: 0 0 4px rgba(232, 165, 60, 0.6);
 }
 
 /* ── Bottom-right stack: reset camera + stats ──────── */
