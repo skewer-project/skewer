@@ -52,6 +52,7 @@ Skewer is a serverless, distributed deep rendering system with three main compon
 ## See Also
 
 - [Coordinator](coordinator.md) - Submission and validation layer
+- [Mathematical Foundations](math.md) - Physics and linear algebra details
 - [Skewer](skewer.md) - Renderer architecture and Batch profile
 - [Loom](loom.md) - Compositor architecture and Batch profile
 - [GCP Deployment](../deployment/gcp.md) - Infrastructure and Terraform
