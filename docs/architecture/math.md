@@ -61,9 +61,11 @@ graph TD
 
 ### 2.2 Ray-Sphere
 Intersections are found by solving the quadratic equation:
+
 $$
 t^2(d \cdot d) + 2t(d \cdot (o - c)) + (o - c) \cdot (o - c) - r^2 = 0
 $$
+
 where $o$ is the ray origin, $d$ is the direction, $c$ is the sphere center, and $r$ is the radius.
 
 * **Implementation:** `skewer/src/geometry/intersect_sphere.h`

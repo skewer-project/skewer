@@ -34,7 +34,6 @@ nav:
   - Deployment:
       - deployment/local.md
       - deployment/gcp.md
-      - deployment/gke.md
   - Legacy: legacy/index.md
 
 extra_javascript:
