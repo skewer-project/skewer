@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-import { Camera, Cloud } from "lucide-react";
-||||||| merged common ancestors
-import { Camera } from "lucide-react";
-=======
-import { Camera, Maximize, Move, Rotate3d } from "lucide-react";
->>>>>>> main
+import { Camera, Cloud, Maximize, Move, Rotate3d } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import {
@@ -23,15 +17,12 @@ import {
 	resolveNodeAtPath,
 	updateNodeAtPath,
 } from "./services/graph-path";
-import {
-	applyStaticTransformToAnimatedAtTime,
-	evaluateTransformAt,
-} from "./services/transform";
-import { isAnimated } from "./types/scene";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
+	applyStaticTransformToAnimatedAtTime,
 	collectSceneKeyframeTimes,
+	evaluateTransformAt,
 	getAnimationRange,
 } from "./services/transform";
 import type {
@@ -40,6 +31,7 @@ import type {
 	ResolvedScene,
 	SceneNode,
 } from "./types/scene";
+import { isAnimated } from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
