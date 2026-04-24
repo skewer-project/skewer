@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "composite_pipeline.h"
 #include "deep_compositor.h"
 #include "deep_info.h"
 #include "deep_options.h"
