@@ -73,154 +73,26 @@ func (x GetPipelineStatusResponse_PipelineStatus) Number() protoreflect.EnumNumb
 
 // Deprecated: Use GetPipelineStatusResponse_PipelineStatus.Descriptor instead.
 func (GetPipelineStatusResponse_PipelineStatus) EnumDescriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5, 0}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3, 0}
 }
 
-// PipelineLayer describes a single render layer within a pipeline.
-type PipelineLayer struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LayerId       string                 `protobuf:"bytes,1,opt,name=layer_id,json=layerId,proto3" json:"layer_id,omitempty"`              // Unique identifier for this layer (e.g. "smoke", "character")
-	SceneUri      string                 `protobuf:"bytes,2,opt,name=scene_uri,json=sceneUri,proto3" json:"scene_uri,omitempty"`           // GCS path to scene JSON (e.g. gs://bucket/scenes/smoke.json)
-	EnableCache   bool                   `protobuf:"varint,3,opt,name=enable_cache,json=enableCache,proto3" json:"enable_cache,omitempty"` // When true, use content-hash layer caching
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PipelineLayer) Reset() {
-	*x = PipelineLayer{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PipelineLayer) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PipelineLayer) ProtoMessage() {}
-
-func (x *PipelineLayer) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PipelineLayer.ProtoReflect.Descriptor instead.
-func (*PipelineLayer) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *PipelineLayer) GetLayerId() string {
-	if x != nil {
-		return x.LayerId
-	}
-	return ""
-}
-
-func (x *PipelineLayer) GetSceneUri() string {
-	if x != nil {
-		return x.SceneUri
-	}
-	return ""
-}
-
-func (x *PipelineLayer) GetEnableCache() bool {
-	if x != nil {
-		return x.EnableCache
-	}
-	return false
-}
-
-// Camera parameters shared across all layers in a pipeline.
-type CameraParams struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LookFrom      []float32              `protobuf:"fixed32,1,rep,packed,name=look_from,json=lookFrom,proto3" json:"look_from,omitempty"` // [x, y, z]
-	LookAt        []float32              `protobuf:"fixed32,2,rep,packed,name=look_at,json=lookAt,proto3" json:"look_at,omitempty"`       // [x, y, z]
-	Vup           []float32              `protobuf:"fixed32,3,rep,packed,name=vup,proto3" json:"vup,omitempty"`                           // [x, y, z] (default 0,1,0)
-	Vfov          float32                `protobuf:"fixed32,4,opt,name=vfov,proto3" json:"vfov,omitempty"`                                // Vertical field of view in degrees (default 90)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CameraParams) Reset() {
-	*x = CameraParams{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CameraParams) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CameraParams) ProtoMessage() {}
-
-func (x *CameraParams) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CameraParams.ProtoReflect.Descriptor instead.
-func (*CameraParams) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *CameraParams) GetLookFrom() []float32 {
-	if x != nil {
-		return x.LookFrom
-	}
-	return nil
-}
-
-func (x *CameraParams) GetLookAt() []float32 {
-	if x != nil {
-		return x.LookAt
-	}
-	return nil
-}
-
-func (x *CameraParams) GetVup() []float32 {
-	if x != nil {
-		return x.Vup
-	}
-	return nil
-}
-
-func (x *CameraParams) GetVfov() float32 {
-	if x != nil {
-		return x.Vfov
-	}
-	return 0
-}
-
+// SubmitPipelineRequest is the scene-first submission request.
+// The coordinator downloads scene_uri, parses it, classifies layers as
+// static or animated, derives num_frames from the animation block, and
+// orchestrates rendering without requiring callers to supply layer metadata.
 type SubmitPipelineRequest struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
-	PipelineId               string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"` // Optional; server generates a UUID if empty
-	NumFrames                int32                  `protobuf:"varint,2,opt,name=num_frames,json=numFrames,proto3" json:"num_frames,omitempty"`   // Total frames to render across all layers
-	Layers                   []*PipelineLayer       `protobuf:"bytes,3,rep,name=layers,proto3" json:"layers,omitempty"`
-	CompositeOutputUriPrefix string                 `protobuf:"bytes,4,opt,name=composite_output_uri_prefix,json=compositeOutputUriPrefix,proto3" json:"composite_output_uri_prefix,omitempty"` // GCS prefix for final composited frames
-	Camera                   *CameraParams          `protobuf:"bytes,5,opt,name=camera,proto3" json:"camera,omitempty"`                                                                         // Camera shared by all layers
-	ContextUris              []string               `protobuf:"bytes,6,rep,name=context_uris,json=contextUris,proto3" json:"context_uris,omitempty"`                                            // GCS paths to context JSON files (lighting, invisible geo)
+	PipelineId               string                 `protobuf:"bytes,1,opt,name=pipeline_id,json=pipelineId,proto3" json:"pipeline_id,omitempty"`                                               // Optional; server generates a UUID if empty
+	SceneUri                 string                 `protobuf:"bytes,2,opt,name=scene_uri,json=sceneUri,proto3" json:"scene_uri,omitempty"`                                                     // GCS path to root scene.json (e.g. gs://bucket/scenes/scene.json)
+	CompositeOutputUriPrefix string                 `protobuf:"bytes,3,opt,name=composite_output_uri_prefix,json=compositeOutputUriPrefix,proto3" json:"composite_output_uri_prefix,omitempty"` // GCS prefix for final composited frames
+	EnableCache              bool                   `protobuf:"varint,4,opt,name=enable_cache,json=enableCache,proto3" json:"enable_cache,omitempty"`                                           // Enable content-hash layer caching (default false)
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
 
 func (x *SubmitPipelineRequest) Reset() {
 	*x = SubmitPipelineRequest{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -232,7 +104,7 @@ func (x *SubmitPipelineRequest) String() string {
 func (*SubmitPipelineRequest) ProtoMessage() {}
 
 func (x *SubmitPipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -245,7 +117,7 @@ func (x *SubmitPipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitPipelineRequest.ProtoReflect.Descriptor instead.
 func (*SubmitPipelineRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{2}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SubmitPipelineRequest) GetPipelineId() string {
@@ -255,18 +127,11 @@ func (x *SubmitPipelineRequest) GetPipelineId() string {
 	return ""
 }
 
-func (x *SubmitPipelineRequest) GetNumFrames() int32 {
+func (x *SubmitPipelineRequest) GetSceneUri() string {
 	if x != nil {
-		return x.NumFrames
+		return x.SceneUri
 	}
-	return 0
-}
-
-func (x *SubmitPipelineRequest) GetLayers() []*PipelineLayer {
-	if x != nil {
-		return x.Layers
-	}
-	return nil
+	return ""
 }
 
 func (x *SubmitPipelineRequest) GetCompositeOutputUriPrefix() string {
@@ -276,18 +141,11 @@ func (x *SubmitPipelineRequest) GetCompositeOutputUriPrefix() string {
 	return ""
 }
 
-func (x *SubmitPipelineRequest) GetCamera() *CameraParams {
+func (x *SubmitPipelineRequest) GetEnableCache() bool {
 	if x != nil {
-		return x.Camera
+		return x.EnableCache
 	}
-	return nil
-}
-
-func (x *SubmitPipelineRequest) GetContextUris() []string {
-	if x != nil {
-		return x.ContextUris
-	}
-	return nil
+	return false
 }
 
 type SubmitPipelineResponse struct {
@@ -299,7 +157,7 @@ type SubmitPipelineResponse struct {
 
 func (x *SubmitPipelineResponse) Reset() {
 	*x = SubmitPipelineResponse{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -311,7 +169,7 @@ func (x *SubmitPipelineResponse) String() string {
 func (*SubmitPipelineResponse) ProtoMessage() {}
 
 func (x *SubmitPipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -324,7 +182,7 @@ func (x *SubmitPipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitPipelineResponse.ProtoReflect.Descriptor instead.
 func (*SubmitPipelineResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SubmitPipelineResponse) GetPipelineId() string {
@@ -343,7 +201,7 @@ type GetPipelineStatusRequest struct {
 
 func (x *GetPipelineStatusRequest) Reset() {
 	*x = GetPipelineStatusRequest{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +213,7 @@ func (x *GetPipelineStatusRequest) String() string {
 func (*GetPipelineStatusRequest) ProtoMessage() {}
 
 func (x *GetPipelineStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +226,7 @@ func (x *GetPipelineStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetPipelineStatusRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{4}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetPipelineStatusRequest) GetPipelineId() string {
@@ -390,7 +248,7 @@ type GetPipelineStatusResponse struct {
 
 func (x *GetPipelineStatusResponse) Reset() {
 	*x = GetPipelineStatusResponse{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +260,7 @@ func (x *GetPipelineStatusResponse) String() string {
 func (*GetPipelineStatusResponse) ProtoMessage() {}
 
 func (x *GetPipelineStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +273,7 @@ func (x *GetPipelineStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetPipelineStatusResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetPipelineStatusResponse) GetStatus() GetPipelineStatusResponse_PipelineStatus {
@@ -455,7 +313,7 @@ type CancelPipelineRequest struct {
 
 func (x *CancelPipelineRequest) Reset() {
 	*x = CancelPipelineRequest{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[6]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -467,7 +325,7 @@ func (x *CancelPipelineRequest) String() string {
 func (*CancelPipelineRequest) ProtoMessage() {}
 
 func (x *CancelPipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[6]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +338,7 @@ func (x *CancelPipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelPipelineRequest.ProtoReflect.Descriptor instead.
 func (*CancelPipelineRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{6}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CancelPipelineRequest) GetPipelineId() string {
@@ -499,7 +357,7 @@ type CancelPipelineResponse struct {
 
 func (x *CancelPipelineResponse) Reset() {
 	*x = CancelPipelineResponse{}
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[7]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -511,7 +369,7 @@ func (x *CancelPipelineResponse) String() string {
 func (*CancelPipelineResponse) ProtoMessage() {}
 
 func (x *CancelPipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[7]
+	mi := &file_api_proto_coordinator_v1_coordinator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -524,7 +382,7 @@ func (x *CancelPipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelPipelineResponse.ProtoReflect.Descriptor instead.
 func (*CancelPipelineResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{7}
+	return file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CancelPipelineResponse) GetSuccess() bool {
@@ -538,25 +396,13 @@ var File_api_proto_coordinator_v1_coordinator_proto protoreflect.FileDescriptor
 
 const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
-	"*api/proto/coordinator/v1/coordinator.proto\x12\x18api.proto.coordinator.v1\"j\n" +
-	"\rPipelineLayer\x12\x19\n" +
-	"\blayer_id\x18\x01 \x01(\tR\alayerId\x12\x1b\n" +
-	"\tscene_uri\x18\x02 \x01(\tR\bsceneUri\x12!\n" +
-	"\fenable_cache\x18\x03 \x01(\bR\venableCache\"j\n" +
-	"\fCameraParams\x12\x1b\n" +
-	"\tlook_from\x18\x01 \x03(\x02R\blookFrom\x12\x17\n" +
-	"\alook_at\x18\x02 \x03(\x02R\x06lookAt\x12\x10\n" +
-	"\x03vup\x18\x03 \x03(\x02R\x03vup\x12\x12\n" +
-	"\x04vfov\x18\x04 \x01(\x02R\x04vfov\"\xba\x02\n" +
+	"*api/proto/coordinator/v1/coordinator.proto\x12\x18api.proto.coordinator.v1\"\xb7\x01\n" +
 	"\x15SubmitPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
-	"pipelineId\x12\x1d\n" +
-	"\n" +
-	"num_frames\x18\x02 \x01(\x05R\tnumFrames\x12?\n" +
-	"\x06layers\x18\x03 \x03(\v2'.api.proto.coordinator.v1.PipelineLayerR\x06layers\x12=\n" +
-	"\x1bcomposite_output_uri_prefix\x18\x04 \x01(\tR\x18compositeOutputUriPrefix\x12>\n" +
-	"\x06camera\x18\x05 \x01(\v2&.api.proto.coordinator.v1.CameraParamsR\x06camera\x12!\n" +
-	"\fcontext_uris\x18\x06 \x03(\tR\vcontextUris\"9\n" +
+	"pipelineId\x12\x1b\n" +
+	"\tscene_uri\x18\x02 \x01(\tR\bsceneUri\x12=\n" +
+	"\x1bcomposite_output_uri_prefix\x18\x03 \x01(\tR\x18compositeOutputUriPrefix\x12!\n" +
+	"\fenable_cache\x18\x04 \x01(\bR\venableCache\"9\n" +
 	"\x16SubmitPipelineResponse\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\";\n" +
@@ -600,35 +446,31 @@ func file_api_proto_coordinator_v1_coordinator_proto_rawDescGZIP() []byte {
 }
 
 var file_api_proto_coordinator_v1_coordinator_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_proto_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_api_proto_coordinator_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_api_proto_coordinator_v1_coordinator_proto_goTypes = []any{
 	(GetPipelineStatusResponse_PipelineStatus)(0), // 0: api.proto.coordinator.v1.GetPipelineStatusResponse.PipelineStatus
-	(*PipelineLayer)(nil),                         // 1: api.proto.coordinator.v1.PipelineLayer
-	(*CameraParams)(nil),                          // 2: api.proto.coordinator.v1.CameraParams
-	(*SubmitPipelineRequest)(nil),                 // 3: api.proto.coordinator.v1.SubmitPipelineRequest
-	(*SubmitPipelineResponse)(nil),                // 4: api.proto.coordinator.v1.SubmitPipelineResponse
-	(*GetPipelineStatusRequest)(nil),              // 5: api.proto.coordinator.v1.GetPipelineStatusRequest
-	(*GetPipelineStatusResponse)(nil),             // 6: api.proto.coordinator.v1.GetPipelineStatusResponse
-	(*CancelPipelineRequest)(nil),                 // 7: api.proto.coordinator.v1.CancelPipelineRequest
-	(*CancelPipelineResponse)(nil),                // 8: api.proto.coordinator.v1.CancelPipelineResponse
-	nil,                                           // 9: api.proto.coordinator.v1.GetPipelineStatusResponse.LayerOutputsEntry
+	(*SubmitPipelineRequest)(nil),                 // 1: api.proto.coordinator.v1.SubmitPipelineRequest
+	(*SubmitPipelineResponse)(nil),                // 2: api.proto.coordinator.v1.SubmitPipelineResponse
+	(*GetPipelineStatusRequest)(nil),              // 3: api.proto.coordinator.v1.GetPipelineStatusRequest
+	(*GetPipelineStatusResponse)(nil),             // 4: api.proto.coordinator.v1.GetPipelineStatusResponse
+	(*CancelPipelineRequest)(nil),                 // 5: api.proto.coordinator.v1.CancelPipelineRequest
+	(*CancelPipelineResponse)(nil),                // 6: api.proto.coordinator.v1.CancelPipelineResponse
+	nil,                                           // 7: api.proto.coordinator.v1.GetPipelineStatusResponse.LayerOutputsEntry
 }
 var file_api_proto_coordinator_v1_coordinator_proto_depIdxs = []int32{
-	1, // 0: api.proto.coordinator.v1.SubmitPipelineRequest.layers:type_name -> api.proto.coordinator.v1.PipelineLayer
-	2, // 1: api.proto.coordinator.v1.SubmitPipelineRequest.camera:type_name -> api.proto.coordinator.v1.CameraParams
-	0, // 2: api.proto.coordinator.v1.GetPipelineStatusResponse.status:type_name -> api.proto.coordinator.v1.GetPipelineStatusResponse.PipelineStatus
-	9, // 3: api.proto.coordinator.v1.GetPipelineStatusResponse.layer_outputs:type_name -> api.proto.coordinator.v1.GetPipelineStatusResponse.LayerOutputsEntry
-	3, // 4: api.proto.coordinator.v1.CoordinatorService.SubmitPipeline:input_type -> api.proto.coordinator.v1.SubmitPipelineRequest
-	5, // 5: api.proto.coordinator.v1.CoordinatorService.GetPipelineStatus:input_type -> api.proto.coordinator.v1.GetPipelineStatusRequest
-	7, // 6: api.proto.coordinator.v1.CoordinatorService.CancelPipeline:input_type -> api.proto.coordinator.v1.CancelPipelineRequest
-	4, // 7: api.proto.coordinator.v1.CoordinatorService.SubmitPipeline:output_type -> api.proto.coordinator.v1.SubmitPipelineResponse
-	6, // 8: api.proto.coordinator.v1.CoordinatorService.GetPipelineStatus:output_type -> api.proto.coordinator.v1.GetPipelineStatusResponse
-	8, // 9: api.proto.coordinator.v1.CoordinatorService.CancelPipeline:output_type -> api.proto.coordinator.v1.CancelPipelineResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0, // 0: api.proto.coordinator.v1.GetPipelineStatusResponse.status:type_name -> api.proto.coordinator.v1.GetPipelineStatusResponse.PipelineStatus
+	7, // 1: api.proto.coordinator.v1.GetPipelineStatusResponse.layer_outputs:type_name -> api.proto.coordinator.v1.GetPipelineStatusResponse.LayerOutputsEntry
+	1, // 2: api.proto.coordinator.v1.CoordinatorService.SubmitPipeline:input_type -> api.proto.coordinator.v1.SubmitPipelineRequest
+	3, // 3: api.proto.coordinator.v1.CoordinatorService.GetPipelineStatus:input_type -> api.proto.coordinator.v1.GetPipelineStatusRequest
+	5, // 4: api.proto.coordinator.v1.CoordinatorService.CancelPipeline:input_type -> api.proto.coordinator.v1.CancelPipelineRequest
+	2, // 5: api.proto.coordinator.v1.CoordinatorService.SubmitPipeline:output_type -> api.proto.coordinator.v1.SubmitPipelineResponse
+	4, // 6: api.proto.coordinator.v1.CoordinatorService.GetPipelineStatus:output_type -> api.proto.coordinator.v1.GetPipelineStatusResponse
+	6, // 7: api.proto.coordinator.v1.CoordinatorService.CancelPipeline:output_type -> api.proto.coordinator.v1.CancelPipelineResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_coordinator_v1_coordinator_proto_init() }
@@ -642,7 +484,7 @@ func file_api_proto_coordinator_v1_coordinator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_coordinator_v1_coordinator_proto_rawDesc), len(file_api_proto_coordinator_v1_coordinator_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
