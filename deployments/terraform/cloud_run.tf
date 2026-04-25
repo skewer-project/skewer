@@ -111,3 +111,93 @@ resource "google_cloud_run_v2_service" "coordinator" {
     ignore_changes = [template[0].containers[0].image]
   }
 }
+
+# ── skewer-api (previewer-facing HTTP service) ────────────────────────────
+
+resource "google_cloud_run_v2_service" "api" {
+  name     = "skewer-api"
+  location = var.region
+
+  # The browser must be able to reach this service without doing IAM-token
+  # gymnastics; auth happens in-handler (Firebase ID token + email allowlist).
+  ingress = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account                  = google_service_account.api.email
+    execution_environment            = "EXECUTION_ENVIRONMENT_GEN2"
+    max_instance_request_concurrency = var.api_concurrency
+
+    containers {
+      # Placeholder until Cloud Build pushes the real image.
+      image = "us-docker.pkg.dev/cloudrun/container/hello:latest"
+
+      ports {
+        container_port = 8080
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+
+      env {
+        name  = "GCP_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "DATA_BUCKET"
+        value = google_storage_bucket.data.name
+      }
+      env {
+        name  = "COORDINATOR_URL"
+        value = google_cloud_run_v2_service.coordinator.uri
+      }
+      env {
+        name  = "API_SA_EMAIL"
+        value = google_service_account.api.email
+      }
+      env {
+        name  = "FIREBASE_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "ADMIN_EMAILS"
+        value = join(",", var.admin_emails)
+      }
+      env {
+        name  = "CORS_ALLOWED_ORIGINS"
+        value = join(",", var.previewer_cors_origins)
+      }
+      env {
+        name  = "RATE_INIT_PER_HOUR"
+        value = tostring(var.api_rate_init_per_hour)
+      }
+      env {
+        name  = "RATE_SUBMIT_PER_HOUR"
+        value = tostring(var.api_rate_submit_per_hour)
+      }
+    }
+
+    scaling {
+      max_instance_count = var.api_max_instances
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
+}
+
+# Public-unauthenticated: the browser must reach this service directly.
+# Security is enforced in-handler via Firebase ID token + email allowlist.
+resource "google_cloud_run_v2_service_iam_member" "api_public_invoker" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}

@@ -1,0 +1,29 @@
+# Stage 1: Build the Go API service
+FROM golang:1.25.0-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /app
+
+RUN adduser -D -g '' appuser
+
+# Module files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Application source
+COPY . .
+
+# Build static binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/api ./orchestration/cmd/api
+
+# Stage 2: minimal runtime image
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=builder /go/bin/api /bin/api
+
+USER nonroot
+
+EXPOSE 8080
+
+ENTRYPOINT ["/bin/api"]

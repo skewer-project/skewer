@@ -15,6 +15,11 @@ resource "google_service_account" "batch_worker" {
   display_name = "Skewer Batch Worker (Cloud Batch VMs)"
 }
 
+resource "google_service_account" "api" {
+  account_id   = "skewer-api"
+  display_name = "Skewer API (Cloud Run, previewer-facing)"
+}
+
 # ── Coordinator SA roles ───────────────────────────────────────────────────────
 
 # Allow the coordinator SA to invoke itself (needed for developer impersonation flows)
@@ -111,4 +116,31 @@ resource "google_artifact_registry_repository_iam_member" "batch_ar_reader" {
   location   = var.region
   role       = "roles/artifactregistry.reader"
   member     = "serviceAccount:${google_service_account.batch_worker.email}"
+}
+
+# ── API SA roles ──────────────────────────────────────────────────────────
+
+# Self-impersonation: required so the API can IAM-sign V4 URLs without a
+# private-key JSON file on disk.
+resource "google_service_account_iam_member" "api_self_token_creator" {
+  service_account_id = google_service_account.api.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.api.email}"
+}
+
+# Invoke the coordinator Cloud Run service over gRPC with an ID token.
+resource "google_cloud_run_v2_service_iam_member" "api_coordinator_invoker" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.coordinator.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.api.email}"
+}
+
+# Read uploaded files, write normalized scene.json + ownership markers,
+# write composite output artifact references.
+resource "google_storage_bucket_iam_member" "api_data_object_user" {
+  bucket = google_storage_bucket.data.name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.api.email}"
 }

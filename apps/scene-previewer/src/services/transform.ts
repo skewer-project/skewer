@@ -291,7 +291,10 @@ export function applyStaticTransformToObject3D(
 	}
 }
 
-function visitSceneNodes(nodes: SceneNode[], fn: (n: SceneNode) => void) {
+export function visitSceneNodes(
+	nodes: SceneNode[],
+	fn: (n: SceneNode) => void,
+) {
 	for (const n of nodes) {
 		fn(n);
 		if (n.kind === "group") visitSceneNodes(n.children, fn);
