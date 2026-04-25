@@ -78,7 +78,7 @@ TEST(Animation, EasedSegmentUsesCurveNotHalfway) {
 
     AnimatedTransform ease_anim = linear_anim;
     static BezierCurve kEase = BezierCurve::EaseIn();
-    ease_anim.keyframes[0].curve =
+    ease_anim.keyframes[1].curve =
         std::shared_ptr<const InterpolationCurve>(&kEase, [](const InterpolationCurve*) {});
 
     float lin_z = linear_anim.Evaluate(0.5f).translation.z();

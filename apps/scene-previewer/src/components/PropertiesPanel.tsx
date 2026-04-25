@@ -199,7 +199,7 @@ function CommonTransformBlock({
 					})}
 				</div>
 
-				{selKf && idx < sortedKfs.length - 1 && (
+				{selKf && idx > 0 && (
 					<div className="kv-row kf-curve-row">
 						<span className="kv-key">curve</span>
 						<select
@@ -219,7 +219,7 @@ function CommonTransformBlock({
 					</div>
 				)}
 
-				{selKf && curveToPreset(selKf.curve) === "custom" && (
+				{selKf && idx > 0 && curveToPreset(selKf.curve) === "custom" && (
 					<div className="kf-bezier-grid">
 						{(["p1x", "p1y", "p2x", "p2y"] as const).map((label, i) => (
 							<NumberField
