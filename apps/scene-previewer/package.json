@@ -8,7 +8,8 @@
 		"build": "tsc -b && vite build",
 		"lint": "biome check",
 		"preview": "bun run build && vite preview",
-		"format": "biome format --write"
+		"format": "biome format --write",
+		"ci": "biome ci . && tsc -b && vite build"
 	},
 	"dependencies": {
 		"@radix-ui/react-collapsible": "^1.1.12",
