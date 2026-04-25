@@ -728,8 +728,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			onChange();
 		};
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const onDraggingChanged = (event: any) => {
+		const onDraggingChanged = (event: { value: unknown }) => {
 			if (!event.value) {
 				onChange();
 			}
