@@ -6,8 +6,9 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc -b && vite build",
-		"lint": "eslint .",
-		"preview": "vite preview"
+		"lint": "biome check",
+		"preview": "vite preview",
+		"format": "biome format --write"
 	},
 	"dependencies": {
 		"@radix-ui/react-collapsible": "^1.1.12",
@@ -18,7 +19,7 @@
 	},
 	"devDependencies": {
 		"@babel/core": "^7.29.0",
-		"@eslint/js": "^9.39.4",
+		"@biomejs/biome": "2.4.13",
 		"@rolldown/plugin-babel": "^0.2.2",
 		"@types/babel__core": "^7.20.5",
 		"@types/node": "^24.12.2",
