@@ -18,7 +18,7 @@ export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 
 	useEffect(() => {
 		setPhotoFailed(false);
-	}, [user]);
+	}, []);
 
 	if (!isAuthConfigured()) {
 		return null;

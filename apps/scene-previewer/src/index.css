@@ -110,10 +110,6 @@ body {
 	z-index: 20;
 }
 
-.hud-account .user-menu {
-	border-left: 1px solid var(--border-mid);
-}
-
 .wordmark {
 	font-family: var(--display);
 	font-size: 11.5px;
