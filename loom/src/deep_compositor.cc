@@ -130,9 +130,17 @@ void MergerWorker(int start_row, int end_row, PipelineContext& ctx) {
         int slot = merge_y % ctx.window_size;
         DeepRow& outputRow = ctx.merged_buffer[slot];
 
-        int maxSamplesForPixel = 0;
-        for (int i = 0; i < ctx.num_files; ++i) {
-            maxSamplesForPixel += ctx.input_buffer[i][slot].total_samples_in_row;
+        int maxSamplesForPixel =
+            0;  // tracks the maximum number of samples for any pixel across all files
+        for (int x = 0; x < ctx.width; ++x) {
+            int perPixelTotal = 0;  // tracks samples for THIS pixel across all files
+
+            // Go through each file and sum the samples for this pixel
+            for (int i = 0; i < ctx.num_files; ++i) {
+                perPixelTotal += ctx.input_buffer[i][slot].GetSampleCount(x);
+            }
+            if (perPixelTotal > maxSamplesForPixel)
+                maxSamplesForPixel = perPixelTotal;  // update maxSamplesForPixel if necessary
         }
 
         // Safety buffer for volumetric splitting
