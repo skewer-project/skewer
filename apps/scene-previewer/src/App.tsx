@@ -1,17 +1,18 @@
 import { Camera, Cloud, Maximize, Move, Rotate3d } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { JobsPanel } from "./components/JobsPanel";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
-import { JobsPanel } from "./components/JobsPanel";
 import { RenderConfirmDialog } from "./components/RenderConfirmDialog";
 import { SceneInspector } from "./components/SceneInspector";
 import { Timeline } from "./components/Timeline";
 import { UserMenu } from "./components/UserMenu";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
+import { resumePendingJobs, startCloudRender } from "./services/cloud-render";
 import {
 	countGraphNodes,
 	deleteNodeAtPath,
@@ -34,7 +35,6 @@ import type {
 	SceneNode,
 } from "./types/scene";
 import { isAnimated } from "./types/scene";
-import { resumePendingJobs, startCloudRender } from "./services/cloud-render";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
