@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <string>
+#include <algorithm>
 
 namespace deep_compositor {
 
