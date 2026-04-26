@@ -7,14 +7,18 @@ import {
 	subscribeAuth,
 } from "../services/auth";
 
-export function UserMenu() {
+export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 	const [user, setUser] = useState<User | null>(null);
 	const [open, setOpen] = useState(false);
-	const [authError, setAuthError] = useState("");
+	const [photoFailed, setPhotoFailed] = useState(false);
 
 	useEffect(() => {
 		return subscribeAuth(setUser);
 	}, []);
+
+	useEffect(() => {
+		setPhotoFailed(false);
+	}, [user]);
 
 	if (!isAuthConfigured()) {
 		return null;
@@ -27,11 +31,10 @@ export function UserMenu() {
 					type="button"
 					className="open-btn user-menu-signin"
 					onClick={async () => {
-						setAuthError("");
 						try {
 							await signInWithGoogle();
 						} catch (e) {
-							setAuthError(e instanceof Error ? e.message : "Sign in failed");
+							onError?.(e instanceof Error ? e.message : "Sign in failed");
 						}
 					}}
 				>
@@ -47,11 +50,19 @@ export function UserMenu() {
 						aria-expanded={open}
 						onClick={() => setOpen((o) => !o)}
 					>
-						{user.photoURL ? (
-							<img src={user.photoURL} width={24} height={24} alt="" />
+						{user.photoURL && !photoFailed ? (
+							<img
+								src={user.photoURL}
+								width={24}
+								height={24}
+								alt=""
+								referrerPolicy="no-referrer"
+								onError={() => setPhotoFailed(true)}
+							/>
 						) : (
 							<span className="avatar-fallback" aria-hidden>
-								{user.email?.[0]?.toUpperCase() ?? "?"}
+								{(user.displayName?.[0] ?? user.email?.[0])?.toUpperCase() ??
+									"?"}
 							</span>
 						)}
 					</button>
@@ -81,11 +92,6 @@ export function UserMenu() {
 					)}
 				</div>
 			)}
-			{authError ? (
-				<span className="user-menu-err" title={authError}>
-					{authError}
-				</span>
-			) : null}
 		</div>
 	);
 }

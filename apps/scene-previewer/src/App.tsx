@@ -1,6 +1,13 @@
-import { Camera, Cloud, Maximize, Move, Rotate3d } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { JobsPanel } from "./components/JobsPanel";
+import { Camera, Cloud, Maximize, Move, Rotate3d, X } from "lucide-react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
+import { JobsModal } from "./components/JobsModal";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
@@ -12,6 +19,7 @@ import { Timeline } from "./components/Timeline";
 import { UserMenu } from "./components/UserMenu";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
+import type { CloudJobRenderConfig } from "./services/cloud-job-types";
 import { resumePendingJobs, startCloudRender } from "./services/cloud-render";
 import {
 	countGraphNodes,
@@ -20,6 +28,11 @@ import {
 	resolveNodeAtPath,
 	updateNodeAtPath,
 } from "./services/graph-path";
+import {
+	getSnapshot as getJobsSnapshot,
+	isNonTerminalStatus,
+	subscribe as subscribeJobs,
+} from "./services/jobs-store";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
@@ -43,6 +56,42 @@ function isEditableTarget(target: EventTarget | null) {
 		target.tagName === "INPUT" ||
 		target.tagName === "TEXTAREA" ||
 		target.tagName === "SELECT"
+	);
+}
+
+function JobsCloudButton({ onClick }: { onClick: () => void }) {
+	const jobs = useSyncExternalStore(
+		subscribeJobs,
+		getJobsSnapshot,
+		getJobsSnapshot,
+	);
+	const running = jobs.filter((j) => isNonTerminalStatus(j.status)).length;
+	const hasFailed = jobs.some((j) => j.status === "failed");
+	const state = running > 0 ? "active" : hasFailed ? "error" : "idle";
+	const label =
+		running > 0
+			? `${running} render${running > 1 ? "s" : ""} in progress`
+			: hasFailed
+				? "Cloud renders, last attempt failed"
+				: "Cloud renders";
+
+	return (
+		<button
+			type="button"
+			className={`jobs-cloud-btn jobs-cloud-${state}`}
+			aria-label={label}
+			title={label}
+			onClick={onClick}
+		>
+			<Cloud size={16} aria-hidden />
+			{running > 0 ? (
+				<span className="jobs-cloud-badge" aria-hidden>
+					{running}
+				</span>
+			) : hasFailed ? (
+				<span className="jobs-cloud-error-dot" aria-hidden />
+			) : null}
+		</button>
 	);
 }
 
@@ -94,6 +143,7 @@ function App() {
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
 	const [showRenderDialog, setShowRenderDialog] = useState(false);
+	const [showJobsModal, setShowJobsModal] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -314,6 +364,12 @@ function App() {
 		resumePendingJobs();
 	}, []);
 
+	useEffect(() => {
+		if (!error) return;
+		const t = window.setTimeout(() => setError(""), 6000);
+		return () => window.clearTimeout(t);
+	}, [error]);
+
 	return (
 		<div className="app-root">
 			{/* Full-screen viewport */}
@@ -337,7 +393,6 @@ function App() {
 			<div className="hud">
 				{/* Top-left: header panel */}
 				<div className="panel hud-header">
-					<UserMenu />
 					<button
 						type="button"
 						className={`wordmark${scene ? " wordmark-link" : ""}`}
@@ -349,8 +404,7 @@ function App() {
 					{scene && (
 						<button
 							type="button"
-							className="open-btn"
-							style={{ flex: 1 }}
+							className="open-btn open-btn-primary"
 							onClick={() => setShowRenderDialog(true)}
 						>
 							<Cloud
@@ -370,8 +424,30 @@ function App() {
 							{saving ? "Saving…" : "Save"}
 						</button>
 					)}
-					{error && <span className="error-msg">{error}</span>}
 				</div>
+
+				{/* Top-right: account + cloud jobs */}
+				<div className="panel hud-account">
+					<JobsCloudButton onClick={() => setShowJobsModal(true)} />
+					<UserMenu onError={setError} />
+				</div>
+
+				{/* Error toast */}
+				{error && (
+					<div className="hud-toast hud-toast-error" role="alert">
+						<span className="hud-toast-msg" title={error}>
+							{error}
+						</span>
+						<button
+							type="button"
+							className="hud-toast-x"
+							aria-label="Dismiss"
+							onClick={() => setError("")}
+						>
+							<X size={12} />
+						</button>
+					</div>
+				)}
 
 				{/* Transform mode toolbar */}
 				{scene && selectedObjectKey && (
@@ -485,8 +561,12 @@ function App() {
 					/>
 				)}
 
-				{scene && dirHandle && (
-					<JobsPanel scene={scene} dirHandle={dirHandle} />
+				{showJobsModal && (
+					<JobsModal
+						scene={scene}
+						dirHandle={dirHandle}
+						onClose={() => setShowJobsModal(false)}
+					/>
 				)}
 
 				{scene && (
@@ -530,11 +610,28 @@ function App() {
 							setShowRenderDialog(false);
 							if (!scene || !dirHandle) return;
 							setError("");
+							const startFrame = Math.round(renderStartTime * renderFps);
+							const endFrame = Math.round(renderEndTime * renderFps);
+							const renderConfig: CloudJobRenderConfig = {
+								width: renderSettings.image.width,
+								height: renderSettings.image.height,
+								minSamples: renderSettings.min_samples,
+								maxSamples: renderSettings.max_samples,
+								maxDepth: renderSettings.max_depth,
+								integrator: renderSettings.integrator,
+								startTime: renderStartTime,
+								endTime: renderEndTime,
+								fps: renderFps,
+								startFrame,
+								endFrame,
+								isAnimation: endFrame > startFrame,
+							};
 							try {
 								await startCloudRender({
 									scene,
 									dir: dirHandle,
 									enableCache: true,
+									renderConfig,
 								});
 							} catch (e) {
 								const msg = e instanceof Error ? e.message : String(e);

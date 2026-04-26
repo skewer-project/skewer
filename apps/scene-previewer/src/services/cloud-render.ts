@@ -10,10 +10,18 @@ import type { StatusResponse } from "./api/types";
 import { ApiError } from "./api/types";
 import { getCurrentUser, signInWithGoogle } from "./auth";
 import { type BundleFile, collectSceneBundle } from "./bundle";
-import type { CloudJob, CloudJobStatus } from "./cloud-job-types";
+import type {
+	CloudJob,
+	CloudJobRenderConfig,
+	CloudJobStatus,
+} from "./cloud-job-types";
 import * as store from "./jobs-store";
 
-export type { CloudJob, CloudJobStatus } from "./cloud-job-types";
+export type {
+	CloudJob,
+	CloudJobRenderConfig,
+	CloudJobStatus,
+} from "./cloud-job-types";
 export { isNonTerminalStatus } from "./jobs-store";
 
 const UPLOAD_CONCURRENCY = 8;
@@ -129,8 +137,9 @@ export async function startCloudRender(args: {
 	scene: ResolvedScene;
 	dir: FileSystemDirectoryHandle;
 	enableCache?: boolean;
+	renderConfig?: CloudJobRenderConfig;
 }): Promise<void> {
-	const { scene, dir, enableCache = true } = args;
+	const { scene, dir, enableCache = true, renderConfig } = args;
 	await ensureSignedIn();
 
 	const localId = `local-${crypto.randomUUID()}`;
@@ -143,6 +152,7 @@ export async function startCloudRender(args: {
 		sceneName: dir.name,
 		status: "packaging",
 		abort: ac,
+		renderConfig,
 	};
 	store.upsertJob(baseJob);
 
