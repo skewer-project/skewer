@@ -46,13 +46,14 @@ struct DeepRow {
     }
 
     // Normal Allocate given a size
-    void Allocate(size_t width, int max_samples) {
+    void Allocate(size_t width, int max_samples_per_pixel) {
         this->width = width;
         sample_counts.assign(width, 0);
         sample_offsets.assign(width, 0);  // all zero; merger updates incrementally
-        total_samples_in_row = max_samples;
 
-        size_t required = static_cast<size_t>(max_samples) * 6;
+        size_t total_capacity = static_cast<size_t>(width) * max_samples_per_pixel;
+
+        size_t required = total_capacity * 6; // for each channel
         // make_unique handles 'new float[]' and ensures cleanup
         all_samples = std::make_unique<float[]>(required);
         current_capacity = required;
