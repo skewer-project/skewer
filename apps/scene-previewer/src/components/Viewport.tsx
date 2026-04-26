@@ -15,6 +15,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import {
 	collectAnimatedNodes,
 	collectLeafKeysForMaterial,
+	resolveNodeAtPath,
 } from "../services/graph-path";
 import {
 	applyStaticTransformToObject3D,
@@ -22,7 +23,6 @@ import {
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
-import { resolveNodeAtPath } from "../services/graph-path";
 import { evaluateTransformAt } from "../services/transform";
 import type {
 	Material,
@@ -655,7 +655,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			}
 		} else if (!objectKey) {
 			const proxy = gizmoProxy.current;
-			if (proxy && proxy.userData.target) {
+			if (proxy?.userData.target) {
 				// Detach and put target back into the scene group
 				grp.attach(proxy.userData.target);
 				proxy.userData.target = null;
@@ -679,7 +679,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const onChange = () => {
 			if (isPlayingRef.current) return;
 			const proxy = tctrl.object;
-			if (!proxy || !proxy.userData.target) return;
+			if (!proxy?.userData.target) return;
 
 			const target = proxy.userData.target as THREE.Group;
 
@@ -728,8 +728,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			onChange();
 		};
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const onDraggingChanged = (event: any) => {
+		const onDraggingChanged = (event: { value: unknown }) => {
 			if (!event.value) {
 				onChange();
 			}
