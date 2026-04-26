@@ -1,6 +1,11 @@
 import type { User } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { isAuthConfigured, signInWithGoogle, signOutUser, subscribeAuth } from "../services/auth";
+import {
+	isAuthConfigured,
+	signInWithGoogle,
+	signOutUser,
+	subscribeAuth,
+} from "../services/auth";
 
 export function UserMenu() {
 	const [user, setUser] = useState<User | null>(null);
@@ -26,9 +31,7 @@ export function UserMenu() {
 						try {
 							await signInWithGoogle();
 						} catch (e) {
-							setAuthError(
-								e instanceof Error ? e.message : "Sign in failed",
-							);
+							setAuthError(e instanceof Error ? e.message : "Sign in failed");
 						}
 					}}
 				>
@@ -45,12 +48,7 @@ export function UserMenu() {
 						onClick={() => setOpen((o) => !o)}
 					>
 						{user.photoURL ? (
-							<img
-								src={user.photoURL}
-								width={24}
-								height={24}
-								alt=""
-							/>
+							<img src={user.photoURL} width={24} height={24} alt="" />
 						) : (
 							<span className="avatar-fallback" aria-hidden>
 								{user.email?.[0]?.toUpperCase() ?? "?"}
@@ -58,6 +56,7 @@ export function UserMenu() {
 						)}
 					</button>
 					{open && (
+						// biome-ignore lint/a11y/noStaticElementInteractions: intentional transparent backdrop to close menu on outside click
 						<div
 							className="user-menu-backdrop"
 							role="presentation"

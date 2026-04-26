@@ -1,8 +1,17 @@
+import { ChevronUp, Download, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useState, useSyncExternalStore } from "react";
-import { Loader2, X, RefreshCw, Download, ChevronUp } from "lucide-react";
-import { downloadCompositePng, startCloudRender, userCancelRender } from "../services/cloud-render";
-import { getSnapshot, removeJob, subscribe, isNonTerminalStatus } from "../services/jobs-store";
 import type { CloudJob } from "../services/cloud-job-types";
+import {
+	downloadCompositePng,
+	startCloudRender,
+	userCancelRender,
+} from "../services/cloud-render";
+import {
+	getSnapshot,
+	isNonTerminalStatus,
+	removeJob,
+	subscribe,
+} from "../services/jobs-store";
 import type { ResolvedScene } from "../types/scene";
 
 function useJobs() {
@@ -50,6 +59,7 @@ function JobCard({
 			: 0;
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: role and handlers are both conditionally set to "button" via isTerminal
 		<div
 			className={`jobs-card${isTerminal ? " jobs-card-terminal" : ""}`}
 			role={isTerminal ? "button" : undefined}
@@ -100,7 +110,11 @@ function JobCard({
 			</div>
 			<div className="jobs-card-status-row">
 				{job.status === "uploading" && job.totalBytes ? (
-					<div className="progress-bar-wrap" aria-label="Upload progress">
+					<div
+						className="progress-bar-wrap"
+						role="progressbar"
+						aria-label="Upload progress"
+					>
 						<div
 							className="progress-bar"
 							style={{ width: `${pct.toFixed(1)}%` }}

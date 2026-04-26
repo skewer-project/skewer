@@ -33,7 +33,11 @@ export async function apiFetch<T>(
 		const token = await getIdToken(forceTokenRefresh);
 		const headers = new Headers(init.headers);
 		headers.set("Authorization", `Bearer ${token}`);
-		if (init.body && !headers.has("Content-Type") && !headers.has("content-type")) {
+		if (
+			init.body &&
+			!headers.has("Content-Type") &&
+			!headers.has("content-type")
+		) {
 			headers.set("Content-Type", "application/json");
 		}
 		return fetch(apiUrl(path), { ...init, headers });
@@ -46,10 +50,7 @@ export async function apiFetch<T>(
 
 	if (res.status === 429) {
 		const msg = await parseErrorBody(res);
-		throw new ApiError(
-			`Rate limited: ${msg}. Try again in a moment.`,
-			429,
-		);
+		throw new ApiError(`Rate limited: ${msg}. Try again in a moment.`, 429);
 	}
 
 	if (!res.ok) {

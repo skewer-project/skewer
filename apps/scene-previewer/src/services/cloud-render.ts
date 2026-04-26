@@ -1,11 +1,17 @@
-import { getCurrentUser, signInWithGoogle } from "./auth";
-import { collectSceneBundle, type BundleFile } from "./bundle";
-import { cancelJob, fetchCompositeBlob, getJobStatus, initJob, submitJob } from "./api/jobs";
+import type { ResolvedScene } from "../types/scene";
+import {
+	cancelJob,
+	fetchCompositeBlob,
+	getJobStatus,
+	initJob,
+	submitJob,
+} from "./api/jobs";
 import type { StatusResponse } from "./api/types";
 import { ApiError } from "./api/types";
+import { getCurrentUser, signInWithGoogle } from "./auth";
+import { type BundleFile, collectSceneBundle } from "./bundle";
 import type { CloudJob, CloudJobStatus } from "./cloud-job-types";
 import * as store from "./jobs-store";
-import type { ResolvedScene } from "../types/scene";
 
 export type { CloudJob, CloudJobStatus } from "./cloud-job-types";
 export { isNonTerminalStatus } from "./jobs-store";
@@ -22,7 +28,7 @@ function compositePngName(status: StatusResponse): string {
 	const u = status.composite_output;
 	if (u) {
 		const m = u.replace(/\\/g, "/").match(/\/([^/]+\.png)\s*$/i);
-		if (m) return m[1]!;
+		if (m) return m[1] ?? COMPOSITE_FALLBACK;
 	}
 	return COMPOSITE_FALLBACK;
 }
@@ -39,7 +45,7 @@ async function runWithConcurrency<T, R>(
 		for (;;) {
 			const i = next++;
 			if (i >= items.length) return;
-			await fn(items[i]!);
+			await fn(items[i] as T);
 		}
 	};
 	await Promise.all(Array.from({ length: cap }, () => runWorker()));
@@ -70,17 +76,17 @@ async function pollUntilDone(
 		try {
 			st = await getJobStatus(pipelineId);
 		} catch (e) {
-			markFailed(
-				pipelineId,
-				e instanceof Error ? e.message : String(e),
-			);
+			markFailed(pipelineId, e instanceof Error ? e.message : String(e));
 			return;
 		}
 		if (st === "pending") {
 			store.patchJob(pipelineId, { status: "running" });
 		} else {
 			const s = st.status;
-			if (s === "PIPELINE_STATUS_RUNNING" || s === "PIPELINE_STATUS_UNSPECIFIED") {
+			if (
+				s === "PIPELINE_STATUS_RUNNING" ||
+				s === "PIPELINE_STATUS_UNSPECIFIED"
+			) {
 				store.patchJob(pipelineId, { status: "running" });
 			} else if (s === "PIPELINE_STATUS_SUCCEEDED") {
 				const name = compositePngName(st);
@@ -176,25 +182,29 @@ export async function startCloudRender(args: {
 		});
 		activeId = pipelineId;
 
-		await runWithConcurrency(bundle, UPLOAD_CONCURRENCY, async (f: BundleFile) => {
-			if (ac.signal.aborted) {
-				throw new DOMException("aborted", "AbortError");
-			}
-			const url = init.upload_urls[f.path];
-			if (!url) {
-				throw new Error(`Missing signed URL for path ${f.path}`);
-			}
-			const res = await fetch(url, {
-				method: "PUT",
-				body: f.blob,
-				headers: { "Content-Type": f.contentType },
-				signal: ac.signal,
-			});
-			if (!res.ok) {
-				throw new Error(`PUT ${f.path} failed: ${res.status}`);
-			}
-			store.addUploadedBytes(activeId, f.blob.size);
-		});
+		await runWithConcurrency(
+			bundle,
+			UPLOAD_CONCURRENCY,
+			async (f: BundleFile) => {
+				if (ac.signal.aborted) {
+					throw new DOMException("aborted", "AbortError");
+				}
+				const url = init.upload_urls[f.path];
+				if (!url) {
+					throw new Error(`Missing signed URL for path ${f.path}`);
+				}
+				const res = await fetch(url, {
+					method: "PUT",
+					body: f.blob,
+					headers: { "Content-Type": f.contentType },
+					signal: ac.signal,
+				});
+				if (!res.ok) {
+					throw new Error(`PUT ${f.path} failed: ${res.status}`);
+				}
+				store.addUploadedBytes(activeId, f.blob.size);
+			},
+		);
 
 		if (ac.signal.aborted) return;
 		store.patchJob(activeId, { status: "submitting" });

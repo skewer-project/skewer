@@ -39,13 +39,13 @@ function parseMtllibNames(objText: string): string[] {
 function mtlMapPath(remainder: string): string {
 	const parts = remainder.trim().split(/\s+/);
 	for (let i = parts.length - 1; i >= 0; i--) {
-		const t = parts[i]!.replace(/\\/g, "/");
+		const t = parts[i]?.replace(/\\/g, "/");
 		if (t.includes(".") && !t.startsWith("-")) {
 			return t;
 		}
 	}
 	if (parts.length) {
-		return parts[parts.length - 1]!.replace(/\\/g, "/");
+		return parts[parts.length - 1]?.replace(/\\/g, "/");
 	}
 	return remainder.trim();
 }
@@ -71,9 +71,7 @@ function contentTypeForPath(filePath: string): string {
 }
 
 function objBaseDir(file: string): string {
-	return file.includes("/")
-		? `${file.split("/").slice(0, -1).join("/")}/`
-		: "";
+	return file.includes("/") ? `${file.split("/").slice(0, -1).join("/")}/` : "";
 }
 
 async function addMaterialTextures(
@@ -167,9 +165,7 @@ async function addObjMtlAndTextures(
 					contentType: contentTypeForPath(texPath),
 				});
 			} catch {
-				console.warn(
-					`[collectSceneBundle] texture not found: ${texPath}`,
-				);
+				console.warn(`[collectSceneBundle] texture not found: ${texPath}`);
 			}
 		}
 	}

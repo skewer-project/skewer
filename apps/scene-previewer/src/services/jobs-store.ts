@@ -50,12 +50,13 @@ function prune() {
 	while (jobs.length > MAX_JOBS) {
 		const terminals = jobs.filter((j) => isTerminal(j.status));
 		if (terminals.length === 0) return;
-		const drop = terminals.reduce((a, b) => (a.createdAt < b.createdAt ? a : b));
+		const drop = terminals.reduce((a, b) =>
+			a.createdAt < b.createdAt ? a : b,
+		);
 		const i = jobs.findIndex((j) => j.id === drop.id);
 		if (i < 0) return;
-		if (jobs[i]!.compositeObjectURL) {
-			URL.revokeObjectURL(jobs[i]!.compositeObjectURL!);
-		}
+		const url = jobs[i]?.compositeObjectURL;
+		if (url) URL.revokeObjectURL(url);
 		jobs = jobs.filter((j) => j.id !== drop.id);
 	}
 }
