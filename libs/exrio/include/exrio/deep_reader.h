@@ -7,6 +7,7 @@
 
 namespace exrio {
 
+
 /**
  * Exception thrown for deep EXR reading errors
  */

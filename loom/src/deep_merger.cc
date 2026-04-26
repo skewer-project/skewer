@@ -15,24 +15,30 @@ bool IsNearDepth(const RawSample& a, const RawSample& b, float epsilon) {
 }
 
 RawSample BlendCoincidentSamples(const RawSample& current, const RawSample& next) {
-    RawSample blended = current;
+    RawSample blended = current; // Copy of current
 
     // Volumetric transmission (Beer-Lambert addition)
     float t1 = 1.0f - current.a;
     float t2 = 1.0f - next.a;
-    blended.a = 1.0f - (t1 * t2);
+    
 
     // Uniform interspersion: scale summed premultiplied colors by
     // alphaCombined / (alpha1 + alpha2) to avoid over-brightening.
+    blended.a = 1.0f - (t1 * t2);
     float alphaSum = current.a + next.a;
     float scale = (alphaSum > 0.0f) ? blended.a / alphaSum : 0.0f;
+
+
     blended.r = (current.r + next.r) * scale;
     blended.g = (current.g + next.g) * scale;
     blended.b = (current.b + next.b) * scale;
+    
 
     return blended;
 }
 
+
+//TODO - Add kepsilon splitting 
 std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
     RawSample front = s;
     RawSample back = s;
@@ -40,7 +46,7 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
     front.z_back = zSplit;
     back.z = zSplit;
 
-    float totalThickness = s.z_back - s.z;
+    float totalThickness = s.z_back - s.z; // Thickness
     if (totalThickness <= 0.0f) return {front, back};  // Should never happen if IsVolume is checked
 
     float front_ratio = (zSplit - s.z) / totalThickness;
@@ -77,7 +83,8 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
 
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
-                              DeepRow& outputRow, float merge_threshold) {
+                              const std::vector<float>& zOffsets, exrio::DeepRow& outputRow,
+                              float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     // We reuse this vector across pixels to avoid re-allocation
     static thread_local std::vector<RawSample> staging;
@@ -86,13 +93,19 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
     for (size_t i = 0; i < pixelDataPtrs.size(); ++i) {
         const float* data = pixelDataPtrs[i];
         unsigned int count = pixelSampleCounts[i];
+        float zOffset = (i < zOffsets.size()) ? zOffsets[i] : 0.0f;
 
         for (unsigned int s = 0; s < count; ++s) {
             // Offset is sample_index * 6 channels
             const float* sData = data + (s * 6);
             // Order: R, G, B, A, Z, zback
-            staging.push_back({sData[0], sData[1], sData[2], sData[3], sData[4],
-                               sData[5]});  // Using Z for ZBack as well if not present
+            RawSample sample{sData[0], sData[1], sData[2], sData[3], sData[4], sData[5]};
+            // Apply z-depth offset if non-zero
+            if (zOffset != 0.0f) {
+                sample.z += zOffset;
+                sample.z_back += zOffset;
+            }
+            staging.push_back(sample);
         }
     }
 
@@ -151,7 +164,8 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
-                                 DeepRow& outputRow, float merge_threshold) {
+                                 const std::vector<float>& zOffsets, exrio::DeepRow& outputRow,
+                                 float merge_threshold) {
     // 1. Collect all raw samples into a temporary flat vector
     static thread_local std::vector<RawSample> staging;
     staging.clear();
@@ -159,10 +173,17 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     for (size_t i = 0; i < pixelDataPtrs.size(); ++i) {
         const float* data = pixelDataPtrs[i];
         unsigned int count = pixelSampleCounts[i];
+        float zOffset = (i < zOffsets.size()) ? zOffsets[i] : 0.0f;
 
         for (unsigned int s = 0; s < count; ++s) {
             const float* sData = data + (s * 6);
-            staging.push_back({sData[0], sData[1], sData[2], sData[3], sData[4], sData[5]});
+            RawSample sample{sData[0], sData[1], sData[2], sData[3], sData[4], sData[5]};
+            // Apply z-depth offset if non-zero
+            if (zOffset != 0.0f) {
+                sample.z += zOffset;
+                sample.z_back += zOffset;
+            }
+            staging.push_back(sample);
         }
     }
 

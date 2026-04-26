@@ -1,6 +1,7 @@
 #include <exrio/deep_image.h>
 #include <exrio/deep_reader.h>
 #include <exrio/deep_writer.h>
+#include <exrio/utils.h>
 
 #include <cstring>
 #include <iostream>
@@ -9,9 +10,7 @@
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
-#include "deep_info.h"
 #include "deep_options.h"
-#include "utils.h"
 
 namespace deep_compositor {
 
@@ -123,11 +122,11 @@ bool parseArgs(int argc, char* argv[], Options& opts) {
         opts.input_z_offsets.push_back(0);  // Default offset for last file if not provided
     }
     // std::cerr << "There are " << opts.inputFiles.size() << " input files and " <<
-    // opts.inputZOffsets.size() << " Z offsets\n";
+    // opts.input_z_offsets.size() << " Z offsets\n";
 
-    // for (size_t i = 0; i < opts.inputZOffsets.size(); ++i) {
-    //     std::cerr << "Z Offset " << i << ": " << opts.inputZOffsets[i] << "\n";
-    // }
+    for (size_t i = 0; i < opts.input_z_offsets.size(); ++i) {
+        std::cerr << "Z Offset " << i << ": " << opts.input_z_offsets[i] << "\n";
+    }
 
     // Need at least one input and one output prefix
     if (opts.input_files.size() < 2) {
@@ -160,43 +159,43 @@ int main(int argc, char* argv[]) {
     }
 
     // Set verbose mode
-    SetVerbose(opts.verbose);
+    exrio::setVerbose(opts.verbose);
 
-    Log("Loom v" + std::string(VERSION));
+    exrio::log("Loom v" + std::string(VERSION));
 
-    Timer totalTimer;
+    exrio::Timer totalTimer;
 
-    Log("Loading inputs...");
-    Timer loadTimer;
+    exrio::log("Loading inputs...");
+    exrio::Timer loadTimer;
 
-    std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
+    std::vector<std::unique_ptr<exrio::DeepStreamReader>> imagesInfo;
 
     for (size_t i = 0; i < opts.input_files.size(); ++i) {
         const std::string& filename = opts.input_files[i];
 
-        LogVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.input_files.size()) +
-                   "] " + filename);
-        printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
+        exrio::logVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.input_files.size()) +
+                            "] " + filename);
+        printf("Psreloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
         try {
             // Check if it's a deep EXR
             if (!exrio::isDeepEXR(filename)) {
-                LogError("File is not a deep EXR: " + filename);
+                exrio::logError("File is not a deep EXR: " + filename);
                 return 1;
             }
 
-            auto img = std::make_unique<DeepInfo>(filename);
+            auto img = std::make_unique<exrio::DeepStreamReader>(filename);
             // Log statistics
             std::string stats =
-                "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
-            LogVerbose(stats);
+                "    " + std::to_string(img->getWidth()) + "x" + std::to_string(img->getHeight());
+            exrio::logVerbose(stats);
             if (!imagesInfo.empty()) {
-                if (img->width() != imagesInfo[0]->width() ||
-                    img->height() != imagesInfo[0]->height()) {
-                    LogError("Image dimensions mismatch: " + filename);
-                    LogError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
-                             std::to_string(imagesInfo[0]->height()));
-                    LogError("  Got: " + std::to_string(img->width()) + "x" +
-                             std::to_string(img->height()));
+                if (img->getWidth() != imagesInfo[0]->getWidth() ||
+                    img->getHeight() != imagesInfo[0]->getHeight()) {
+                    exrio::logError("Image dimensions mismatch: " + filename);
+                    exrio::logError("  Expected: " + std::to_string(imagesInfo[0]->getWidth()) + "x" +
+                                     std::to_string(imagesInfo[0]->getHeight()));
+                    exrio::logError("  Got: " + std::to_string(img->getWidth()) + "x" +
+                                     std::to_string(img->getHeight()));
                     return 1;
                 }
             }
@@ -204,32 +203,32 @@ int main(int argc, char* argv[]) {
             imagesInfo.push_back(std::move(img));
 
         } catch (const exrio::DeepReaderException& e) {
-            LogError("Failed to load " + filename + ": " + e.what());
+            exrio::logError("Failed to load " + filename + ": " + e.what());
             return 1;
         } catch (const std::exception& e) {
-            LogError("Unexpected error loading " + filename + ": " + e.what());
+            exrio::logError("Unexpected error loading " + filename + ": " + e.what());
             return 1;
         }
         if (!exrio::isDeepEXR(filename)) {
-            LogError("File is not a deep EXR: " + filename);
+            exrio::logError("File is not a deep EXR: " + filename);
             return 1;
         }
     }
-    int height = imagesInfo[0]->height();
-    int width = imagesInfo[0]->width();
+    int height = imagesInfo[0]->getHeight();
+    int width = imagesInfo[0]->getWidth();
 
-    Log("Starting processing...");
+    exrio::log("Starting processing...");
     std::vector<float> finalImage = ProcessAllEXR(opts, height, width, imagesInfo);
 
-    Log("\nWriting outputs...");
-    Timer writeTimer;
+    exrio::log("\nWriting To PNG...");
+    exrio::Timer writeTimer;
 
     try {
         // Write flat EXR if requested
         if (opts.flat_output) {
             std::string flatPath = opts.output_prefix + "_flat.exr";
             exrio::writeFlatEXR(finalImage, width, height, flatPath);
-            Log("  Wrote: " + flatPath);
+            exrio::log("  Wrote: " + flatPath);
         }
 
         // Write PNG if requested
@@ -238,24 +237,24 @@ int main(int argc, char* argv[]) {
 
             if (exrio::hasPNGSupport()) {
                 exrio::writePNG(finalImage, width, height, pngPath);
-                Log("  Wrote: " + pngPath);
+                exrio::log("  Wrote: " + pngPath);
             } else {
-                Log("  Skipped PNG (libpng not available)");
+                exrio::log("  Skipped PNG (libpng not available)");
             }
         }
 
     } catch (const exrio::DeepWriterException& e) {
-        LogError("Failed to write output: " + std::string(e.what()));
+        exrio::logError("Failed to write output: " + std::string(e.what()));
         return 1;
     }
 
-    // LogVerbose("  Write time: " + writeTimer.elapsedString());
+    // exrio::logVerbose("  Write time: " + writeTimer.elapsedString());
 
     // ========================================================================
     // Summary
     // ========================================================================
 
-    Log("\nDone! Total time: " + totalTimer.ElapsedString());
+    exrio::log("\nDone! Total time: " + totalTimer.elapsedString());
 
     return 0;
 }

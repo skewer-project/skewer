@@ -8,6 +8,8 @@
 #include <OpenEXR/ImfMultiPartInputFile.h>
 #include <OpenEXR/ImfPartType.h>
 #include <exrio/deep_reader.h>
+#include <exrio/deep_row.h>
+#include <exrio/deep_stream_reader.h>
 #include <exrio/deep_writer.h>
 
 #include <algorithm>
@@ -15,12 +17,13 @@
 #include <thread>
 #include <vector>
 
-#include "deep_info.h"
 #include "deep_merger.h"
-#include "deep_row.h"
-#include "utils.h"
+#include <exrio/utils.h>
 
 namespace deep_compositor {
+
+using exrio::DeepRow;
+using exrio::FlattenRow;
 
 // Main Pipeline Function
 // 1. Load deep EXR files into DeepImage objects
@@ -37,10 +40,10 @@ struct PipelineContext {
     int width;
     int window_size;
     int num_files;
-    std::vector<std::unique_ptr<DeepInfo>>& images_info;
+    std::vector<std::unique_ptr<exrio::DeepStreamReader>>& images_info;
 
-    std::vector<std::vector<DeepRow>>& input_buffer;
-    std::vector<DeepRow>& merged_buffer;
+    std::vector<std::vector<exrio::DeepRow>>& input_buffer;
+    std::vector<exrio::DeepRow>& merged_buffer;
     std::vector<std::atomic<int>>& row_status;
     std::atomic<int>& loaded_scanlines;
     std::atomic<int>& current_row;
@@ -64,10 +67,10 @@ void LoaderWorker(int start_row, int end_row, PipelineContext& ctx) {
         }
 
         for (int i = 0; i < ctx.num_files; ++i) {
-            Imf::DeepScanLineInputFile& file = ctx.images_info[i]->GetFile();
+            Imf::DeepScanLineInputFile& file = ctx.images_info[i]->getNativeHandle();
             DeepRow& row = ctx.input_buffer[i][slot];
 
-            const unsigned int* tempCounts = ctx.images_info[i]->GetSampleCountsForRow(load_y);
+            const unsigned int* tempCounts = ctx.images_info[i]->getSampleCountsForRow(load_y);
             row.Allocate(ctx.width, tempCounts);
 
             size_t sampleStride = NUM_CHANNELS * sizeof(float);
@@ -105,7 +108,7 @@ void LoaderWorker(int start_row, int end_row, PipelineContext& ctx) {
                                                        sampleStride));
 
             file.setFrameBuffer(frameBuffer);
-            int exr_y = load_y + ctx.images_info[i]->min_y();
+            int exr_y = load_y + ctx.images_info[i]->getMinY();
             file.readPixelSampleCounts(exr_y, exr_y);
             file.readPixels(exr_y, exr_y);
         }
@@ -154,7 +157,8 @@ void MergerWorker(int start_row, int end_row, PipelineContext& ctx) {
                 pixelSampleCounts.push_back(cnt);
                 runningPtrs[i] += cnt * 6;
             }
-            SortAndMergePixelsWithSplit(x, pixelDataPtrs, pixelSampleCounts, outputRow,
+            SortAndMergePixelsWithSplit(x, pixelDataPtrs, pixelSampleCounts,
+                                        ctx.opts.input_z_offsets, outputRow,
                                         ctx.opts.merge_threshold);
         }
         ctx.row_status[merge_y].store(MERGED);
@@ -200,23 +204,23 @@ void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
 }
 
 std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
-                                 std::vector<std::unique_ptr<DeepInfo>>& images_info) {
+                                 std::vector<std::unique_ptr<exrio::DeepStreamReader>>& images_info) {
     if ((width == 0 || height == 0) && !images_info.empty()) {
-        width = images_info[0]->width();
-        height = images_info[0]->height();
+        width = images_info[0]->getWidth();
+        height = images_info[0]->getHeight();
         printf("[Loom] Inherited dimensions from first input: %dx%d\n", width, height);
     }
 
     const int window_size = 48;
     int num_files = opts.input_files.size();
 
-    std::vector<std::vector<DeepRow>> m_inputBuffer(num_files);
+    std::vector<std::vector<exrio::DeepRow>> m_inputBuffer(num_files);
 
     for (int i = 0; i < num_files; ++i) {
         m_inputBuffer[i].resize(window_size);
     }
 
-    std::vector<DeepRow> m_mergedBuffer;
+    std::vector<exrio::DeepRow> m_mergedBuffer;
     m_mergedBuffer.resize(window_size);
 
     std::vector<std::atomic<int>> row_status(height);
@@ -276,7 +280,7 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
     if (opts.deep_output && deep_image) {
         std::string deepPath = opts.output_prefix + "_merged.exr";
         exrio::writeDeepEXR(*deep_image, deepPath);
-        Log("  Wrote: " + deepPath);
+        exrio::log("  Wrote: " + deepPath);
     }
 
     return final_image;
