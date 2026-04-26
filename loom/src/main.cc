@@ -4,9 +4,9 @@
 
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 
 #include "deep_compositor.h"
 #include "deep_info.h"

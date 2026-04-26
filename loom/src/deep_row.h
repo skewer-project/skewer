@@ -53,7 +53,7 @@ struct DeepRow {
 
         size_t total_capacity = static_cast<size_t>(width) * max_samples_per_pixel;
 
-        size_t required = total_capacity * 6; // for each channel
+        size_t required = total_capacity * 6;  // for each channel
         // make_unique handles 'new float[]' and ensures cleanup
         all_samples = std::make_unique<float[]>(required);
         current_capacity = required;
