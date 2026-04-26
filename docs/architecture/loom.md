@@ -1,70 +1,50 @@
 # Loom Compositor
 
-Loom is a deep compositor that merges multiple deep EXR layers into a final output.
+Loom is a deep compositor designed to merge multiple high-resolution deep EXR layers into a single, flattened image. In the new architecture, Loom runs as a final stage **Cloud Batch** job.
 
-## The Problem
+## Execution Model: Cloud Batch
 
-Deep images store per-pixel opacity as a function of depth. When merging layers (e.g., a character in front of volumetric fog), simple compositing doesn't work - you need to handle overlapping volumes correctly.
+Loom is orchestrated by **Cloud Workflows** to run only after all required layers have been rendered by Skewer.
 
-## The Solution: Interval Merge Algorithm
+1. **Dependency Check** - Cloud Workflow ensures all `skewer-worker` tasks for a frame have succeeded.
+2. **Job Spin-up** - Cloud Batch provisions an `e2-highmem-8` instance. High memory is critical for Loom as it must hold multiple deep EXR buffers simultaneously.
+3. **Merging** - Loom reads the deep EXR layers via **GCS FUSE** (`/mnt/data`), performs the interval merge, and writes the final output.
+4. **Cleanup** - The worker VM is terminated.
 
-Loom uses a 5-step algorithm to correctly merge deep EXRs:
+## Memory Management
 
-### 1. Boundary Collection
+Compositing deep EXR layers is extremely memory-intensive. Unlike standard images, deep pixels contain a variable number of samples. Loom uses a streaming row-based approach where possible, but still requires significant RAM for sorting and merging deep intervals.
 
-Collect all `z_front` and `z_back` values from both images and sort into unique "events".
+### Batch Profile
 
-### 2. Interval Generation
+| Resource | Value | Rationale |
+|----------|-------|-----------|
+| **Machine Type** | `e2-highmem-8` | High RAM-to-CPU ratio for large deep images. |
+| **CPU Milli** | `8000` | Full 8-core allocation for parallel pixel merging. |
+| **Memory MiB** | `32768` | 32GB minimum to handle complex layered composites. |
+| **Provisioning** | Standard | Avoids preemption during long merge operations. |
 
-Create discrete, non-overlapping depth segments from adjacent events.
+## The Interval Merge Algorithm
 
-### 3. Sample Splitting & Alpha Correction
+Loom's core logic remains focused on the correct handling of overlapping volumes:
 
-Split samples spanning multiple intervals. Alpha is adjusted using the **Alpha Power Law**:
+1. **Boundary Collection** - Gathers depth boundaries from all input layers.
+2. **Interval Generation** - Creates non-overlapping depth segments.
+3. **Sample Splitting** - Adjusts alpha values using the Alpha Power Law.
+4. **Normalization** - Sorts and prepares samples for flattening.
+5. **Flattening** - Applies the front-to-back "Over" operator.
 
-```
-A_new = 1 - (1 - A_orig)^(T_new / T_orig)
-```
+## Data I/O (GCS FUSE)
 
-### 4. Normalization
+Loom accesses inputs via environment variables provided by the workflow:
 
-Sort split samples by `z_front` - now non-overlapping.
-
-### 5. Flattening
-
-Apply standard "Over" operator front-to-back:
-
-```cpp
-for (auto& sample : sortedSamples) {
-    float remainingVisibility = 1.0f - finalAlpha;
-    accumulatedColor += sample.color * remainingVisibility;
-    finalAlpha += remainingVisibility * sample.alpha;
-}
-```
-
-## Architecture
-
-```
-Deep EXR Layer 1 ─┐
-Deep EXR Layer 2 ─┼─▶ Deep Merging ─▶ Flat EXR/PNG
-Deep EXR Layer 3 ─┘
-```
-
-## Usage
-
-```bash
-./loom --input layer1.exr,layer2.exr --output final.exr
-```
-
-| Flag | Description |
-|------|-------------|
-| `--input` | Comma-separated list of deep EXR paths |
-| `--output` | Output path |
-| `--width` | Image width |
-| `--height` | Image height |
-| `--png` | Also output PNG version |
+| Variable | Description |
+|----------|-------------|
+| `LAYER_URI_PREFIXES` | Comma-separated GCS FUSE paths to the rendered layers. |
+| `OUTPUT_URI_PREFIX` | GCS FUSE path for the final composited frame. |
 
 ## See Also
 
-- [Architecture Overview](overview.md) - System architecture
-- [Skewer](skewer.md) - Renderer with deep EXR output
+- [Architecture Overview](overview.md) - System-level architecture
+- [Skewer](skewer.md) - The renderer providing the deep EXR inputs
+- [GCP Deployment](../deployment/gcp.md) - Batch profile configurations
