@@ -14,8 +14,10 @@ terraform {
 }
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project               = var.project_id
+  region                = var.region
+  billing_project       = var.project_id
+  user_project_override = true
 }
 
 locals {
@@ -33,6 +35,8 @@ resource "google_project_service" "apis" {
     "artifactregistry.googleapis.com",
     "compute.googleapis.com",
     "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "identitytoolkit.googleapis.com",
     "logging.googleapis.com",
   ])
 

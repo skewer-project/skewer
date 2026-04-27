@@ -15,3 +15,14 @@ declare function showOpenFilePicker(options?: {
 	multiple?: boolean;
 	excludeAcceptAllOption?: boolean;
 }): Promise<FileSystemFileHandle[]>;
+
+// Vite env (set in `.env` — keys optional for typecheck without a local file)
+interface ImportMetaEnv {
+	readonly VITE_API_URL?: string;
+	readonly VITE_FIREBASE_API_KEY?: string;
+	readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
+	readonly VITE_FIREBASE_PROJECT_ID?: string;
+}
+interface ImportMeta {
+	readonly env: ImportMetaEnv;
+}

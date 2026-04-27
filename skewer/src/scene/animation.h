@@ -13,7 +13,8 @@ class InterpolationCurve;
 struct Keyframe {
     float time = 0.0f;
     TRS transform;
-    // Easing from this keyframe toward the next; ignored on last keyframe.
+    // Easing for the segment arriving at this keyframe from the previous one;
+    // ignored on the first keyframe.
     std::shared_ptr<const InterpolationCurve> curve;
 };
 

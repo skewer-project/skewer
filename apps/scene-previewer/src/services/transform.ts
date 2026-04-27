@@ -116,7 +116,7 @@ function solveBezierParameter(
 	return sampleBezierY(t, p1y, p2y);
 }
 
-/** Easing alpha in [0,1] for segment progress u in [0,1], using k0's curve (k0 → k1). */
+/** Easing alpha in [0,1] for segment progress u in [0,1], using k1's curve (k0 → k1). */
 export function evaluateBezierEasing(
 	curve: InterpCurve | undefined,
 	u: number,
@@ -222,7 +222,7 @@ export function evaluateTransformAt(
 
 	let localU = (time - k0.time) / dt;
 	localU = Math.min(1, Math.max(0, localU));
-	const alpha = evaluateBezierEasing(k0.curve, localU);
+	const alpha = evaluateBezierEasing(k1.curve, localU);
 	return interpolateResolved(k0, k1, alpha);
 }
 
@@ -293,7 +293,10 @@ export function applyStaticTransformToObject3D(
 	}
 }
 
-function visitSceneNodes(nodes: SceneNode[], fn: (n: SceneNode) => void) {
+export function visitSceneNodes(
+	nodes: SceneNode[],
+	fn: (n: SceneNode) => void,
+) {
 	for (const n of nodes) {
 		fn(n);
 		if (n.kind === "group") visitSceneNodes(n.children, fn);

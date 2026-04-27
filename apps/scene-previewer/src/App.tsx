@@ -5,9 +5,11 @@ import {
 	MaterialPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
+import { JobsPanel } from "./components/JobsPanel";
 import { RenderConfirmDialog } from "./components/RenderConfirmDialog";
 import { SceneInspector } from "./components/SceneInspector";
 import { Timeline } from "./components/Timeline";
+import { UserMenu } from "./components/UserMenu";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
 import {
@@ -33,6 +35,7 @@ import type {
 	SceneNode,
 } from "./types/scene";
 import { isAnimated } from "./types/scene";
+import { resumePendingJobs, startCloudRender } from "./services/cloud-render";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
@@ -330,6 +333,10 @@ function App() {
 		return () => window.removeEventListener("keydown", onKey);
 	}, [scene]);
 
+	useEffect(() => {
+		resumePendingJobs();
+	}, []);
+
 	return (
 		<div className="app-root">
 			{/* Full-screen viewport */}
@@ -353,6 +360,7 @@ function App() {
 			<div className="hud">
 				{/* Top-left: header panel */}
 				<div className="panel hud-header">
+					<UserMenu />
 					<button
 						type="button"
 						className={`wordmark${scene ? " wordmark-link" : ""}`}
@@ -422,7 +430,7 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "world" ? "active" : ""}`}
-								title="World (.)"
+								title="World"
 								onClick={() => setTransformSpace("world")}
 							>
 								Global
@@ -430,7 +438,7 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
-								title="Local (,)"
+								title="Local"
 								onClick={() => setTransformSpace("local")}
 							>
 								Local
@@ -503,6 +511,10 @@ function App() {
 					/>
 				)}
 
+				{scene && dirHandle && (
+					<JobsPanel scene={scene} dirHandle={dirHandle} />
+				)}
+
 				{scene && (
 					<div className="hud-bottom-stack">
 						<button
@@ -540,15 +552,20 @@ function App() {
 						endTime={renderEndTime}
 						fps={renderFps}
 						onCancel={() => setShowRenderDialog(false)}
-						onConfirm={() => {
+						onConfirm={async () => {
 							setShowRenderDialog(false);
-							console.log("Cloud Render Job Confirmed:", {
-								renderSettings,
-								renderStartTime,
-								renderEndTime,
-								renderFps,
-							});
-							// Backend integration will go here
+							if (!scene || !dirHandle) return;
+							setError("");
+							try {
+								await startCloudRender({
+									scene,
+									dir: dirHandle,
+									enableCache: true,
+								});
+							} catch (e) {
+								const msg = e instanceof Error ? e.message : String(e);
+								setError(msg);
+							}
 						}}
 					/>
 				)}

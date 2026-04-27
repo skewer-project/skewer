@@ -6,7 +6,7 @@ on:
 
 jobs:
   integration-tests:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 20
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache

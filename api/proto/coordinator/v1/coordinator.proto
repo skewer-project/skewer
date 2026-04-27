@@ -12,28 +12,15 @@ service CoordinatorService {
     rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
 }
 
-// PipelineLayer describes a single render layer within a pipeline.
-message PipelineLayer {
-    string layer_id = 1;   // Unique identifier for this layer (e.g. "smoke", "character")
-    string scene_uri = 2;  // GCS path to scene JSON (e.g. gs://bucket/scenes/smoke.json)
-    bool enable_cache = 3; // When true, use content-hash layer caching
-}
-
-// Camera parameters shared across all layers in a pipeline.
-message CameraParams {
-    repeated float look_from = 1; // [x, y, z]
-    repeated float look_at = 2;   // [x, y, z]
-    repeated float vup = 3;       // [x, y, z] (default 0,1,0)
-    float vfov = 4;               // Vertical field of view in degrees (default 90)
-}
-
+// SubmitPipelineRequest is the scene-first submission request.
+// The coordinator downloads scene_uri, parses it, classifies layers as
+// static or animated, derives num_frames from the animation block, and
+// orchestrates rendering without requiring callers to supply layer metadata.
 message SubmitPipelineRequest {
     string pipeline_id = 1;                 // Optional; server generates a UUID if empty
-    int32 num_frames = 2;                   // Total frames to render across all layers
-    repeated PipelineLayer layers = 3;
-    string composite_output_uri_prefix = 4; // GCS prefix for final composited frames
-    CameraParams camera = 5;               // Camera shared by all layers
-    repeated string context_uris = 6;      // GCS paths to context JSON files (lighting, invisible geo)
+    string scene_uri = 2;                   // GCS path to root scene.json (e.g. gs://bucket/scenes/scene.json)
+    string composite_output_uri_prefix = 3; // GCS prefix for final composited frames
+    bool enable_cache = 4;                  // Enable content-hash layer caching (default false)
 }
 
 message SubmitPipelineResponse {

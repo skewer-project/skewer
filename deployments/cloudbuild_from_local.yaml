@@ -1,20 +1,7 @@
 steps:
-  # Fetch LFS objects (Cloud Build's default checkout only pulls pointer files)
-  - name: gcr.io/cloud-builders/git
-    id: lfs-fetch
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        apt-get update && apt-get install -y --no-install-recommends git-lfs
-        rm -rf /var/lib/apt/lists/*
-        git lfs pull
-
   # Build Go coordinator image
   - name: gcr.io/cloud-builders/docker
     id: build-coordinator
-    waitFor:
-      - lfs-fetch
     entrypoint: bash
     args:
       - -c
@@ -40,8 +27,6 @@ steps:
   # Build Go API image
   - name: gcr.io/cloud-builders/docker
     id: build-api
-    waitFor:
-      - lfs-fetch
     entrypoint: bash
     args:
       - -c
@@ -67,8 +52,6 @@ steps:
   # Build skewer render worker image (C++ — needs high-CPU machine)
   - name: gcr.io/cloud-builders/docker
     id: build-skewer
-    waitFor:
-      - lfs-fetch
     entrypoint: bash
     args:
       - -c
@@ -94,8 +77,6 @@ steps:
   # Build loom composite worker image (C++ — runs in parallel with skewer build)
   - name: gcr.io/cloud-builders/docker
     id: build-loom
-    waitFor:
-      - lfs-fetch
     entrypoint: bash
     args:
       - -c
@@ -194,4 +175,4 @@ options:
   # default Cloud Build bucket.
   logging: CLOUD_LOGGING_ONLY
   env:
-    - 'DOCKER_BUILDKIT=1'
+    - "DOCKER_BUILDKIT=1"
