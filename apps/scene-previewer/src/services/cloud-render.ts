@@ -26,7 +26,7 @@ export { isNonTerminalStatus } from "./jobs-store";
 
 const UPLOAD_CONCURRENCY = 8;
 const MAX_POLL_MS = 10_000;
-const COMPOSITE_FALLBACK = "1.png";
+const COMPOSITE_FALLBACK = "frame-0001.png";
 
 function sleep(ms: number) {
 	return new Promise((r) => setTimeout(r, ms));
