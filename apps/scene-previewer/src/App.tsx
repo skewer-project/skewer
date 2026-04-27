@@ -504,7 +504,7 @@ function App() {
 					{scene && (
 						<button
 							type="button"
-							className={`${u.openBtn} ${u.openBtnPrimary}`}
+							className={`${u.openBtn}`}
 							onClick={() => setShowRenderDialog(true)}
 						>
 							<Cloud
