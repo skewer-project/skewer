@@ -1,6 +1,7 @@
 #ifndef LOOM_SRC_DEEP_ROW_H
 #define LOOM_SRC_DEEP_ROW_H
 
+#include <cstring>
 #include <memory>
 #include <vector>
 
