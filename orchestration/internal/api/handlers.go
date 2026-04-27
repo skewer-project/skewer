@@ -376,7 +376,10 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, "failed to sign artifact URL")
 		return
 	}
-	http.Redirect(w, r, u, http.StatusFound)
+	// Return the signed URL as JSON so the browser fetches GCS directly.
+	// A 302 redirect would cause the browser to send Origin: null (cross-origin
+	// redirect per the Fetch spec), which GCS CORS would reject.
+	writeJSON(w, http.StatusOK, map[string]string{"url": u})
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────
@@ -411,16 +414,19 @@ func httpError(w http.ResponseWriter, status int, msg string) {
 }
 
 // CORSMiddleware allows the previewer origins to call the API. origins is a
-// comma-separated list; "*" allows any origin (dev only).
+// comma-separated list; "*" allows any origin (dev only). Entries may contain
+// a single "*" wildcard in the subdomain position, e.g. "https://*.example.com".
 func CORSMiddleware(originsCSV string) func(http.Handler) http.Handler {
 	allowed := map[string]struct{}{}
+	var wildcards []string
 	allowAny := false
-	for _, o := range strings.Split(originsCSV, ",") {
+	for o := range strings.SplitSeq(originsCSV, ",") {
 		o = strings.TrimSpace(o)
 		if o == "*" {
 			allowAny = true
-		}
-		if o != "" {
+		} else if strings.Contains(o, "*") {
+			wildcards = append(wildcards, o)
+		} else if o != "" {
 			allowed[o] = struct{}{}
 		}
 	}
@@ -433,6 +439,14 @@ func CORSMiddleware(originsCSV string) func(http.Handler) http.Handler {
 				} else if _, ok := allowed[origin]; ok {
 					w.Header().Set("Access-Control-Allow-Origin", origin)
 					w.Header().Set("Vary", "Origin")
+				} else {
+					for _, pattern := range wildcards {
+						if wildcardOriginMatch(pattern, origin) {
+							w.Header().Set("Access-Control-Allow-Origin", origin)
+							w.Header().Set("Vary", "Origin")
+							break
+						}
+					}
 				}
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
@@ -445,4 +459,19 @@ func CORSMiddleware(originsCSV string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// wildcardOriginMatch reports whether origin matches a pattern like
+// "https://*.example.com", where * stands for exactly one subdomain label
+// (no dots or slashes allowed in the matched segment).
+func wildcardOriginMatch(pattern, origin string) bool {
+	prefix, suffix, found := strings.Cut(pattern, "*")
+	if !found {
+		return pattern == origin
+	}
+	if !strings.HasPrefix(origin, prefix) || !strings.HasSuffix(origin, suffix) {
+		return false
+	}
+	middle := origin[len(prefix) : len(origin)-len(suffix)]
+	return len(middle) > 0 && !strings.ContainsAny(middle, "/.")
 }
