@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AnimatedNodeTrack } from "../services/transform";
+import d from "./TimelineDopeSheet.module.css";
 import { TimelineGroupRow } from "./TimelineGroupRow";
 import { TimelineRow } from "./TimelineRow";
 
@@ -160,9 +161,9 @@ export function TimelineDopeSheet({
 	};
 
 	return (
-		<div className="timeline-dope-sheet panel">
+		<div className={`${d.dopeSheet} panel`}>
 			<div
-				className="timeline-dope-inner"
+				className={d.inner}
 				ref={innerRef}
 				onPointerDown={onInnerPointerDown}
 				onPointerMove={onInnerPointerMove}
@@ -172,13 +173,13 @@ export function TimelineDopeSheet({
 				{/* Full-height playhead overlay aligned to the track column. */}
 				{viewHasSpan && (
 					<div
-						className="timeline-dope-playhead"
+						className={d.playhead}
 						style={{ "--playhead-frac": playheadFrac } as React.CSSProperties}
 					/>
 				)}
 
 				{tracks.length === 0 ? (
-					<div className="timeline-dope-empty">No animated objects</div>
+					<div className={d.empty}>No animated objects</div>
 				) : (
 					tracks.map((track) => {
 						if (!isVisible(track)) return null;

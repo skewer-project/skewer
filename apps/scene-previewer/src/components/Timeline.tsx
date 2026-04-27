@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { AnimatedNodeTrack } from "../services/transform";
+import t from "./Timeline.module.css";
 import { TimelineDopeSheet } from "./TimelineDopeSheet";
 import { TimelineScrubber } from "./TimelineScrubber";
 
@@ -31,7 +32,7 @@ export function Timeline({
 	const [expanded, setExpanded] = useState(false);
 
 	return (
-		<div className="timeline-shell">
+		<div className={t.timelineShell}>
 			{expanded && (
 				<TimelineDopeSheet
 					key={`${animRange.start}-${animRange.end}`}

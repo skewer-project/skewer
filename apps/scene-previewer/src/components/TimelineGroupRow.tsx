@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AnimatedNodeTrack } from "../services/transform";
 import { KeyframeMarker } from "./KeyframeMarker";
+import r from "./TimelineRow.module.css";
 
 const TRACK_INSET_PX = 14;
 
@@ -90,29 +91,29 @@ export function TimelineGroupRow({
 	}, []);
 
 	return (
-		<div className="timeline-row timeline-group-row">
+		<div className={`${r.row} ${r.groupRow}`}>
 			<div
-				className="timeline-row-label"
+				className={r.label}
 				style={{ paddingLeft: 8 + indent }}
 				title={track.label}
 			>
 				<button
 					type="button"
-					className="timeline-row-expand"
+					className={r.expand}
 					onClick={onToggle}
 					aria-label={collapsed ? "Expand group" : "Collapse group"}
 				>
 					<ChevronRight
-						className={`timeline-row-expand-icon${collapsed ? "" : " timeline-row-expand-open"}`}
+						className={`${r.expandIcon}${collapsed ? "" : ` ${r.expandOpen}`}`}
 						size={12}
 						strokeWidth={2}
 						aria-hidden
 					/>
 				</button>
-				<span className="timeline-row-kind-badge">GRP</span>
-				<span className="timeline-row-name">{track.label}</span>
+				<span className={r.kindBadge}>GRP</span>
+				<span className={r.name}>{track.label}</span>
 			</div>
-			<div className="timeline-row-track" ref={trackRef}>
+			<div className={r.track} ref={trackRef}>
 				{hasSpan &&
 					track.keyframes.map((kf) => {
 						const realFrac = (kf.time - viewRange.start) / span;

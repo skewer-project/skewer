@@ -1,3 +1,5 @@
+import k from "./KeyframeMarker.module.css";
+
 /**
  * Shared diamond marker used in both the scrubber header track (variant="header")
  * and per-node dope-sheet rows (variant="row"). Positioned by the parent as a
@@ -17,11 +19,11 @@ export function KeyframeMarker({
 	dragging?: boolean;
 	onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
 }) {
-	const base = variant === "header" ? "timeline-kf-marker" : "timeline-row-kf";
+	const base = variant === "header" ? k.headerMarker : k.rowMarker;
 	const cls = [
 		base,
-		onPointerDown ? "draggable" : "",
-		dragging ? "dragging" : "",
+		onPointerDown ? k.draggable : "",
+		dragging ? k.dragging : "",
 	]
 		.filter(Boolean)
 		.join(" ");

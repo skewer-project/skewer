@@ -1,0 +1,42 @@
+.root {
+	min-width: 0;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 14px;
+	border-bottom: 1px solid var(--border);
+}
+
+.title {
+	font-family: var(--display);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	color: var(--t0);
+}
+
+.layerLabel {
+	font-size: 10px;
+	color: var(--t3);
+	margin-left: auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.section {
+	border-bottom: 1px solid var(--border);
+}
+
+.body {
+	padding: 10px 14px 14px;
+}
+
+/* Section heads inside the properties card — no bottom rule on the text row */
+.headInProperties {
+	border-bottom: none;
+	padding-bottom: 0;
+}

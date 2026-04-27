@@ -1,0 +1,37 @@
+.dopeSheet {
+	border-top: 1px solid var(--border);
+	border-left: none;
+	border-right: none;
+	border-bottom: none;
+	border-radius: 0;
+	overflow-y: auto;
+	max-height: min(40vh, 280px);
+	min-height: 60px;
+}
+
+.inner {
+	position: relative;
+}
+
+.playhead {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background: rgba(232, 165, 60, 0.4);
+	pointer-events: none;
+	z-index: 2;
+	left: calc(
+		220px +
+		var(--timeline-track-inset) +
+		var(--playhead-frac, 0) *
+		(100% - 220px - 2 * var(--timeline-track-inset))
+	);
+	transform: translateX(-50%);
+}
+
+.empty {
+	padding: 12px var(--timeline-track-inset);
+	color: var(--t3);
+	font-size: 11px;
+}
