@@ -62,7 +62,7 @@ function App() {
 		"translate" | "rotate" | "scale"
 	>("translate");
 	const [transformSpace, setTransformSpace] = useState<
-		"world" | "local" | "object"
+		"world" | "local"
 	>("world");
 
 	const [renderSettings, setRenderSettings] = useState<RenderConfig>({
@@ -419,14 +419,6 @@ function App() {
 								onClick={() => setTransformSpace("local")}
 							>
 								Local
-							</button>
-							<button
-								type="button"
-								className={`toolbar-btn ${transformSpace === "object" ? "active" : ""}`}
-								title="Object"
-								onClick={() => setTransformSpace("object")}
-							>
-								Object
 							</button>
 						</div>
 					</div>

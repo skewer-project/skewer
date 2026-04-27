@@ -32,6 +32,16 @@ import type {
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
 
+/** Get the world-space center of an object — bbox center if it has geometry, otherwise origin. */
+function getWorldCenter(obj: THREE.Object3D, out: THREE.Vector3): void {
+    const box = new THREE.Box3().setFromObject(obj);
+    if (!box.isEmpty()) {
+        box.getCenter(out);
+    } else {
+        obj.getWorldPosition(out);
+    }
+}
+
 /** Align perspective camera and orbit target with the scene file camera. */
 function syncOrbitCameraToScene(
 	cam: THREE.PerspectiveCamera,
@@ -129,7 +139,7 @@ interface Props {
 	/** Transform gizmo mode: "translate" | "rotate" | "scale" */
 	transformMode?: "translate" | "rotate" | "scale";
 	/** Coordinate space: "world" | "local" | "object" */
-	transformSpace?: "world" | "local" | "object";
+  transformSpace?: "world" | "local";
 	/** Called when gizmo transform changes */
 	onTransformChange?: (objectKey: string, transform: StaticTransform) => void;
 }
@@ -637,24 +647,16 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const worldPos = new THREE.Vector3();
 		const worldQuat = new THREE.Quaternion();
 
-		if (space === "object") {
-			// Position at geometric bounding box center, orient with object's local axes
-			const box = new THREE.Box3().setFromObject(nodeGrp);
-			if (!box.isEmpty()) {
-				box.getCenter(worldPos);
-			} else {
-				nodeGrp.getWorldPosition(worldPos);
-			}
-			nodeGrp.getWorldQuaternion(worldQuat);
-		} else if (space === "local") {
-			// Position at object origin in world space, orient with object's local axes
-			nodeGrp.getWorldPosition(worldPos);
-			nodeGrp.getWorldQuaternion(worldQuat);
-		} else {
-			// "world": position at object origin, gizmo axes align to world (identity quat)
-			nodeGrp.getWorldPosition(worldPos);
-			worldQuat.identity(); // ← world-aligned axes, no object rotation
-		}
+		// Gizmo always sits at the object's visual center (bbox), regardless of space.
+// Space only controls axis orientation.
+getWorldCenter(nodeGrp, worldPos);
+		
+if (space === "local") {
+    nodeGrp.getWorldQuaternion(worldQuat);
+} else {
+    // "world": axes align to world, identity quaternion
+    worldQuat.identity();
+}
 
 		proxy.position.copy(worldPos);
 		proxy.quaternion.copy(worldQuat);
@@ -797,23 +799,16 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		nodeGrp.updateMatrixWorld(true);
 
 		const worldPos = new THREE.Vector3();
-		const worldQuat = new THREE.Quaternion();
+const worldQuat = new THREE.Quaternion();
 
-		if (transformSpace === "object") {
-			const box = new THREE.Box3().setFromObject(nodeGrp);
-			if (!box.isEmpty()) {
-				box.getCenter(worldPos);
-			} else {
-				nodeGrp.getWorldPosition(worldPos);
-			}
-			nodeGrp.getWorldQuaternion(worldQuat);
-		} else if (transformSpace === "local") {
-			nodeGrp.getWorldPosition(worldPos);
-			nodeGrp.getWorldQuaternion(worldQuat);
-		} else {
-			nodeGrp.getWorldPosition(worldPos);
-			worldQuat.identity();
-		}
+// Always snap to visual center
+getWorldCenter(nodeGrp, worldPos);
+
+if (transformSpace === "local") {
+    nodeGrp.getWorldQuaternion(worldQuat);
+} else {
+    worldQuat.identity();
+}
 
 		proxy.position.copy(worldPos);
 		proxy.quaternion.copy(worldQuat);
