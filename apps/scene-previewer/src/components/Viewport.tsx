@@ -128,8 +128,8 @@ interface Props {
 	onSelectObject: (key: string | null) => void;
 	/** Transform gizmo mode: "translate" | "rotate" | "scale" */
 	transformMode?: "translate" | "rotate" | "scale";
-	/** Coordinate space: "world" | "local" */
-	transformSpace?: "world" | "local";
+	/** Coordinate space: "world" | "local" | "object" */
+	transformSpace?: "world" | "local" | "object";
 	/** Called when gizmo transform changes */
 	onTransformChange?: (objectKey: string, transform: StaticTransform) => void;
 }
@@ -611,9 +611,11 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const space = transformSpace ?? "world";
 
 		tctrl.setMode(mode);
-		tctrl.setSpace(space);
+		// TransformControls only understands "world" | "local"
+		// "object" is our custom mode meaning bbox-center + local axes
+		tctrl.setSpace(space === "world" ? "world" : "local");
 		latestTransformRef.current.mode = mode;
-		latestTransformRef.current.space = space;
+		latestTransformRef.current.space = space === "world" ? "world" : "local";
 
 		if (!selectedObjectKey) {
 			tctrl.detach();
@@ -630,11 +632,29 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const proxy = gizmoProxy.current;
 		if (!nodeGrp || !proxy) return;
 
-		// Snap proxy to target's world position — target STAYS in its parent, always
 		nodeGrp.updateMatrixWorld(true);
+
 		const worldPos = new THREE.Vector3();
 		const worldQuat = new THREE.Quaternion();
-		nodeGrp.matrixWorld.decompose(worldPos, worldQuat, new THREE.Vector3());
+
+		if (space === "object") {
+			// Position at geometric bounding box center, orient with object's local axes
+			const box = new THREE.Box3().setFromObject(nodeGrp);
+			if (!box.isEmpty()) {
+				box.getCenter(worldPos);
+			} else {
+				nodeGrp.getWorldPosition(worldPos);
+			}
+			nodeGrp.getWorldQuaternion(worldQuat);
+		} else if (space === "local") {
+			// Position at object origin in world space, orient with object's local axes
+			nodeGrp.getWorldPosition(worldPos);
+			nodeGrp.getWorldQuaternion(worldQuat);
+		} else {
+			// "world": position at object origin, gizmo axes align to world (identity quat)
+			nodeGrp.getWorldPosition(worldPos);
+			worldQuat.identity(); // ← world-aligned axes, no object rotation
+		}
 
 		proxy.position.copy(worldPos);
 		proxy.quaternion.copy(worldQuat);
@@ -778,13 +798,28 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 		const worldPos = new THREE.Vector3();
 		const worldQuat = new THREE.Quaternion();
-		nodeGrp.matrixWorld.decompose(worldPos, worldQuat, new THREE.Vector3());
+
+		if (transformSpace === "object") {
+			const box = new THREE.Box3().setFromObject(nodeGrp);
+			if (!box.isEmpty()) {
+				box.getCenter(worldPos);
+			} else {
+				nodeGrp.getWorldPosition(worldPos);
+			}
+			nodeGrp.getWorldQuaternion(worldQuat);
+		} else if (transformSpace === "local") {
+			nodeGrp.getWorldPosition(worldPos);
+			nodeGrp.getWorldQuaternion(worldQuat);
+		} else {
+			nodeGrp.getWorldPosition(worldPos);
+			worldQuat.identity();
+		}
 
 		proxy.position.copy(worldPos);
 		proxy.quaternion.copy(worldQuat);
 		proxy.scale.setScalar(1);
 		proxy.updateMatrixWorld(true);
-	}, [scene, currentTime, selectedObjectKey]);
+	}, [scene, currentTime, selectedObjectKey, transformSpace]);
 
 	// --- Click handler for raycasting ---
 	const handleClick = useCallback(

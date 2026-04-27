@@ -61,9 +61,9 @@ function App() {
 	const [transformMode, setTransformMode] = useState<
 		"translate" | "rotate" | "scale"
 	>("translate");
-	const [transformSpace, setTransformSpace] = useState<"world" | "local">(
-		"world",
-	);
+	const [transformSpace, setTransformSpace] = useState<
+		"world" | "local" | "object"
+	>("world");
 
 	const [renderSettings, setRenderSettings] = useState<RenderConfig>({
 		integrator: "path_trace",
@@ -407,7 +407,7 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "world" ? "active" : ""}`}
-								title="World (.)"
+								title="World"
 								onClick={() => setTransformSpace("world")}
 							>
 								Global
@@ -415,10 +415,18 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
-								title="Local (,)"
+								title="Local"
 								onClick={() => setTransformSpace("local")}
 							>
 								Local
+							</button>
+							<button
+								type="button"
+								className={`toolbar-btn ${transformSpace === "object" ? "active" : ""}`}
+								title="Object"
+								onClick={() => setTransformSpace("object")}
+							>
+								Object
 							</button>
 						</div>
 					</div>
