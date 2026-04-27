@@ -28,7 +28,7 @@ function compositePngName(status: StatusResponse): string {
 	const u = status.composite_output;
 	if (u) {
 		const m = u.replace(/\\/g, "/").match(/\/([^/]+\.png)\s*$/i);
-		if (m) return m[1]!;
+		if (m) return m[1] ?? COMPOSITE_FALLBACK;
 	}
 	return COMPOSITE_FALLBACK;
 }
@@ -45,7 +45,10 @@ async function runWithConcurrency<T, R>(
 		for (;;) {
 			const i = next++;
 			if (i >= items.length) return;
-			await fn(items[i]!);
+			const item = items[i];
+			if (item !== undefined) {
+				await fn(item);
+			}
 		}
 	};
 	await Promise.all(Array.from({ length: cap }, () => runWorker()));

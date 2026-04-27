@@ -56,9 +56,10 @@ export function UserMenu() {
 						)}
 					</button>
 					{open && (
-						<div
+						<button
+							type="button"
 							className="user-menu-backdrop"
-							role="presentation"
+							aria-label="Close menu"
 							onClick={() => setOpen(false)}
 						/>
 					)}

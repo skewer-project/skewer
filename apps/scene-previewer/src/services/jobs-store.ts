@@ -55,8 +55,9 @@ function prune() {
 		);
 		const i = jobs.findIndex((j) => j.id === drop.id);
 		if (i < 0) return;
-		if (jobs[i]!.compositeObjectURL) {
-			URL.revokeObjectURL(jobs[i]!.compositeObjectURL!);
+		const job = jobs[i];
+		if (job?.compositeObjectURL) {
+			URL.revokeObjectURL(job.compositeObjectURL);
 		}
 		jobs = jobs.filter((j) => j.id !== drop.id);
 	}

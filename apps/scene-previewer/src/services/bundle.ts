@@ -39,13 +39,13 @@ function parseMtllibNames(objText: string): string[] {
 function mtlMapPath(remainder: string): string {
 	const parts = remainder.trim().split(/\s+/);
 	for (let i = parts.length - 1; i >= 0; i--) {
-		const t = parts[i]!.replace(/\\/g, "/");
+		const t = parts[i]?.replace(/\\/g, "/") ?? "";
 		if (t.includes(".") && !t.startsWith("-")) {
 			return t;
 		}
 	}
 	if (parts.length) {
-		return parts[parts.length - 1]!.replace(/\\/g, "/");
+		return parts[parts.length - 1]?.replace(/\\/g, "/") ?? "";
 	}
 	return remainder.trim();
 }

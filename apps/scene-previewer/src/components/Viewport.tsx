@@ -34,12 +34,12 @@ import { isAnimated } from "../types/scene";
 
 /** Get the world-space center of an object — bbox center if it has geometry, otherwise origin. */
 function getWorldCenter(obj: THREE.Object3D, out: THREE.Vector3): void {
-    const box = new THREE.Box3().setFromObject(obj);
-    if (!box.isEmpty()) {
-        box.getCenter(out);
-    } else {
-        obj.getWorldPosition(out);
-    }
+	const box = new THREE.Box3().setFromObject(obj);
+	if (!box.isEmpty()) {
+		box.getCenter(out);
+	} else {
+		obj.getWorldPosition(out);
+	}
 }
 
 /** Align perspective camera and orbit target with the scene file camera. */
@@ -139,7 +139,7 @@ interface Props {
 	/** Transform gizmo mode: "translate" | "rotate" | "scale" */
 	transformMode?: "translate" | "rotate" | "scale";
 	/** Coordinate space: "world" | "local" | "object" */
-  transformSpace?: "world" | "local";
+	transformSpace?: "world" | "local";
 	/** Called when gizmo transform changes */
 	onTransformChange?: (objectKey: string, transform: StaticTransform) => void;
 }
@@ -648,15 +648,15 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		const worldQuat = new THREE.Quaternion();
 
 		// Gizmo always sits at the object's visual center (bbox), regardless of space.
-// Space only controls axis orientation.
-getWorldCenter(nodeGrp, worldPos);
-		
-if (space === "local") {
-    nodeGrp.getWorldQuaternion(worldQuat);
-} else {
-    // "world": axes align to world, identity quaternion
-    worldQuat.identity();
-}
+		// Space only controls axis orientation.
+		getWorldCenter(nodeGrp, worldPos);
+
+		if (space === "local") {
+			nodeGrp.getWorldQuaternion(worldQuat);
+		} else {
+			// "world": axes align to world, identity quaternion
+			worldQuat.identity();
+		}
 
 		proxy.position.copy(worldPos);
 		proxy.quaternion.copy(worldQuat);
@@ -799,16 +799,16 @@ if (space === "local") {
 		nodeGrp.updateMatrixWorld(true);
 
 		const worldPos = new THREE.Vector3();
-const worldQuat = new THREE.Quaternion();
+		const worldQuat = new THREE.Quaternion();
 
-// Always snap to visual center
-getWorldCenter(nodeGrp, worldPos);
+		// Always snap to visual center
+		getWorldCenter(nodeGrp, worldPos);
 
-if (transformSpace === "local") {
-    nodeGrp.getWorldQuaternion(worldQuat);
-} else {
-    worldQuat.identity();
-}
+		if (transformSpace === "local") {
+			nodeGrp.getWorldQuaternion(worldQuat);
+		} else {
+			worldQuat.identity();
+		}
 
 		proxy.position.copy(worldPos);
 		proxy.quaternion.copy(worldQuat);

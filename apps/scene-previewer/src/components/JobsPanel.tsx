@@ -58,29 +58,59 @@ function JobCard({
 			? Math.min(100, ((job.uploadedBytes ?? 0) / job.totalBytes) * 100)
 			: 0;
 
+	if (isTerminal) {
+		return (
+			<button
+				type="button"
+				className={`jobs-card jobs-card-terminal`}
+				onClick={() => onRemove(job.id)}
+			>
+				<div className="jobs-card-top">
+					<span className="jobs-card-title">{job.sceneName}</span>
+					{isNonTerminalStatus(job.status) && job.status === "running" && (
+						<button
+							type="button"
+							className="jobs-card-cancel"
+							onClick={(e) => {
+								e.stopPropagation();
+								void userCancelRender(job.id);
+							}}
+						>
+							<X />
+						</button>
+					)}
+				</div>
+				<div className="jobs-card-status-row">
+					{job.status === "uploading" && job.totalBytes ? (
+						<div
+							className="progress-bar-wrap"
+							role="progressbar"
+							aria-valuenow={Math.round(pct)}
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-label="Upload progress"
+						>
+							<div
+								className="progress-bar"
+								style={{ width: `${pct.toFixed(1)}%` }}
+							/>
+						</div>
+					) : isNonTerminalStatus(job.status) ? (
+						<Loader2 className="jobs-spinner" size={14} />
+					) : null}
+					<span className="jobs-status-txt">{statusLabel(job)}</span>
+				</div>
+				{job.error ? (
+					<div className="jobs-error" role="alert">
+						{job.error}
+					</div>
+				) : null}
+			</button>
+		);
+	}
+
 	return (
-		<div
-			className={`jobs-card${isTerminal ? " jobs-card-terminal" : ""}`}
-			role={isTerminal ? "button" : undefined}
-			tabIndex={isTerminal ? 0 : undefined}
-			onKeyDown={
-				isTerminal
-					? (e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								onRemove(job.id);
-							}
-						}
-					: undefined
-			}
-			onClick={
-				isTerminal
-					? (e) => {
-							if (e.target === e.currentTarget) onRemove(job.id);
-						}
-					: undefined
-			}
-		>
+		<li className="jobs-card">
 			<div className="jobs-card-top">
 				<span className="jobs-card-title">{job.sceneName}</span>
 				{isNonTerminalStatus(job.status) && job.status === "running" && (
@@ -109,7 +139,14 @@ function JobCard({
 			</div>
 			<div className="jobs-card-status-row">
 				{job.status === "uploading" && job.totalBytes ? (
-					<div className="progress-bar-wrap" aria-label="Upload progress">
+					<div
+						className="progress-bar-wrap"
+						role="progressbar"
+						aria-valuenow={Math.round(pct)}
+						aria-valuemin={0}
+						aria-valuemax={100}
+						aria-label="Upload progress"
+					>
 						<div
 							className="progress-bar"
 							style={{ width: `${pct.toFixed(1)}%` }}
@@ -162,7 +199,7 @@ function JobCard({
 					</button>
 				</div>
 			) : null}
-		</div>
+		</li>
 	);
 }
 
@@ -210,7 +247,7 @@ export function JobsPanel({
 					{jobs.length === 0 ? (
 						<div className="jobs-empty">No render jobs yet.</div>
 					) : (
-						<div className="jobs-list">
+						<ul className="jobs-list">
 							{jobs.map((j) => (
 								<JobCard
 									key={j.id}
@@ -220,7 +257,7 @@ export function JobsPanel({
 									onDownload={onDownload}
 								/>
 							))}
-						</div>
+						</ul>
 					)}
 				</div>
 			)}

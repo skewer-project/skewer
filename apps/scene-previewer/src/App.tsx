@@ -61,9 +61,9 @@ function App() {
 	const [transformMode, setTransformMode] = useState<
 		"translate" | "rotate" | "scale"
 	>("translate");
-	const [transformSpace, setTransformSpace] = useState<
-		"world" | "local"
-	>("world");
+	const [transformSpace, setTransformSpace] = useState<"world" | "local">(
+		"world",
+	);
 
 	const [renderSettings, setRenderSettings] = useState<RenderConfig>({
 		integrator: "path_trace",
