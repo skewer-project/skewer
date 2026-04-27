@@ -186,7 +186,9 @@ export function serializeLayerData(data: LayerData): Record<string, unknown> {
 	return o;
 }
 
-export function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
+export function serializeManifest(
+	scene: ResolvedScene,
+): Record<string, unknown> {
 	return {
 		camera: serializeCamera(scene.camera),
 		context: scene.contexts.map((l) => l.path),

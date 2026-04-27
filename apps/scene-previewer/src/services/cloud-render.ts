@@ -1,6 +1,12 @@
 import { getCurrentUser, signInWithGoogle } from "./auth";
 import { collectSceneBundle, type BundleFile } from "./bundle";
-import { cancelJob, fetchCompositeBlob, getJobStatus, initJob, submitJob } from "./api/jobs";
+import {
+	cancelJob,
+	fetchCompositeBlob,
+	getJobStatus,
+	initJob,
+	submitJob,
+} from "./api/jobs";
 import type { StatusResponse } from "./api/types";
 import { ApiError } from "./api/types";
 import type { CloudJob, CloudJobStatus } from "./cloud-job-types";
@@ -70,17 +76,17 @@ async function pollUntilDone(
 		try {
 			st = await getJobStatus(pipelineId);
 		} catch (e) {
-			markFailed(
-				pipelineId,
-				e instanceof Error ? e.message : String(e),
-			);
+			markFailed(pipelineId, e instanceof Error ? e.message : String(e));
 			return;
 		}
 		if (st === "pending") {
 			store.patchJob(pipelineId, { status: "running" });
 		} else {
 			const s = st.status;
-			if (s === "PIPELINE_STATUS_RUNNING" || s === "PIPELINE_STATUS_UNSPECIFIED") {
+			if (
+				s === "PIPELINE_STATUS_RUNNING" ||
+				s === "PIPELINE_STATUS_UNSPECIFIED"
+			) {
 				store.patchJob(pipelineId, { status: "running" });
 			} else if (s === "PIPELINE_STATUS_SUCCEEDED") {
 				const name = compositePngName(st);
@@ -176,25 +182,29 @@ export async function startCloudRender(args: {
 		});
 		activeId = pipelineId;
 
-		await runWithConcurrency(bundle, UPLOAD_CONCURRENCY, async (f: BundleFile) => {
-			if (ac.signal.aborted) {
-				throw new DOMException("aborted", "AbortError");
-			}
-			const url = init.upload_urls[f.path];
-			if (!url) {
-				throw new Error(`Missing signed URL for path ${f.path}`);
-			}
-			const res = await fetch(url, {
-				method: "PUT",
-				body: f.blob,
-				headers: { "Content-Type": f.contentType },
-				signal: ac.signal,
-			});
-			if (!res.ok) {
-				throw new Error(`PUT ${f.path} failed: ${res.status}`);
-			}
-			store.addUploadedBytes(activeId, f.blob.size);
-		});
+		await runWithConcurrency(
+			bundle,
+			UPLOAD_CONCURRENCY,
+			async (f: BundleFile) => {
+				if (ac.signal.aborted) {
+					throw new DOMException("aborted", "AbortError");
+				}
+				const url = init.upload_urls[f.path];
+				if (!url) {
+					throw new Error(`Missing signed URL for path ${f.path}`);
+				}
+				const res = await fetch(url, {
+					method: "PUT",
+					body: f.blob,
+					headers: { "Content-Type": f.contentType },
+					signal: ac.signal,
+				});
+				if (!res.ok) {
+					throw new Error(`PUT ${f.path} failed: ${res.status}`);
+				}
+				store.addUploadedBytes(activeId, f.blob.size);
+			},
+		);
 
 		if (ac.signal.aborted) return;
 		store.patchJob(activeId, { status: "submitting" });

@@ -1,7 +1,16 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { Loader2, X, RefreshCw, Download, ChevronUp } from "lucide-react";
-import { downloadCompositePng, startCloudRender, userCancelRender } from "../services/cloud-render";
-import { getSnapshot, removeJob, subscribe, isNonTerminalStatus } from "../services/jobs-store";
+import {
+	downloadCompositePng,
+	startCloudRender,
+	userCancelRender,
+} from "../services/cloud-render";
+import {
+	getSnapshot,
+	removeJob,
+	subscribe,
+	isNonTerminalStatus,
+} from "../services/jobs-store";
 import type { CloudJob } from "../services/cloud-job-types";
 import type { ResolvedScene } from "../types/scene";
 

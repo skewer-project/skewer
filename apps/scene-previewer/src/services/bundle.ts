@@ -71,9 +71,7 @@ function contentTypeForPath(filePath: string): string {
 }
 
 function objBaseDir(file: string): string {
-	return file.includes("/")
-		? `${file.split("/").slice(0, -1).join("/")}/`
-		: "";
+	return file.includes("/") ? `${file.split("/").slice(0, -1).join("/")}/` : "";
 }
 
 async function addMaterialTextures(
@@ -167,9 +165,7 @@ async function addObjMtlAndTextures(
 					contentType: contentTypeForPath(texPath),
 				});
 			} catch {
-				console.warn(
-					`[collectSceneBundle] texture not found: ${texPath}`,
-				);
+				console.warn(`[collectSceneBundle] texture not found: ${texPath}`);
 			}
 		}
 	}

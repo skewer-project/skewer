@@ -32,10 +32,13 @@ export async function submitJob(
 	id: string,
 	body: SubmitRequest,
 ): Promise<SubmitResponse> {
-	return await apiFetch<SubmitResponse>(`/v1/jobs/${encodeURIComponent(id)}/submit`, {
-		method: "POST",
-		body: JSON.stringify(body),
-	});
+	return await apiFetch<SubmitResponse>(
+		`/v1/jobs/${encodeURIComponent(id)}/submit`,
+		{
+			method: "POST",
+			body: JSON.stringify(body),
+		},
+	);
 }
 
 /** 409 = submit not done yet; caller should retry the poll. */
