@@ -73,7 +73,8 @@ class Scene {
     bool Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* si) const;
 
   private:
-    void ExtractInstancesFromGraph(const SceneNode& node, std::vector<AnimatedTransform> prefix);
+    void ExtractInstancesFromGraph(const SceneNode& node, std::vector<AnimatedTransform> prefix,
+                                   std::unordered_map<uint32_t, uint32_t>& mesh_to_blas);
     uint32_t EnsureBlasForMesh(uint32_t mesh_id,
                                std::unordered_map<uint32_t, uint32_t>& mesh_to_blas);
     void BuildLegacyMeshBvhAndLights();

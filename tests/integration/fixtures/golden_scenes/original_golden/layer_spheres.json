@@ -1,0 +1,122 @@
+{
+  "materials": {
+    "red_matte": {
+      "type": "lambertian",
+      "albedo": [
+        0.8,
+        0.2,
+        0.2
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true
+    },
+    "green_matte": {
+      "type": "lambertian",
+      "albedo": [
+        0.2,
+        0.8,
+        0.2
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true
+    },
+    "blue_matte": {
+      "type": "lambertian",
+      "albedo": [
+        0.2,
+        0.2,
+        0.8
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true
+    },
+    "white_emissive": {
+      "type": "lambertian",
+      "albedo": [
+        0.1,
+        0.1,
+        0.1
+      ],
+      "emission": [
+        2,
+        2,
+        2
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true
+    }
+  },
+  "objects": [
+    {
+      "type": "sphere",
+      "material": "red_matte",
+      "center": [
+        -1.5,
+        0,
+        0
+      ],
+      "radius": 1
+    },
+    {
+      "type": "sphere",
+      "material": "green_matte",
+      "center": [
+        0,
+        0,
+        0
+      ],
+      "radius": 1
+    },
+    {
+      "type": "sphere",
+      "material": "blue_matte",
+      "center": [
+        1.5,
+        0,
+        0
+      ],
+      "radius": 1
+    },
+    {
+      "type": "sphere",
+      "material": "white_emissive",
+      "center": [
+        0,
+        2,
+        -1
+      ],
+      "radius": 0.5
+    }
+  ]
+}

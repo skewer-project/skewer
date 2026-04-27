@@ -1,0 +1,122 @@
+{
+  "materials": {
+    "matte_white": {
+      "type": "lambertian",
+      "albedo": [
+        0.9,
+        0.9,
+        0.9
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true
+    },
+    "matte_red": {
+      "type": "lambertian",
+      "albedo": [
+        0.8,
+        0.1,
+        0.1
+      ],
+      "emission": [
+        0,
+        0,
+        0
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true
+    },
+    "emissive_white": {
+      "type": "lambertian",
+      "albedo": [
+        0,
+        0,
+        0
+      ],
+      "emission": [
+        10,
+        10,
+        10
+      ],
+      "opacity": [
+        1,
+        1,
+        1
+      ],
+      "visible": true
+    }
+  },
+  "objects": [
+    {
+      "type": "quad",
+      "material": "matte_white",
+      "vertices": [
+        [
+          4,
+          -1,
+          -4
+        ],
+        [
+          -4,
+          -1,
+          -4
+        ],
+        [
+          -4,
+          -1,
+          6
+        ],
+        [
+          4,
+          -1,
+          6
+        ]
+      ]
+    },
+    {
+      "type": "sphere",
+      "material": "matte_red",
+      "center": [
+        0,
+        0,
+        1
+      ],
+      "radius": 0.7
+    },
+    {
+      "type": "sphere",
+      "material": "emissive_white",
+      "center": [
+        1.5,
+        2,
+        1
+      ],
+      "radius": 0.3
+    }
+  ],
+  "render": {
+    "integrator": "path_trace",
+    "max_samples": 256,
+    "max_depth": 10,
+    "threads": 0,
+    "image": {
+      "width": 800,
+      "height": 450
+    },
+    "min_samples": 16,
+    "tile_size": 32,
+    "noise_threshold": 0.075
+  }
+}

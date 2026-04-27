@@ -12,6 +12,10 @@
 
 namespace skwr {
 
+// Top-Level Acceleration Structure: a BVH over all scene instances.
+// Each Instance references a BLAS with a transform chain. Traversal finds candidate instances,
+// transforms the ray to local space, intersects the BLAS, then transforms results back to world
+// space.
 class TLAS {
   public:
     void Build(std::vector<Instance>& instances);

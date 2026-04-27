@@ -1,6 +1,6 @@
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { ChevronRight } from "lucide-react";
-import { memo, type ReactNode, useCallback, useEffect, useState } from "react";
+import { memo, type ReactNode, useCallback, useMemo, useState } from "react";
 import {
 	countGraphNodes,
 	formatObjectPathKey,
@@ -10,6 +10,7 @@ import { displayLabel, kindShort } from "../services/node-labels";
 import type {
 	Camera,
 	Material,
+	RenderConfig,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneNode,
@@ -18,6 +19,7 @@ import type {
 import { isAnimated } from "../types/scene";
 import { AddMaterialDialog } from "./AddMaterialDialog";
 import { AddObjectDialog } from "./AddObjectDialog";
+import { RenderSettingsPanel } from "./RenderSettingsPanel";
 
 function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
@@ -242,15 +244,16 @@ const LayerCard = memo(function LayerCard({
 		() => new Set(),
 	);
 
-	useEffect(() => {
-		const add = ancestorOpenKeys(selectedObjectKey);
-		if (add.length === 0) return;
-		setExpandedPaths((prev) => {
-			const n = new Set(prev);
-			for (const k of add) n.add(k);
-			return n;
-		});
-	}, [selectedObjectKey]);
+	const autoExpanded = useMemo(
+		() => new Set(ancestorOpenKeys(selectedObjectKey)),
+		[selectedObjectKey],
+	);
+
+	const mergedExpanded = useMemo(() => {
+		const merged = new Set(expandedPaths);
+		for (const k of autoExpanded) merged.add(k);
+		return merged;
+	}, [expandedPaths, autoExpanded]);
 
 	const nodeCount = countGraphNodes(data.graph);
 
@@ -357,7 +360,7 @@ const LayerCard = memo(function LayerCard({
 								pathKey={pathKey}
 								depth={0}
 								selectedObjectKey={selectedObjectKey}
-								expandedPaths={expandedPaths}
+								expandedPaths={mergedExpanded}
 								onToggleExpand={toggleExpand}
 								onSelectObject={onSelectObject}
 								onAddChild={openAddDialog}
@@ -403,6 +406,14 @@ export function SceneInspector({
 	onAddGraphNode,
 	onAddMaterial,
 	dirHandle,
+	renderSettings,
+	onRenderSettingsChange,
+	startTime,
+	onStartTimeChange,
+	endTime,
+	onEndTimeChange,
+	fps,
+	onFpsChange,
 }: {
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
@@ -422,10 +433,29 @@ export function SceneInspector({
 		mat: Material,
 	) => void;
 	dirHandle: FileSystemDirectoryHandle;
+	renderSettings: RenderConfig;
+	onRenderSettingsChange: (s: RenderConfig) => void;
+	startTime: number;
+	onStartTimeChange: (n: number) => void;
+	endTime: number;
+	onEndTimeChange: (n: number) => void;
+	fps: number;
+	onFpsChange: (n: number) => void;
 }) {
 	return (
 		<div className="inspector">
 			<CameraSection camera={scene.camera} />
+
+			<RenderSettingsPanel
+				settings={renderSettings}
+				onSettingsChange={onRenderSettingsChange}
+				startTime={startTime}
+				onStartTimeChange={onStartTimeChange}
+				endTime={endTime}
+				onEndTimeChange={onEndTimeChange}
+				fps={fps}
+				onFpsChange={onFpsChange}
+			/>
 
 			{scene.contexts.length > 0 && (
 				<>

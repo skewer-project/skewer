@@ -95,6 +95,7 @@ body {
 	display: flex;
 	align-items: stretch;
 	height: 34px;
+	width: 318px;
 }
 
 .wordmark {
@@ -185,6 +186,60 @@ body {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	border-right: 1px solid var(--border-mid);
+}
+
+/* ── Transform toolbar (top-center) ──────────── */
+
+.hud-toolbar {
+	position: absolute;
+	top: 16px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: stretch;
+	height: 34px;
+	gap: 0;
+}
+
+.toolbar-group {
+	display: flex;
+	align-items: stretch;
+}
+
+.toolbar-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	border-right: 1px solid var(--border-mid);
+	color: var(--t2);
+	font-family: var(--mono);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	padding: 0 12px;
+	height: 100%;
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		background 0.12s;
+	white-space: nowrap;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+	color: var(--t1);
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.toolbar-btn.active {
+	background: var(--amber-lo);
+	border-color: var(--amber-border);
+	color: var(--amber);
+}
+
+.toolbar-sep {
+	width: 1px;
+	background: var(--border-mid);
 }
 
 /* ── Left sidebar ─────────────────────── */
@@ -1357,6 +1412,15 @@ button.data-row {
 .vec3-row {
 	display: grid;
 	grid-template-columns: 40px 1fr 1fr 1fr;
+	gap: 0 6px;
+	align-items: center;
+	min-height: 1.7lh;
+}
+
+/* Vec2 row: label + 2 number inputs */
+.vec2-row {
+	display: grid;
+	grid-template-columns: 40px 1fr 1fr;
 	gap: 0 6px;
 	align-items: center;
 	min-height: 1.7lh;

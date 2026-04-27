@@ -23,7 +23,7 @@ namespace skwr {
 namespace {
 
 Triangle TransformTriangleToWorld(const TRS& trs, const Triangle& L) {
-    Triangle W;
+    Triangle W = L;
     W.p0 = TRSApplyPoint(trs, L.p0);
     Vec3 p1 = TRSApplyPoint(trs, L.p0 + L.e1);
     Vec3 p2 = TRSApplyPoint(trs, L.p0 + L.e2);
@@ -32,15 +32,7 @@ Triangle TransformTriangleToWorld(const TRS& trs, const Triangle& L) {
     W.n0 = TRSApplyNormal(trs, L.n0);
     W.n1 = TRSApplyNormal(trs, L.n1);
     W.n2 = TRSApplyNormal(trs, L.n2);
-    W.uv0 = L.uv0;
-    W.uv1 = L.uv1;
-    W.uv2 = L.uv2;
-    W.material_id = L.material_id;
     W.light_index = -1;
-    W.interior_medium = L.interior_medium;
-    W.exterior_medium = L.exterior_medium;
-    W.priority = L.priority;
-    W.needs_tangent_frame = L.needs_tangent_frame;
     return W;
 }
 
@@ -128,19 +120,18 @@ uint32_t Scene::EnsureBlasForMesh(uint32_t mesh_id,
     return id;
 }
 
-void Scene::ExtractInstancesFromGraph(const SceneNode& node,
-                                      std::vector<AnimatedTransform> prefix) {
+void Scene::ExtractInstancesFromGraph(const SceneNode& node, std::vector<AnimatedTransform> prefix,
+                                      std::unordered_map<uint32_t, uint32_t>& mesh_to_blas) {
     std::vector<AnimatedTransform> chain = prefix;
     chain.push_back(node.anim_transform);
 
     switch (node.type) {
         case NodeType::Group:
             for (const SceneNode& ch : node.children) {
-                ExtractInstancesFromGraph(ch, chain);
+                ExtractInstancesFromGraph(ch, chain, mesh_to_blas);
             }
             break;
         case NodeType::Mesh: {
-            std::unordered_map<uint32_t, uint32_t> mesh_to_blas;
             for (uint32_t mesh_id : node.mesh_ids) {
                 uint32_t blas_id = EnsureBlasForMesh(mesh_id, mesh_to_blas);
                 if (blases_[blas_id].triangles.empty()) {
@@ -281,7 +272,8 @@ void Scene::Build() {
 
     if (graph_root_) {
         spheres_.clear();
-        ExtractInstancesFromGraph(*graph_root_, {});
+        std::unordered_map<uint32_t, uint32_t> mesh_to_blas;
+        ExtractInstancesFromGraph(*graph_root_, {}, mesh_to_blas);
         graph_root_.reset();
 
         float mid_t = 0.5f * (shutter_open_ + shutter_close_);

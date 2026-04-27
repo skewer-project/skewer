@@ -9,6 +9,9 @@
 
 namespace skwr {
 
+// A scene instance: a BLAS reference plus the animated transform chain that places it in the world.
+// Static instances cache a baked world-from-local TRS; animated ones evaluate the chain at
+// ray.time() during intersection.
 struct Instance {
     uint32_t blas_id = 0;
     std::vector<AnimatedTransform> transform_chain;

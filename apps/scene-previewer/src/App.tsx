@@ -1,10 +1,11 @@
-import { Camera } from "lucide-react";
+import { Camera, Cloud, Maximize, Move, Rotate3d } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
+import { RenderConfirmDialog } from "./components/RenderConfirmDialog";
 import { SceneInspector } from "./components/SceneInspector";
 import { Timeline } from "./components/Timeline";
 import type { ViewportHandle } from "./components/Viewport";
@@ -13,17 +14,25 @@ import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
-	updateNodeAtPath,
-} from "./services/graph-path";
+	resolveNodeAtPath,
+	updateNodeAtPath, 
+} from "./services/graph-path"; // check difference between resolve and update
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
+	applyStaticTransformToAnimatedAtTime,
 	collectAnimatedNodeTracks,
 	collectSceneKeyframeTimes,
+	evaluateTransformAt,
 	getAnimationRange,
 } from "./services/transform";
+import type {
+	Material,
+	RenderConfig,
+	ResolvedScene,
+	SceneNode,
+} from "./types/scene";
 import { isAnimated } from "./types/scene";
-import type { Material, ResolvedScene, SceneNode } from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
@@ -47,6 +56,29 @@ function App() {
 	const [selectedMaterialKey, setSelectedMaterialKey] = useState<string | null>(
 		null,
 	);
+	const [transformMode, setTransformMode] = useState<
+		"translate" | "rotate" | "scale"
+	>("translate");
+	const [transformSpace, setTransformSpace] = useState<"world" | "local">(
+		"world",
+	);
+
+	const [renderSettings, setRenderSettings] = useState<RenderConfig>({
+		integrator: "path_trace",
+		max_samples: 128,
+		min_samples: 16,
+		max_depth: 8,
+		threads: 0,
+		noise_threshold: 0.01,
+		enable_deep: false,
+		image: {
+			width: 1920,
+			height: 1080,
+		},
+	});
+	const [renderStartTime, setRenderStartTime] = useState(0);
+	const [renderEndTime, setRenderEndTime] = useState(0);
+	const [renderFps, setRenderFps] = useState(24);
 
 	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
@@ -59,6 +91,7 @@ function App() {
 	}, []);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
+	const [showRenderDialog, setShowRenderDialog] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -129,6 +162,43 @@ function App() {
 			setSelectedObjectKey(null);
 		},
 		[handleSceneEdit],
+	);
+
+	const handleTransformChange = useCallback(
+		(objectKey: string, transform: import("./types/scene").StaticTransform) => {
+			if (!scene) return;
+			const ctx = resolveNodeAtPath(scene, objectKey);
+			if (ctx) {
+				const tr = ctx.node.transform;
+				if (tr !== undefined && isAnimated(tr)) {
+					const nextAnim = applyStaticTransformToAnimatedAtTime(
+						tr,
+						currentTime,
+						transform,
+					);
+					const evaluated = evaluateTransformAt(nextAnim, currentTime);
+					handleSceneEdit((s) =>
+						updateNodeAtPath(s, objectKey, (o) => ({
+							...o,
+							transform: nextAnim,
+						})),
+					);
+					viewportRef.current?.applyPatch(scene, objectKey, {
+						kind: "node-transform",
+						value: evaluated,
+					});
+					return;
+				}
+			}
+			handleSceneEdit((s) =>
+				updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform })),
+			);
+			viewportRef.current?.applyPatch(scene, objectKey, {
+				kind: "node-transform",
+				value: transform,
+			});
+		},
+		[handleSceneEdit, scene, currentTime],
 	);
 
 	useEffect(() => {
@@ -270,8 +340,12 @@ function App() {
 					dirHandle={dirHandle}
 					sceneVersion={sceneVersion}
 					currentTime={currentTime}
+					isPlaying={isPlaying}
 					selectedObjectKey={selectedObjectKey}
 					onSelectObject={handleSelectObject}
+					transformMode={transformMode}
+					transformSpace={transformSpace}
+					onTransformChange={handleTransformChange}
 				/>
 			</div>
 
@@ -287,6 +361,20 @@ function App() {
 					>
 						Skewer
 					</button>
+					{scene && (
+						<button
+							type="button"
+							className="open-btn"
+							style={{ flex: 1 }}
+							onClick={() => setShowRenderDialog(true)}
+						>
+							<Cloud
+								size={14}
+								style={{ verticalAlign: "middle", marginRight: "6px" }}
+							/>
+							Render
+						</button>
+					)}
 					{scene && hasUnsavedChanges && (
 						<button
 							type="button"
@@ -300,6 +388,57 @@ function App() {
 					{error && <span className="error-msg">{error}</span>}
 				</div>
 
+				{/* Transform mode toolbar */}
+				{scene && selectedObjectKey && (
+					<div className="panel hud-toolbar">
+						<div className="toolbar-group">
+							<button
+								type="button"
+								className={`toolbar-btn ${transformMode === "translate" ? "active" : ""}`}
+								title="Move (G)"
+								onClick={() => setTransformMode("translate")}
+							>
+								<Move size={16} />
+							</button>
+							<button
+								type="button"
+								className={`toolbar-btn ${transformMode === "rotate" ? "active" : ""}`}
+								title="Rotate (R)"
+								onClick={() => setTransformMode("rotate")}
+							>
+								<Rotate3d size={16} />
+							</button>
+							<button
+								type="button"
+								className={`toolbar-btn ${transformMode === "scale" ? "active" : ""}`}
+								title="Scale (S)"
+								onClick={() => setTransformMode("scale")}
+							>
+								<Maximize size={16} />
+							</button>
+						</div>
+						<div className="toolbar-sep" />
+						<div className="toolbar-group">
+							<button
+								type="button"
+								className={`toolbar-btn ${transformSpace === "world" ? "active" : ""}`}
+								title="World (.)"
+								onClick={() => setTransformSpace("world")}
+							>
+								Global
+							</button>
+							<button
+								type="button"
+								className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
+								title="Local (,)"
+								onClick={() => setTransformSpace("local")}
+							>
+								Local
+							</button>
+						</div>
+					</div>
+				)}
+
 				{/* Left sidebar: scene inspector */}
 				{scene && dirHandle && (
 					<div className="panel hud-sidebar">
@@ -312,6 +451,14 @@ function App() {
 							onAddGraphNode={handleAddGraphNode}
 							onAddMaterial={handleAddMaterial}
 							dirHandle={dirHandle}
+							renderSettings={renderSettings}
+							onRenderSettingsChange={setRenderSettings}
+							startTime={renderStartTime}
+							onStartTimeChange={setRenderStartTime}
+							endTime={renderEndTime}
+							onEndTimeChange={setRenderEndTime}
+							fps={renderFps}
+							onFpsChange={setRenderFps}
 						/>
 					</div>
 				)}
@@ -383,6 +530,27 @@ function App() {
 							)}
 						</div>
 					</div>
+				)}
+
+				{/* Render Confirmation Dialog */}
+				{scene && showRenderDialog && (
+					<RenderConfirmDialog
+						settings={renderSettings}
+						startTime={renderStartTime}
+						endTime={renderEndTime}
+						fps={renderFps}
+						onCancel={() => setShowRenderDialog(false)}
+						onConfirm={() => {
+							setShowRenderDialog(false);
+							console.log("Cloud Render Job Confirmed:", {
+								renderSettings,
+								renderStartTime,
+								renderEndTime,
+								renderFps,
+							});
+							// Backend integration will go here
+						}}
+					/>
 				)}
 
 				{/* Landing page */}
