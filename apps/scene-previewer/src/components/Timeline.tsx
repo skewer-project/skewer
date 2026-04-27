@@ -1,5 +1,6 @@
 import { Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
+import t from "./Timeline.module.css";
 
 export interface TimelineProps {
 	currentTime: number;
@@ -71,11 +72,11 @@ export function Timeline({
 	};
 
 	return (
-		<div className="timeline panel">
-			<div className="timeline-controls">
+		<div className={`${t.timeline} panel`}>
+			<div className={t.controls}>
 				<button
 					type="button"
-					className="timeline-play-btn"
+					className={t.playBtn}
 					onPointerDown={onPlayPointerDown}
 					onClick={onTogglePlay}
 					aria-label={isPlaying ? "Pause" : "Play"}
@@ -87,11 +88,11 @@ export function Timeline({
 						<Play size={14} strokeWidth={2} aria-hidden />
 					)}
 				</button>
-				<span className="timeline-time">{currentTime.toFixed(2)}s</span>
+				<span className={t.time}>{currentTime.toFixed(2)}s</span>
 			</div>
 			<div
 				ref={trackRef}
-				className="timeline-track"
+				className={t.track}
 				onPointerDown={onTrackPointerDown}
 				role="slider"
 				tabIndex={0}
@@ -100,26 +101,23 @@ export function Timeline({
 				aria-valuenow={currentTime}
 				aria-label="Animation timeline"
 			>
-				<div className="timeline-track-inner">
+				<div className={t.trackInner}>
 					{hasSpan &&
-						keyframeTimes?.map((t) => {
-							const f = (t - animRange.start) / span;
+						keyframeTimes?.map((tk) => {
+							const f = (tk - animRange.start) / span;
 							if (f < 0 || f > 1) return null;
 							return (
 								<div
-									key={`kf-marker-${t}`}
-									className="timeline-kf-marker"
+									key={`kf-marker-${tk}`}
+									className={t.kfMarker}
 									style={{ left: `${f * 100}%` }}
 								/>
 							);
 						})}
-					<div
-						className="timeline-playhead"
-						style={{ left: `${playheadPct}%` }}
-					/>
+					<div className={t.playhead} style={{ left: `${playheadPct}%` }} />
 				</div>
 			</div>
-			<span className="timeline-end-label">
+			<span className={t.endLabel}>
 				{hasSpan ? `${animRange.end.toFixed(2)}s` : "—"}
 			</span>
 		</div>

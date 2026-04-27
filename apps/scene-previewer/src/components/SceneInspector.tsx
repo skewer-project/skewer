@@ -6,6 +6,7 @@ import {
 	formatObjectPathKey,
 	parseObjectPathKey,
 } from "../services/graph-path";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type {
 	Camera,
 	Material,
@@ -21,6 +22,7 @@ import { AddMaterialDialog } from "./AddMaterialDialog";
 import { AddMediumDialog } from "./AddMediumDialog";
 import { AddObjectDialog } from "./AddObjectDialog";
 import { RenderSettingsPanel } from "./RenderSettingsPanel";
+import s from "./SceneInspector.module.css";
 
 function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
@@ -73,34 +75,34 @@ const CameraSection = memo(function CameraSection({
 }) {
 	return (
 		<>
-			<div className="inspector-section-head">Camera</div>
-			<div className="camera-block">
-				<div className="kv-table">
-					<div className="kv-row">
-						<span className="kv-key">from</span>
-						<span className="kv-val">{vec3(camera.look_from)}</span>
+			<div className={u.inspectorSectionHead}>Camera</div>
+			<div className={u.cameraBlock}>
+				<div className={u.kvTable}>
+					<div className={u.kvRow}>
+						<span className={u.kvKey}>from</span>
+						<span className={u.kvVal}>{vec3(camera.look_from)}</span>
 					</div>
-					<div className="kv-row">
-						<span className="kv-key">at</span>
-						<span className="kv-val">{vec3(camera.look_at)}</span>
+					<div className={u.kvRow}>
+						<span className={u.kvKey}>at</span>
+						<span className={u.kvVal}>{vec3(camera.look_at)}</span>
 					</div>
-					<div className="kv-row">
-						<span className="kv-key">vup</span>
-						<span className="kv-val">{vec3(camera.vup)}</span>
+					<div className={u.kvRow}>
+						<span className={u.kvKey}>vup</span>
+						<span className={u.kvVal}>{vec3(camera.vup)}</span>
 					</div>
-					<div className="kv-row">
-						<span className="kv-key">vfov</span>
-						<span className="kv-val">{camera.vfov}°</span>
+					<div className={u.kvRow}>
+						<span className={u.kvKey}>vfov</span>
+						<span className={u.kvVal}>{camera.vfov}°</span>
 					</div>
 					{camera.aperture_radius > 0 && (
 						<>
-							<div className="kv-row">
-								<span className="kv-key">aper</span>
-								<span className="kv-val">{camera.aperture_radius}</span>
+							<div className={u.kvRow}>
+								<span className={u.kvKey}>aper</span>
+								<span className={u.kvVal}>{camera.aperture_radius}</span>
 							</div>
-							<div className="kv-row">
-								<span className="kv-key">focus</span>
-								<span className="kv-val">{camera.focus_distance}</span>
+							<div className={u.kvRow}>
+								<span className={u.kvKey}>focus</span>
+								<span className={u.kvVal}>{camera.focus_distance}</span>
 							</div>
 						</>
 					)}
@@ -156,19 +158,19 @@ const SceneTreeNode = memo(function SceneTreeNode({
 		}
 		return (
 			<Collapsible.Root
-				className="scene-tree-details"
+				className={s.sceneTreeDetails}
 				open={open}
 				onOpenChange={(next) => onToggleExpand(pathKey, next)}
 			>
-				<div className="scene-tree-summary" style={{ paddingLeft: pad }}>
+				<div className={s.sceneTreeSummary} style={{ paddingLeft: pad }}>
 					<Collapsible.Trigger asChild>
 						<button
 							type="button"
-							className="scene-tree-expand"
+							className={s.sceneTreeExpand}
 							aria-label={open ? "Collapse group" : "Expand group"}
 						>
 							<ChevronRight
-								className="scene-tree-expand-icon"
+								className={s.sceneTreeExpandIcon}
 								aria-hidden
 								size={18}
 								strokeWidth={2}
@@ -177,49 +179,49 @@ const SceneTreeNode = memo(function SceneTreeNode({
 					</Collapsible.Trigger>
 					<button
 						type="button"
-						className={`data-row data-row-clickable scene-tree-row${isSel ? " data-row-selected" : ""}`}
+						className={`${u.dataRow} ${u.dataRowClickable} ${s.sceneTreeRow}${isSel ? ` ${u.dataRowSelected}` : ""}`}
 						onClick={() => onSelectObject(isSel ? null : pathKey)}
 					>
-						<span className="data-type">{kindShort(node)}</span>{" "}
-						<span className="data-name">{displayLabel(node, pathKey)}</span>
+						<span className={u.dataType}>{kindShort(node)}</span>{" "}
+						<span className={u.dataName}>{displayLabel(node, pathKey)}</span>
 						{isAnimated(node.transform) && (
-							<span className="data-type" title="animated">
+							<span className={u.dataType} title="animated">
 								{" \u23F1"}
 							</span>
 						)}
-						<span className="data-type"> ({childCount})</span>
+						<span className={u.dataType}> ({childCount})</span>
 					</button>
 					<button
 						type="button"
-						className="layer-add-btn scene-tree-add"
+						className={`${u.layerAddBtn} ${s.sceneTreeAdd}`}
 						title="Add child"
 						onClick={() => onAddChild(pathKey)}
 					>
 						+
 					</button>
 				</div>
-				<Collapsible.Content className="scene-tree-collapsible-content">
-					<div className="scene-tree-children">{childRows}</div>
+				<Collapsible.Content>
+					<div className={s.sceneTreeChildren}>{childRows}</div>
 				</Collapsible.Content>
 			</Collapsible.Root>
 		);
 	}
 
 	return (
-		<div className="scene-tree-leaf" style={{ paddingLeft: pad }}>
+		<div className={s.sceneTreeLeaf} style={{ paddingLeft: pad }}>
 			<button
 				type="button"
-				className={`data-row data-row-clickable scene-tree-row${isSel ? " data-row-selected" : ""}`}
+				className={`${u.dataRow} ${u.dataRowClickable} ${s.sceneTreeRow}${isSel ? ` ${u.dataRowSelected}` : ""}`}
 				onClick={(e) => {
 					e.stopPropagation();
 					onSelectObject(isSel ? null : pathKey);
 				}}
 			>
-				<span className="scene-tree-leaf-spacer" aria-hidden="true" />
-				<span className="data-type">{kindShort(node)}</span>{" "}
-				<span className="data-name">{displayLabel(node, pathKey)}</span>
+				<span className={s.sceneTreeLeafSpacer} aria-hidden="true" />
+				<span className={u.dataType}>{kindShort(node)}</span>{" "}
+				<span className={u.dataName}>{displayLabel(node, pathKey)}</span>
 				{isAnimated(node.transform) && (
-					<span className="data-type" title="animated">
+					<span className={u.dataType} title="animated">
 						{" \u23F1"}
 					</span>
 				)}
@@ -316,37 +318,37 @@ const LayerCard = memo(function LayerCard({
 	const listTag = keyPrefix as "ctx" | "lyr";
 
 	return (
-		<Collapsible.Root defaultOpen className="layer-card">
+		<Collapsible.Root defaultOpen className={u.layerCard}>
 			<Collapsible.Trigger asChild>
-				<button type="button" className="layer-summary">
+				<button type="button" className={u.layerSummary}>
 					<ChevronRight
-						className="layer-chevron-icon"
+						className={u.layerChevronIcon}
 						size={18}
 						strokeWidth={2}
 						aria-hidden
 					/>
 					<span
-						className={`layer-tag ${tag === "context" ? "layer-tag-ctx" : "layer-tag-lyr"}`}
+						className={`${u.layerTag} ${tag === "context" ? u.layerTagCtx : u.layerTagLyr}`}
 					>
 						{tag === "context" ? "CTX" : "LYR"}
 					</span>
-					<span className="layer-name">
+					<span className={u.layerName}>
 						{name}
 						{data.visible === false ? " ·hidden" : ""}
 					</span>
-					<span className="layer-counts">
+					<span className={u.layerCounts}>
 						{matNames.length}m · {medNames.length}v · {nodeCount}n
 					</span>
 				</button>
 			</Collapsible.Trigger>
 
-			<Collapsible.Content className="layer-collapsible-content">
-				<div className="layer-body">
-					<div className="layer-sub-head layer-sub-head-action">
+			<Collapsible.Content>
+				<div className={u.layerBody}>
+					<div className={`${u.layerSubHead} ${u.layerSubHeadAction}`}>
 						<span>Materials</span>
 						<button
 							type="button"
-							className="layer-add-btn"
+							className={u.layerAddBtn}
 							title="Add material"
 							onClick={(e) => {
 								e.stopPropagation();
@@ -363,14 +365,14 @@ const LayerCard = memo(function LayerCard({
 							<button
 								type="button"
 								key={n}
-								className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+								className={`${u.dataRow} ${u.dataRowClickable}${isSelected ? ` ${u.dataRowSelected}` : ""}`}
 								onClick={(e) => {
 									e.stopPropagation();
 									onSelectMaterial(isSelected ? null : key);
 								}}
 							>
-								<span className="data-name">{n}</span>{" "}
-								<span className="data-type">[{data.materials[n].type}]</span>
+								<span className={u.dataName}>{n}</span>{" "}
+								<span className={u.dataType}>[{data.materials[n].type}]</span>
 							</button>
 						);
 					})}
@@ -379,7 +381,7 @@ const LayerCard = memo(function LayerCard({
 						<span>Media</span>
 						<button
 							type="button"
-							className="layer-add-btn"
+							className={u.layerAddBtn}
 							title="Add medium"
 							onClick={(e) => {
 								e.stopPropagation();
@@ -409,11 +411,45 @@ const LayerCard = memo(function LayerCard({
 						);
 					})}
 
-					<div className="layer-sub-head layer-sub-head-action">
+					<div className={`${u.layerSubHead} ${u.layerSubHeadAction}`}>
+						<span>Media</span>
+						<button
+							type="button"
+							className={u.layerAddBtn}
+							title="Add medium"
+							onClick={(e) => {
+								e.stopPropagation();
+								setShowAddMedium(true);
+							}}
+						>
+							+
+						</button>
+					</div>
+					{medNames.map((n) => {
+						const key = `${keyPrefix}:${layerIdx}:med:${n}`;
+						const isSelected = key === selectedMediumKey;
+						const med = data.media?.[n];
+						return (
+							<button
+								type="button"
+								key={n}
+								className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+								onClick={(e) => {
+									e.stopPropagation();
+									onSelectMedium(isSelected ? null : key);
+								}}
+							>
+								<span className="data-name">{n}</span>{" "}
+								<span className="data-type">[{med?.type}]</span>
+							</button>
+						);
+					})}
+
+					<div className={`${u.layerSubHead} ${u.layerSubHeadAction}`}>
 						<span>Graph</span>
 						<button
 							type="button"
-							className="layer-add-btn"
+							className={u.layerAddBtn}
 							title="Add root node"
 							onClick={(e) => {
 								e.stopPropagation();
@@ -542,7 +578,7 @@ export function SceneInspector({
 	onFpsChange: (n: number) => void;
 }) {
 	return (
-		<div className="inspector">
+		<div className={s.inspectRoot}>
 			<CameraSection camera={scene.camera} />
 
 			<RenderSettingsPanel
@@ -558,7 +594,7 @@ export function SceneInspector({
 
 			{scene.contexts.length > 0 && (
 				<>
-					<div className="inspector-section-head">Contexts</div>
+					<div className={u.inspectorSectionHead}>Contexts</div>
 					{scene.contexts.map((ctx, i) => (
 						<LayerCard
 							key={ctx.path}
@@ -582,7 +618,7 @@ export function SceneInspector({
 
 			{scene.layers.length > 0 && (
 				<>
-					<div className="inspector-section-head">Layers</div>
+					<div className={u.inspectorSectionHead}>Layers</div>
 					{scene.layers.map((layer, i) => (
 						<LayerCard
 							key={layer.path}

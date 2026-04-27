@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { Vec3 } from "../types/scene";
 
 // ── NumberField ─────────────────────────────────────────────
@@ -143,7 +144,7 @@ export const NumberField = memo(function NumberField({
 	const input = (
 		<input
 			type="number"
-			className="num-input"
+			className={u.numInput}
 			value={displayValue}
 			step={step}
 			min={min}
@@ -159,9 +160,9 @@ export const NumberField = memo(function NumberField({
 	if (inline) return input;
 
 	return (
-		<div className="kv-row">
+		<div className={u.kvRow}>
 			<span
-				className="kv-key num-label"
+				className={`${u.kvKey} ${u.numLabel}`}
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
 				onPointerUp={handlePointerUp}
@@ -219,13 +220,13 @@ export const Vec2Field = memo(function Vec2Field({
 	);
 
 	return (
-		<div className="vec2-row">
-			<span className="kv-key" style={{ alignSelf: "center" }}>
+		<div className={u.vec2Row}>
+			<span className={u.kvKey} style={{ alignSelf: "center" }}>
 				{label || ""}
 			</span>
 			{([0, 1] as const).map((i) => (
-				<div key={componentLabels[i]} className="vec3-cell">
-					<span className="vec3-component">{componentLabels[i]}</span>
+				<div key={componentLabels[i]} className={u.vec3Cell}>
+					<span className={u.vec3Component}>{componentLabels[i]}</span>
 					<NumberField
 						label=""
 						value={value[i]}
@@ -288,13 +289,13 @@ export const Vec3Field = memo(function Vec3Field({
 	);
 
 	return (
-		<div className="vec3-row">
-			<span className="kv-key" style={{ alignSelf: "center" }}>
+		<div className={u.vec3Row}>
+			<span className={u.kvKey} style={{ alignSelf: "center" }}>
 				{label}
 			</span>
 			{([0, 1, 2] as const).map((i) => (
-				<div key={componentLabels[i]} className="vec3-cell">
-					<span className="vec3-component">{componentLabels[i]}</span>
+				<div key={componentLabels[i]} className={u.vec3Cell}>
+					<span className={u.vec3Component}>{componentLabels[i]}</span>
 					<NumberField
 						label=""
 						value={value[i]}
@@ -325,11 +326,11 @@ export const Toggle = memo(function Toggle({
 	onChange,
 }: ToggleProps) {
 	return (
-		<div className="kv-row">
-			<span className="kv-key">{label}</span>
+		<div className={u.kvRow}>
+			<span className={u.kvKey}>{label}</span>
 			<button
 				type="button"
-				className={`toggle-btn ${value ? "active" : ""}`}
+				className={`${u.toggleBtn} ${value ? "active" : ""}`}
 				onClick={() => onChange(!value)}
 			>
 				{value ? "on" : "off"}
@@ -391,10 +392,10 @@ export const MaterialDropdown = memo(function MaterialDropdown({
 	onChange,
 }: MaterialDropdownProps) {
 	return (
-		<div className="kv-row">
-			<span className="kv-key">{label}</span>
+		<div className={u.kvRow}>
+			<span className={u.kvKey}>{label}</span>
 			<select
-				className="mat-select"
+				className={u.matSelect}
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 			>

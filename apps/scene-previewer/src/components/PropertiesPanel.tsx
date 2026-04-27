@@ -9,6 +9,7 @@ import {
 } from "../services/graph-path";
 import { getNanoVDBBounds } from "../services/nanovdb-parser";
 import { evaluateTransformAt } from "../services/transform";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type {
 	AnimatedTransform,
 	InterpCurve,
@@ -32,6 +33,7 @@ import {
 	Toggle,
 	Vec3Field,
 } from "./controls";
+import p from "./PropertiesPanel.module.css";
 import type { ViewportHandle } from "./Viewport";
 
 interface SceneEditorBase {
@@ -169,8 +171,8 @@ function CommonTransformBlock({
 				: ([0.42, 0, 0.58, 1] as [number, number, number, number]); // use "ease-in-out" as default timing curve
 
 		return (
-			<div className="kv-table kf-editor">
-				<div className="kf-list">
+			<div className={u.kvTable}>
+				<div className={u.kfList}>
 					{sortedKfs.map((kf, rowIdx) => {
 						const ev = evaluateTransformAt(anim, kf.time);
 						const summary = (ev.translate ?? [0, 0, 0])
@@ -194,24 +196,24 @@ function CommonTransformBlock({
 							<button
 								key={rowKey}
 								type="button"
-								className={`kf-row${rowIdx === idx ? " kf-row-selected" : ""}`}
+								className={`${u.kfRow}${rowIdx === idx ? ` ${u.kfRowSelected}` : ""}`}
 								onClick={() => {
 									onTimeChange(kf.time);
 									setKfSelIdx(rowIdx);
 								}}
 							>
-								<span className="kf-row-time">{kf.time.toFixed(2)}s</span>
-								<span className="kf-row-sum">{summary}</span>
+								<span className={u.kfRowTime}>{kf.time.toFixed(2)}s</span>
+								<span className={u.kfRowSum}>{summary}</span>
 							</button>
 						);
 					})}
 				</div>
 
 				{selKf && idx > 0 && (
-					<div className="kv-row kf-curve-row">
-						<span className="kv-key">curve</span>
+					<div className={`${u.kvRow} ${u.kfCurveRow}`}>
+						<span className={u.kvKey}>curve</span>
 						<select
-							className="mat-select kf-curve-select"
+							className={`${u.matSelect} ${u.kfCurveSelect}`}
 							value={curveToPreset(selKf.curve)}
 							onChange={(e) => {
 								const p = e.target.value as CurvePreset;
@@ -228,7 +230,7 @@ function CommonTransformBlock({
 				)}
 
 				{selKf && idx > 0 && curveToPreset(selKf.curve) === "custom" && (
-					<div className="kf-bezier-grid">
+					<div className={u.kfBezierGrid}>
 						{(["p1x", "p1y", "p2x", "p2y"] as const).map((label, i) => (
 							<NumberField
 								key={label}
@@ -286,10 +288,10 @@ function CommonTransformBlock({
 					</>
 				)}
 
-				<div className="kf-actions">
+				<div className={u.kfActions}>
 					<button
 						type="button"
-						className="delete-obj-btn kf-action-btn"
+						className={`${u.deleteObjBtn} ${u.kfActionBtn}`}
 						onClick={() => {
 							const st = evaluateTransformAt(anim, currentTime);
 							const newKf: Keyframe = {
@@ -312,7 +314,7 @@ function CommonTransformBlock({
 					</button>
 					<button
 						type="button"
-						className="delete-obj-btn kf-action-btn"
+						className={`${u.deleteObjBtn} ${u.kfActionBtn}`}
 						onClick={() => {
 							const next = sortKeyframes(anim.keyframes).filter(
 								(_, j) => j !== idx,
@@ -326,7 +328,7 @@ function CommonTransformBlock({
 					</button>
 					<button
 						type="button"
-						className="delete-obj-btn kf-action-btn"
+						className={`${u.deleteObjBtn} ${u.kfActionBtn}`}
 						onClick={() => {
 							const st = evaluateTransformAt(anim, currentTime);
 							onSceneEdit((s) =>
@@ -406,7 +408,7 @@ function CommonTransformBlock({
 	}
 
 	return (
-		<div className="kv-table">
+		<div className={u.kvTable}>
 			<Vec3Field
 				label="pos"
 				value={pos}
@@ -437,7 +439,7 @@ function CommonTransformBlock({
 			)}
 			<button
 				type="button"
-				className="delete-obj-btn kf-action-btn"
+				className={`${u.deleteObjBtn} ${u.kfActionBtn}`}
 				onClick={() => {
 					const next: AnimatedTransform = {
 						keyframes: [
@@ -595,7 +597,7 @@ function SphereEditor({
 	};
 
 	return (
-		<div className="kv-table">
+		<div className={u.kvTable}>
 			<Vec3Field
 				label="center"
 				value={visualCenter}
@@ -761,7 +763,7 @@ function QuadEditor({
 	const VERT_LABELS = ["p0", "p1", "p2", "p3"] as const;
 
 	return (
-		<div className="kv-table">
+		<div className={u.kvTable}>
 			{VERT_LABELS.map((label, i) => (
 				<Vec3Field
 					key={label}
@@ -807,10 +809,10 @@ function ObjEditor({
 	const file = obj.file.split("/").pop() ?? obj.file;
 
 	return (
-		<div className="kv-table">
-			<div className="kv-row">
-				<span className="kv-key">file</span>
-				<span className="kv-val">{file}</span>
+		<div className={u.kvTable}>
+			<div className={u.kvRow}>
+				<span className={u.kvKey}>file</span>
+				<span className={u.kvVal}>{file}</span>
 			</div>
 			{materialNames.length > 0 && (
 				<MaterialDropdown
@@ -908,11 +910,11 @@ function MaterialEditor({
 	}
 
 	return (
-		<div className="kv-table">
-			<div className="kv-row">
-				<span className="kv-key">type</span>
+		<div className={u.kvTable}>
+			<div className={u.kvRow}>
+				<span className={u.kvKey}>type</span>
 				<select
-					className="mat-select"
+					className={u.matSelect}
 					value={mat.type}
 					onChange={(e) => changeType(e.target.value as Material["type"])}
 				>
@@ -936,9 +938,9 @@ function MaterialEditor({
 				/>
 			)}
 			{mat.albedo_texture && (
-				<div className="kv-row">
-					<span className="kv-key">a.tex</span>
-					<span className="kv-val">{mat.albedo_texture.split("/").pop()}</span>
+				<div className={u.kvRow}>
+					<span className={u.kvKey}>a.tex</span>
+					<span className={u.kvVal}>{mat.albedo_texture.split("/").pop()}</span>
 				</div>
 			)}
 
@@ -993,15 +995,17 @@ export function MaterialPropertiesPanel({
 	if (!mat) return null;
 
 	return (
-		<div className="properties">
-			<div className="properties-header">
-				<span className="layer-tag layer-tag-ctx">MAT</span>
-				<span className="properties-title">{matName}</span>
-				<span className="properties-layer">{layer.name}</span>
+		<div className={p.root}>
+			<div className={p.header}>
+				<span className={`${u.layerTag} ${u.layerTagCtx}`}>MAT</span>
+				<span className={p.title}>{matName}</span>
+				<span className={p.layerLabel}>{layer.name}</span>
 			</div>
-			<div className="properties-section">
-				<div className="inspector-section-head">Material</div>
-				<div className="properties-body">
+			<div className={p.section}>
+				<div className={`${u.inspectorSectionHead} ${p.headInProperties}`}>
+					Material
+				</div>
+				<div className={p.body}>
 					<MaterialEditor
 						mat={mat}
 						matName={matName}
@@ -1196,21 +1200,25 @@ export function PropertiesPanel({
 	};
 
 	return (
-		<div className="properties">
-			<div className="properties-header">
-				<span className="layer-tag layer-tag-lyr">{kindLabel(node)}</span>
-				<span className="properties-title">{title}</span>
-				<span className="properties-layer">{layer.name}</span>
+		<div className={p.root}>
+			<div className={p.header}>
+				<span className={`${u.layerTag} ${u.layerTagLyr}`}>
+					{kindLabel(node)}
+				</span>
+				<span className={p.title}>{title}</span>
+				<span className={p.layerLabel}>{layer.name}</span>
 			</div>
 
-			<div className="properties-section">
-				<div className="inspector-section-head">Node</div>
-				<div className="properties-body">
-					<div className="kv-table">
-						<div className="kv-row">
-							<span className="kv-key">name</span>
+			<div className={p.section}>
+				<div className={`${u.inspectorSectionHead} ${p.headInProperties}`}>
+					Node
+				</div>
+				<div className={p.body}>
+					<div className={u.kvTable}>
+						<div className={u.kvRow}>
+							<span className={u.kvKey}>name</span>
 							<input
-								className="mat-select"
+								className={u.matSelect}
 								style={{ flex: 1, minWidth: 0 }}
 								value={node.name ?? ""}
 								placeholder="(optional)"
@@ -1226,18 +1234,20 @@ export function PropertiesPanel({
 							/>
 						</div>
 						{isAnimated(node.transform) && (
-							<div className="kv-row">
-								<span className="kv-key"> </span>
-								<span className="kv-val">animated</span>
+							<div className={u.kvRow}>
+								<span className={u.kvKey}> </span>
+								<span className={u.kvVal}>animated</span>
 							</div>
 						)}
 					</div>
 				</div>
 			</div>
 
-			<div className="properties-section">
-				<div className="inspector-section-head">Transform</div>
-				<div className="properties-body">
+			<div className={p.section}>
+				<div className={`${u.inspectorSectionHead} ${p.headInProperties}`}>
+					Transform
+				</div>
+				<div className={p.body}>
 					<CommonTransformBlock
 						key={objectKey}
 						node={node}
@@ -1255,9 +1265,11 @@ export function PropertiesPanel({
 			</div>
 
 			{node.kind !== "group" && (
-				<div className="properties-section">
-					<div className="inspector-section-head">Geometry</div>
-					<div className="properties-body">
+				<div className={p.section}>
+					<div className={`${u.inspectorSectionHead} ${p.headInProperties}`}>
+						Geometry
+					</div>
+					<div className={p.body}>
 						{node.kind === "sphere" && (
 							<SphereEditor obj={node} {...editorProps} />
 						)}
@@ -1265,7 +1277,7 @@ export function PropertiesPanel({
 						{node.kind === "obj" && <ObjEditor obj={node} {...editorProps} />}
 						<button
 							type="button"
-							className="delete-obj-btn"
+							className={u.deleteObjBtn}
 							onClick={onDeleteObject}
 						>
 							delete node
@@ -1275,11 +1287,11 @@ export function PropertiesPanel({
 			)}
 
 			{node.kind === "group" && (
-				<div className="properties-section">
-					<div className="properties-body">
+				<div className={p.section}>
+					<div className={p.body}>
 						<button
 							type="button"
-							className="delete-obj-btn"
+							className={u.deleteObjBtn}
 							onClick={onDeleteObject}
 						>
 							delete group (subtree)
@@ -1289,9 +1301,11 @@ export function PropertiesPanel({
 			)}
 
 			{mat && matName && node.kind !== "group" && (
-				<div className="properties-section">
-					<div className="inspector-section-head">Material</div>
-					<div className="properties-body">
+				<div className={p.section}>
+					<div className={`${u.inspectorSectionHead} ${p.headInProperties}`}>
+						Material
+					</div>
+					<div className={p.body}>
 						<MaterialEditor
 							mat={mat}
 							matName={matName}
