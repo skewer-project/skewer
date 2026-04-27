@@ -12,8 +12,8 @@ struct DeepRow {
     int width = 0;
     std::vector<unsigned int> sample_counts;
     std::vector<size_t> sample_offsets;  // sample_offsets[x] = sum(sample_counts[0..x-1])
-    size_t total_samples_in_row = 0; // Tracks actual used samples
-    size_t current_capacity = 0; // Tracks allocated capacity
+    size_t total_samples_in_row = 0;     // Tracks actual used samples
+    size_t current_capacity = 0;         // Tracks allocated capacity
 
     DeepRow() = default;
 
@@ -52,7 +52,7 @@ struct DeepRow {
         sample_counts.assign(width, 0);
         sample_offsets.assign(width, 0);
 
-        total_samples_in_row = 0; // Starts at 0, grows as we merge
+        total_samples_in_row = 0;  // Starts at 0, grows as we merge
         current_capacity = static_cast<size_t>(estimated_total_samples) * 6;
         all_samples = std::make_unique<float[]>(current_capacity);
     }
@@ -82,7 +82,8 @@ struct DeepRow {
 
             if (all_samples) {
                 // Fast copy of existing data to the new contiguous block
-                std::memcpy(new_buffer.get(), all_samples.get(), total_samples_in_row * 6 * sizeof(float));
+                std::memcpy(new_buffer.get(), all_samples.get(),
+                            total_samples_in_row * 6 * sizeof(float));
             }
 
             all_samples = std::move(new_buffer);
