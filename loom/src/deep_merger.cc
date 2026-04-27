@@ -239,6 +239,12 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
         blended.push_back(current);
     }
 
+    // Ensure we have enough capacity in the contiguous buffer for the new fragments
+    outputRow.EnsureCapacity(outputRow.total_samples_in_row + blended.size());
+
+    // Write results back to the outputRow
+    outputRow.sample_offsets[x] = outputRow.total_samples_in_row;
+
     // Write results back to the outputRow
     float* outPtr = outputRow.GetPixelData(x);
     for (size_t s = 0; s < blended.size(); ++s) {
@@ -253,6 +259,5 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
 
     // Update the output sample count for this pixel
     outputRow.sample_counts[x] = static_cast<unsigned int>(blended.size());
-    if (x + 1 < outputRow.width)
-        outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x] + blended.size();
+    outputRow.total_samples_in_row += blended.size();
 }

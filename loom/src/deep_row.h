@@ -11,8 +11,8 @@ struct DeepRow {
     int width = 0;
     std::vector<unsigned int> sample_counts;
     std::vector<size_t> sample_offsets;  // sample_offsets[x] = sum(sample_counts[0..x-1])
-    size_t total_samples_in_row = 0;
-    size_t current_capacity = 0;
+    size_t total_samples_in_row = 0; // Tracks actual used samples
+    size_t current_capacity = 0; // Tracks allocated capacity
 
     DeepRow() = default;
 
@@ -46,17 +46,14 @@ struct DeepRow {
     }
 
     // Normal Allocate given a size
-    void Allocate(size_t width, int max_samples_per_pixel) {
+    void Allocate(size_t width, int estimated_total_samples) {
         this->width = width;
         sample_counts.assign(width, 0);
-        sample_offsets.assign(width, 0);  // all zero; merger updates incrementally
+        sample_offsets.assign(width, 0);
 
-        size_t total_capacity = static_cast<size_t>(width) * max_samples_per_pixel;
-
-        size_t required = total_capacity * 6;  // for each channel
-        // make_unique handles 'new float[]' and ensures cleanup
-        all_samples = std::make_unique<float[]>(required);
-        current_capacity = required;
+        total_samples_in_row = 0; // Starts at 0, grows as we merge
+        current_capacity = static_cast<size_t>(estimated_total_samples) * 6;
+        all_samples = std::make_unique<float[]>(current_capacity);
     }
 
     // Allocate full block based on actual sample counts for the row
@@ -73,6 +70,23 @@ struct DeepRow {
         size_t required = total_samples_in_row * 6;
         all_samples = std::make_unique<float[]>(required);
         current_capacity = required;
+    }
+
+    void EnsureCapacity(size_t required_samples) {
+        size_t required_floats = required_samples * 6;
+        if (required_floats > current_capacity) {
+            // Grow by 1.5x to amortize allocation cost, plus a constant for safety
+            size_t new_capacity = required_floats + (current_capacity / 2) + 128;
+            auto new_buffer = std::make_unique<float[]>(new_capacity);
+
+            if (all_samples) {
+                // Fast copy of existing data to the new contiguous block
+                std::memcpy(new_buffer.get(), all_samples.get(), total_samples_in_row * 6 * sizeof(float));
+            }
+
+            all_samples = std::move(new_buffer);
+            current_capacity = new_capacity;
+        }
     }
 
     // Get pointer to the nth sample of pixel x
@@ -102,14 +116,6 @@ struct DeepRow {
     DeepRow& operator=(const DeepRow&) = delete;
 
     ~DeepRow() = default;
-
-  private:
-    void ensureCapacity(size_t required) {
-        if (required > current_capacity) {
-            all_samples = std::make_unique<float[]>(required);
-            current_capacity = required;
-        }
-    }
 };
 
 // Converts a row of deep data into a flattened RGBA image row
