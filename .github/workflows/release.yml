@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build-static:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     env:
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       GIT_LFS_SKIP_SMUDGE: "1"
