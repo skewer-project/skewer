@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
+	MediumPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
 import { RenderConfirmDialog } from "./components/RenderConfirmDialog";
@@ -27,6 +28,7 @@ import {
 } from "./services/transform";
 import type {
 	Material,
+	Medium,
 	RenderConfig,
 	ResolvedScene,
 	SceneNode,
@@ -53,6 +55,9 @@ function App() {
 		null,
 	);
 	const [selectedMaterialKey, setSelectedMaterialKey] = useState<string | null>(
+		null,
+	);
+	const [selectedMediumKey, setSelectedMediumKey] = useState<string | null>(
 		null,
 	);
 	const [transformMode, setTransformMode] = useState<
@@ -82,11 +87,19 @@ function App() {
 	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
 		setSelectedMaterialKey(null);
+		setSelectedMediumKey(null);
 	}, []);
 
 	const handleSelectMaterial = useCallback((key: string | null) => {
 		setSelectedMaterialKey(key);
 		setSelectedObjectKey(null);
+		setSelectedMediumKey(null);
+	}, []);
+
+	const handleSelectMedium = useCallback((key: string | null) => {
+		setSelectedMediumKey(key);
+		setSelectedObjectKey(null);
+		setSelectedMaterialKey(null);
 	}, []);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
@@ -103,6 +116,7 @@ function App() {
 		setError("");
 		setSelectedObjectKey(null);
 		setSelectedMaterialKey(null);
+		setSelectedMediumKey(null);
 		setSceneVersion((v) => v + 1);
 		setHasUnsavedChanges(false);
 		setCurrentTime(0);
@@ -213,6 +227,7 @@ function App() {
 			if (childKey) {
 				setSelectedObjectKey(childKey);
 				setSelectedMaterialKey(null);
+				setSelectedMediumKey(null);
 			}
 		},
 		[handleSceneEdit],
@@ -235,6 +250,34 @@ function App() {
 			});
 			setSelectedMaterialKey(`${tag}:${layerIdx}:mat:${name}`);
 			setSelectedObjectKey(null);
+			setSelectedMediumKey(null);
+		},
+		[handleSceneEdit],
+	);
+
+	const handleAddMedium = useCallback(
+		(
+			tag: "ctx" | "lyr",
+			layerIdx: number,
+			name: string,
+			medium: Medium,
+		) => {
+			handleSceneEdit((s) => {
+				const listKey = tag === "ctx" ? "contexts" : "layers";
+				const newList = [...s[listKey]];
+				const newLayer = {
+					...newList[layerIdx],
+					data: {
+						...newList[layerIdx].data,
+						media: { ...newList[layerIdx].data.media, [name]: medium },
+					},
+				};
+				newList[layerIdx] = newLayer;
+				return { ...s, [listKey]: newList };
+			});
+			setSelectedMediumKey(`${tag}:${layerIdx}:med:${name}`);
+			setSelectedObjectKey(null);
+			setSelectedMaterialKey(null);
 		},
 		[handleSceneEdit],
 	);
@@ -423,10 +466,13 @@ function App() {
 							scene={scene}
 							selectedObjectKey={selectedObjectKey}
 							selectedMaterialKey={selectedMaterialKey}
+							selectedMediumKey={selectedMediumKey}
 							onSelectObject={handleSelectObject}
 							onSelectMaterial={handleSelectMaterial}
+							onSelectMedium={handleSelectMedium}
 							onAddGraphNode={handleAddGraphNode}
 							onAddMaterial={handleAddMaterial}
+							onAddMedium={handleAddMedium}
 							dirHandle={dirHandle}
 							renderSettings={renderSettings}
 							onRenderSettingsChange={setRenderSettings}
@@ -441,29 +487,40 @@ function App() {
 				)}
 
 				{/* Right sidebar: properties panel */}
-				{scene && (selectedObjectKey || selectedMaterialKey) && (
-					<div className="panel hud-properties">
-						{selectedObjectKey && (
-							<PropertiesPanel
-								scene={scene}
-								objectKey={selectedObjectKey}
-								onSceneEdit={handleSceneEdit}
-								onDeleteObject={() => handleDeleteObject(selectedObjectKey)}
-								viewportRef={viewportRef}
-								currentTime={currentTime}
-								onTimeChange={setCurrentTime}
-							/>
-						)}
-						{selectedMaterialKey && (
-							<MaterialPropertiesPanel
-								scene={scene}
-								matKey={selectedMaterialKey}
-								onSceneEdit={handleSceneEdit}
-								viewportRef={viewportRef}
-							/>
-						)}
-					</div>
-				)}
+				{scene &&
+					(selectedObjectKey || selectedMaterialKey || selectedMediumKey) && (
+						<div className="panel hud-properties">
+							{selectedObjectKey && (
+								<PropertiesPanel
+									scene={scene}
+									objectKey={selectedObjectKey}
+									onSceneEdit={handleSceneEdit}
+									onDeleteObject={() => handleDeleteObject(selectedObjectKey)}
+									viewportRef={viewportRef}
+									currentTime={currentTime}
+									onTimeChange={setCurrentTime}
+									dirHandle={dirHandle!}
+								/>
+							)}
+							{selectedMaterialKey && (
+								<MaterialPropertiesPanel
+									scene={scene}
+									matKey={selectedMaterialKey}
+									onSceneEdit={handleSceneEdit}
+									viewportRef={viewportRef}
+								/>
+							)}
+							{selectedMediumKey && (
+								<MediumPropertiesPanel
+									scene={scene}
+									medKey={selectedMediumKey}
+									onSceneEdit={handleSceneEdit}
+									viewportRef={viewportRef}
+									dirHandle={dirHandle!}
+								/>
+							)}
+						</div>
+					)}
 
 				{/* Bottom-right: reset camera + stats */}
 				{scene && (

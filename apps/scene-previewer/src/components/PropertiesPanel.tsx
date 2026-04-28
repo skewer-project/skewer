@@ -1,12 +1,14 @@
 import type { RefObject } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { resolveNodeAtPath, updateNodeAtPath } from "../services/graph-path";
+import { getFile } from "../services/fs";
 import { evaluateTransformAt } from "../services/transform";
 import type {
 	AnimatedTransform,
 	InterpCurve,
 	Keyframe,
 	Material,
+	Medium,
 	ObjNode,
 	QuadNode,
 	ResolvedLayer,
@@ -17,7 +19,13 @@ import type {
 	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
-import { MaterialDropdown, NumberField, Toggle, Vec3Field } from "./controls";
+import {
+	Dropdown,
+	MaterialDropdown,
+	NumberField,
+	Toggle,
+	Vec3Field,
+} from "./controls";
 import type { ViewportHandle } from "./Viewport";
 
 interface SceneEditorBase {
@@ -32,15 +40,22 @@ interface Props extends SceneEditorBase {
 	viewportRef: RefObject<ViewportHandle | null>;
 	currentTime: number;
 	onTimeChange: (t: number) => void;
+	dirHandle: FileSystemDirectoryHandle;
 }
 
 interface MaterialEditorProps extends SceneEditorBase {
 	matKey: string;
 }
 
+interface MediumEditorProps extends SceneEditorBase {
+	medKey: string;
+	dirHandle: FileSystemDirectoryHandle;
+}
+
 interface EditorProps extends SceneEditorBase {
 	objectKey: string;
 	materialNames: string[];
+	mediumNames: string[];
 	layer: ResolvedLayer;
 	layerTag: string;
 	layerIdx: number;
@@ -61,6 +76,28 @@ function updateMaterial(
 	const newLayer = { ...newList[li], data: { ...newList[li].data } };
 	newLayer.data.materials = { ...newLayer.data.materials };
 	newLayer.data.materials[matName] = mutator(newLayer.data.materials[matName]);
+	newList[li] = newLayer;
+
+	return { ...scene, [listKey]: newList };
+}
+
+function updateMedium(
+	scene: ResolvedScene,
+	layerRefKey: string,
+	medName: string,
+	mutator: (med: Medium) => Medium,
+): ResolvedScene {
+	const parts = layerRefKey.split(":");
+	const tag = parts[0];
+	const li = Number(parts[1]);
+	const listKey = tag === "ctx" ? "contexts" : "layers";
+
+	const newList = [...scene[listKey]];
+	const newLayer = { ...newList[li], data: { ...newList[li].data } };
+	newLayer.data.media = { ...newLayer.data.media };
+	const prev = newLayer.data.media[medName];
+	if (!prev) return scene;
+	newLayer.data.media[medName] = mutator(prev);
 	newList[li] = newLayer;
 
 	return { ...scene, [listKey]: newList };
@@ -431,6 +468,7 @@ function SphereEditor({
 	viewportRef,
 	scene,
 	materialNames,
+	mediumNames,
 	layer,
 }: EditorProps & { obj: SphereNode }) {
 	return (
@@ -485,8 +523,45 @@ function SphereEditor({
 						viewportRef.current?.applyPatch(scene, objectKey, {
 							kind: "assign-material",
 							matData,
+							isVolumetric: !!obj.inside_medium,
 						});
 					}
+				}}
+			/>
+			<Dropdown
+				label="inside"
+				value={obj.inside_medium ?? ""}
+				options={mediumNames}
+				noneLabel="vacuum"
+				onChange={(name) => {
+					onSceneEdit((s) =>
+						updateNodeAtPath(s, objectKey, (o) => ({
+							...(o as SphereNode),
+							inside_medium: name === "" ? undefined : name,
+						})),
+					);
+					const matData = layer.data.materials[obj.material];
+					if (matData) {
+						viewportRef.current?.applyPatch(scene, objectKey, {
+							kind: "assign-material",
+							matData,
+							isVolumetric: name !== "",
+						});
+					}
+				}}
+			/>
+			<Dropdown
+				label="outside"
+				value={obj.outside_medium ?? ""}
+				options={mediumNames}
+				noneLabel="vacuum"
+				onChange={(name) => {
+					onSceneEdit((s) =>
+						updateNodeAtPath(s, objectKey, (o) => ({
+							...(o as SphereNode),
+							outside_medium: name === "" ? undefined : name,
+						})),
+					);
 				}}
 			/>
 		</div>
@@ -500,6 +575,7 @@ function QuadEditor({
 	viewportRef,
 	scene,
 	materialNames,
+	mediumNames: _,
 	layer,
 }: EditorProps & { obj: QuadNode }) {
 	const handleVertex = (idx: number, v: Vec3) => {
@@ -560,6 +636,7 @@ function ObjEditor({
 	viewportRef,
 	scene,
 	materialNames,
+	mediumNames: _,
 	layer,
 }: EditorProps & { obj: ObjNode }) {
 	const file = obj.file.split("/").pop() ?? obj.file;
@@ -776,6 +853,140 @@ export function MaterialPropertiesPanel({
 	);
 }
 
+function MediumEditor({
+	med,
+	medName,
+	layerRefKey,
+	onSceneEdit,
+	dirHandle,
+}: SceneEditorBase & {
+	med: Medium;
+	medName: string;
+	layerRefKey: string;
+	dirHandle: FileSystemDirectoryHandle;
+}) {
+	const [fileStatus, setFileStatus] = useState<"ok" | "missing" | "checking">(
+		"checking",
+	);
+
+	useEffect(() => {
+		let active = true;
+		setFileStatus("checking");
+		getFile(dirHandle, med.file)
+			.then(() => {
+				if (active) setFileStatus("ok");
+			})
+			.catch(() => {
+				if (active) setFileStatus("missing");
+			});
+		return () => {
+			active = false;
+		};
+	}, [med.file, dirHandle]);
+
+	function patchMed(partial: Partial<Medium>) {
+		onSceneEdit((s) => updateMedium(s, layerRefKey, medName, (m) => ({ ...m, ...partial }) as Medium));
+	}
+
+	return (
+		<div className="kv-table">
+			<div className="kv-row">
+				<span className="kv-key">type</span>
+				<span className="kv-val">{med.type}</span>
+			</div>
+
+			<Vec3Field
+				label="sigma_a"
+				value={med.sigma_a}
+				componentLabels={["r", "g", "b"]}
+				min={0}
+				step={0.01}
+				onChange={(v) => patchMed({ sigma_a: v })}
+			/>
+			<Vec3Field
+				label="sigma_s"
+				value={med.sigma_s}
+				componentLabels={["r", "g", "b"]}
+				min={0}
+				step={0.01}
+				onChange={(v) => patchMed({ sigma_s: v })}
+			/>
+			<NumberField
+				label="g"
+				value={med.g}
+				min={-1}
+				max={1}
+				step={0.05}
+				onChange={(v) => patchMed({ g: v })}
+			/>
+			<NumberField
+				label="density"
+				value={med.density_multiplier}
+				min={0}
+				step={0.1}
+				onChange={(v) => patchMed({ density_multiplier: v })}
+			/>
+			<div className="kv-row">
+				<span className="kv-key">file</span>
+				<div className="kv-val" style={{ display: "flex", gap: "8px" }}>
+					<span style={{ color: fileStatus === "missing" ? "#ff4444" : "inherit" }}>
+						{med.file.split("/").pop()}
+					</span>
+					{fileStatus === "missing" && (
+						<span style={{ color: "#ff4444", fontSize: "11px" }}>
+							(file missing)
+						</span>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+export function MediumPropertiesPanel({
+	scene,
+	medKey,
+	onSceneEdit,
+	viewportRef,
+	dirHandle,
+}: MediumEditorProps) {
+	const parts = medKey.split(":");
+	const tag = parts[0];
+	const layerIdx = Number(parts[1]);
+	const medName = parts.slice(3).join(":");
+
+	const list = tag === "ctx" ? scene.contexts : scene.layers;
+	const layer = list[layerIdx];
+	if (!layer) return null;
+
+	const med = layer.data.media?.[medName];
+	if (!med) return null;
+
+	return (
+		<div className="properties">
+			<div className="properties-header">
+				<span className="layer-tag layer-tag-med">MED</span>
+				<span className="properties-title">{medName}</span>
+				<span className="properties-layer">{layer.name}</span>
+			</div>
+			<div className="properties-section">
+				<div className="inspector-section-head">Medium</div>
+				<div className="properties-body">
+					<MediumEditor
+						med={med}
+						medName={medName}
+						layerRefKey={medKey}
+						onSceneEdit={onSceneEdit}
+						viewportRef={viewportRef}
+						scene={scene}
+						dirHandle={dirHandle}
+					/>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 export function PropertiesPanel({
 	scene,
 	objectKey,
@@ -784,11 +995,12 @@ export function PropertiesPanel({
 	viewportRef,
 	currentTime,
 	onTimeChange,
+	dirHandle,
 }: Props) {
 	const resolved = resolveNodeAtPath(scene, objectKey);
 	if (!resolved) return null;
 
-	const { tag, layerIdx, layer, node, materialNames } = resolved;
+	const { tag, layerIdx, layer, node, materialNames, mediumNames } = resolved;
 	const layerRefKey = `${tag}:${layerIdx}`;
 	const matName = leafMaterialName(node);
 	const mat = matName ? (layer.data.materials[matName] ?? null) : null;
@@ -802,6 +1014,7 @@ export function PropertiesPanel({
 		viewportRef,
 		scene,
 		materialNames,
+		mediumNames,
 		layer,
 		layerTag: tag,
 		layerIdx,
@@ -911,6 +1124,30 @@ export function PropertiesPanel({
 							viewportRef={viewportRef}
 							scene={scene}
 						/>
+					</div>
+				</div>
+			)}
+
+			{node.kind === "sphere" && node.inside_medium && (
+				<div className="properties-section">
+					<div className="inspector-section-head">Inside Medium</div>
+					<div className="properties-body">
+						{layer.data.media?.[node.inside_medium] ? (
+							<MediumEditor
+								med={layer.data.media[node.inside_medium]}
+								medName={node.inside_medium}
+								layerRefKey={`${layerRefKey}:med:${node.inside_medium}`}
+								onSceneEdit={onSceneEdit}
+								viewportRef={viewportRef}
+								scene={scene}
+								dirHandle={dirHandle}
+							/>
+						) : (
+							<div className="kv-row">
+								<span className="kv-key">error</span>
+								<span className="kv-val">Medium "{node.inside_medium}" not found</span>
+							</div>
+						)}
 					</div>
 				</div>
 			)}

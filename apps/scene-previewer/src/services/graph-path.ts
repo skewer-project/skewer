@@ -67,6 +67,7 @@ export interface ResolvedNodeContext {
 	siblingIndex: number;
 	depth: number;
 	materialNames: string[];
+	mediumNames: string[];
 }
 
 /** Walk to the node at `indices`; returns null if path invalid. */
@@ -105,6 +106,7 @@ export function resolveNodeAtPath(
 		siblingIndex,
 		depth: indices.length - 1,
 		materialNames: Object.keys(layer.data.materials),
+		mediumNames: Object.keys(layer.data.media ?? {}),
 	};
 }
 

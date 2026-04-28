@@ -325,6 +325,43 @@ export const Toggle = memo(function Toggle({
 	);
 });
 
+// ── Dropdown ────────────────────────────────────────────────
+
+interface DropdownProps {
+	label: string;
+	value: string;
+	options: string[];
+	onChange: (name: string) => void;
+	/** Optional text for no selection / none */
+	noneLabel?: string;
+}
+
+export const Dropdown = memo(function Dropdown({
+	label,
+	value,
+	options,
+	onChange,
+	noneLabel,
+}: DropdownProps) {
+	return (
+		<div className="kv-row">
+			<span className="kv-key">{label}</span>
+			<select
+				className="mat-select"
+				value={value}
+				onChange={(e) => onChange(e.target.value)}
+			>
+				{noneLabel !== undefined && <option value="">{noneLabel}</option>}
+				{options.map((name) => (
+					<option key={name} value={name}>
+						{name}
+					</option>
+				))}
+			</select>
+		</div>
+	);
+});
+
 // ── MaterialDropdown ────────────────────────────────────────
 
 interface MaterialDropdownProps {

@@ -31,11 +31,11 @@ async function resolveHandle(
 	return await currentDir.getFileHandle(filename);
 }
 
-/** Creates parent directories as needed; rejects `..` like {@link resolveHandle}. */
-export async function writeTextFile(
+/** Creates parent directories as needed; rejects `..`. */
+export async function writeFile(
 	dir: FileSystemDirectoryHandle,
 	relativePath: string,
-	text: string,
+	content: string | ArrayBuffer | Blob,
 ): Promise<void> {
 	const parts = relativePath.split("/");
 	let currentDir = dir;
@@ -54,7 +54,7 @@ export async function writeTextFile(
 	const filename = parts[parts.length - 1];
 	const fileHandle = await currentDir.getFileHandle(filename, { create: true });
 	const writable = await fileHandle.createWritable();
-	await writable.write(text);
+	await writable.write(content);
 	await writable.close();
 }
 

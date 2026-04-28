@@ -6,13 +6,14 @@ import type {
 	Keyframe,
 	LayerData,
 	Material,
+	Medium,
 	NodeTransform,
 	RenderConfig,
 	ResolvedScene,
 	SceneNode,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
-import { writeTextFile } from "./fs";
+import { writeFile } from "./fs";
 
 function jsonLine(value: unknown): string {
 	return `${JSON.stringify(value, null, 2)}\n`;
@@ -51,6 +52,20 @@ function serializeMaterial(m: Material): Record<string, unknown> {
 		o.ior = m.ior;
 		o.roughness = m.roughness;
 	}
+	return o;
+}
+
+function serializeMedium(m: Medium): Record<string, unknown> {
+	const o: Record<string, unknown> = {
+		type: m.type,
+		sigma_a: m.sigma_a,
+		sigma_s: m.sigma_s,
+		g: m.g,
+		density_multiplier: m.density_multiplier,
+		file: m.file,
+	};
+	if (m.scale !== undefined) o.scale = m.scale;
+	if (m.translate !== undefined) o.translate = m.translate;
 	return o;
 }
 
@@ -111,6 +126,10 @@ function serializeSceneNode(node: SceneNode): Record<string, unknown> {
 			radius: node.radius,
 		};
 		if (node.visible !== undefined) j.visible = node.visible;
+		if (node.inside_medium !== undefined)
+			j.inside_medium = node.inside_medium;
+		if (node.outside_medium !== undefined)
+			j.outside_medium = node.outside_medium;
 		return withCommon(j);
 	}
 
@@ -172,10 +191,17 @@ function serializeLayerData(data: LayerData): Record<string, unknown> {
 	for (const [name, mat] of Object.entries(data.materials)) {
 		materials[name] = serializeMaterial(mat);
 	}
+	const media: Record<string, unknown> = {};
+	if (data.media) {
+		for (const [name, med] of Object.entries(data.media)) {
+			media[name] = serializeMedium(med);
+		}
+	}
 	const o: Record<string, unknown> = {
 		materials,
 		graph: data.graph.map(serializeSceneNode),
 	};
+	if (Object.keys(media).length > 0) o.media = media;
 	if (data.render !== undefined) o.render = serializeRenderConfig(data.render);
 	if (data.visible !== undefined) o.visible = data.visible;
 	return o;
@@ -203,8 +229,8 @@ export async function saveScene(
 	}
 
 	for (const [path, data] of byPath) {
-		await writeTextFile(dir, path, jsonLine(serializeLayerData(data)));
+		await writeFile(dir, path, jsonLine(serializeLayerData(data)));
 	}
 
-	await writeTextFile(dir, "scene.json", jsonLine(serializeManifest(scene)));
+	await writeFile(dir, "scene.json", jsonLine(serializeManifest(scene)));
 }

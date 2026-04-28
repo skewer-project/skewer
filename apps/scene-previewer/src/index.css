@@ -866,6 +866,12 @@ body {
 	background: var(--amber-lo);
 }
 
+.layer-tag-med {
+	color: var(--green);
+	border-color: rgba(95, 186, 111, 0.3);
+	background: rgba(95, 186, 111, 0.08);
+}
+
 .layer-name {
 	color: var(--t1);
 	font-size: 12.5px;

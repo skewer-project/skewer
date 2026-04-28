@@ -92,9 +92,16 @@ async function buildLeafMesh(
 	const fallback = new THREE.MeshLambertMaterial({ color: 0xcccccc });
 
 	if (node.kind === "sphere") {
+		let mat = materials[node.material] ?? fallback;
+		if (node.inside_medium) {
+			mat = mat.clone();
+			mat.transparent = true;
+			mat.opacity = 0.4;
+			(mat as any).wireframe = true;
+		}
 		const mesh = new THREE.Mesh(
 			new THREE.SphereGeometry(node.radius, 32, 16),
-			materials[node.material] ?? fallback,
+			mat,
 		);
 		mesh.position.set(...node.center);
 		return mesh;

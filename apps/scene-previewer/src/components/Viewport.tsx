@@ -61,7 +61,7 @@ export type ThreePatch =
 			layerTag: string;
 			layerIdx: number;
 	  }
-	| { kind: "assign-material"; matData: Material }
+	| { kind: "assign-material"; matData: Material; isVolumetric?: boolean }
 	| { kind: "rebuild" };
 
 export interface ViewportHandle {
@@ -323,12 +323,19 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 					const newMat = makeThreeMaterial(patch.matData);
 					for (const key of keysToUpdate) {
+						const res = resolveNodeAtPath(currentScene, key);
+						const isVol = res?.node.kind === "sphere" && !!res.node.inside_medium;
 						const meshes = collectMeshesForKey(grp, key);
 						for (const m of meshes) {
 							if (m instanceof THREE.Mesh) {
 								const oldSide = getMaterialSide(m.material);
 								disposeMaterial(m.material);
 								m.material = newMat.clone();
+								if (isVol) {
+									m.material.transparent = true;
+									m.material.opacity = 0.4;
+									(m.material as any).wireframe = true;
+								}
 								if (oldSide === THREE.DoubleSide) {
 									(m.material as THREE.Material).side = THREE.DoubleSide;
 								}
@@ -344,6 +351,11 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 							const oldSide = getMaterialSide(m.material);
 							disposeMaterial(m.material);
 							m.material = newMat.clone();
+							if (patch.isVolumetric) {
+								m.material.transparent = true;
+								m.material.opacity = 0.4;
+								(m.material as any).wireframe = true;
+							}
 							if (oldSide === THREE.DoubleSide) {
 								(m.material as THREE.Material).side = THREE.DoubleSide;
 							}
