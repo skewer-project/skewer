@@ -483,7 +483,7 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "world" ? "active" : ""}`}
-								title="World (.)"
+								title="World"
 								onClick={() => setTransformSpace("world")}
 							>
 								Global
@@ -491,7 +491,7 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
-								title="Local (,)"
+								title="Local"
 								onClick={() => setTransformSpace("local")}
 							>
 								Local

@@ -78,7 +78,7 @@ std::pair<RawSample, RawSample> SplitSample(const RawSample& s, float zSplit) {
 void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataPtrs,
                               const std::vector<unsigned int>& pixelSampleCounts,
                               DeepRow& outputRow, float merge_threshold) {
-    // 1. Collect all raw samples into a temporary flat vector
+    // Collect all raw samples into a temporary flat vector
     // We reuse this vector across pixels to avoid re-allocation
     static thread_local std::vector<RawSample> staging;
     staging.clear();
@@ -102,7 +102,7 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
         return;
     }
 
-    // 2. [Your Volumetric Splitting/Sorting Logic Here]
+    // Volumetric splitting and sorting
     std::sort(staging.begin(), staging.end());
 
     if (!staging.empty()) {
@@ -127,10 +127,8 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
         staging.swap(merged);
     }
 
-    // 3. Write results back to the outputRow
-
-    float* outPtr = outputRow.GetPixelData(
-        x);  //! CONSIDER RESIZING THE OUTPUT ROW HERE IF STAGING SIZE EXCEEDS CURRENT CAPACITY
+    // Write results back to the outputRow
+    float* outPtr = outputRow.GetPixelData(x);
 
     // Write the sorted samples back
     for (size_t s = 0; s < staging.size(); ++s) {
@@ -140,7 +138,7 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
         dest[2] = staging[s].b;
         dest[3] = staging[s].a;
         dest[4] = staging[s].z;
-        dest[5] = staging[s].z_back;  // If you have ZBack, write it here
+        dest[5] = staging[s].z_back;  // If we have ZBack, write it here
     }
 
     // Update the output sample count for this pixel
@@ -152,7 +150,7 @@ void SortAndMergePixelsDirect(int x, const std::vector<const float*>& pixelDataP
 void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDataPtrs,
                                  const std::vector<unsigned int>& pixelSampleCounts,
                                  DeepRow& outputRow, float merge_threshold) {
-    // 1. Collect all raw samples into a temporary flat vector
+    // Collect all raw samples into a temporary flat vector
     static thread_local std::vector<RawSample> staging;
     staging.clear();
 
@@ -174,7 +172,7 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
 
     float epsilon = merge_threshold;
 
-    // 2. Gather split points: every unique depth and depth_back
+    // Gather split points: every unique depth and depth_back
     std::set<float> splitPointSet;
     for (const auto& s : staging) {
         splitPointSet.insert(s.z);
@@ -183,7 +181,7 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
     std::vector<float> splitPoints(splitPointSet.begin(), splitPointSet.end());
     // splitPoints is naturally sorted by std::set
 
-    // 3. Split each volumetric sample at every split point inside its range
+    // Split each volumetric sample at every split point inside its range
     std::vector<RawSample> fragments;
     fragments.reserve(staging.size() * 2);
 
@@ -220,10 +218,10 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
         fragments.push_back(remainder);
     }
 
-    // 4. Sort fragments by (z, z_back)
+    // Sort fragments by (z, z_back)
     std::sort(fragments.begin(), fragments.end());
 
-    // 5. Blend consecutive fragments with matching intervals
+    // Blend consecutive fragments with matching intervals
     std::vector<RawSample> blended;
     blended.reserve(fragments.size());
 
@@ -241,7 +239,13 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
         blended.push_back(current);
     }
 
-    // 6. Write results back to the outputRow
+    // Ensure we have enough capacity in the contiguous buffer for the new fragments
+    outputRow.EnsureCapacity(outputRow.total_samples_in_row + blended.size());
+
+    // Write results back to the outputRow
+    outputRow.sample_offsets[x] = outputRow.total_samples_in_row;
+
+    // Write results back to the outputRow
     float* outPtr = outputRow.GetPixelData(x);
     for (size_t s = 0; s < blended.size(); ++s) {
         float* dest = outPtr + (s * 6);
@@ -255,6 +259,5 @@ void SortAndMergePixelsWithSplit(int x, const std::vector<const float*>& pixelDa
 
     // Update the output sample count for this pixel
     outputRow.sample_counts[x] = static_cast<unsigned int>(blended.size());
-    if (x + 1 < outputRow.width)
-        outputRow.sample_offsets[x + 1] = outputRow.sample_offsets[x] + blended.size();
+    outputRow.total_samples_in_row += blended.size();
 }

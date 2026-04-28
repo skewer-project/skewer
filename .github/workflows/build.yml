@@ -21,6 +21,8 @@ jobs:
       - name: Fetch required LFS header
         run: |
           git lfs fetch --include="skewer/external/srgb_spec_data.h"
+          git lfs fetch --include="loom/tests/assets/layer_fog.exr"
+          git lfs fetch --include="loom/tests/assets/layer_objects.exr"
           git lfs checkout
 
       - name: Restore ccache

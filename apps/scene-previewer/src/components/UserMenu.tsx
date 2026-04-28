@@ -10,14 +10,9 @@ import {
 export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 	const [user, setUser] = useState<User | null>(null);
 	const [open, setOpen] = useState(false);
-	const [photoFailed, setPhotoFailed] = useState(false);
 
 	useEffect(() => {
 		return subscribeAuth(setUser);
-	}, []);
-
-	useEffect(() => {
-		setPhotoFailed(false);
 	}, []);
 
 	if (!isAuthConfigured()) {
@@ -34,7 +29,9 @@ export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 						try {
 							await signInWithGoogle();
 						} catch (e) {
-							onError?.(e instanceof Error ? e.message : "Sign in failed");
+							if (onError) {
+								onError(e instanceof Error ? e.message : "Sign in failed");
+							}
 						}
 					}}
 				>
@@ -50,14 +47,13 @@ export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 						aria-expanded={open}
 						onClick={() => setOpen((o) => !o)}
 					>
-						{user.photoURL && !photoFailed ? (
+						{user.photoURL ? (
 							<img
 								src={user.photoURL}
+								referrerPolicy="no-referrer"
 								width={24}
 								height={24}
 								alt=""
-								referrerPolicy="no-referrer"
-								onError={() => setPhotoFailed(true)}
 							/>
 						) : (
 							<span className="avatar-fallback" aria-hidden>

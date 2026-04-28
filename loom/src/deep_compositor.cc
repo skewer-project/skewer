@@ -130,13 +130,14 @@ void MergerWorker(int start_row, int end_row, PipelineContext& ctx) {
         int slot = merge_y % ctx.window_size;
         DeepRow& outputRow = ctx.merged_buffer[slot];
 
-        int maxSamplesForPixel = 0;
+        int total_input_samples =
+            0;  // tracks the maximum number of samples for any pixel across all files
         for (int i = 0; i < ctx.num_files; ++i) {
-            maxSamplesForPixel += ctx.input_buffer[i][slot].total_samples_in_row;
+            total_input_samples += ctx.input_buffer[i][slot].total_samples_in_row;
         }
 
         // Safety buffer for volumetric splitting
-        outputRow.Allocate(ctx.width, maxSamplesForPixel * 2);
+        outputRow.Allocate(ctx.width, total_input_samples * 2);
 
         // One running pointer per input file to avoid O(x) prefix-sum in GetPixelData
         std::vector<const float*> runningPtrs(ctx.num_files);
