@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { KeyframeMarker } from "./KeyframeMarker";
 import type { AnimatedNodeTrack } from "../services/transform";
+import { KeyframeMarker } from "./KeyframeMarker";
 
 const TRACK_INSET_PX = 14;
 

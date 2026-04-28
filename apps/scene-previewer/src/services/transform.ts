@@ -1,6 +1,4 @@
 import * as THREE from "three";
-import { formatObjectPathKey } from "./graph-path";
-import { displayLabel } from "./node-labels";
 import type {
 	AnimatedTransform,
 	InterpCurve,
@@ -12,6 +10,8 @@ import type {
 	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
+import { formatObjectPathKey } from "./graph-path";
+import { displayLabel } from "./node-labels";
 
 const BEZIER_NEWTON_EPS = 1e-6;
 const BEZIER_NEWTON_MAX_ITER = 32;

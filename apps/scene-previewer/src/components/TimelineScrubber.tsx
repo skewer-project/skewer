@@ -1,5 +1,4 @@
-import { ChevronUp } from "lucide-react";
-import { Pause, Play } from "lucide-react";
+import { ChevronUp, Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { KeyframeMarker } from "./KeyframeMarker";
 
