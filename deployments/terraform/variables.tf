@@ -96,3 +96,62 @@ variable "cache_retention_days" {
   type        = number
   default     = 90
 }
+
+# ── skewer-api (previewer-facing HTTP service) ────────────────────────────
+
+variable "admin_emails" {
+  description = "Emails permitted to call the skewer-api service. Verified against the Firebase ID token's 'email' claim."
+  type        = list(string)
+  default     = []
+}
+
+variable "api_max_instances" {
+  description = "Cloud Run max instance count for skewer-api (cost-blast-radius cap)."
+  type        = number
+  default     = 3
+}
+
+variable "api_concurrency" {
+  description = "Per-instance concurrent request cap for skewer-api."
+  type        = number
+  default     = 20
+}
+
+variable "previewer_authorized_domains" {
+  description = "Identity Platform authorized domains (the previewer must be served from one of these)."
+  type        = list(string)
+  default     = ["localhost"]
+}
+
+variable "previewer_cors_origins" {
+  description = "Origins allowed to call skewer-api from the browser. Wildcard '*' is only appropriate in dev."
+  type        = list(string)
+  default     = ["http://localhost:5173"]
+}
+
+variable "api_rate_init_per_hour" {
+  description = "Max /v1/jobs/init calls per authenticated email per hour."
+  type        = number
+  default     = 60
+}
+
+variable "api_rate_submit_per_hour" {
+  description = "Max /v1/jobs/{id}/submit calls per authenticated email per hour."
+  type        = number
+  default     = 5
+}
+
+variable "google_idp_client_id" {
+  description = "OAuth 2.0 client ID for Google as an Identity Platform IdP. Obtain from the GCP console (APIs & Services → Credentials). Leave null on first apply and set after creating the OAuth client."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "google_idp_client_secret" {
+  description = "OAuth 2.0 client secret paired with google_idp_client_id."
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+}

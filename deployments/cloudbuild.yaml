@@ -37,6 +37,33 @@ steps:
           -f deployments/docker/Dockerfile.coordinator \
           .
 
+  # Build Go API image
+  - name: gcr.io/cloud-builders/docker
+    id: build-api
+    waitFor:
+      - lfs-fetch
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker pull ${_AR_BASE}/skewer-api:builder || true
+        docker pull ${_AR_BASE}/skewer-api:latest || true
+        docker build \
+          --target builder \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/skewer-api:builder \
+          -t ${_AR_BASE}/skewer-api:builder \
+          -f deployments/docker/Dockerfile.api \
+          .
+        docker push ${_AR_BASE}/skewer-api:builder
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/skewer-api:builder \
+          --cache-from ${_AR_BASE}/skewer-api:latest \
+          -t ${_AR_BASE}/skewer-api:latest \
+          -f deployments/docker/Dockerfile.api \
+          .
+
   # Build skewer render worker image (C++ — needs high-CPU machine)
   - name: gcr.io/cloud-builders/docker
     id: build-skewer
@@ -116,6 +143,14 @@ steps:
       - push
       - ${_AR_BASE}/loom-worker:latest
 
+  - name: gcr.io/cloud-builders/docker
+    id: push-api
+    waitFor:
+      - build-api
+    args:
+      - push
+      - ${_AR_BASE}/skewer-api:latest
+
   # Deploy the updated coordinator image to Cloud Run
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     id: deploy-coordinator
@@ -127,6 +162,21 @@ steps:
       - deploy
       - skewer-coordinator
       - --image=${_AR_BASE}/skewer-coordinator:latest
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --quiet
+
+  # Deploy the updated api image to Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy-api
+    waitFor:
+      - push-api
+    args:
+      - gcloud
+      - run
+      - deploy
+      - skewer-api
+      - --image=${_AR_BASE}/skewer-api:latest
       - --region=${_REGION}
       - --project=$PROJECT_ID
       - --quiet
