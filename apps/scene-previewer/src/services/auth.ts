@@ -1,11 +1,11 @@
-import { initializeApp, type FirebaseApp } from "firebase/app";
+import { type FirebaseApp, initializeApp } from "firebase/app";
 import {
 	GoogleAuthProvider,
 	getAuth,
-	type User,
 	onAuthStateChanged,
 	signInWithPopup,
 	signOut,
+	type User,
 } from "firebase/auth";
 
 let app: FirebaseApp | null = null;
