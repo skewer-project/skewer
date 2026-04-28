@@ -1,5 +1,6 @@
+import { ChevronUp, Download, Loader2, RefreshCw, X } from "lucide-react";
 import { useCallback, useState, useSyncExternalStore } from "react";
-import { Loader2, X, RefreshCw, Download, ChevronUp } from "lucide-react";
+import type { CloudJob } from "../services/cloud-job-types";
 import {
 	downloadCompositePng,
 	startCloudRender,
@@ -7,11 +8,10 @@ import {
 } from "../services/cloud-render";
 import {
 	getSnapshot,
+	isNonTerminalStatus,
 	removeJob,
 	subscribe,
-	isNonTerminalStatus,
 } from "../services/jobs-store";
-import type { CloudJob } from "../services/cloud-job-types";
 import type { ResolvedScene } from "../types/scene";
 
 function useJobs() {
