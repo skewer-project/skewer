@@ -1,11 +1,15 @@
 #include <gtest/gtest.h>
 
+#include <fstream>
+#include <streambuf>
 #include <vector>
 
 #include "composite_pipeline.h"
 #include "deep_compositor.h"
 #include "deep_info.h"
 #include "deep_options.h"
+
+namespace fs = std::filesystem;
 
 class StressTest : public ::testing::Test {
   protected:
@@ -23,6 +27,10 @@ class StressTest : public ::testing::Test {
       .mod_offset = false,
       .enable_merging = true
   };
+
+  fs::path current_file = __FILE__;
+  fs::path tests_dir = current_file.parent_path().parent_path();
+  fs::path assets_dir = tests_dir / "assets";
 };
 
 // ============================================================================
@@ -31,11 +39,11 @@ class StressTest : public ::testing::Test {
 
 TEST_F(StressTest, VolumetricSplittingStress) {
     Options opts = simple_opts;
-    std::vector<std::string> input_files = {"../assets/layer_fog.exr", "../assets/layer_objects.exr"};
+    std::vector<std::string> input_files = {assets_dir / "layer_fog.exr", assets_dir / "layer_objects.exr"};
     opts.input_files = input_files;
 
     std::vector<std::unique_ptr<deep_compositor::DeepInfo>> imagesInfo;
-    ASSERT_FALSE(exrio::SaveImageInfo(opts, imagesInfo));
+    ASSERT_EQ(exrio::SaveImageInfo(opts, imagesInfo), 0);
 
     int height = imagesInfo[0]->height();
     int width = imagesInfo[0]->width();
