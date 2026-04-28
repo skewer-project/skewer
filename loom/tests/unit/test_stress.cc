@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <fstream>
-#include <streambuf>
+#include <filesystem>
 #include <vector>
 
 #include "composite_pipeline.h"
