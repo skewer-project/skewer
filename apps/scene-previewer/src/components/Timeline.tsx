@@ -34,6 +34,7 @@ export function Timeline({
 		<div className="timeline-shell">
 			{expanded && (
 				<TimelineDopeSheet
+					key={`${animRange.start}-${animRange.end}`}
 					tracks={tracks ?? []}
 					animRange={animRange}
 					currentTime={currentTime}

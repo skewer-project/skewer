@@ -416,7 +416,9 @@ body {
 	border: 1px solid transparent;
 	color: var(--t3);
 	cursor: pointer;
-	transition: color 0.12s, border-color 0.12s;
+	transition:
+		color 0.12s,
+		border-color 0.12s;
 }
 
 .timeline-chevron-btn:hover {
@@ -460,7 +462,8 @@ body {
 	pointer-events: none;
 	z-index: 2;
 	left: calc(
-		220px + var(--timeline-track-inset) +
+		220px +
+		var(--timeline-track-inset) +
 		var(--playhead-frac, 0) *
 		(100% - 220px - 2 * var(--timeline-track-inset))
 	);

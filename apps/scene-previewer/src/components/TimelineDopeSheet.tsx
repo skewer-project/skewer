@@ -32,12 +32,8 @@ export function TimelineDopeSheet({
 
 	// viewRange is the currently visible time window (may be zoomed/panned).
 	const [viewRange, setViewRange] = useState(() => animRange);
-
-	// Reset to full range whenever the scene changes (animRange identity changes).
-	useEffect(() => {
-		setViewRange(animRange);
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [animRange.start, animRange.end]);
+	// Will automatically reset to full range whenever the scene changes (animRange identity changes)
+	// because animRange start and end are part of the key.
 
 	const viewSpan = viewRange.end - viewRange.start;
 	const viewHasSpan = viewSpan > 1e-6;
@@ -73,11 +69,13 @@ export function TimelineDopeSheet({
 
 	// Keep viewRange in refs for event handlers so they don't need re-registration.
 	const viewRangeRef = useRef(viewRange);
-	viewRangeRef.current = viewRange;
 	const viewSpanRef = useRef(viewSpan);
-	viewSpanRef.current = viewSpan;
 	const viewHasSpanRef = useRef(viewHasSpan);
-	viewHasSpanRef.current = viewHasSpan;
+	useEffect(() => {
+		viewRangeRef.current = viewRange;
+		viewSpanRef.current = viewSpan;
+		viewHasSpanRef.current = viewHasSpan;
+	}, [viewRange, viewSpan, viewHasSpan]);
 
 	// Non-passive wheel handler so we can preventDefault and stop page scroll.
 	useEffect(() => {
@@ -86,12 +84,15 @@ export function TimelineDopeSheet({
 
 		function onWheel(e: WheelEvent) {
 			e.preventDefault();
-			const rect = el!.getBoundingClientRect();
-			const trackLeft = rect.left + LABEL_WIDTH_PX + TRACK_INSET_PX;
-			const trackWidth = rect.width - LABEL_WIDTH_PX - 2 * TRACK_INSET_PX;
+			const rect = el?.getBoundingClientRect();
+			const trackLeft = rect?.left ?? 0 + LABEL_WIDTH_PX + TRACK_INSET_PX;
+			const trackWidth = rect?.width ?? 0 - LABEL_WIDTH_PX - 2 * TRACK_INSET_PX;
 			if (trackWidth <= 0) return;
 
-			const frac = Math.max(0, Math.min(1, (e.clientX - trackLeft) / trackWidth));
+			const frac = Math.max(
+				0,
+				Math.min(1, (e.clientX - trackLeft) / trackWidth),
+			);
 
 			setViewRange((prev) => {
 				const span = prev.end - prev.start;
@@ -109,7 +110,7 @@ export function TimelineDopeSheet({
 
 		el.addEventListener("wheel", onWheel, { passive: false });
 		return () => el.removeEventListener("wheel", onWheel);
-	// animSpan is a derived number; including it keeps the max-span cap current.
+		// animSpan is a derived number; including it keeps the max-span cap current.
 	}, [animSpan]);
 
 	// Keyframe click: select the object in the properties panel + seek to kf time.
@@ -121,7 +122,10 @@ export function TimelineDopeSheet({
 	// Click-to-scrub: pointer capture in the track column area.
 	const scrubbingRef = useRef(false);
 	const onTimeChangeRef = useRef(onTimeChange);
-	onTimeChangeRef.current = onTimeChange;
+
+	useEffect(() => {
+		onTimeChangeRef.current = onTimeChange;
+	}, [onTimeChange]);
 
 	function timeFromClientX(clientX: number): number {
 		const el = innerRef.current;

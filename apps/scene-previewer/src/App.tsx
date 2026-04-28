@@ -18,7 +18,7 @@ import {
 	deleteNodeAtPath,
 	insertChild,
 	resolveNodeAtPath,
-	updateNodeAtPath, 
+	updateNodeAtPath,
 } from "./services/graph-path"; // check difference between resolve and update
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
@@ -288,7 +288,9 @@ function App() {
 		() => (scene ? getAnimationRange(scene) : { start: 0, end: 0 }),
 		[scene],
 	);
-	animRangeRef.current = animRange;
+	useEffect(() => {
+		animRangeRef.current = animRange;
+	}, [animRange]);
 
 	const timelineKeyframeTimes = useMemo(
 		() => (scene ? collectSceneKeyframeTimes(scene) : []),

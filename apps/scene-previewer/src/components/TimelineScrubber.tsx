@@ -41,7 +41,10 @@ export function TimelineScrubber({
 			const r = el.getBoundingClientRect();
 			const insetWidth = r.width - 2 * TRACK_INSET_PX;
 			if (insetWidth <= 0) return animRange.start;
-			const x = Math.min(insetWidth, Math.max(0, clientX - r.left - TRACK_INSET_PX));
+			const x = Math.min(
+				insetWidth,
+				Math.max(0, clientX - r.left - TRACK_INSET_PX),
+			);
 			const u = insetWidth > 0 ? x / insetWidth : 0;
 			if (!hasSpan) return animRange.start;
 			return animRange.start + u * span;

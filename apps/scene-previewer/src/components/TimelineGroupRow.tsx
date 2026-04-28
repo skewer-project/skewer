@@ -40,17 +40,20 @@ export function TimelineGroupRow({
 	const [drag, setDrag] = useState<DragState | null>(null);
 
 	const dragRef = useRef<DragState | null>(null);
-	dragRef.current = drag;
 	const viewRangeRef = useRef(viewRange);
-	viewRangeRef.current = viewRange;
 	const spanRef = useRef(span);
-	spanRef.current = span;
 	const trackKeyRef = useRef(track.key);
-	trackKeyRef.current = track.key;
 	const onKeyframeMoveRef = useRef(onKeyframeMove);
-	onKeyframeMoveRef.current = onKeyframeMove;
 	const onKeyframeClickRef = useRef(onKeyframeClick);
-	onKeyframeClickRef.current = onKeyframeClick;
+
+	useEffect(() => {
+		dragRef.current = drag;
+		viewRangeRef.current = viewRange;
+		spanRef.current = span;
+		trackKeyRef.current = track.key;
+		onKeyframeMoveRef.current = onKeyframeMove;
+		onKeyframeClickRef.current = onKeyframeClick;
+	}, [drag, viewRange, span, track.key, onKeyframeMove, onKeyframeClick]);
 
 	useEffect(() => {
 		function onMove(e: PointerEvent) {
@@ -115,7 +118,7 @@ export function TimelineGroupRow({
 						const realFrac = (kf.time - viewRange.start) / span;
 						const isDragging = drag?.kfTime === kf.time;
 						if (!isDragging && (realFrac < 0 || realFrac > 1)) return null;
-						const displayFrac = isDragging ? drag!.previewFrac : realFrac;
+						const displayFrac = isDragging ? drag?.previewFrac : realFrac;
 						if (displayFrac < 0 || displayFrac > 1) return null;
 						return (
 							<KeyframeMarker

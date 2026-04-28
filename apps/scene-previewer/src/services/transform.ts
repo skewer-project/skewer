@@ -363,7 +363,9 @@ export interface AnimatedNodeTrack {
  * Also emits group-ancestor tracks (keyframes=[]) so the dope-sheet can render tree rows
  * for groups that contain animated descendants even if they are not animated themselves.
  */
-export function collectAnimatedNodeTracks(scene: ResolvedScene): AnimatedNodeTrack[] {
+export function collectAnimatedNodeTracks(
+	scene: ResolvedScene,
+): AnimatedNodeTrack[] {
 	const tracks: AnimatedNodeTrack[] = [];
 
 	function walk(
@@ -405,7 +407,9 @@ export function collectAnimatedNodeTracks(scene: ResolvedScene): AnimatedNodeTra
 						layerName,
 						depth: indices.length,
 						ancestorKeys,
-						keyframes: isAnimated(node.transform) ? node.transform.keyframes : [],
+						keyframes: isAnimated(node.transform)
+							? node.transform.keyframes
+							: [],
 					});
 				}
 			} else {
