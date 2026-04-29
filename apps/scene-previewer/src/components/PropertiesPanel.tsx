@@ -551,11 +551,11 @@ function SphereEditor({
 							if (bounds) {
 								const scale = med.scale ?? 1.0;
 								const translate = med.translate ?? [0, 0, 0];
-								const radius = bounds.radius * scale;
-								const identity: StaticTransform = {
-									translate: [0, 0, 0],
+								const radius = bounds.radius;
+								const nextXform: StaticTransform = {
+									translate: translate,
 									rotate: [0, 0, 0],
-									scale: 1.0,
+									scale: scale,
 								};
 
 								onSceneEdit((s) =>
@@ -563,9 +563,9 @@ function SphereEditor({
 										const sph = o as SphereNode;
 										return {
 											...sph,
-											center: translate,
+											center: [0, 0, 0],
 											radius: radius,
-											transform: identity,
+											transform: nextXform,
 										};
 									}),
 								);
@@ -574,7 +574,7 @@ function SphereEditor({
 								if (vp) {
 									vp.applyPatch(scene, objectKey, {
 										kind: "sphere-center",
-										value: translate,
+										value: [0, 0, 0],
 									});
 									vp.applyPatch(scene, objectKey, {
 										kind: "sphere-radius",
@@ -582,7 +582,7 @@ function SphereEditor({
 									});
 									vp.applyPatch(scene, objectKey, {
 										kind: "node-transform",
-										value: identity,
+										value: nextXform,
 									});
 								}
 							}

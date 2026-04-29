@@ -536,10 +536,9 @@ export async function loadScene(
 					if (bounds) {
 						const scale = med.scale ?? 1.0;
 						const translate = med.translate ?? [0, 0, 0];
-						node.center = translate;
-						node.radius = bounds.radius * scale;
-						// Reset local transform so it doesn't double-transform
-						node.transform = { translate: [0, 0, 0], rotate: [0, 0, 0], scale: 1.0 };
+						node.center = [0, 0, 0];
+						node.radius = bounds.radius;
+						node.transform = { translate: translate, rotate: [0, 0, 0], scale: scale };
 					}
 				}
 			}
