@@ -28,9 +28,7 @@ export async function createNewScene(
 	);
 
 	// Write to disk in parallel
-	await Promise.all(
-		TEMPLATE_FILES.map((f, i) => writeFile(dir, f, texts[i])),
-	);
+	await Promise.all(TEMPLATE_FILES.map((f, i) => writeFile(dir, f, texts[i])));
 
 	// Parse directly from fetched content — no read-after-write
 	const [sceneRaw, ctxRaw, envRaw, goldRaw, blueRaw] = texts.map((t) =>

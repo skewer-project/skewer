@@ -29,11 +29,12 @@ export async function getNanoVDBBounds(
 		for (let i = 0; i <= buffer.byteLength - 8; i += 8) {
 			const m0 = view.getUint32(i, true);
 			const m1 = view.getUint32(i + 4, true);
-			
+
 			// Check against "NanoVDB" in little-endian (0x6f6e614e)
 			// Handles versions VDB0 through VDB6.
-			const isVdbMagic = m0 === 0x6f6e614e && m1 >= 0x30424456 && m1 <= 0x36424456;
-			
+			const isVdbMagic =
+				m0 === 0x6f6e614e && m1 >= 0x30424456 && m1 <= 0x36424456;
+
 			if (isVdbMagic) {
 				const gridOffset = i;
 				// Scan for 6 doubles that form a valid bounding box (min <= max)
@@ -72,7 +73,10 @@ export async function getNanoVDBBounds(
 								const radius = 0.5 * Math.max(dx, dy, dz);
 
 								if (!bestBBox || radius > bestBBox.radius) {
-									console.debug(`[nanovdb-parser] Found candidate worldBBox at grid ${gridOffset}, offset ${o}:`, { radius });
+									console.debug(
+										`[nanovdb-parser] Found candidate worldBBox at grid ${gridOffset}, offset ${o}:`,
+										{ radius },
+									);
 									bestBBox = {
 										min: [minX, minY, minZ],
 										max: [maxX, maxY, maxZ],
@@ -86,12 +90,14 @@ export async function getNanoVDBBounds(
 				}
 				// Skip ahead to avoid re-matching the same grid's content as a magic number
 				// (Though magic numbers only occur at grid starts)
-				i += 32; 
+				i += 32;
 			}
 		}
 
 		if (!bestBBox) {
-			console.warn(`[nanovdb-parser] Could not find a valid worldBBox in ${filepath}`);
+			console.warn(
+				`[nanovdb-parser] Could not find a valid worldBBox in ${filepath}`,
+			);
 		}
 
 		return bestBBox;

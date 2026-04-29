@@ -184,11 +184,20 @@ function App() {
 							transform: nextAnim,
 						}));
 						const node = ctx.node;
-						if (node.kind === "sphere" && node.inside_medium && evaluated.translate) {
-							s2 = updateMedium(s2, `${ctx.tag}:${ctx.layerIdx}`, node.inside_medium, (m) => ({
-								...m,
-								translate: evaluated.translate as Vec3,
-							}));
+						if (
+							node.kind === "sphere" &&
+							node.inside_medium &&
+							evaluated.translate
+						) {
+							s2 = updateMedium(
+								s2,
+								`${ctx.tag}:${ctx.layerIdx}`,
+								node.inside_medium,
+								(m) => ({
+									...m,
+									translate: evaluated.translate as Vec3,
+								}),
+							);
 						}
 						return s2;
 					});
@@ -203,11 +212,20 @@ function App() {
 				let s2 = updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform }));
 				if (ctx) {
 					const node = ctx.node;
-					if (node.kind === "sphere" && node.inside_medium && transform.translate) {
-						s2 = updateMedium(s2, `${ctx.tag}:${ctx.layerIdx}`, node.inside_medium, (m) => ({
-							...m,
-							translate: transform.translate as Vec3,
-						}));
+					if (
+						node.kind === "sphere" &&
+						node.inside_medium &&
+						transform.translate
+					) {
+						s2 = updateMedium(
+							s2,
+							`${ctx.tag}:${ctx.layerIdx}`,
+							node.inside_medium,
+							(m) => ({
+								...m,
+								translate: transform.translate as Vec3,
+							}),
+						);
 					}
 				}
 				return s2;
@@ -279,12 +297,7 @@ function App() {
 	);
 
 	const handleAddMedium = useCallback(
-		(
-			tag: "ctx" | "lyr",
-			layerIdx: number,
-			name: string,
-			medium: Medium,
-		) => {
+		(tag: "ctx" | "lyr", layerIdx: number, name: string, medium: Medium) => {
 			handleSceneEdit((s) => {
 				const listKey = tag === "ctx" ? "contexts" : "layers";
 				const newList = [...s[listKey]];
@@ -527,7 +540,7 @@ function App() {
 									viewportRef={viewportRef}
 									currentTime={currentTime}
 									onTimeChange={setCurrentTime}
-									dirHandle={dirHandle!}
+									dirHandle={dirHandle as FileSystemDirectoryHandle}
 								/>
 							)}
 							{selectedMaterialKey && (
@@ -544,7 +557,7 @@ function App() {
 									medKey={selectedMediumKey}
 									onSceneEdit={handleSceneEdit}
 									viewportRef={viewportRef}
-									dirHandle={dirHandle!}
+									dirHandle={dirHandle as FileSystemDirectoryHandle}
 								/>
 							)}
 						</div>

@@ -14,9 +14,9 @@ import type {
 	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
+import { writeFile } from "./fs";
 import { getNanoVDBBounds } from "./nanovdb-parser";
 import { evaluateTransformAt } from "./transform";
-import { writeFile } from "./fs";
 
 function jsonLine(value: unknown): string {
 	return `${JSON.stringify(value, null, 2)}\n`;

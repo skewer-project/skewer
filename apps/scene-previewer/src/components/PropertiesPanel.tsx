@@ -1,12 +1,12 @@
 import type { RefObject } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { getFile } from "../services/fs";
 import {
 	resolveNodeAtPath,
 	updateMaterial,
 	updateMedium,
 	updateNodeAtPath,
 } from "../services/graph-path";
-import { getFile } from "../services/fs";
 import { getNanoVDBBounds } from "../services/nanovdb-parser";
 import { evaluateTransformAt } from "../services/transform";
 import type {
@@ -370,20 +370,30 @@ function CommonTransformBlock({
 				const med = layer.data.media?.[node.inside_medium];
 				if (med && med.type === "nanovdb") {
 					if (partial.translate !== undefined) {
-						s2 = updateMedium(s2, `${layerTag}:${layerIdx}`, node.inside_medium, (m) => ({
-							...m,
-							translate: partial.translate!,
-						}));
+						s2 = updateMedium(
+							s2,
+							`${layerTag}:${layerIdx}`,
+							node.inside_medium,
+							(m) => ({
+								...m,
+								translate: partial.translate as Vec3,
+							}),
+						);
 					}
 					if (partial.scale !== undefined) {
 						const sc =
 							typeof partial.scale === "number"
 								? partial.scale
 								: partial.scale[0];
-						s2 = updateMedium(s2, `${layerTag}:${layerIdx}`, node.inside_medium, (m) => ({
-							...m,
-							scale: sc,
-						}));
+						s2 = updateMedium(
+							s2,
+							`${layerTag}:${layerIdx}`,
+							node.inside_medium,
+							(m) => ({
+								...m,
+								scale: sc,
+							}),
+						);
 					}
 				}
 			}
@@ -502,7 +512,8 @@ function SphereEditor({
 
 	const handleRadiusChange = async (v: number) => {
 		const isNanoVDB =
-			obj.inside_medium && layer.data.media?.[obj.inside_medium]?.type === "nanovdb";
+			obj.inside_medium &&
+			layer.data.media?.[obj.inside_medium]?.type === "nanovdb";
 
 		if (isNanoVDB) {
 			const newScale = v / obj.radius;
@@ -518,7 +529,7 @@ function SphereEditor({
 				value: nextXform,
 			});
 
-			const medName = obj.inside_medium!;
+			const medName = obj.inside_medium as string;
 			onSceneEdit((s) =>
 				updateMedium(s, `${layerTag}:${layerIdx}`, medName, (m) => ({
 					...m,
@@ -541,7 +552,8 @@ function SphereEditor({
 
 	const handleCenterChange = (v: Vec3) => {
 		const isNanoVDB =
-			obj.inside_medium && layer.data.media?.[obj.inside_medium]?.type === "nanovdb";
+			obj.inside_medium &&
+			layer.data.media?.[obj.inside_medium]?.type === "nanovdb";
 
 		if (isNanoVDB) {
 			const newTranslate: Vec3 = [
@@ -561,7 +573,7 @@ function SphereEditor({
 				value: nextXform,
 			});
 
-			const medName = obj.inside_medium!;
+			const medName = obj.inside_medium as string;
 			onSceneEdit((s) =>
 				updateMedium(s, `${layerTag}:${layerIdx}`, medName, (m) => ({
 					...m,
@@ -677,7 +689,8 @@ function SphereEditor({
 									})),
 								);
 							}
-						} else {							onSceneEdit((s) =>
+						} else {
+							onSceneEdit((s) =>
 								updateNodeAtPath(s, objectKey, (o) => ({
 									...(o as SphereNode),
 									inside_medium: name,
@@ -1038,7 +1051,12 @@ function MediumEditor({
 
 	function patchMed(partial: Partial<Medium>) {
 		onSceneEdit((s) =>
-			updateMedium(s, layerRefKey, medName, (m) => ({ ...m, ...partial }) as Medium),
+			updateMedium(
+				s,
+				layerRefKey,
+				medName,
+				(m) => ({ ...m, ...partial }) as Medium,
+			),
 		);
 	}
 
@@ -1305,7 +1323,9 @@ export function PropertiesPanel({
 						) : (
 							<div className="kv-row">
 								<span className="kv-key">error</span>
-								<span className="kv-val">Medium "{node.inside_medium}" not found</span>
+								<span className="kv-val">
+									Medium "{node.inside_medium}" not found
+								</span>
 							</div>
 						)}
 					</div>

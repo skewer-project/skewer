@@ -26,8 +26,8 @@ import type {
 	StaticTransform,
 	Vec3,
 } from "../types/scene";
-import { getNanoVDBBounds } from "./nanovdb-parser";
 import { readJsonFile } from "./fs";
+import { getNanoVDBBounds } from "./nanovdb-parser";
 
 // --- Primitive helpers ---
 
@@ -147,12 +147,16 @@ export function parseMedium(name: string, json: unknown): Medium {
 		case "nanovdb":
 			return {
 				type: "nanovdb",
-				sigma_a: parseVec3OrDefault(json.sigma_a, `medium "${name}".sigma_a`, [
-					0, 0, 0,
-				]),
-				sigma_s: parseVec3OrDefault(json.sigma_s, `medium "${name}".sigma_s`, [
-					0, 0, 0,
-				]),
+				sigma_a: parseVec3OrDefault(
+					json.sigma_a,
+					`medium "${name}".sigma_a`,
+					[0, 0, 0],
+				),
+				sigma_s: parseVec3OrDefault(
+					json.sigma_s,
+					`medium "${name}".sigma_s`,
+					[0, 0, 0],
+				),
 				g: num(json.g, `medium "${name}".g`, 0),
 				density_multiplier: num(
 					json.density_multiplier,
@@ -270,16 +274,19 @@ function parseSphereLeaf(
 ): SphereNode {
 	// For bounding spheres, center and radius are omitted from JSON
 	// Provide defaults; they will be overwritten during volume sync
-	const center = json.center !== undefined 
-		? parseVec3(json.center, `${field}.center`) 
-		: [0, 0, 0] as Vec3;
-	const radius = json.radius !== undefined 
-		? num(json.radius, `${field}.radius`) 
-		: 1;
+	const center =
+		json.center !== undefined
+			? parseVec3(json.center, `${field}.center`)
+			: ([0, 0, 0] as Vec3);
+	const radius =
+		json.radius !== undefined ? num(json.radius, `${field}.radius`) : 1;
 
 	return {
 		kind: "sphere",
-		material: json.material !== "null" ? str(json.material, `${field}.material`) : "null",
+		material:
+			json.material !== "null"
+				? str(json.material, `${field}.material`)
+				: "null",
 		center,
 		radius,
 		visible:
@@ -547,7 +554,11 @@ export async function loadScene(
 						const translate = med.translate ?? [0, 0, 0];
 						node.center = [0, 0, 0];
 						node.radius = bounds.radius;
-						node.transform = { translate: translate, rotate: [0, 0, 0], scale: scale };
+						node.transform = {
+							translate: translate,
+							rotate: [0, 0, 0],
+							scale: scale,
+						};
 					}
 				}
 			}
