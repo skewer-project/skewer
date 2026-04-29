@@ -454,6 +454,25 @@ function CommonTransformBlock({
 			>
 				animate
 			</button>
+			<button
+				type="button"
+				className="delete-obj-btn kf-action-btn"
+				onClick={() => {
+					const st = evaluateTransformAt(node.transform, currentTime);
+					onSceneEdit((s) =>
+						updateNodeAtPath(s, objectKey, (o) => ({
+							...o,
+							transform: st,
+						})),
+					);
+					viewportRef.current?.applyPatch(scene, objectKey, {
+						kind: "node-transform",
+						value: st,
+					});
+				}}
+			>
+				reset to anim
+			</button>
 		</div>
 	);
 }

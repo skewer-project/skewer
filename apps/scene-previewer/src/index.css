@@ -94,8 +94,11 @@ body {
 	left: 16px;
 	display: flex;
 	align-items: stretch;
+	gap: 0;
 	height: 34px;
-	width: 318px;
+	width: max-content;
+	min-width: 280px;
+	max-width: min(90vw, 520px);
 }
 
 .wordmark {
@@ -1649,4 +1652,233 @@ button.data-row {
 
 .kf-action-btn {
 	margin-top: 0;
+}
+
+/* ── Cloud jobs + auth ─────────────────── */
+
+.user-menu {
+	display: flex;
+	align-items: center;
+	padding-right: 4px;
+	border-right: 1px solid var(--border-mid);
+}
+
+.user-menu-signin {
+	padding: 0 10px;
+	font-size: 10.5px;
+	white-space: nowrap;
+}
+
+.user-menu-err {
+	margin-left: 6px;
+	font-size: 9px;
+	color: var(--red);
+	max-width: 100px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.user-menu-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.avatar {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	margin: 0 8px;
+	border: 1px solid var(--border-mid);
+	border-radius: 50%;
+	background: var(--bg);
+	cursor: pointer;
+	overflow: hidden;
+}
+
+.avatar img {
+	width: 100%;
+	height: 100%;
+	display: block;
+	object-fit: cover;
+}
+
+.avatar-fallback {
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--t1);
+}
+
+.user-menu-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 5;
+}
+
+.user-menu-popover {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	margin-top: 4px;
+	z-index: 6;
+	min-width: 180px;
+	padding: 8px 10px;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	backdrop-filter: blur(12px);
+}
+
+.user-menu-email {
+	color: var(--t1);
+	font-size: 10px;
+	margin-bottom: 6px;
+	word-break: break-all;
+}
+
+.user-menu-out {
+	margin-top: 0;
+	background: transparent;
+	border: 1px solid var(--border-mid);
+	color: var(--t2);
+	font-family: var(--mono);
+	font-size: 10px;
+	padding: 4px 8px;
+	cursor: pointer;
+}
+
+.user-menu-out:hover {
+	color: var(--t0);
+	border-color: var(--t3);
+}
+
+.jobs-panel {
+	position: absolute;
+	bottom: 120px;
+	right: 16px;
+	z-index: 8;
+	pointer-events: auto;
+}
+
+.jobs-panel-toggle {
+	white-space: nowrap;
+}
+
+.jobs-panel-inner {
+	max-width: 280px;
+	max-height: 40vh;
+	overflow: auto;
+	margin-top: 4px;
+	padding: 8px;
+}
+
+.jobs-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.jobs-card {
+	font-size: 10px;
+	border: 1px solid var(--border-mid);
+	background: rgba(0, 0, 0, 0.2);
+	padding: 8px;
+	cursor: default;
+}
+
+.jobs-card-terminal {
+	cursor: pointer;
+}
+
+.jobs-card-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+	margin-bottom: 4px;
+}
+
+.jobs-card-title {
+	color: var(--t1);
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+}
+
+.jobs-card-cancel,
+.jobs-card-x {
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--t3);
+	padding: 2px 4px;
+	cursor: pointer;
+}
+
+.jobs-card-cancel:hover,
+.jobs-card-x:hover {
+	color: var(--t1);
+	border-color: var(--border-mid);
+}
+
+.jobs-card-status-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--t2);
+}
+
+.jobs-status-txt {
+	flex: 1;
+}
+
+.jobs-spinner {
+	animation: jobs-spin 0.9s linear infinite;
+	color: var(--amber);
+}
+
+@keyframes jobs-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.progress-bar-wrap {
+	flex: 1;
+	height: 4px;
+	background: var(--border);
+	border-radius: 1px;
+	overflow: hidden;
+}
+
+.progress-bar {
+	height: 100%;
+	background: var(--amber);
+}
+
+.jobs-error {
+	color: var(--red);
+	margin-top: 4px;
+	font-size: 9.5px;
+}
+
+.jobs-composite {
+	margin-top: 6px;
+	max-width: 100%;
+	border: 1px solid var(--border);
+}
+
+.jobs-actions {
+	margin-top: 6px;
+}
+
+.jobs-retry {
+	width: 100%;
+	justify-content: center;
+}
+
+.jobs-empty {
+	color: var(--t3);
+	font-size: 10px;
+	padding: 4px 0;
 }
