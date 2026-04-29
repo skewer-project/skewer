@@ -16,7 +16,7 @@ jobs:
       LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/**
 
     steps:
-      - name: Checkout Repository 
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           lfs: false
@@ -28,10 +28,10 @@ jobs:
       - name: Restore LFS cache
         uses: actions/cache@v4
         with:
-   	  path: .git/lfs
-	  key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
- 	  restore-keys: |
- 	    ${{ runner.os }}-lfs-
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
+          restore-keys: |
+            ${{ runner.os }}-lfs-
 
       - name: Fetch required LFS assets
         run: |
