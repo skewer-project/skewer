@@ -13,13 +13,29 @@ jobs:
       CCACHE_MAXSIZE: 500M
       SKEWER_RUN_GOLDEN: "1"
       GIT_LFS_SKIP_SMUDGE: "1"
+      LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/**
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository 
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Create LFS file list
+        run: |
+          git lfs ls-files -I "$LFS_TARGETS" -l | cut -d' ' -f1 | sort > .lfs-assets-id
+
+      - name: Restore LFS cache
+        uses: actions/cache@v4
+        with:
+   	  path: .git/lfs
+	  key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
+ 	  restore-keys: |
+ 	    ${{ runner.os }}-lfs-
 
       - name: Fetch required LFS assets
         run: |
-          git lfs fetch --include="skewer/external/srgb_spec_data.h,tests/integration/**"
+          git lfs fetch --include="$LFS_TARGETS" --prune
           git lfs checkout
 
       - name: Restore ccache
