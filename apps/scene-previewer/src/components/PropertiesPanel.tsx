@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { resolveNodeAtPath, updateNodeAtPath } from "../services/graph-path";
 import { getFile } from "../services/fs";
+import { getNanoVDBBounds } from "../services/nanovdb-parser";
 import { evaluateTransformAt } from "../services/transform";
 import type {
 	AnimatedTransform,
@@ -59,6 +60,7 @@ interface EditorProps extends SceneEditorBase {
 	layer: ResolvedLayer;
 	layerTag: string;
 	layerIdx: number;
+	dirHandle: FileSystemDirectoryHandle;
 }
 
 function updateMaterial(
@@ -470,6 +472,7 @@ function SphereEditor({
 	materialNames,
 	mediumNames,
 	layer,
+	dirHandle,
 }: EditorProps & { obj: SphereNode }) {
 	return (
 		<div className="kv-table">
@@ -533,21 +536,73 @@ function SphereEditor({
 				value={obj.inside_medium ?? ""}
 				options={mediumNames}
 				noneLabel="vacuum"
-				onChange={(name) => {
+				onChange={async (name) => {
 					onSceneEdit((s) =>
 						updateNodeAtPath(s, objectKey, (o) => ({
 							...(o as SphereNode),
 							inside_medium: name === "" ? undefined : name,
 						})),
 					);
-					const matData = layer.data.materials[obj.material];
-					if (matData) {
-						viewportRef.current?.applyPatch(scene, objectKey, {
-							kind: "assign-material",
-							matData,
-							isVolumetric: name !== "",
-						});
+
+					if (name !== "") {
+						const med = layer.data.media?.[name];
+						if (med && med.type === "nanovdb") {
+							const bounds = await getNanoVDBBounds(dirHandle, med.file);
+							if (bounds) {
+								const scale = med.scale ?? 1.0;
+								const translate = med.translate ?? [0, 0, 0];
+								const radius = bounds.radius * scale;
+								const identity: StaticTransform = {
+									translate: [0, 0, 0],
+									rotate: [0, 0, 0],
+									scale: 1.0,
+								};
+
+								onSceneEdit((s) =>
+									updateNodeAtPath(s, objectKey, (o) => {
+										const sph = o as SphereNode;
+										return {
+											...sph,
+											center: translate,
+											radius: radius,
+											transform: identity,
+										};
+									}),
+								);
+
+								const vp = viewportRef.current;
+								if (vp) {
+									vp.applyPatch(scene, objectKey, {
+										kind: "sphere-center",
+										value: translate,
+									});
+									vp.applyPatch(scene, objectKey, {
+										kind: "sphere-radius",
+										value: radius,
+									});
+									vp.applyPatch(scene, objectKey, {
+										kind: "node-transform",
+										value: identity,
+									});
+								}
+							}
+						}
 					}
+
+					const currentMatName = (obj as SphereNode).material;
+					const matData = layer.data.materials[currentMatName] ?? {
+						type: "lambertian",
+						albedo: [0.8, 0.8, 0.8],
+						emission: [0, 0, 0],
+						opacity: [1, 1, 1],
+						visible: true,
+					};
+
+					viewportRef.current?.applyPatch(scene, objectKey, {
+						kind: "assign-material",
+						matData,
+						isVolumetric: name !== "",
+					});
 				}}
 			/>
 			<Dropdown
@@ -1018,6 +1073,7 @@ export function PropertiesPanel({
 		layer,
 		layerTag: tag,
 		layerIdx,
+		dirHandle,
 	};
 
 	return (

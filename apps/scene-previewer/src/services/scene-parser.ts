@@ -26,6 +26,7 @@ import type {
 	StaticTransform,
 	Vec3,
 } from "../types/scene";
+import { getNanoVDBBounds } from "./nanovdb-parser";
 import { readJsonFile } from "./fs";
 
 // --- Primitive helpers ---
@@ -513,10 +514,46 @@ export async function loadScene(
 		Promise.all(manifest.layers.map(loadLayer)),
 	]);
 
-	return {
+	const resolvedScene: ResolvedScene = {
 		camera: manifest.camera,
 		contexts,
 		layers,
 		output_dir: manifest.output_dir,
 	};
+
+	// --- Volumetric Bounding Sphere Synchronization ---
+	// Sync spheres with inside_medium to the physical bounds of the .nvdb file.
+	const allLayers = [...resolvedScene.contexts, ...resolvedScene.layers];
+	for (const layer of allLayers) {
+		const media = layer.data.media;
+		if (!media) continue;
+
+		const visitNode = async (node: SceneNode) => {
+			if (node.kind === "sphere" && node.inside_medium) {
+				const med = media[node.inside_medium];
+				if (med && med.type === "nanovdb") {
+					const bounds = await getNanoVDBBounds(dir, med.file);
+					if (bounds) {
+						const scale = med.scale ?? 1.0;
+						const translate = med.translate ?? [0, 0, 0];
+						node.center = translate;
+						node.radius = bounds.radius * scale;
+						// Reset local transform so it doesn't double-transform
+						node.transform = { translate: [0, 0, 0], rotate: [0, 0, 0], scale: 1.0 };
+					}
+				}
+			}
+			if (node.kind === "group") {
+				for (const child of node.children) {
+					await visitNode(child);
+				}
+			}
+		};
+
+		for (const node of layer.data.graph) {
+			await visitNode(node);
+		}
+	}
+
+	return resolvedScene;
 }

@@ -11,8 +11,11 @@ import type {
 	RenderConfig,
 	ResolvedScene,
 	SceneNode,
+	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
+import { getNanoVDBBounds } from "./nanovdb-parser";
+import { evaluateTransformAt } from "./transform";
 import { writeFile } from "./fs";
 
 function jsonLine(value: unknown): string {
@@ -122,12 +125,14 @@ function serializeSceneNode(node: SceneNode): Record<string, unknown> {
 		const j: Record<string, unknown> = {
 			type: "sphere",
 			material: node.material,
-			center: node.center,
-			radius: node.radius,
 		};
-		if (node.visible !== undefined) j.visible = node.visible;
-		if (node.inside_medium !== undefined)
+		if (node.inside_medium !== undefined) {
 			j.inside_medium = node.inside_medium;
+		} else {
+			j.center = node.center;
+			j.radius = node.radius;
+		}
+		if (node.visible !== undefined) j.visible = node.visible;
 		if (node.outside_medium !== undefined)
 			j.outside_medium = node.outside_medium;
 		return withCommon(j);
@@ -220,11 +225,64 @@ export async function saveScene(
 	dir: FileSystemDirectoryHandle,
 	scene: ResolvedScene,
 ): Promise<void> {
+	// Clone scene to avoid mutating the app state during save
+	const sceneToSave = JSON.parse(JSON.stringify(scene)) as ResolvedScene;
+
+	// --- Volumetric Synchronization on Save ---
+	const allLayers = [...sceneToSave.contexts, ...sceneToSave.layers];
+	for (const layer of allLayers) {
+		const media = layer.data.media;
+		if (!media) continue;
+
+		const visitNode = async (node: SceneNode) => {
+			if (node.kind === "sphere" && node.inside_medium) {
+				const med = media[node.inside_medium];
+				if (med && med.type === "nanovdb") {
+					const bounds = await getNanoVDBBounds(dir, med.file);
+					if (bounds) {
+						const st = evaluateTransformAt(node.transform, 0);
+						const pos = st.translate ?? [0, 0, 0];
+						const worldCenter: Vec3 = [
+							node.center[0] + pos[0],
+							node.center[1] + pos[1],
+							node.center[2] + pos[2],
+						];
+						const scaleFactor =
+							typeof st.scale === "number"
+								? st.scale
+								: Array.isArray(st.scale)
+									? st.scale[0]
+									: 1.0;
+						const worldRadius = node.radius * scaleFactor;
+
+						// Sync Media properties
+						med.translate = worldCenter;
+						med.scale = worldRadius / bounds.radius;
+
+						// Bake transform into sphere properties and clear it
+						node.center = worldCenter;
+						node.radius = worldRadius;
+						node.transform = undefined;
+					}
+				}
+			}
+			if (node.kind === "group") {
+				for (const child of node.children) {
+					await visitNode(child);
+				}
+			}
+		};
+
+		for (const node of layer.data.graph) {
+			await visitNode(node);
+		}
+	}
+
 	const byPath = new Map<string, LayerData>();
-	for (const layer of scene.contexts) {
+	for (const layer of sceneToSave.contexts) {
 		byPath.set(layer.path, layer.data);
 	}
-	for (const layer of scene.layers) {
+	for (const layer of sceneToSave.layers) {
 		byPath.set(layer.path, layer.data);
 	}
 
@@ -232,5 +290,5 @@ export async function saveScene(
 		await writeFile(dir, path, jsonLine(serializeLayerData(data)));
 	}
 
-	await writeFile(dir, "scene.json", jsonLine(serializeManifest(scene)));
+	await writeFile(dir, "scene.json", jsonLine(serializeManifest(sceneToSave)));
 }
