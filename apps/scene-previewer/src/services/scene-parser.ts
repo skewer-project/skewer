@@ -268,11 +268,20 @@ function parseSphereLeaf(
 	json: Record<string, unknown>,
 	field: string,
 ): SphereNode {
+	// For bounding spheres, center and radius are omitted from JSON
+	// Provide defaults; they will be overwritten during volume sync
+	const center = json.center !== undefined 
+		? parseVec3(json.center, `${field}.center`) 
+		: [0, 0, 0] as Vec3;
+	const radius = json.radius !== undefined 
+		? num(json.radius, `${field}.radius`) 
+		: 1;
+
 	return {
 		kind: "sphere",
-		material: str(json.material, `${field}.material`),
-		center: parseVec3(json.center, `${field}.center`),
-		radius: num(json.radius, `${field}.radius`),
+		material: json.material !== "null" ? str(json.material, `${field}.material`) : "null",
+		center,
+		radius,
 		visible:
 			json.visible !== undefined
 				? bool(json.visible, `${field}.visible`, true)

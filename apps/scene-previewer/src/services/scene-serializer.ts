@@ -122,16 +122,26 @@ function serializeSceneNode(node: SceneNode): Record<string, unknown> {
 	}
 
 	if (node.kind === "sphere") {
+		if (node.inside_medium !== undefined) {
+			const j: Record<string, unknown> = {
+				type: "sphere",
+				material: "null",
+				inside_medium: node.inside_medium,
+			};
+			if (name !== undefined) j.name = name;
+			if (node.visible !== undefined) j.visible = node.visible;
+			if (node.outside_medium !== undefined)
+				j.outside_medium = node.outside_medium;
+			// NO TRANSFORM for bounding spheres
+			return j;
+		}
+
 		const j: Record<string, unknown> = {
 			type: "sphere",
 			material: node.material,
+			center: node.center,
+			radius: node.radius,
 		};
-		if (node.inside_medium !== undefined) {
-			j.inside_medium = node.inside_medium;
-		} else {
-			j.center = node.center;
-			j.radius = node.radius;
-		}
 		if (node.visible !== undefined) j.visible = node.visible;
 		if (node.outside_medium !== undefined)
 			j.outside_medium = node.outside_medium;
@@ -204,9 +214,10 @@ function serializeLayerData(data: LayerData): Record<string, unknown> {
 	}
 	const o: Record<string, unknown> = {
 		materials,
-		graph: data.graph.map(serializeSceneNode),
 	};
 	if (Object.keys(media).length > 0) o.media = media;
+	o.graph = data.graph.map(serializeSceneNode);
+
 	if (data.render !== undefined) o.render = serializeRenderConfig(data.render);
 	if (data.visible !== undefined) o.visible = data.visible;
 	return o;
@@ -258,11 +269,6 @@ export async function saveScene(
 						// Sync Media properties
 						med.translate = worldCenter;
 						med.scale = worldRadius / bounds.radius;
-
-						// Bake transform into sphere properties and clear it
-						node.center = worldCenter;
-						node.radius = worldRadius;
-						node.transform = undefined;
 					}
 				}
 			}

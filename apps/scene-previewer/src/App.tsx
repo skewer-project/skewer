@@ -16,6 +16,7 @@ import {
 	deleteNodeAtPath,
 	insertChild,
 	resolveNodeAtPath,
+	updateMedium,
 	updateNodeAtPath,
 } from "./services/graph-path";
 import { addRecentScene } from "./services/recent-scenes";
@@ -32,6 +33,7 @@ import type {
 	RenderConfig,
 	ResolvedScene,
 	SceneNode,
+	Vec3,
 } from "./types/scene";
 import { isAnimated } from "./types/scene";
 
@@ -173,12 +175,20 @@ function App() {
 						transform,
 					);
 					const evaluated = evaluateTransformAt(nextAnim, currentTime);
-					handleSceneEdit((s) =>
-						updateNodeAtPath(s, objectKey, (o) => ({
+					handleSceneEdit((s) => {
+						let s2 = updateNodeAtPath(s, objectKey, (o) => ({
 							...o,
 							transform: nextAnim,
-						})),
-					);
+						}));
+						const node = ctx.node;
+						if (node.kind === "sphere" && node.inside_medium && evaluated.translate) {
+							s2 = updateMedium(s2, `${ctx.tag}:${ctx.layerIdx}`, node.inside_medium, (m) => ({
+								...m,
+								translate: evaluated.translate as Vec3,
+							}));
+						}
+						return s2;
+					});
 					viewportRef.current?.applyPatch(scene, objectKey, {
 						kind: "node-transform",
 						value: evaluated,
@@ -186,9 +196,19 @@ function App() {
 					return;
 				}
 			}
-			handleSceneEdit((s) =>
-				updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform })),
-			);
+			handleSceneEdit((s) => {
+				let s2 = updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform }));
+				if (ctx) {
+					const node = ctx.node;
+					if (node.kind === "sphere" && node.inside_medium && transform.translate) {
+						s2 = updateMedium(s2, `${ctx.tag}:${ctx.layerIdx}`, node.inside_medium, (m) => ({
+							...m,
+							translate: transform.translate as Vec3,
+						}));
+					}
+				}
+				return s2;
+			});
 			viewportRef.current?.applyPatch(scene, objectKey, {
 				kind: "node-transform",
 				value: transform,

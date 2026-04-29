@@ -144,13 +144,13 @@ function findObjectKey(obj: THREE.Object3D): string | null {
 	return null;
 }
 
-/** Collect all meshes under sceneGroup that match the given objectKey. */
+/** Collect all meshes under root that match the given objectKey. */
 function collectMeshesForKey(
-	sceneGroup: THREE.Group,
+	root: THREE.Object3D,
 	key: string,
 ): THREE.Object3D[] {
 	const meshes: THREE.Object3D[] = [];
-	sceneGroup.traverse((child) => {
+	root.traverse((child) => {
 		if (child instanceof THREE.Mesh && child.userData.objectKey === key) {
 			meshes.push(child);
 		}
@@ -158,13 +158,13 @@ function collectMeshesForKey(
 	return meshes;
 }
 
-/** First Group in the scene whose root carries this objectKey (node transform target). */
+/** First Group under root whose root carries this objectKey (node transform target). */
 function findGroupByKey(
-	sceneGroup: THREE.Group,
+	root: THREE.Object3D,
 	key: string,
 ): THREE.Group | null {
 	let found: THREE.Group | null = null;
-	sceneGroup.traverse((obj) => {
+	root.traverse((obj) => {
 		if (found) return;
 		if (obj instanceof THREE.Group && obj.userData.objectKey === key) {
 			found = obj;
@@ -259,14 +259,14 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				syncOrbitCameraToScene(cam, ctrl, currentScene);
 			},
 			applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
-				const grp = sceneGroup.current;
-				if (!grp) return;
+				const sc = threeScene.current;
+				if (!sc) return;
 
 				if (patch.kind === "sphere-center") {
-					const meshes = collectMeshesForKey(grp, objectKey);
+					const meshes = collectMeshesForKey(sc, objectKey);
 					for (const m of meshes) m.position.set(...patch.value);
 				} else if (patch.kind === "sphere-radius") {
-					const meshes = collectMeshesForKey(grp, objectKey);
+					const meshes = collectMeshesForKey(sc, objectKey);
 					for (const m of meshes) {
 						if (m instanceof THREE.Mesh) {
 							m.geometry.dispose();
@@ -274,7 +274,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 						}
 					}
 				} else if (patch.kind === "quad-vertices") {
-					const meshes = collectMeshesForKey(grp, objectKey);
+					const meshes = collectMeshesForKey(sc, objectKey);
 					const [p0, p1, p2, p3] = patch.value;
 					for (const m of meshes) {
 						if (m instanceof THREE.Mesh) {
@@ -296,9 +296,37 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 						}
 					}
 				} else if (patch.kind === "node-transform") {
-					const nodeGrp = findGroupByKey(grp, objectKey);
+					const nodeGrp = findGroupByKey(sc, objectKey);
 					if (nodeGrp) {
+						const proxy = gizmoProxy.current;
+						const isSelected = nodeGrp.parent === proxy;
+						if (isSelected && proxy) {
+							// Detach before applying so patch.value (world transform) is applied correctly
+							const grp = sceneGroup.current;
+							if (grp) grp.attach(nodeGrp);
+						}
+
 						applyStaticTransformToObject3D(nodeGrp, patch.value);
+
+						if (isSelected && proxy) {
+							// If we are currently dragging, DON'T update the proxy position to avoid jitter.
+							// If we are NOT dragging (e.g. typing into UI), update proxy to match new object transform.
+							if (!proxy.userData.isDragging) {
+								const center = gizmoAnchorTmp.current;
+								if (nodeGrp.userData.sceneNodeKind === "group") {
+									nodeGrp.getWorldPosition(center);
+								} else {
+									const box = new THREE.Box3().setFromObject(nodeGrp);
+									if (!box.isEmpty()) box.getCenter(center);
+									else nodeGrp.getWorldPosition(center);
+								}
+								proxy.position.copy(center);
+								proxy.quaternion.copy(nodeGrp.quaternion);
+								proxy.scale.copy(nodeGrp.scale);
+								proxy.updateMatrixWorld(true);
+							}
+							proxy.attach(nodeGrp);
+						}
 					}
 				} else if (patch.kind === "material") {
 					// Update ALL objects in the layer that use this material name
@@ -325,17 +353,16 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					for (const key of keysToUpdate) {
 						const res = resolveNodeAtPath(currentScene, key);
 						const isVol = res?.node.kind === "sphere" && !!res.node.inside_medium;
-						const meshes = collectMeshesForKey(grp, key);
+						const meshes = collectMeshesForKey(sc, key);
 						for (const m of meshes) {
 							if (m instanceof THREE.Mesh) {
+								if (isVol) {
+									// For volumes, we don't update the base material because it's a fixed ghost visualization
+									continue;
+								}
 								const oldSide = getMaterialSide(m.material);
 								disposeMaterial(m.material);
 								m.material = newMat.clone();
-								if (isVol) {
-									m.material.transparent = true;
-									m.material.opacity = 0.4;
-									(m.material as any).wireframe = true;
-								}
 								if (oldSide === THREE.DoubleSide) {
 									(m.material as THREE.Material).side = THREE.DoubleSide;
 								}
@@ -344,18 +371,52 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					}
 				} else if (patch.kind === "assign-material") {
 					// Reassign material for a single object
-					const meshes = collectMeshesForKey(grp, objectKey);
+					const meshes = collectMeshesForKey(sc, objectKey);
 					const newMat = makeThreeMaterial(patch.matData);
 					for (const m of meshes) {
 						if (m instanceof THREE.Mesh) {
+							if (patch.isVolumetric) {
+								// Switch to volumetric visualization if it wasn't one, or keep if it is
+								if (!(m.material instanceof THREE.MeshPhongMaterial) || m.material.opacity !== 0.3) {
+									disposeMaterial(m.material);
+									m.material = new THREE.MeshPhongMaterial({
+										color: 0x4488ff,
+										transparent: true,
+										opacity: 0.3,
+										depthWrite: false,
+										side: THREE.BackSide,
+									});
+									// Add wireframe if missing
+									if (m.children.length === 0) {
+										const wire = new THREE.Mesh(
+											m.geometry,
+											new THREE.MeshBasicMaterial({
+												color: 0x4488ff,
+												wireframe: true,
+												transparent: true,
+												opacity: 0.2,
+											}),
+										);
+										m.add(wire);
+									}
+								}
+								continue;
+							}
+							
+							// If switching AWAY from volumetric, remove wireframe children
+							if (m.children.length > 0) {
+								for (const child of [...m.children]) {
+									if (child instanceof THREE.Mesh) {
+										child.geometry.dispose();
+										disposeMaterial(child.material);
+										m.remove(child);
+									}
+								}
+							}
+
 							const oldSide = getMaterialSide(m.material);
 							disposeMaterial(m.material);
 							m.material = newMat.clone();
-							if (patch.isVolumetric) {
-								m.material.transparent = true;
-								m.material.opacity = 0.4;
-								(m.material as any).wireframe = true;
-							}
 							if (oldSide === THREE.DoubleSide) {
 								(m.material as THREE.Material).side = THREE.DoubleSide;
 							}
@@ -662,6 +723,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				proxy.userData.isDragging = false;
 				proxy.updateMatrixWorld(true);
 
+				proxy.attach(nodeGrp);
 				tctrl.attach(proxy);
 				latestTransformRef.current.objectKey = objectKey;
 			}
@@ -713,12 +775,21 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					THREE.MathUtils.radToDeg(rot.y),
 					THREE.MathUtils.radToDeg(rot.z),
 				],
-				scale:
-					transformMode === "scale"
-						? [scl.x, scl.y, scl.z]
-						: scl.x === 1 && scl.y === 1 && scl.z === 1
-							? undefined
-							: [scl.x, scl.y, scl.z],
+				scale: (() => {
+					const isUniform =
+						Math.abs(scl.x - scl.y) < 1e-4 && Math.abs(scl.y - scl.z) < 1e-4;
+					if (transformMode === "scale") {
+						return isUniform ? scl.x : [scl.x, scl.y, scl.z];
+					}
+					if (
+						Math.abs(scl.x - 1) < 1e-4 &&
+						Math.abs(scl.y - 1) < 1e-4 &&
+						Math.abs(scl.z - 1) < 1e-4
+					) {
+						return undefined;
+					}
+					return isUniform ? scl.x : [scl.x, scl.y, scl.z];
+				})(),
 			};
 
 			proxy.attach(target);
@@ -810,7 +881,10 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 			const raycaster = new THREE.Raycaster();
 			raycaster.setFromCamera(mouse, cam);
-			const hits = raycaster.intersectObjects(grp.children, true);
+			
+			const targets: THREE.Object3D[] = [grp];
+			if (gizmoProxy.current) targets.push(gizmoProxy.current);
+			const hits = raycaster.intersectObjects(targets, true);
 
 			if (hits.length > 0) {
 				const key = findObjectKey(hits[0].object);

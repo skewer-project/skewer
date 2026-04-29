@@ -16,6 +16,8 @@ interface NumberFieldProps {
 	noScrub?: boolean;
 	/** If true, forces the value to be an integer. */
 	integer?: boolean;
+	/** If true, the field is read-only. */
+	disabled?: boolean;
 }
 
 export const NumberField = memo(function NumberField({
@@ -28,6 +30,7 @@ export const NumberField = memo(function NumberField({
 	inline,
 	noScrub,
 	integer,
+	disabled,
 }: NumberFieldProps) {
 	const format = useCallback((n: number) => `${+n.toFixed(4)}`, []);
 
@@ -72,7 +75,10 @@ export const NumberField = memo(function NumberField({
 	// Derive display value in render: use draft when editing, otherwise formatted prop value
 	const displayValue = isEditing ? draft : format(value);
 
-	const handleFocus = () => setIsEditing(true);
+	const handleFocus = () => {
+		setDraft(format(value));
+		setIsEditing(true);
+	};
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const raw = e.target.value;
@@ -109,7 +115,7 @@ export const NumberField = memo(function NumberField({
 	const scrubStart = useRef<{ x: number; val: number } | null>(null);
 
 	const handlePointerDown = (e: React.PointerEvent<HTMLSpanElement>) => {
-		if (noScrub) return;
+		if (noScrub || disabled) return;
 		e.preventDefault();
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 		cancelDebounce();
@@ -146,6 +152,7 @@ export const NumberField = memo(function NumberField({
 			onChange={handleChange}
 			onBlur={handleBlur}
 			onKeyDown={handleKeyDown}
+			disabled={disabled}
 		/>
 	);
 
@@ -177,6 +184,7 @@ interface Vec2FieldProps {
 	max?: number;
 	step?: number;
 	integer?: boolean;
+	disabled?: boolean;
 }
 
 export const Vec2Field = memo(function Vec2Field({
@@ -188,6 +196,7 @@ export const Vec2Field = memo(function Vec2Field({
 	max,
 	step = 1,
 	integer,
+	disabled,
 }: Vec2FieldProps) {
 	const latestOnChange = useRef(onChange);
 	const latestValue = useRef(value);
@@ -227,6 +236,7 @@ export const Vec2Field = memo(function Vec2Field({
 						inline
 						integer={integer}
 						noScrub={integer}
+						disabled={disabled}
 					/>
 				</div>
 			))}
@@ -244,6 +254,7 @@ interface Vec3FieldProps {
 	min?: number;
 	max?: number;
 	step?: number;
+	disabled?: boolean;
 }
 
 export const Vec3Field = memo(function Vec3Field({
@@ -254,6 +265,7 @@ export const Vec3Field = memo(function Vec3Field({
 	min,
 	max,
 	step = 0.1,
+	disabled,
 }: Vec3FieldProps) {
 	const latestOnChange = useRef(onChange);
 	const latestValue = useRef(value);
@@ -291,6 +303,7 @@ export const Vec3Field = memo(function Vec3Field({
 						max={max}
 						step={step}
 						inline
+						disabled={disabled}
 					/>
 				</div>
 			))}

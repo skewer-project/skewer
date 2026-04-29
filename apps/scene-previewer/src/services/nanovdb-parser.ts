@@ -31,10 +31,10 @@ export async function getNanoVDBBounds(
 			const m1 = view.getUint32(i + 4, true);
 			
 			// Check against "NanoVDB" in little-endian (0x6f6e614e)
-			// Skip VDB2 (file magic 0x32424456) and look for grid magics (VDB0, VDB1, VDB3-6)
-			const isGridMagic = m0 === 0x6f6e614e && m1 >= 0x30424456 && m1 <= 0x36424456 && m1 !== 0x32424456;
+			// Handles versions VDB0 through VDB6.
+			const isVdbMagic = m0 === 0x6f6e614e && m1 >= 0x30424456 && m1 <= 0x36424456;
 			
-			if (isGridMagic) {
+			if (isVdbMagic) {
 				const gridOffset = i;
 				// Scan for 6 doubles that form a valid bounding box (min <= max)
 				// GridMetaData usually starts at offset 0 relative to grid start,
@@ -69,7 +69,7 @@ export async function getNanoVDBBounds(
 									(minY + maxY) / 2,
 									(minZ + maxZ) / 2,
 								];
-								const radius = 0.5 * Math.sqrt(dx * dx + dy * dy + dz * dz);
+								const radius = 0.5 * Math.max(dx, dy, dz);
 
 								if (!bestBBox || radius > bestBBox.radius) {
 									console.debug(`[nanovdb-parser] Found candidate worldBBox at grid ${gridOffset}, offset ${o}:`, { radius });

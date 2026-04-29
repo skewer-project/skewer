@@ -1,6 +1,11 @@
 import type { RefObject } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { resolveNodeAtPath, updateNodeAtPath } from "../services/graph-path";
+import {
+	resolveNodeAtPath,
+	updateMaterial,
+	updateMedium,
+	updateNodeAtPath,
+} from "../services/graph-path";
 import { getFile } from "../services/fs";
 import { getNanoVDBBounds } from "../services/nanovdb-parser";
 import { evaluateTransformAt } from "../services/transform";
@@ -63,48 +68,6 @@ interface EditorProps extends SceneEditorBase {
 	dirHandle: FileSystemDirectoryHandle;
 }
 
-function updateMaterial(
-	scene: ResolvedScene,
-	layerRefKey: string,
-	matName: string,
-	mutator: (mat: Material) => Material,
-): ResolvedScene {
-	const parts = layerRefKey.split(":");
-	const tag = parts[0];
-	const li = Number(parts[1]);
-	const listKey = tag === "ctx" ? "contexts" : "layers";
-
-	const newList = [...scene[listKey]];
-	const newLayer = { ...newList[li], data: { ...newList[li].data } };
-	newLayer.data.materials = { ...newLayer.data.materials };
-	newLayer.data.materials[matName] = mutator(newLayer.data.materials[matName]);
-	newList[li] = newLayer;
-
-	return { ...scene, [listKey]: newList };
-}
-
-function updateMedium(
-	scene: ResolvedScene,
-	layerRefKey: string,
-	medName: string,
-	mutator: (med: Medium) => Medium,
-): ResolvedScene {
-	const parts = layerRefKey.split(":");
-	const tag = parts[0];
-	const li = Number(parts[1]);
-	const listKey = tag === "ctx" ? "contexts" : "layers";
-
-	const newList = [...scene[listKey]];
-	const newLayer = { ...newList[li], data: { ...newList[li].data } };
-	newLayer.data.media = { ...newLayer.data.media };
-	const prev = newLayer.data.media[medName];
-	if (!prev) return scene;
-	newLayer.data.media[medName] = mutator(prev);
-	newList[li] = newLayer;
-
-	return { ...scene, [listKey]: newList };
-}
-
 function kindLabel(node: SceneNode): string {
 	switch (node.kind) {
 		case "group":
@@ -156,6 +119,9 @@ function CommonTransformBlock({
 	scene,
 	currentTime,
 	onTimeChange,
+	layer,
+	layerTag,
+	layerIdx,
 }: {
 	node: SceneNode;
 	objectKey: string;
@@ -164,6 +130,9 @@ function CommonTransformBlock({
 	scene: ResolvedScene;
 	currentTime: number;
 	onTimeChange: Props["onTimeChange"];
+	layer: ResolvedLayer;
+	layerTag: string;
+	layerIdx: number;
 }) {
 	const animated = isAnimated(node.transform);
 	const [kfSelIdx, setKfSelIdx] = useState(0);
@@ -391,9 +360,35 @@ function CommonTransformBlock({
 	function patchTransform(partial: Partial<StaticTransform>) {
 		const base = evaluateTransformAt(node.transform, 0);
 		const next: StaticTransform = { ...base, ...partial };
-		onSceneEdit((s) =>
-			updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform: next })),
-		);
+		onSceneEdit((s) => {
+			let s2 = updateNodeAtPath(s, objectKey, (o) => ({
+				...o,
+				transform: next,
+			}));
+
+			if (node.kind === "sphere" && node.inside_medium) {
+				const med = layer.data.media?.[node.inside_medium];
+				if (med && med.type === "nanovdb") {
+					if (partial.translate !== undefined) {
+						s2 = updateMedium(s2, `${layerTag}:${layerIdx}`, node.inside_medium, (m) => ({
+							...m,
+							translate: partial.translate!,
+						}));
+					}
+					if (partial.scale !== undefined) {
+						const sc =
+							typeof partial.scale === "number"
+								? partial.scale
+								: partial.scale[0];
+						s2 = updateMedium(s2, `${layerTag}:${layerIdx}`, node.inside_medium, (m) => ({
+							...m,
+							scale: sc,
+						}));
+					}
+				}
+			}
+			return s2;
+		});
 		viewportRef.current?.applyPatch(scene, objectKey, {
 			kind: "node-transform",
 			value: next,
@@ -472,43 +467,115 @@ function SphereEditor({
 	materialNames,
 	mediumNames,
 	layer,
+	layerTag,
+	layerIdx,
 	dirHandle,
 }: EditorProps & { obj: SphereNode }) {
+	const st = evaluateTransformAt(obj.transform, 0);
+	const scaleFactor =
+		typeof st.scale === "number" ? st.scale : (st.scale?.[0] ?? 1.0);
+	const visualRadius = obj.radius * scaleFactor;
+	const visualCenter: Vec3 = [
+		obj.center[0] + (st.translate?.[0] ?? 0),
+		obj.center[1] + (st.translate?.[1] ?? 0),
+		obj.center[2] + (st.translate?.[2] ?? 0),
+	];
+
+	const handleRadiusChange = async (v: number) => {
+		const isNanoVDB =
+			obj.inside_medium && layer.data.media?.[obj.inside_medium]?.type === "nanovdb";
+
+		if (isNanoVDB) {
+			const newScale = v / obj.radius;
+			const nextXform: StaticTransform = { ...st, scale: newScale };
+			onSceneEdit((s) =>
+				updateNodeAtPath(s, objectKey, (o) => ({
+					...o,
+					transform: nextXform,
+				})),
+			);
+			viewportRef.current?.applyPatch(scene, objectKey, {
+				kind: "node-transform",
+				value: nextXform,
+			});
+
+			const medName = obj.inside_medium!;
+			onSceneEdit((s) =>
+				updateMedium(s, `${layerTag}:${layerIdx}`, medName, (m) => ({
+					...m,
+					scale: newScale,
+				})),
+			);
+		} else {
+			onSceneEdit((s) =>
+				updateNodeAtPath(s, objectKey, (o) => ({
+					...(o as SphereNode),
+					radius: v,
+				})),
+			);
+			viewportRef.current?.applyPatch(scene, objectKey, {
+				kind: "sphere-radius",
+				value: v,
+			});
+		}
+	};
+
+	const handleCenterChange = (v: Vec3) => {
+		const isNanoVDB =
+			obj.inside_medium && layer.data.media?.[obj.inside_medium]?.type === "nanovdb";
+
+		if (isNanoVDB) {
+			const newTranslate: Vec3 = [
+				v[0] - obj.center[0],
+				v[1] - obj.center[1],
+				v[2] - obj.center[2],
+			];
+			const nextXform: StaticTransform = { ...st, translate: newTranslate };
+			onSceneEdit((s) =>
+				updateNodeAtPath(s, objectKey, (o) => ({
+					...o,
+					transform: nextXform,
+				})),
+			);
+			viewportRef.current?.applyPatch(scene, objectKey, {
+				kind: "node-transform",
+				value: nextXform,
+			});
+
+			const medName = obj.inside_medium!;
+			onSceneEdit((s) =>
+				updateMedium(s, `${layerTag}:${layerIdx}`, medName, (m) => ({
+					...m,
+					translate: v,
+				})),
+			);
+		} else {
+			onSceneEdit((s) =>
+				updateNodeAtPath(s, objectKey, (o) => ({
+					...(o as SphereNode),
+					center: v,
+				})),
+			);
+			viewportRef.current?.applyPatch(scene, objectKey, {
+				kind: "sphere-center",
+				value: v,
+			});
+		}
+	};
+
 	return (
 		<div className="kv-table">
 			<Vec3Field
 				label="center"
-				value={obj.center}
-				onChange={(v) => {
-					onSceneEdit((s) =>
-						updateNodeAtPath(s, objectKey, (o) => ({
-							...(o as SphereNode),
-							center: v,
-						})),
-					);
-					viewportRef.current?.applyPatch(scene, objectKey, {
-						kind: "sphere-center",
-						value: v,
-					});
-				}}
+				value={visualCenter}
+				onChange={handleCenterChange}
 			/>
 			<NumberField
 				label="radius"
-				value={obj.radius}
+				value={visualRadius}
 				min={0.001}
 				step={0.1}
-				onChange={(v) => {
-					onSceneEdit((s) =>
-						updateNodeAtPath(s, objectKey, (o) => ({
-							...(o as SphereNode),
-							radius: v,
-						})),
-					);
-					viewportRef.current?.applyPatch(scene, objectKey, {
-						kind: "sphere-radius",
-						value: v,
-					});
-				}}
+				onChange={handleRadiusChange}
 			/>
 			<MaterialDropdown
 				label="mat"
@@ -537,37 +604,35 @@ function SphereEditor({
 				options={mediumNames}
 				noneLabel="vacuum"
 				onChange={async (name) => {
-					onSceneEdit((s) =>
-						updateNodeAtPath(s, objectKey, (o) => ({
-							...(o as SphereNode),
-							inside_medium: name === "" ? undefined : name,
-						})),
-					);
-
-					if (name !== "") {
+					if (name === "") {
+						onSceneEdit((s) =>
+							updateNodeAtPath(s, objectKey, (o) => ({
+								...(o as SphereNode),
+								inside_medium: undefined,
+							})),
+						);
+					} else {
 						const med = layer.data.media?.[name];
 						if (med && med.type === "nanovdb") {
 							const bounds = await getNanoVDBBounds(dirHandle, med.file);
 							if (bounds) {
 								const scale = med.scale ?? 1.0;
 								const translate = med.translate ?? [0, 0, 0];
-								const radius = bounds.radius;
+								const trueRadius = bounds.radius;
 								const nextXform: StaticTransform = {
-									translate: translate,
+									translate,
 									rotate: [0, 0, 0],
-									scale: scale,
+									scale,
 								};
 
 								onSceneEdit((s) =>
-									updateNodeAtPath(s, objectKey, (o) => {
-										const sph = o as SphereNode;
-										return {
-											...sph,
-											center: [0, 0, 0],
-											radius: radius,
-											transform: nextXform,
-										};
-									}),
+									updateNodeAtPath(s, objectKey, (o) => ({
+										...(o as SphereNode),
+										center: [0, 0, 0],
+										radius: trueRadius,
+										transform: nextXform,
+										inside_medium: name,
+									})),
 								);
 
 								const vp = viewportRef.current;
@@ -578,14 +643,27 @@ function SphereEditor({
 									});
 									vp.applyPatch(scene, objectKey, {
 										kind: "sphere-radius",
-										value: radius,
+										value: trueRadius,
 									});
 									vp.applyPatch(scene, objectKey, {
 										kind: "node-transform",
 										value: nextXform,
 									});
 								}
+							} else {
+								onSceneEdit((s) =>
+									updateNodeAtPath(s, objectKey, (o) => ({
+										...(o as SphereNode),
+										inside_medium: name,
+									})),
+								);
 							}
+						} else {							onSceneEdit((s) =>
+								updateNodeAtPath(s, objectKey, (o) => ({
+									...(o as SphereNode),
+									inside_medium: name,
+								})),
+							);
 						}
 					}
 
@@ -940,7 +1018,9 @@ function MediumEditor({
 	}, [med.file, dirHandle]);
 
 	function patchMed(partial: Partial<Medium>) {
-		onSceneEdit((s) => updateMedium(s, layerRefKey, medName, (m) => ({ ...m, ...partial }) as Medium));
+		onSceneEdit((s) =>
+			updateMedium(s, layerRefKey, medName, (m) => ({ ...m, ...partial }) as Medium),
+		);
 	}
 
 	return (
@@ -984,7 +1064,9 @@ function MediumEditor({
 			<div className="kv-row">
 				<span className="kv-key">file</span>
 				<div className="kv-val" style={{ display: "flex", gap: "8px" }}>
-					<span style={{ color: fileStatus === "missing" ? "#ff4444" : "inherit" }}>
+					<span
+						style={{ color: fileStatus === "missing" ? "#ff4444" : "inherit" }}
+					>
 						{med.file.split("/").pop()}
 					</span>
 					{fileStatus === "missing" && (
@@ -1128,6 +1210,9 @@ export function PropertiesPanel({
 						scene={scene}
 						currentTime={currentTime}
 						onTimeChange={onTimeChange}
+						layer={layer}
+						layerTag={tag}
+						layerIdx={layerIdx}
 					/>
 				</div>
 			</div>
