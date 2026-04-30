@@ -8,9 +8,25 @@ export type CloudJobStatus =
 	| "failed"
 	| "cancelled";
 
+export interface CloudJobRenderConfig {
+	width: number;
+	height: number;
+	minSamples?: number;
+	maxSamples: number;
+	maxDepth: number;
+	integrator: string;
+	startTime: number;
+	endTime: number;
+	fps: number;
+	startFrame: number;
+	endFrame: number;
+	isAnimation: boolean;
+}
+
 export interface CloudJob {
 	id: string;
 	createdAt: number;
+	completedAt?: number;
 	sceneName: string;
 	status: CloudJobStatus;
 	totalFiles?: number;
@@ -19,4 +35,5 @@ export interface CloudJob {
 	error?: string;
 	compositeObjectURL?: string;
 	abort?: AbortController;
+	renderConfig?: CloudJobRenderConfig;
 }

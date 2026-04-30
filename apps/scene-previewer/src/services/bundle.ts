@@ -1,4 +1,4 @@
-import type { Material, ResolvedScene } from "../types/scene";
+import type { Material, Medium, ResolvedScene } from "../types/scene";
 import { getFile, readTextFile } from "./fs";
 import {
 	formatJsonLine,
@@ -39,13 +39,13 @@ function parseMtllibNames(objText: string): string[] {
 function mtlMapPath(remainder: string): string {
 	const parts = remainder.trim().split(/\s+/);
 	for (let i = parts.length - 1; i >= 0; i--) {
-		const t = parts[i]?.replace(/\\/g, "/") ?? "";
+		const t = parts[i]?.replace(/\\/g, "/");
 		if (t.includes(".") && !t.startsWith("-")) {
 			return t;
 		}
 	}
 	if (parts.length) {
-		return parts[parts.length - 1]?.replace(/\\/g, "/") ?? "";
+		return parts[parts.length - 1]?.replace(/\\/g, "/");
 	}
 	return remainder.trim();
 }
@@ -98,6 +98,27 @@ async function addMaterialTextures(
 				`Missing material texture for bundle: ${p} (${e instanceof Error ? e.message : String(e)})`,
 			);
 		}
+	}
+}
+
+async function addMediumFiles(
+	dir: FileSystemDirectoryHandle,
+	medium: Medium,
+	files: Map<string, BundleFile>,
+) {
+	if (!medium.file || files.has(medium.file)) return;
+	assertSafeRelativePath(medium.file);
+	try {
+		const blob = await getFile(dir, medium.file);
+		files.set(medium.file, {
+			path: medium.file,
+			blob,
+			contentType: contentTypeForPath(medium.file),
+		});
+	} catch (e) {
+		throw new Error(
+			`Missing medium file for bundle: ${medium.file} (${e instanceof Error ? e.message : String(e)})`,
+		);
 	}
 }
 
@@ -205,6 +226,9 @@ export async function collectSceneBundle(
 	for (const l of [...scene.contexts, ...scene.layers]) {
 		for (const m of Object.values(l.data.materials)) {
 			await addMaterialTextures(dir, m, files);
+		}
+		for (const med of Object.values(l.data.media ?? {})) {
+			await addMediumFiles(dir, med, files);
 		}
 	}
 

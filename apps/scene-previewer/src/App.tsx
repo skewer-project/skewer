@@ -1,9 +1,17 @@
-import { Camera, Cloud, Maximize, Move, Rotate3d } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { JobsPanel } from "./components/JobsPanel";
+import { Camera, Cloud, Maximize, Move, Rotate3d, X } from "lucide-react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
+import { JobsModal } from "./components/JobsModal";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
+	MediumPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
 import { RenderConfirmDialog } from "./components/RenderConfirmDialog";
@@ -12,14 +20,21 @@ import { Timeline } from "./components/Timeline";
 import { UserMenu } from "./components/UserMenu";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
+import type { CloudJobRenderConfig } from "./services/cloud-job-types";
 import { resumePendingJobs, startCloudRender } from "./services/cloud-render";
 import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
 	resolveNodeAtPath,
+	updateMedium,
 	updateNodeAtPath,
 } from "./services/graph-path";
+import {
+	getSnapshot as getJobsSnapshot,
+	isNonTerminalStatus,
+	subscribe as subscribeJobs,
+} from "./services/jobs-store";
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
@@ -30,9 +45,11 @@ import {
 } from "./services/transform";
 import type {
 	Material,
+	Medium,
 	RenderConfig,
 	ResolvedScene,
 	SceneNode,
+	Vec3,
 } from "./types/scene";
 import { isAnimated } from "./types/scene";
 
@@ -46,6 +63,42 @@ function isEditableTarget(target: EventTarget | null) {
 	);
 }
 
+function JobsCloudButton({ onClick }: { onClick: () => void }) {
+	const jobs = useSyncExternalStore(
+		subscribeJobs,
+		getJobsSnapshot,
+		getJobsSnapshot,
+	);
+	const running = jobs.filter((j) => isNonTerminalStatus(j.status)).length;
+	const hasFailed = jobs.some((j) => j.status === "failed");
+	const state = running > 0 ? "active" : hasFailed ? "error" : "idle";
+	const label =
+		running > 0
+			? `${running} render${running > 1 ? "s" : ""} in progress`
+			: hasFailed
+				? "Cloud renders, last attempt failed"
+				: "Cloud renders";
+
+	return (
+		<button
+			type="button"
+			className={`jobs-cloud-btn jobs-cloud-${state}`}
+			aria-label={label}
+			title={label}
+			onClick={onClick}
+		>
+			<Cloud size={16} aria-hidden />
+			{running > 0 ? (
+				<span className="jobs-cloud-badge" aria-hidden>
+					{running}
+				</span>
+			) : hasFailed ? (
+				<span className="jobs-cloud-error-dot" aria-hidden />
+			) : null}
+		</button>
+	);
+}
+
 function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
 	const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(
@@ -56,6 +109,9 @@ function App() {
 		null,
 	);
 	const [selectedMaterialKey, setSelectedMaterialKey] = useState<string | null>(
+		null,
+	);
+	const [selectedMediumKey, setSelectedMediumKey] = useState<string | null>(
 		null,
 	);
 	const [transformMode, setTransformMode] = useState<
@@ -85,15 +141,24 @@ function App() {
 	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
 		setSelectedMaterialKey(null);
+		setSelectedMediumKey(null);
 	}, []);
 
 	const handleSelectMaterial = useCallback((key: string | null) => {
 		setSelectedMaterialKey(key);
 		setSelectedObjectKey(null);
+		setSelectedMediumKey(null);
+	}, []);
+
+	const handleSelectMedium = useCallback((key: string | null) => {
+		setSelectedMediumKey(key);
+		setSelectedObjectKey(null);
+		setSelectedMaterialKey(null);
 	}, []);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
 	const [showRenderDialog, setShowRenderDialog] = useState(false);
+	const [showJobsModal, setShowJobsModal] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -106,6 +171,7 @@ function App() {
 		setError("");
 		setSelectedObjectKey(null);
 		setSelectedMaterialKey(null);
+		setSelectedMediumKey(null);
 		setSceneVersion((v) => v + 1);
 		setHasUnsavedChanges(false);
 		setCurrentTime(0);
@@ -162,12 +228,29 @@ function App() {
 						transform,
 					);
 					const evaluated = evaluateTransformAt(nextAnim, currentTime);
-					handleSceneEdit((s) =>
-						updateNodeAtPath(s, objectKey, (o) => ({
+					handleSceneEdit((s) => {
+						let s2 = updateNodeAtPath(s, objectKey, (o) => ({
 							...o,
 							transform: nextAnim,
-						})),
-					);
+						}));
+						const node = ctx.node;
+						if (
+							node.kind === "sphere" &&
+							node.inside_medium &&
+							evaluated.translate
+						) {
+							s2 = updateMedium(
+								s2,
+								`${ctx.tag}:${ctx.layerIdx}`,
+								node.inside_medium,
+								(m) => ({
+									...m,
+									translate: evaluated.translate as Vec3,
+								}),
+							);
+						}
+						return s2;
+					});
 					viewportRef.current?.applyPatch(scene, objectKey, {
 						kind: "node-transform",
 						value: evaluated,
@@ -175,9 +258,28 @@ function App() {
 					return;
 				}
 			}
-			handleSceneEdit((s) =>
-				updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform })),
-			);
+			handleSceneEdit((s) => {
+				let s2 = updateNodeAtPath(s, objectKey, (o) => ({ ...o, transform }));
+				if (ctx) {
+					const node = ctx.node;
+					if (
+						node.kind === "sphere" &&
+						node.inside_medium &&
+						transform.translate
+					) {
+						s2 = updateMedium(
+							s2,
+							`${ctx.tag}:${ctx.layerIdx}`,
+							node.inside_medium,
+							(m) => ({
+								...m,
+								translate: transform.translate as Vec3,
+							}),
+						);
+					}
+				}
+				return s2;
+			});
 			viewportRef.current?.applyPatch(scene, objectKey, {
 				kind: "node-transform",
 				value: transform,
@@ -216,6 +318,7 @@ function App() {
 			if (childKey) {
 				setSelectedObjectKey(childKey);
 				setSelectedMaterialKey(null);
+				setSelectedMediumKey(null);
 			}
 		},
 		[handleSceneEdit],
@@ -238,6 +341,29 @@ function App() {
 			});
 			setSelectedMaterialKey(`${tag}:${layerIdx}:mat:${name}`);
 			setSelectedObjectKey(null);
+			setSelectedMediumKey(null);
+		},
+		[handleSceneEdit],
+	);
+
+	const handleAddMedium = useCallback(
+		(tag: "ctx" | "lyr", layerIdx: number, name: string, medium: Medium) => {
+			handleSceneEdit((s) => {
+				const listKey = tag === "ctx" ? "contexts" : "layers";
+				const newList = [...s[listKey]];
+				const newLayer = {
+					...newList[layerIdx],
+					data: {
+						...newList[layerIdx].data,
+						media: { ...newList[layerIdx].data.media, [name]: medium },
+					},
+				};
+				newList[layerIdx] = newLayer;
+				return { ...s, [listKey]: newList };
+			});
+			setSelectedMediumKey(`${tag}:${layerIdx}:med:${name}`);
+			setSelectedObjectKey(null);
+			setSelectedMaterialKey(null);
 		},
 		[handleSceneEdit],
 	);
@@ -314,6 +440,12 @@ function App() {
 		resumePendingJobs();
 	}, []);
 
+	useEffect(() => {
+		if (!error) return;
+		const t = window.setTimeout(() => setError(""), 6000);
+		return () => window.clearTimeout(t);
+	}, [error]);
+
 	return (
 		<div className="app-root">
 			{/* Full-screen viewport */}
@@ -337,7 +469,6 @@ function App() {
 			<div className="hud">
 				{/* Top-left: header panel */}
 				<div className="panel hud-header">
-					<UserMenu />
 					<button
 						type="button"
 						className={`wordmark${scene ? " wordmark-link" : ""}`}
@@ -349,8 +480,7 @@ function App() {
 					{scene && (
 						<button
 							type="button"
-							className="open-btn"
-							style={{ flex: 1 }}
+							className="open-btn open-btn-primary"
 							onClick={() => setShowRenderDialog(true)}
 						>
 							<Cloud
@@ -370,8 +500,30 @@ function App() {
 							{saving ? "Saving…" : "Save"}
 						</button>
 					)}
-					{error && <span className="error-msg">{error}</span>}
 				</div>
+
+				{/* Top-right: account + cloud jobs */}
+				<div className="panel hud-account">
+					<JobsCloudButton onClick={() => setShowJobsModal(true)} />
+					<UserMenu onError={setError} />
+				</div>
+
+				{/* Error toast */}
+				{error && (
+					<div className="hud-toast hud-toast-error" role="alert">
+						<span className="hud-toast-msg" title={error}>
+							{error}
+						</span>
+						<button
+							type="button"
+							className="hud-toast-x"
+							aria-label="Dismiss"
+							onClick={() => setError("")}
+						>
+							<X size={12} />
+						</button>
+					</div>
+				)}
 
 				{/* Transform mode toolbar */}
 				{scene && selectedObjectKey && (
@@ -431,10 +583,13 @@ function App() {
 							scene={scene}
 							selectedObjectKey={selectedObjectKey}
 							selectedMaterialKey={selectedMaterialKey}
+							selectedMediumKey={selectedMediumKey}
 							onSelectObject={handleSelectObject}
 							onSelectMaterial={handleSelectMaterial}
+							onSelectMedium={handleSelectMedium}
 							onAddGraphNode={handleAddGraphNode}
 							onAddMaterial={handleAddMaterial}
+							onAddMedium={handleAddMedium}
 							dirHandle={dirHandle}
 							renderSettings={renderSettings}
 							onRenderSettingsChange={setRenderSettings}
@@ -449,29 +604,40 @@ function App() {
 				)}
 
 				{/* Right sidebar: properties panel */}
-				{scene && (selectedObjectKey || selectedMaterialKey) && (
-					<div className="panel hud-properties">
-						{selectedObjectKey && (
-							<PropertiesPanel
-								scene={scene}
-								objectKey={selectedObjectKey}
-								onSceneEdit={handleSceneEdit}
-								onDeleteObject={() => handleDeleteObject(selectedObjectKey)}
-								viewportRef={viewportRef}
-								currentTime={currentTime}
-								onTimeChange={setCurrentTime}
-							/>
-						)}
-						{selectedMaterialKey && (
-							<MaterialPropertiesPanel
-								scene={scene}
-								matKey={selectedMaterialKey}
-								onSceneEdit={handleSceneEdit}
-								viewportRef={viewportRef}
-							/>
-						)}
-					</div>
-				)}
+				{scene &&
+					(selectedObjectKey || selectedMaterialKey || selectedMediumKey) && (
+						<div className="panel hud-properties">
+							{selectedObjectKey && (
+								<PropertiesPanel
+									scene={scene}
+									objectKey={selectedObjectKey}
+									onSceneEdit={handleSceneEdit}
+									onDeleteObject={() => handleDeleteObject(selectedObjectKey)}
+									viewportRef={viewportRef}
+									currentTime={currentTime}
+									onTimeChange={setCurrentTime}
+									dirHandle={dirHandle as FileSystemDirectoryHandle}
+								/>
+							)}
+							{selectedMaterialKey && (
+								<MaterialPropertiesPanel
+									scene={scene}
+									matKey={selectedMaterialKey}
+									onSceneEdit={handleSceneEdit}
+									viewportRef={viewportRef}
+								/>
+							)}
+							{selectedMediumKey && (
+								<MediumPropertiesPanel
+									scene={scene}
+									medKey={selectedMediumKey}
+									onSceneEdit={handleSceneEdit}
+									viewportRef={viewportRef}
+									dirHandle={dirHandle as FileSystemDirectoryHandle}
+								/>
+							)}
+						</div>
+					)}
 
 				{/* Bottom-right: reset camera + stats */}
 				{scene && (
@@ -485,8 +651,12 @@ function App() {
 					/>
 				)}
 
-				{scene && dirHandle && (
-					<JobsPanel scene={scene} dirHandle={dirHandle} />
+				{showJobsModal && (
+					<JobsModal
+						scene={scene}
+						dirHandle={dirHandle}
+						onClose={() => setShowJobsModal(false)}
+					/>
 				)}
 
 				{scene && (
@@ -530,11 +700,28 @@ function App() {
 							setShowRenderDialog(false);
 							if (!scene || !dirHandle) return;
 							setError("");
+							const startFrame = Math.round(renderStartTime * renderFps);
+							const endFrame = Math.round(renderEndTime * renderFps);
+							const renderConfig: CloudJobRenderConfig = {
+								width: renderSettings.image.width,
+								height: renderSettings.image.height,
+								minSamples: renderSettings.min_samples,
+								maxSamples: renderSettings.max_samples,
+								maxDepth: renderSettings.max_depth,
+								integrator: renderSettings.integrator,
+								startTime: renderStartTime,
+								endTime: renderEndTime,
+								fps: renderFps,
+								startFrame,
+								endFrame,
+								isAnimation: endFrame > startFrame,
+							};
 							try {
 								await startCloudRender({
 									scene,
 									dir: dirHandle,
 									enableCache: true,
+									renderConfig,
 								});
 							} catch (e) {
 								const msg = e instanceof Error ? e.message : String(e);
