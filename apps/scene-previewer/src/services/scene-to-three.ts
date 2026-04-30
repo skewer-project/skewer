@@ -92,10 +92,40 @@ async function buildLeafMesh(
 	const fallback = new THREE.MeshLambertMaterial({ color: 0xcccccc });
 
 	if (node.kind === "sphere") {
+		const isVol = !!node.inside_medium;
+		let mat: THREE.Material;
+		if (isVol) {
+			// Volumetric visualization: blueish semi-transparent "ghost"
+			mat = new THREE.MeshPhongMaterial({
+				color: 0x4488ff,
+				transparent: true,
+				opacity: 0.3,
+				depthWrite: false,
+				side: THREE.BackSide, // Show inner volume
+			});
+		} else {
+			mat = materials[node.material] ?? fallback;
+		}
+
 		const mesh = new THREE.Mesh(
 			new THREE.SphereGeometry(node.radius, 32, 16),
-			materials[node.material] ?? fallback,
+			mat,
 		);
+
+		if (isVol) {
+			// Add a second mesh for the outer boundary wireframe
+			const wire = new THREE.Mesh(
+				mesh.geometry,
+				new THREE.MeshBasicMaterial({
+					color: 0x4488ff,
+					wireframe: true,
+					transparent: true,
+					opacity: 0.2,
+				}),
+			);
+			mesh.add(wire);
+		}
+
 		mesh.position.set(...node.center);
 		return mesh;
 	}
