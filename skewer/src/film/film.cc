@@ -2,7 +2,14 @@
 
 #include <exrio/deep_writer.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cmath>
+#include <cstdint>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+#include <vector>
 
 #include "barkeep.h"
 #include "core/containers/bounded_array.h"
@@ -10,12 +17,20 @@
 #include "core/math/constants.h"
 #include "core/progress_config.h"
 #include "core/transport/deep_segment.h"
-#include "film/deep_segment_pool.h"
+#include "film/deep_bucket.h"
 #include "film/image_buffer.h"
 
 namespace skwr {
 
 namespace bk = barkeep;
+
+namespace {
+
+inline DeepAlphaClass ClassifyAlpha(float alpha) {
+    return (alpha > 0.99f) ? DeepAlphaClass::Surface : DeepAlphaClass::Volume;
+}
+
+}  // namespace
 
 Film::Film(int width, int height) : width_(width), height_(height), pixels_(width_ * height_) {}
 
@@ -66,56 +81,154 @@ void Film::AddDeepSample(int x, int y,
 
     Pixel& p = GetPixel(x, y);
 
-    int prev_head = -1;
-    for (int i = segments.size() - 1; i >= 0; --i) {
+    for (size_t i = 0; i < segments.size(); ++i) {
         const DeepSegment& seg = segments[i];
 
         // Skip empty/invalid segments
         if (seg.z_front > seg.z_back && seg.z_back != RenderConstants::kFarClip) continue;
         if (seg.alpha <= 0.0f && seg.L.IsBlack()) continue;
 
-        // Allocate node from pool
-        size_t node_index = deep_pool_.Allocate();
+        const DeepAlphaClass cls = ClassifyAlpha(seg.alpha);
+        const float eps = std::max(0.01f, std::abs(seg.z_front) * 0.015f);
 
-        // Fill node
-        DeepSegmentNode& node = deep_pool_[node_index];
-        node.z_front = seg.z_front;
-        node.z_back = seg.z_back;
-        node.L = seg.L;
-        node.alpha = seg.alpha;
-        node.next = prev_head;
-        prev_head = node_index;
+        // 1. Look for a compatible bucket (same depth + same alpha class).
+        int compat_idx = -1;
+        float compat_dist = std::numeric_limits<float>::max();
+        for (size_t j = 0; j < p.deep_buckets.size(); ++j) {
+            const DeepBucket& b = p.deep_buckets[j];
+            if (b.alpha_class != cls) continue;
+            const float d = std::abs(b.z_front - seg.z_front);
+            if (d > eps) continue;
+            if (d < compat_dist) {
+                compat_dist = d;
+                compat_idx = static_cast<int>(j);
+            }
+        }
+
+        if (compat_idx >= 0) {
+            DeepBucket& b = p.deep_buckets[compat_idx];
+            b.sum_r += seg.L.r();
+            b.sum_g += seg.L.g();
+            b.sum_b += seg.L.b();
+            b.sum_alpha += seg.alpha;
+            // Average to keep the tail from stretching across stochastic scatters.
+            b.z_back = (b.z_back + seg.z_back) * 0.5f;
+            continue;
+        }
+
+        // 2. Append a new bucket if we still have room.
+        if (p.deep_buckets.size() < kMaxDeepBuckets) {
+            DeepBucket nb;
+            nb.z_front = seg.z_front;
+            nb.z_back = seg.z_back;
+            nb.sum_r = seg.L.r();
+            nb.sum_g = seg.L.g();
+            nb.sum_b = seg.L.b();
+            nb.sum_alpha = seg.alpha;
+            nb.alpha_class = cls;
+            p.deep_buckets.push_back(nb);
+            continue;
+        }
+
+        // 3. Forced eviction: merge into the nearest-by-z_front bucket
+        // regardless of alpha class. Loses some class purity but keeps every
+        // sample's contribution accounted for.
+        ++forced_evictions_;
+        int nearest_idx = 0;
+        float nearest_dist = std::abs(p.deep_buckets[0].z_front - seg.z_front);
+        for (size_t j = 1; j < p.deep_buckets.size(); ++j) {
+            const float d = std::abs(p.deep_buckets[j].z_front - seg.z_front);
+            if (d < nearest_dist) {
+                nearest_dist = d;
+                nearest_idx = static_cast<int>(j);
+            }
+        }
+        DeepBucket& b = p.deep_buckets[nearest_idx];
+        b.sum_r += seg.L.r();
+        b.sum_g += seg.L.g();
+        b.sum_b += seg.L.b();
+        b.sum_alpha += seg.alpha;
+        b.z_back = (b.z_back + seg.z_back) * 0.5f;
     }
+}
 
-    if (prev_head != -1) {
-        int old_head = p.deep_head.load(std::memory_order_relaxed);
-        do {
-            deep_pool_[prev_head].next = old_head;
-        } while (!p.deep_head.compare_exchange_weak(old_head, prev_head, std::memory_order_release,
-                                                    std::memory_order_relaxed));
+void Film::BuildPixelDeepSamples(const Pixel& p, std::vector<exrio::DeepSample>& out) const {
+    out.clear();
+    if (p.deep_buckets.empty()) return;
+
+    // Copy buckets to a sortable scratch vector. Bucket count per pixel is
+    // bounded by kMaxDeepBuckets, so this is small.
+    std::vector<DeepBucket> sorted;
+    sorted.reserve(p.deep_buckets.size());
+    for (size_t i = 0; i < p.deep_buckets.size(); ++i) {
+        sorted.push_back(p.deep_buckets[i]);
+    }
+    std::sort(sorted.begin(), sorted.end(), [](const DeepBucket& a, const DeepBucket& b) {
+        if (std::abs(a.z_front - b.z_front) < 1e-5f) {
+            return a.z_back < b.z_back;
+        }
+        return a.z_front < b.z_front;
+    });
+
+    const float pixel_sample_count = static_cast<float>(p.sample_count);
+    if (pixel_sample_count <= 0.0f) return;
+
+    const float norm = 1.0f / std::max(p.sample_count, 1);
+    float active_paths = pixel_sample_count;
+
+    out.reserve(sorted.size());
+    for (const DeepBucket& b : sorted) {
+        const float paths_in_bucket = b.sum_alpha;
+
+        if (active_paths <= 0.0001f) {
+            // No remaining coverage to allocate to this bucket.
+            continue;
+        }
+
+        const float true_opacity = std::min(1.0f, paths_in_bucket / active_paths);
+
+        // OpenEXR requires associated (premultiplied) colors. Dividing the
+        // raw radiance sum by the pixel's total sample count yields the
+        // average per-sample contribution; alpha then carries the fraction
+        // of remaining paths terminating in this bucket.
+        exrio::DeepSample ds;
+        ds.depth = b.z_front;
+        ds.depth_back = b.z_back;
+        ds.red = b.sum_r * norm;
+        ds.green = b.sum_g * norm;
+        ds.blue = b.sum_b * norm;
+        ds.alpha = true_opacity;
+        out.push_back(ds);
+
+        active_paths -= paths_in_bucket;
     }
 }
 
 exrio::DeepImage Film::BuildDeepImage() const {
-    // Pass 1: Count samples per pixel
-    std::vector<unsigned int> counts(width_ * height_, 0);
-
-    for (int y = 0; y < height_; ++y) {
-        for (int x = 0; x < width_; ++x) {
-            unsigned int count = 0;
-            int head = GetPixel(x, y).deep_head.load(std::memory_order_acquire);
-            while (head != -1) {
-                count++;
-                head = deep_pool_[head].next;
-            }
-            counts[y * width_ + x] = count;
-        }
-    }
-
-    // Pass 2: Create the deep image
     exrio::DeepImage result(width_, height_);
 
-    std::cout << "\nBuilding deep image (scanline-by-scanline)...\n";
+    std::vector<exrio::DeepSample> per_pixel;
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            BuildPixelDeepSamples(GetPixel(x, y), per_pixel);
+            if (per_pixel.empty()) continue;
+            exrio::DeepPixel& pixel = result.pixel(x, y);
+            for (const exrio::DeepSample& ds : per_pixel) {
+                pixel.addSample(ds);
+            }
+        }
+    }
+    return result;
+}
+
+void Film::WriteDeepEXRStreaming(const std::string& filename) {
+    if (width_ <= 0 || height_ <= 0) {
+        throw std::runtime_error("Film::WriteDeepEXRStreaming: invalid dimensions");
+    }
+
+    exrio::DeepScanlineWriter writer(width_, height_, filename);
+
+    std::cout << "\nWriting deep EXR (streaming, scanline-by-scanline)...\n";
     std::atomic<size_t> scanlines_done(0);
     const auto progress_mode = GetProgressOutputMode();
     auto bar = bk::ProgressBar(&scanlines_done, {.total = static_cast<size_t>(height_),
@@ -126,128 +239,48 @@ exrio::DeepImage Film::BuildDeepImage() const {
                                                  .no_tty = progress_mode.no_tty});
     if (height_ > 0) bar->show();
 
-    // Process one scanline at a time to keep transient memory (sorting buffers) small.
+    std::vector<unsigned int> row_counts(width_);
+    std::vector<exrio::DeepSample> row_samples;
+    std::vector<exrio::DeepSample> per_pixel;
+
     for (int y = 0; y < height_; ++y) {
+        row_samples.clear();
+
         for (int x = 0; x < width_; ++x) {
-            const Pixel& p = GetPixel(x, y);
-            int head = p.deep_head.load(std::memory_order_acquire);
-            if (head == -1) continue;
-
-            // Collect samples for THIS pixel only
-            std::vector<DeepSample> segments;
-
-            while (head != -1) {
-                const DeepSegmentNode& node = deep_pool_[head];
-                DeepSample ds;
-                ds.z_front = node.z_front;
-                ds.z_back = node.z_back;
-                ds.r = node.L.r();
-                ds.g = node.L.g();
-                ds.b = node.L.b();
-                ds.alpha = node.alpha;
-                segments.push_back(ds);
-                head = node.next;
-            }
-
-            // Sort by Depth (Required for OpenEXR)
-            std::sort(segments.begin(), segments.end(),
-                      [](const DeepSample& a, const DeepSample& b) {
-                          if (std::abs(a.z_front - b.z_front) < 1e-5f) {
-                              return a.z_back < b.z_back;
-                          }
-                          return a.z_front < b.z_front;
-                      });
-
-            segments = MergeDeepSegments(segments, GetPixel(x, y).sample_count);
-
-            // Add to result
-            exrio::DeepPixel& pixel = result.pixel(x, y);
-            for (const DeepSample& seg : segments) {
-                pixel.addSample(
-                    exrio::DeepSample(seg.z_front, seg.z_back, seg.r, seg.g, seg.b, seg.alpha));
+            BuildPixelDeepSamples(GetPixel(x, y), per_pixel);
+            row_counts[x] = static_cast<unsigned int>(per_pixel.size());
+            for (const exrio::DeepSample& ds : per_pixel) {
+                row_samples.push_back(ds);
             }
         }
+
+        writer.writeScanline(row_counts, row_samples);
+
+        // Free the row's buckets now that they're written. Halves resident
+        // deep memory by the time the writer reaches the bottom of the image.
+        for (int x = 0; x < width_; ++x) {
+            GetPixel(x, y).deep_buckets.clear();
+        }
+
         ++scanlines_done;
     }
 
     if (height_ > 0) bar->done();
-    return result;
 }
 
-std::vector<DeepSample> Film::MergeDeepSegments(const std::vector<DeepSample>& input,
-                                                int pixel_sample_count) const {
-    if (input.empty()) return input;
-
-    std::vector<DeepSample> merged;
-    size_t reserve_size = std::max<size_t>(1, input.size() / 4);
-    merged.reserve(reserve_size);
-
-    DeepSample current = input[0];
-
-    for (size_t i = 1; i < input.size(); ++i) {
-        const DeepSample& next = input[i];
-        if (next.alpha <= 0.0f) continue;
-
-        // epsilon for grouping merge bins
-        float depth_epsilon = std::max(0.01f, std::abs(current.z_front) * 0.015f);
-
-        bool same_front = (std::abs(next.z_front - current.z_front) <= depth_epsilon);
-
-        // Never merge a hard surface with a volume
-        bool compatible_alpha = (current.alpha > 0.99f) == (next.alpha > 0.99f);
-
-        if (same_front && compatible_alpha) {
-            current.r += next.r;
-            current.g += next.g;
-            current.b += next.b;
-            current.alpha += next.alpha;
-
-            // Grow the tail to merge the furthest stochastic scatter distance in this bucket
-            current.z_back =
-                (current.z_back + next.z_back) * 0.5f;  // average to prevent stretching
-        } else {
-            merged.push_back(current);
-            current = next;
+DeepBucketStats Film::GetDeepBucketStats() const {
+    DeepBucketStats stats;
+    stats.forced_evictions = forced_evictions_;
+    for (const Pixel& p : pixels_) {
+        const std::size_t n = p.deep_buckets.size();
+        if (n == 0) continue;
+        ++stats.pixels_with_buckets;
+        stats.total_buckets += n;
+        if (n > stats.peak_buckets_per_pixel) {
+            stats.peak_buckets_per_pixel = n;
         }
     }
-
-    merged.push_back(current);
-
-    float active_paths = pixel_sample_count;
-    float norm = 1.0f / std::max(pixel_sample_count, 1);
-
-    for (auto& seg : merged) {
-        // Because every terminated path gave alpha=1.0,
-        // the sum of alphas is exactly the number of paths that stopped here.
-        float paths_in_bucket = seg.alpha;
-
-        if (active_paths <= 0.0001f) {
-            seg.r = 0;
-            seg.g = 0;
-            seg.b = 0;
-            seg.alpha = 0;
-            continue;
-        }
-
-        // The true Deep EXR opacity is the fraction of *surviving* paths that stopped here
-        float true_opacity = std::min(1.0f, paths_in_bucket / active_paths);
-
-        // OpenEXR requires "associated" (pre-multiplied) colors.
-        // We divide out the paths in this bucket to get the raw un-occluded color,
-        // then multiply by the true_opacity.
-        if (paths_in_bucket > 0.0f) {
-            seg.r *= norm;
-            seg.g *= norm;
-            seg.b *= norm;
-        }
-
-        seg.alpha = true_opacity;
-
-        // Subtract the paths that stopped here from the active pool
-        active_paths -= paths_in_bucket;
-    }
-
-    return merged;
+    return stats;
 }
 
 void Film::WriteSampleMap(const std::string& filename, int max_samples) const {
