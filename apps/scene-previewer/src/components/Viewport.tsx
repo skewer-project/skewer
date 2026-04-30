@@ -159,7 +159,7 @@ function collectMeshesForKey(
 	sceneGroup: THREE.Object3D,
 	key: string,
 ): THREE.Object3D[] {
-	const out: THREE.Object3D[] = [];
+	const meshes: THREE.Object3D[] = [];
 	sceneGroup.traverse((child) => {
 		if (child instanceof THREE.Mesh && child.userData.objectKey === key) {
 			meshes.push(child);
