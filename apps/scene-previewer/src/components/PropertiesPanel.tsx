@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { resolveNodeAtPath, updateNodeAtPath } from "../services/graph-path";
 import { evaluateTransformAt } from "../services/transform";
 import type {
@@ -127,12 +127,16 @@ function CommonTransformBlock({
 	onTimeChange: Props["onTimeChange"];
 }) {
 	const animated = isAnimated(node.transform);
-	const [kfSelIdx, setKfSelIdx] = useState(0);
 
 	const sortedKfs = useMemo(() => {
 		if (!isAnimated(node.transform)) return [];
 		return sortKeyframes(node.transform.keyframes);
 	}, [node.transform]);
+
+	// Auto-select the keyframe whose time matches currentTime (e.g. from dope-sheet click).
+	const kfSelIdx = useMemo(() => {
+		return sortedKfs.findIndex((k) => Math.abs(k.time - currentTime) < 1e-4);
+	}, [currentTime, sortedKfs]);
 
 	const idx = Math.min(kfSelIdx, Math.max(0, sortedKfs.length - 1));
 	const selKf = sortedKfs[idx];
@@ -189,7 +193,6 @@ function CommonTransformBlock({
 								className={`kf-row${rowIdx === idx ? " kf-row-selected" : ""}`}
 								onClick={() => {
 									onTimeChange(kf.time);
-									setKfSelIdx(rowIdx);
 								}}
 							>
 								<span className="kf-row-time">{kf.time.toFixed(2)}s</span>
@@ -311,7 +314,6 @@ function CommonTransformBlock({
 							);
 							if (next.length === 0) return;
 							replaceKeyframes(next);
-							setKfSelIdx(0);
 						}}
 					>
 						delete keyframe

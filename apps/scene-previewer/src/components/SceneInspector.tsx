@@ -6,6 +6,7 @@ import {
 	formatObjectPathKey,
 	parseObjectPathKey,
 } from "../services/graph-path";
+import { displayLabel, kindShort } from "../services/node-labels";
 import type {
 	Camera,
 	Material,
@@ -22,34 +23,6 @@ import { RenderSettingsPanel } from "./RenderSettingsPanel";
 
 function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
-}
-
-function displayLabel(node: SceneNode, pathKey: string): string {
-	if (node.name?.trim()) return node.name.trim();
-	const tail = pathKey.split(":").slice(2).join(":") || "0";
-	switch (node.kind) {
-		case "group":
-			return `group ${tail}`;
-		case "obj":
-			return node.file.split("/").pop() ?? node.file;
-		case "sphere":
-			return node.material ?? "sphere";
-		case "quad":
-			return node.material ?? "quad";
-	}
-}
-
-function kindShort(node: SceneNode): string {
-	switch (node.kind) {
-		case "group":
-			return "GRP";
-		case "sphere":
-			return "SPH";
-		case "quad":
-			return "QUAD";
-		case "obj":
-			return "OBJ";
-	}
 }
 
 function ancestorOpenKeys(selectedKey: string | null): string[] {
