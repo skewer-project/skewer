@@ -13,3 +13,6 @@ apps/scene-previewer/
 
 # Node modules (may exist locally even if not committed)
 node_modules/
+
+# golden image tests
+tests/integration
