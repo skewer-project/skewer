@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace exrio {
 
@@ -208,6 +209,153 @@ void writeDeepEXR(const DeepImage& img, const std::string& filename) {
     }
 
     logVerbose("    Wrote " + formatNumber(totalSamples) + " samples");
+}
+
+// ============================================================================
+// Streaming Deep EXR Writing
+// ============================================================================
+
+struct DeepScanlineWriter::Impl {
+    int width;
+    int height;
+    int next_y = 0;
+
+    Imf::Header header;
+    std::unique_ptr<Imf::DeepScanLineOutputFile> file;
+
+    // Reused per-scanline scratch buffers. yStride=0 in the framebuffer slices
+    // means OpenEXR always reads from these regardless of which scanline it
+    // thinks it's writing — so we only need width-many entries each.
+    std::vector<unsigned int> sample_counts;
+    std::vector<float> r_data, g_data, b_data, a_data, z_data, zb_data;
+    std::vector<float*> r_ptrs, g_ptrs, b_ptrs, a_ptrs, z_ptrs, zb_ptrs;
+
+    Impl(int w, int h, const std::string& filename)
+        : width(w),
+          height(h),
+          header(w, h),
+          sample_counts(static_cast<size_t>(w)),
+          r_ptrs(static_cast<size_t>(w)),
+          g_ptrs(static_cast<size_t>(w)),
+          b_ptrs(static_cast<size_t>(w)),
+          a_ptrs(static_cast<size_t>(w)),
+          z_ptrs(static_cast<size_t>(w)),
+          zb_ptrs(static_cast<size_t>(w)) {
+        header.setType(Imf::DEEPSCANLINE);
+        header.compression() = Imf::ZIPS_COMPRESSION;
+        header.channels().insert("R", Imf::Channel(Imf::FLOAT));
+        header.channels().insert("G", Imf::Channel(Imf::FLOAT));
+        header.channels().insert("B", Imf::Channel(Imf::FLOAT));
+        header.channels().insert("A", Imf::Channel(Imf::FLOAT));
+        header.channels().insert("Z", Imf::Channel(Imf::FLOAT));
+        header.channels().insert("ZBack", Imf::Channel(Imf::FLOAT));
+
+        ensureDirectoryExists(filename);
+        try {
+            file = std::make_unique<Imf::DeepScanLineOutputFile>(filename.c_str(), header);
+        } catch (const std::exception& e) {
+            throw DeepWriterException("Failed to open deep EXR for streaming write: " +
+                                      std::string(e.what()));
+        }
+    }
+};
+
+DeepScanlineWriter::DeepScanlineWriter(int width, int height, const std::string& filename) {
+    if (width <= 0 || height <= 0) {
+        throw DeepWriterException("DeepScanlineWriter: invalid dimensions");
+    }
+    impl_ = std::make_unique<Impl>(width, height, filename);
+    logVerbose("  Opened deep EXR for streaming: " + filename);
+}
+
+DeepScanlineWriter::~DeepScanlineWriter() = default;
+DeepScanlineWriter::DeepScanlineWriter(DeepScanlineWriter&&) noexcept = default;
+DeepScanlineWriter& DeepScanlineWriter::operator=(DeepScanlineWriter&&) noexcept = default;
+
+int DeepScanlineWriter::width() const { return impl_->width; }
+int DeepScanlineWriter::height() const { return impl_->height; }
+
+void DeepScanlineWriter::writeScanline(const std::vector<unsigned int>& sample_counts,
+                                       const std::vector<DeepSample>& samples) {
+    Impl& s = *impl_;
+
+    if (static_cast<int>(sample_counts.size()) != s.width) {
+        throw DeepWriterException("DeepScanlineWriter::writeScanline: sample_counts size != width");
+    }
+    if (s.next_y >= s.height) {
+        throw DeepWriterException("DeepScanlineWriter::writeScanline: too many scanlines written");
+    }
+
+    // Verify the flat samples buffer matches the per-pixel counts.
+    size_t total = 0;
+    for (unsigned int n : sample_counts) total += n;
+    if (total != samples.size()) {
+        throw DeepWriterException(
+            "DeepScanlineWriter::writeScanline: samples size != sum(sample_counts)");
+    }
+
+    s.r_data.resize(total);
+    s.g_data.resize(total);
+    s.b_data.resize(total);
+    s.a_data.resize(total);
+    s.z_data.resize(total);
+    s.zb_data.resize(total);
+
+    size_t offset = 0;
+    for (int x = 0; x < s.width; ++x) {
+        const unsigned int n = sample_counts[x];
+        s.sample_counts[x] = n;
+        if (n == 0) {
+            s.r_ptrs[x] = nullptr;
+            s.g_ptrs[x] = nullptr;
+            s.b_ptrs[x] = nullptr;
+            s.a_ptrs[x] = nullptr;
+            s.z_ptrs[x] = nullptr;
+            s.zb_ptrs[x] = nullptr;
+            continue;
+        }
+        s.r_ptrs[x] = s.r_data.data() + offset;
+        s.g_ptrs[x] = s.g_data.data() + offset;
+        s.b_ptrs[x] = s.b_data.data() + offset;
+        s.a_ptrs[x] = s.a_data.data() + offset;
+        s.z_ptrs[x] = s.z_data.data() + offset;
+        s.zb_ptrs[x] = s.zb_data.data() + offset;
+        for (unsigned int i = 0; i < n; ++i) {
+            const DeepSample& smp = samples[offset + i];
+            s.r_data[offset + i] = smp.red;
+            s.g_data[offset + i] = smp.green;
+            s.b_data[offset + i] = smp.blue;
+            s.a_data[offset + i] = smp.alpha;
+            s.z_data[offset + i] = smp.depth;
+            s.zb_data[offset + i] = smp.depth_back;
+        }
+        offset += n;
+    }
+
+    // yStride = 0: every scanline OpenEXR writes pulls from our row scratch.
+    Imf::DeepFrameBuffer fb;
+    fb.insertSampleCountSlice(Imf::Slice(Imf::UINT, reinterpret_cast<char*>(s.sample_counts.data()),
+                                         sizeof(unsigned int), 0));
+
+    auto add_slice = [&](const char* name, std::vector<float*>& ptrs) {
+        fb.insert(name, Imf::DeepSlice(Imf::FLOAT, reinterpret_cast<char*>(ptrs.data()),
+                                       sizeof(float*), 0, sizeof(float)));
+    };
+    add_slice("R", s.r_ptrs);
+    add_slice("G", s.g_ptrs);
+    add_slice("B", s.b_ptrs);
+    add_slice("A", s.a_ptrs);
+    add_slice("Z", s.z_ptrs);
+    add_slice("ZBack", s.zb_ptrs);
+
+    try {
+        s.file->setFrameBuffer(fb);
+        s.file->writePixels(1);
+    } catch (const std::exception& e) {
+        throw DeepWriterException("Failed to write deep EXR scanline: " + std::string(e.what()));
+    }
+
+    ++s.next_y;
 }
 
 // ============================================================================

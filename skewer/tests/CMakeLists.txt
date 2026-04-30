@@ -7,7 +7,6 @@ enable_testing()
 set(TEST_SOURCES
     ../src/film/image_buffer.cc
     ../src/film/film.cc
-    ../src/film/deep_segment_pool.cc
     ../src/io/image_io.cc
 )
 
