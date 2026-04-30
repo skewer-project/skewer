@@ -154,13 +154,13 @@ function findObjectKey(obj: THREE.Object3D): string | null {
 	return null;
 }
 
-/** Collect all meshes under root that match the given objectKey. */
+/** Collect all meshes under sceneGroup that match the given objectKey. */
 function collectMeshesForKey(
-	root: THREE.Object3D,
+	sceneGroup: THREE.Object3D,
 	key: string,
 ): THREE.Object3D[] {
-	const meshes: THREE.Object3D[] = [];
-	root.traverse((child) => {
+	const out: THREE.Object3D[] = [];
+	sceneGroup.traverse((child) => {
 		if (child instanceof THREE.Mesh && child.userData.objectKey === key) {
 			meshes.push(child);
 		}
