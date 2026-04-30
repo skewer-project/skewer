@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "barkeep.h"
+#include "core/progress_config.h"
 #include "core/sampling/sampling.h"
 #include "core/sampling/wavelength_sampler.h"
 #include "core/spectral/spectrum.h"
@@ -45,11 +46,14 @@ void PathTrace::Render(const Scene& scene, const Camera& cam, Film* film,
     std::atomic<int> next_tile(0);
     std::atomic<int> tiles_completed(0);
 
+    const auto progress_mode = GetProgressOutputMode();
     auto bar = bk::ProgressBar(&tiles_completed, {
                                                      .total = total_tiles,
                                                      .speed = 0.2,
                                                      .speed_unit = "tiles/s",
-                                                     .style = bk::ProgressBarStyle::Rich,
+                                                     .style = progress_mode.style,
+                                                     .interval = progress_mode.interval,
+                                                     .no_tty = progress_mode.no_tty,
                                                  });
 
     const bool is_adaptive = config.noise_threshold > 0.0f;

@@ -67,4 +67,7 @@ RUN groupadd -g 1001 appgroup && useradd -u 1001 -g appgroup --no-create-home ap
 USER 1001:1001
 WORKDIR /data
 
+# Switch barkeep progress bars to log-friendly mode
+ENV SKEWER_NO_TTY=1
+
 ENTRYPOINT ["/usr/local/bin/skewer-worker"]
