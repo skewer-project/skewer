@@ -1,7 +1,7 @@
 # GKE Deployment (DEPRECATED)
 
-> [!CAUTION]
-> **This deployment model is DEPRECATED.** The Skewer project has migrated to a serverless architecture using Cloud Run, Cloud Workflows, and Cloud Batch. Please refer to the [GCP Deployment Guide](../deployment/gcp.md) for the current production architecture.
+!!! danger "DEPRECATED"
+    **This deployment model is DEPRECATED.** The Skewer project has migrated to a serverless architecture using Cloud Run, Cloud Workflows, and Cloud Batch. Please refer to the [GCP Deployment Guide](../deployment/gcp.md) for the current production architecture.
 
 Deploy Skewer to Google Kubernetes Engine for production workloads.
 
