@@ -107,8 +107,12 @@ This starts:
 
 ## Next Steps
 
-- [CLI Reference](../usage/cli.md) - Complete CLI documentation
 - [Scene Format](../usage/scene-format.md) - Understanding scene JSON
+- [Rendering Tips](../usage/rendering-tips.md) - Best practices for quality and performance
+- [Animation](../usage/animation.md) - Keyframe animation and motion blur
+- [Compositing](../usage/compositing.md) - Layer compositing with loom
+- [CLI Reference](../usage/cli.md) - Complete CLI documentation
 - [Architecture](../architecture/overview.md) - How the system works
 - [Deployment](../deployment/local.md) - Local cluster setup
+- [GCP Deployment](../deployment/gcp.md) - Cloud rendering setup
 - [GKE Deployment](../deployment/gke.md) - Running on Google Kubernetes Engine

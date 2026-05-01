@@ -6,7 +6,12 @@ Skewer is a serverless, distributed deep rendering system designed for high-thro
 
 - [Installation](getting-started/installation.md)
 - [Quick Start](getting-started/quick-start.md)
+- [Scene Format](usage/scene-format.md)
 - [CLI Reference](usage/cli.md)
+- [Rendering Tips](usage/rendering-tips.md)
+- [Animation](usage/animation.md)
+- [Compositing](usage/compositing.md)
+- [Previewer](usage/previewer.md)
 - [Architecture Overview](architecture/overview.md)
 - [Mathematical Foundations](architecture/math.md)
 - [GCP Deployment (Production)](deployment/gcp.md)
