@@ -12,6 +12,12 @@ namespace skwr {
 // time. Forced eviction kicks in when this is exceeded.
 constexpr std::size_t kMaxDeepBuckets = 16;
 
+// How many buckets each pixel reserves inline before spilling to the heap.
+// Production stats show the average pixel holds ~1 bucket, with a long tail
+// approaching kMaxDeepBuckets. Inline cap is sized so the common case never
+// allocates; saturated pixels pay a few small heap reallocs apiece.
+constexpr std::size_t kInlineDeepBuckets = 4;
+
 // Distinguishes hard surfaces (per-sample alpha == 1.0) from volumes
 // (fractional per-sample alpha). Set when a bucket is created and never
 // changed: forced merges may contaminate but do not reclassify.
