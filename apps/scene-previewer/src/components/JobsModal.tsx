@@ -152,7 +152,17 @@ function JobRow({
 					? j.statusErr
 					: j.statusWarn;
 
-	const thumb = job.compositeObjectURL ? (
+	const thumb = job.smearObjectURL ? (
+		<video
+			className="jobs-modal-thumb-img"
+			src={job.smearObjectURL}
+			muted
+			playsInline
+			loop
+			autoPlay
+			aria-label="Animation preview"
+		/>
+	) : job.compositeObjectURL ? (
 		<img className={j.thumbImg} src={job.compositeObjectURL} alt="" />
 	) : running ? (
 		<Loader2 className={j.thumbSpin} size={20} />

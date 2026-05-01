@@ -241,6 +241,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"batch_sa":                  m.batchSA,
 		"batch_allowed_locations":   m.batchAllowedLocations,
 		"composite_output_prefix":   req.CompositeOutputUriPrefix,
+		"smear_fps":                 req.GetSmearFps(),
 	}
 
 	argsJSON, err := json.Marshal(args)

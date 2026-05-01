@@ -41,6 +41,7 @@ export interface CloudJob {
 	lastSyncError?: string;
 	compositeName?: string;
 	compositeObjectURL?: string;
+	smearObjectURL?: string;
 	abort?: AbortController;
 	renderConfig?: CloudJobRenderConfig;
 }
