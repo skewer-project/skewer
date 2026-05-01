@@ -559,8 +559,8 @@ submit_batch_composite:
 
 # ── Subworkflow: submit_batch_smear ───────────────────────────────────────────
 #
-# Single Batch task: install ffmpeg + gsutil, download composited PNGs, encode
-# smeared.mp4 at smear_fps, upload next to the frames.
+# Single Batch task: install ffmpeg, read composited PNGs from the GCS FUSE
+# mount, encode smeared.mp4 at smear_fps, write it next to the frames.
 
 submit_batch_smear:
   params: [project_id, region, pipeline_id, data_bucket, composite_output_prefix, smear_fps, network, subnet, batch_sa]
@@ -568,9 +568,10 @@ submit_batch_smear:
     - smear_prep:
         assign:
           - job_id: '${pipeline_id + "-smear"}'
-          - rel_prefix: '${text.replace_all(composite_output_prefix, "gs://" + data_bucket + "/", "")}'
+          - fuse_data: '${"/mnt/" + data_bucket}'
+          - composite_fuse: '${text.replace_all(composite_output_prefix, "gs://", "/mnt/")}'
           - fps_text: '${string(smear_fps)}'
-          - smear_script: '${"set -euo pipefail; export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; apt-get install -y -qq ffmpeg google-cloud-cli; mkdir -p /tmp/smear; gsutil -m cp \"gs://" + data_bucket + "/" + rel_prefix + "frame-*.png\" /tmp/smear/; ffmpeg -y -hide_banner -loglevel error -framerate " + fps_text + " -i /tmp/smear/frame-%04d.png -c:v libx264 -pix_fmt yuv420p -movflags +faststart /tmp/smear/smeared.mp4; gsutil cp /tmp/smear/smeared.mp4 \"gs://" + data_bucket + "/" + rel_prefix + "smeared.mp4\""}'
+          - smear_script: '${"set -euo pipefail; export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; apt-get install -y -qq ffmpeg; ffmpeg -y -hide_banner -loglevel error -framerate " + fps_text + " -start_number 1 -i \"" + composite_fuse + "frame-%04d.png\" -c:v libx264 -pix_fmt yuv420p -movflags +faststart \"" + composite_fuse + "smeared.mp4\""}'
     - create_smear_job:
         call: googleapis.batch.v1.projects.locations.jobs.create
         args:
@@ -587,12 +588,20 @@ submit_batch_smear:
                   maxRetryCount: 1
                   maxRunDuration: "7200s"
                   runnables:
+                    - script:
+                        text: '${"mkdir -p " + fuse_data}'
                     - container:
                         imageUri: ubuntu:22.04
                         entrypoint: /bin/bash
                         commands:
                           - "-c"
                           - ${smear_script}
+                        volumes:
+                          - '${fuse_data + ":" + fuse_data + ":rw"}'
+                  volumes:
+                    - gcs:
+                        remotePath: ${data_bucket}
+                      mountPath: ${fuse_data}
             allocationPolicy:
               tags:
                 - skewer-batch-worker

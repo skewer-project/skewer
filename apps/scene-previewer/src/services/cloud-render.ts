@@ -54,7 +54,7 @@ async function attachSucceededPreviews(
 			smearObjectURL = URL.createObjectURL(vblob);
 		}
 	} catch {
-		/* smear step off or still writing */
+		/* smear step disabled (smear_fps == 0) */
 	}
 	try {
 		if (signal.aborted) {
