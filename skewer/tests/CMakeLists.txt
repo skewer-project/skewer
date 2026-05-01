@@ -43,6 +43,7 @@ add_executable(unit_tests
     unit/test_tlas.cc
     unit/test_motion_blur.cc
     unit/test_animation_config.cc
+    unit/test_small_vector.cc
     ${TEST_SOURCES}
     ${SKEWER_SCENE_TEST_SOURCES}
 )

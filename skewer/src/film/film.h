@@ -9,6 +9,7 @@
 
 #include "core/color/color.h"
 #include "core/containers/bounded_array.h"
+#include "core/containers/small_vector.h"
 #include "core/cpu_config.h"
 #include "core/transport/deep_segment.h"
 #include "film/deep_bucket.h"
@@ -16,16 +17,16 @@
 
 namespace skwr {
 
-// Pixel buckets are allocated inline (kMaxDeepBuckets entries always reserved)
-// rather than via a global pool. Render is tile-exclusive per thread, so no
-// atomics are needed for sample writes.
+// Pixel buckets use a small-buffer-optimized container: kInlineDeepBuckets
+// entries live inline, anything beyond that spills to the heap. Render is
+// tile-exclusive per thread, so no atomics are needed for sample writes.
 struct Pixel {
     RGB color_sum = RGB(0.0f);
     float alpha_sum = 0.0f;
     float weight_sum = 0.0f;
     int sample_count = 0;
     RGB color_sq_sum = RGB(0.0f);
-    BoundedArray<DeepBucket, kMaxDeepBuckets> deep_buckets;
+    SmallVector<DeepBucket, kInlineDeepBuckets> deep_buckets;
 };
 
 // Aggregate counters describing how the deep-bucket cap behaved across a
