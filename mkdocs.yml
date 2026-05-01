@@ -26,17 +26,35 @@ nav:
       - usage/previewer.md
   - Architecture:
       - architecture/overview.md
+      - architecture/math.md
       - architecture/coordinator.md
       - architecture/skewer.md
       - architecture/loom.md
   - API: api/grpc.md
   - Deployment:
       - deployment/local.md
-      - deployment/gke.md
+      - deployment/gcp.md
   - Legacy: legacy/index.md
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 markdown_extensions:
   - toc:
       permalink: true
   - admonition
-  - pymdownx.highlight
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.arithmatex:
+      generic: true

@@ -2,6 +2,14 @@
 
 This guide covers building Skewer from source. For dependencies, see [Installation](installation.md).
 
+## Prerequisites
+
+Ensure you have the following installed:
+- **C++20 Compiler** (Clang 17 recommended for full C++20 feature support and best performance)
+- **CMake 3.21+**
+- **Go 1.22+** (for orchestration tools)
+- **OpenEXR, Imath, Zlib, libpng**
+
 ## Using CMake Presets
 
 The project uses CMake presets for consistent builds:
