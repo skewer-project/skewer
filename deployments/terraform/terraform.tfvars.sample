@@ -1,0 +1,23 @@
+project_id                      = "REGION" # CHANGE
+region                          = "REGION" # CHANGE
+environment                     = "dev"
+skewer_batch_machine_type       = "n2d-highcpu-8"
+skewer_batch_cpu_milli          = 8000
+skewer_batch_memory_mib         = 6144
+skewer_batch_provisioning_model = "SPOT"
+skewer_batch_max_retry_count    = 3
+loom_batch_machine_type         = "e2-highmem-8"
+loom_batch_cpu_milli            = 8000
+loom_batch_memory_mib           = 32768
+loom_batch_provisioning_model   = "STANDARD"
+loom_batch_max_retry_count      = 2
+data_retention_days             = 30
+cache_retention_days            = 90
+
+# skewer-api / previewer integration
+admin_emails                 = ["EMAIL(S)"] # CHANGE
+previewer_authorized_domains = ["localhost"]
+previewer_cors_origins       = ["http://localhost:5173"]
+# Set after creating the OAuth 2.0 Web client in the GCP console:
+google_idp_client_id     = "CLIENT_ID"     # CHANGE
+google_idp_client_secret = "CLIENT_SECRET" # CHANGE

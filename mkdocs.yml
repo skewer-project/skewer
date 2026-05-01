@@ -24,6 +24,9 @@ nav:
       - usage/scene-format.md
       - usage/blender-tools.md
       - usage/previewer.md
+      - usage/animation.md
+      - usage/compositing.md
+      - usage/rendering-tips.md
   - Architecture:
       - architecture/overview.md
       - architecture/math.md
