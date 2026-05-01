@@ -69,6 +69,10 @@ resource "google_cloud_run_v2_service" "coordinator" {
         value = tostring(var.skewer_batch_max_retry_count)
       }
       env {
+        name  = "SKEWER_BATCH_FRAMES_PER_TASK"
+        value = tostring(var.skewer_batch_frames_per_task)
+      }
+      env {
         name  = "LOOM_BATCH_MACHINE_TYPE"
         value = var.loom_batch_machine_type
       }

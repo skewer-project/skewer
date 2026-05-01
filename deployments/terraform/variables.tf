@@ -50,6 +50,12 @@ variable "skewer_batch_max_retry_count" {
   default     = 3
 }
 
+variable "skewer_batch_frames_per_task" {
+  description = "Frames rendered per animated-layer Batch task. Lower values increase parallelism and reduce SPOT preemption blast radius; higher values amortize VM startup."
+  type        = number
+  default     = 8
+}
+
 variable "loom_batch_machine_type" {
   description = "Machine type for Cloud Batch Loom composite jobs"
   type        = string
