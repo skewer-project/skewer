@@ -34,6 +34,7 @@ export interface CloudJob {
 	uploadedBytes?: number;
 	error?: string;
 	compositeObjectURL?: string;
+	smearObjectURL?: string;
 	abort?: AbortController;
 	renderConfig?: CloudJobRenderConfig;
 }

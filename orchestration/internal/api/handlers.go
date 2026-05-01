@@ -186,9 +186,10 @@ func (s *Server) handleInit(w http.ResponseWriter, r *http.Request) {
 // ── /v1/jobs/{id}/submit ─────────────────────────────────────────────────
 
 type submitRequest struct {
-	ScenePath              string `json:"scene_path"`
-	CompositeOutputURIPrefix string `json:"composite_output_uri_prefix"`
-	EnableCache            bool   `json:"enable_cache"`
+	ScenePath                string  `json:"scene_path"`
+	CompositeOutputURIPrefix string  `json:"composite_output_uri_prefix"`
+	EnableCache              bool    `json:"enable_cache"`
+	SmearFPS                 float64 `json:"smear_fps,omitempty"`
 }
 
 type submitResponse struct {
@@ -241,6 +242,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		SceneUri:                 sceneURI,
 		CompositeOutputUriPrefix: compositePrefix,
 		EnableCache:              req.EnableCache,
+		SmearFps:                 req.SmearFPS,
 	})
 	if err != nil {
 		log.Printf("[API]: coordinator.Submit: %v", err)

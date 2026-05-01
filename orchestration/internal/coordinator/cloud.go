@@ -224,6 +224,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"subnet":                    m.subnet,
 		"batch_sa":                  m.batchSA,
 		"composite_output_prefix":   req.CompositeOutputUriPrefix,
+		"smear_fps":                 req.GetSmearFps(),
 	}
 
 	argsJSON, err := json.Marshal(args)
