@@ -3,6 +3,7 @@
 // and returns a parsed ResolvedScene — no read-after-write needed.
 
 import type { ResolvedScene } from "../types/scene";
+import { DEFAULT_ANIMATION } from "../types/scene";
 import { writeFile } from "./fs";
 import { parseLayerData, parseSceneManifest } from "./scene-parser";
 
@@ -64,5 +65,6 @@ export async function createNewScene(
 			},
 		],
 		output_dir: manifest.output_dir,
+		animation: manifest.animation ?? { ...DEFAULT_ANIMATION },
 	};
 }

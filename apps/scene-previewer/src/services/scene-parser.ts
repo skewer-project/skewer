@@ -3,6 +3,7 @@
 
 import type {
 	AnimatedTransform,
+	Animation,
 	Camera,
 	DielectricMaterial,
 	ImageConfig,
@@ -26,6 +27,7 @@ import type {
 	StaticTransform,
 	Vec3,
 } from "../types/scene";
+import { DEFAULT_ANIMATION } from "../types/scene";
 import { readJsonFile } from "./fs";
 import { getNanoVDBBounds } from "./nanovdb-parser";
 
@@ -481,6 +483,25 @@ export function parseLayerData(json: unknown): LayerData {
 			json.visible !== undefined
 				? bool(json.visible, "layer.visible", true)
 				: undefined,
+		animated:
+			json.animated !== undefined
+				? bool(json.animated, "layer.animated", false)
+				: undefined,
+	};
+}
+
+// --- Animation block ---
+
+export function parseAnimation(json: unknown): Animation {
+	if (!isObject(json)) throw new Error("animation: expected object");
+	return {
+		start: num(json.start, "animation.start", 0),
+		end: num(json.end, "animation.end", 0),
+		fps: num(json.fps, "animation.fps", DEFAULT_ANIMATION.fps),
+		shutter_angle:
+			json.shutter_angle !== undefined
+				? num(json.shutter_angle, "animation.shutter_angle")
+				: DEFAULT_ANIMATION.shutter_angle,
 	};
 }
 
@@ -505,6 +526,8 @@ export function parseSceneManifest(json: unknown): SceneManifest {
 		context,
 		layers,
 		output_dir: typeof json.output_dir === "string" ? json.output_dir : "",
+		animation:
+			json.animation !== undefined ? parseAnimation(json.animation) : undefined,
 	};
 }
 
@@ -535,6 +558,7 @@ export async function loadScene(
 		contexts,
 		layers,
 		output_dir: manifest.output_dir,
+		animation: manifest.animation ?? { ...DEFAULT_ANIMATION },
 	};
 
 	// --- Volumetric Bounding Sphere Synchronization ---

@@ -134,9 +134,9 @@ function App() {
 			height: 1080,
 		},
 	});
-	const [renderStartTime, setRenderStartTime] = useState(0);
-	const [renderEndTime, setRenderEndTime] = useState(0);
-	const [renderFps, setRenderFps] = useState(24);
+	const renderStartTime = scene?.animation.start ?? 0;
+	const renderEndTime = scene?.animation.end ?? 0;
+	const renderFps = scene?.animation.fps ?? 24;
 
 	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
@@ -189,6 +189,28 @@ function App() {
 			});
 		},
 		[],
+	);
+
+	const updateAnimation = useCallback(
+		(patch: Partial<import("./types/scene").Animation>) => {
+			handleSceneEdit((s) => ({
+				...s,
+				animation: { ...s.animation, ...patch },
+			}));
+		},
+		[handleSceneEdit],
+	);
+	const setRenderStartTime = useCallback(
+		(n: number) => updateAnimation({ start: n }),
+		[updateAnimation],
+	);
+	const setRenderEndTime = useCallback(
+		(n: number) => updateAnimation({ end: n }),
+		[updateAnimation],
+	);
+	const setRenderFps = useCallback(
+		(n: number) => updateAnimation({ fps: n }),
+		[updateAnimation],
 	);
 
 	async function handleSave() {

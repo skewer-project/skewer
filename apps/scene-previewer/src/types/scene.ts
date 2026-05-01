@@ -168,7 +168,25 @@ export interface LayerData {
 	graph: SceneNode[];
 	render?: RenderConfig;
 	visible?: boolean;
+	/** Mirrors the layer-level "animated" flag the orchestrator peeks. */
+	animated?: boolean;
 }
+
+// --- Animation (top-level scene.json block) ---
+
+export interface Animation {
+	start: number;
+	end: number;
+	fps: number;
+	shutter_angle?: number;
+}
+
+export const DEFAULT_ANIMATION: Animation = {
+	start: 0,
+	end: 0,
+	fps: 24,
+	shutter_angle: 180,
+};
 
 // --- scene.json top-level ---
 
@@ -177,6 +195,7 @@ export interface SceneManifest {
 	context: string[];
 	layers: string[];
 	output_dir: string;
+	animation?: Animation;
 }
 
 // --- Resolved scene (what the app stores after loading) ---
@@ -192,4 +211,5 @@ export interface ResolvedScene {
 	contexts: ResolvedLayer[];
 	layers: ResolvedLayer[];
 	output_dir: string;
+	animation: Animation;
 }

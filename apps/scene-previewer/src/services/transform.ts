@@ -326,6 +326,17 @@ export function getAnimationRange(scene: ResolvedScene): {
 	return { start: minT, end: maxT };
 }
 
+/** True iff any node in the layer's graph has an AnimatedTransform with keyframes. */
+export function layerHasKeyframes(graph: SceneNode[]): boolean {
+	let found = false;
+	visitSceneNodes(graph, (node) => {
+		if (found) return;
+		const tr = node.transform;
+		if (isAnimated(tr) && tr.keyframes.length > 0) found = true;
+	});
+	return found;
+}
+
 /** Unique keyframe times from every animated node (timeline markers). */
 export function collectSceneKeyframeTimes(scene: ResolvedScene): number[] {
 	const times = new Set<number>();
