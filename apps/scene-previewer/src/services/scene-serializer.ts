@@ -6,13 +6,17 @@ import type {
 	Keyframe,
 	LayerData,
 	Material,
+	Medium,
 	NodeTransform,
 	RenderConfig,
 	ResolvedScene,
 	SceneNode,
+	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
-import { writeTextFile } from "./fs";
+import { writeFile } from "./fs";
+import { getNanoVDBBounds } from "./nanovdb-parser";
+import { evaluateTransformAt } from "./transform";
 
 function jsonLine(value: unknown): string {
 	return `${JSON.stringify(value, null, 2)}\n`;
@@ -56,6 +60,20 @@ function serializeMaterial(m: Material): Record<string, unknown> {
 		o.ior = m.ior;
 		o.roughness = m.roughness;
 	}
+	return o;
+}
+
+function serializeMedium(m: Medium): Record<string, unknown> {
+	const o: Record<string, unknown> = {
+		type: m.type,
+		sigma_a: m.sigma_a,
+		sigma_s: m.sigma_s,
+		g: m.g,
+		density_multiplier: m.density_multiplier,
+		file: m.file,
+	};
+	if (m.scale !== undefined) o.scale = m.scale;
+	if (m.translate !== undefined) o.translate = m.translate;
 	return o;
 }
 
@@ -109,6 +127,20 @@ function serializeSceneNode(node: SceneNode): Record<string, unknown> {
 	}
 
 	if (node.kind === "sphere") {
+		if (node.inside_medium !== undefined) {
+			const j: Record<string, unknown> = {
+				type: "sphere",
+				material: "null",
+				inside_medium: node.inside_medium,
+			};
+			if (name !== undefined) j.name = name;
+			if (node.visible !== undefined) j.visible = node.visible;
+			if (node.outside_medium !== undefined)
+				j.outside_medium = node.outside_medium;
+			// NO TRANSFORM for bounding spheres
+			return j;
+		}
+
 		const j: Record<string, unknown> = {
 			type: "sphere",
 			material: node.material,
@@ -116,6 +148,8 @@ function serializeSceneNode(node: SceneNode): Record<string, unknown> {
 			radius: node.radius,
 		};
 		if (node.visible !== undefined) j.visible = node.visible;
+		if (node.outside_medium !== undefined)
+			j.outside_medium = node.outside_medium;
 		return withCommon(j);
 	}
 
@@ -177,10 +211,18 @@ export function serializeLayerData(data: LayerData): Record<string, unknown> {
 	for (const [name, mat] of Object.entries(data.materials)) {
 		materials[name] = serializeMaterial(mat);
 	}
+	const media: Record<string, unknown> = {};
+	if (data.media) {
+		for (const [name, med] of Object.entries(data.media)) {
+			media[name] = serializeMedium(med);
+		}
+	}
 	const o: Record<string, unknown> = {
 		materials,
-		graph: data.graph.map(serializeSceneNode),
 	};
+	if (Object.keys(media).length > 0) o.media = media;
+	o.graph = data.graph.map(serializeSceneNode);
+
 	if (data.render !== undefined) o.render = serializeRenderConfig(data.render);
 	if (data.visible !== undefined) o.visible = data.visible;
 	return o;
@@ -205,17 +247,65 @@ export async function saveScene(
 	dir: FileSystemDirectoryHandle,
 	scene: ResolvedScene,
 ): Promise<void> {
+	// Clone scene to avoid mutating the app state during save
+	const sceneToSave = JSON.parse(JSON.stringify(scene)) as ResolvedScene;
+
+	// --- Volumetric Synchronization on Save ---
+	const allLayers = [...sceneToSave.contexts, ...sceneToSave.layers];
+	for (const layer of allLayers) {
+		const media = layer.data.media;
+		if (!media) continue;
+
+		const visitNode = async (node: SceneNode) => {
+			if (node.kind === "sphere" && node.inside_medium) {
+				const med = media[node.inside_medium];
+				if (med && med.type === "nanovdb") {
+					const bounds = await getNanoVDBBounds(dir, med.file);
+					if (bounds) {
+						const st = evaluateTransformAt(node.transform, 0);
+						const pos = st.translate ?? [0, 0, 0];
+						const worldCenter: Vec3 = [
+							node.center[0] + pos[0],
+							node.center[1] + pos[1],
+							node.center[2] + pos[2],
+						];
+						const scaleFactor =
+							typeof st.scale === "number"
+								? st.scale
+								: Array.isArray(st.scale)
+									? st.scale[0]
+									: 1.0;
+						const worldRadius = node.radius * scaleFactor;
+
+						// Sync Media properties
+						med.translate = worldCenter;
+						med.scale = worldRadius / bounds.radius;
+					}
+				}
+			}
+			if (node.kind === "group") {
+				for (const child of node.children) {
+					await visitNode(child);
+				}
+			}
+		};
+
+		for (const node of layer.data.graph) {
+			await visitNode(node);
+		}
+	}
+
 	const byPath = new Map<string, LayerData>();
-	for (const layer of scene.contexts) {
+	for (const layer of sceneToSave.contexts) {
 		byPath.set(layer.path, layer.data);
 	}
-	for (const layer of scene.layers) {
+	for (const layer of sceneToSave.layers) {
 		byPath.set(layer.path, layer.data);
 	}
 
 	for (const [path, data] of byPath) {
-		await writeTextFile(dir, path, jsonLine(serializeLayerData(data)));
+		await writeFile(dir, path, jsonLine(serializeLayerData(data)));
 	}
 
-	await writeTextFile(dir, "scene.json", jsonLine(serializeManifest(scene)));
+	await writeFile(dir, "scene.json", jsonLine(serializeManifest(sceneToSave)));
 }

@@ -1,6 +1,10 @@
-import type { CloudJob, CloudJobStatus } from "./cloud-job-types";
+import type {
+	CloudJob,
+	CloudJobRenderConfig,
+	CloudJobStatus,
+} from "./cloud-job-types";
 
-export type { CloudJob, CloudJobStatus };
+export type { CloudJob, CloudJobRenderConfig, CloudJobStatus };
 
 const LS_KEY = "skewer.jobs.v1";
 const MAX_JOBS = 20;
@@ -55,10 +59,8 @@ function prune() {
 		);
 		const i = jobs.findIndex((j) => j.id === drop.id);
 		if (i < 0) return;
-		const job = jobs[i];
-		if (job?.compositeObjectURL) {
-			URL.revokeObjectURL(job.compositeObjectURL);
-		}
+		const url = jobs[i]?.compositeObjectURL;
+		if (url) URL.revokeObjectURL(url);
 		jobs = jobs.filter((j) => j.id !== drop.id);
 	}
 }
@@ -87,15 +89,25 @@ export function upsertJob(j: CloudJob) {
 export function patchJob(id: string, p: Partial<CloudJob>) {
 	const i = jobs.findIndex((j) => j.id === id);
 	if (i < 0) return;
+	const prevStatus = jobs[i].status;
+	const nextStatus = p.status ?? prevStatus;
+	const stamp: Partial<CloudJob> = {};
+	if (
+		!isTerminal(prevStatus) &&
+		isTerminal(nextStatus) &&
+		jobs[i].completedAt === undefined
+	) {
+		stamp.completedAt = Date.now();
+	}
 	const nextId = p.id;
 	if (nextId && nextId !== id) {
-		const cur = { ...jobs[i], ...p, id: nextId };
+		const cur = { ...jobs[i], ...p, ...stamp, id: nextId };
 		jobs.splice(i, 1);
 		const j2 = jobs.findIndex((j) => j.id === nextId);
 		if (j2 >= 0) jobs[j2] = cur;
 		else jobs = [cur, ...jobs];
 	} else {
-		jobs[i] = { ...jobs[i], ...p };
+		jobs[i] = { ...jobs[i], ...p, ...stamp };
 	}
 	prune();
 	emit();
@@ -121,6 +133,21 @@ export function removeJob(id: string) {
 	emit();
 }
 
+export function clearCompleted() {
+	let changed = false;
+	jobs = jobs.filter((j) => {
+		if (!isTerminal(j.status)) return true;
+		if (j.compositeObjectURL) URL.revokeObjectURL(j.compositeObjectURL);
+		changed = true;
+		return false;
+	});
+	if (changed) emit();
+}
+
 export function isNonTerminalStatus(s: CloudJobStatus): boolean {
 	return !isTerminal(s);
+}
+
+export function isTerminalStatus(s: CloudJobStatus): boolean {
+	return isTerminal(s);
 }

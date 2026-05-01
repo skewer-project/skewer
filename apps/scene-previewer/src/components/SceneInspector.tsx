@@ -6,10 +6,10 @@ import {
 	formatObjectPathKey,
 	parseObjectPathKey,
 } from "../services/graph-path";
-import { displayLabel, kindShort } from "../services/node-labels";
 import type {
 	Camera,
 	Material,
+	Medium,
 	RenderConfig,
 	ResolvedLayer,
 	ResolvedScene,
@@ -18,11 +18,40 @@ import type {
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
 import { AddMaterialDialog } from "./AddMaterialDialog";
+import { AddMediumDialog } from "./AddMediumDialog";
 import { AddObjectDialog } from "./AddObjectDialog";
 import { RenderSettingsPanel } from "./RenderSettingsPanel";
 
 function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
+}
+
+function displayLabel(node: SceneNode, pathKey: string): string {
+	if (node.name?.trim()) return node.name.trim();
+	const tail = pathKey.split(":").slice(2).join(":") || "0";
+	switch (node.kind) {
+		case "group":
+			return `group ${tail}`;
+		case "obj":
+			return node.file.split("/").pop() ?? node.file;
+		case "sphere":
+			return node.material ?? "sphere";
+		case "quad":
+			return node.material ?? "quad";
+	}
+}
+
+function kindShort(node: SceneNode): string {
+	switch (node.kind) {
+		case "group":
+			return "GRP";
+		case "sphere":
+			return "SPH";
+		case "quad":
+			return "QUAD";
+		case "obj":
+			return "OBJ";
+	}
 }
 
 function ancestorOpenKeys(selectedKey: string | null): string[] {
@@ -205,10 +234,13 @@ const LayerCard = memo(function LayerCard({
 	layerIdx,
 	selectedObjectKey,
 	selectedMaterialKey,
+	selectedMediumKey,
 	onSelectObject,
 	onSelectMaterial,
+	onSelectMedium,
 	onAddGraphNode,
 	onAddMaterial,
+	onAddMedium,
 	dirHandle,
 }: {
 	layer: ResolvedLayer;
@@ -216,8 +248,10 @@ const LayerCard = memo(function LayerCard({
 	layerIdx: number;
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
+	selectedMediumKey: string | null;
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
+	onSelectMedium: (key: string | null) => void;
 	onAddGraphNode: (
 		tag: "ctx" | "lyr",
 		layerIdx: number,
@@ -230,16 +264,24 @@ const LayerCard = memo(function LayerCard({
 		name: string,
 		mat: Material,
 	) => void;
+	onAddMedium: (
+		tag: "ctx" | "lyr",
+		layerIdx: number,
+		name: string,
+		medium: Medium,
+	) => void;
 	dirHandle: FileSystemDirectoryHandle;
 }) {
 	const { name, data } = layer;
 	const matNames = Object.keys(data.materials);
+	const medNames = Object.keys(data.media ?? {});
 	const keyPrefix = tag === "context" ? "ctx" : "lyr";
 	const rootParentKey = `${keyPrefix}:${layerIdx}`;
 
 	const [showAddObject, setShowAddObject] = useState(false);
 	const [addParentKey, setAddParentKey] = useState(rootParentKey);
 	const [showAddMaterial, setShowAddMaterial] = useState(false);
+	const [showAddMedium, setShowAddMedium] = useState(false);
 	const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
 		() => new Set(),
 	);
@@ -293,7 +335,7 @@ const LayerCard = memo(function LayerCard({
 						{data.visible === false ? " ·hidden" : ""}
 					</span>
 					<span className="layer-counts">
-						{matNames.length}m · {nodeCount}n
+						{matNames.length}m · {medNames.length}v · {nodeCount}n
 					</span>
 				</button>
 			</Collapsible.Trigger>
@@ -329,6 +371,40 @@ const LayerCard = memo(function LayerCard({
 							>
 								<span className="data-name">{n}</span>{" "}
 								<span className="data-type">[{data.materials[n].type}]</span>
+							</button>
+						);
+					})}
+
+					<div className="layer-sub-head layer-sub-head-action">
+						<span>Media</span>
+						<button
+							type="button"
+							className="layer-add-btn"
+							title="Add medium"
+							onClick={(e) => {
+								e.stopPropagation();
+								setShowAddMedium(true);
+							}}
+						>
+							+
+						</button>
+					</div>
+					{medNames.map((n) => {
+						const key = `${keyPrefix}:${layerIdx}:med:${n}`;
+						const isSelected = key === selectedMediumKey;
+						const med = data.media?.[n];
+						return (
+							<button
+								type="button"
+								key={n}
+								className={`data-row data-row-clickable${isSelected ? " data-row-selected" : ""}`}
+								onClick={(e) => {
+									e.stopPropagation();
+									onSelectMedium(isSelected ? null : key);
+								}}
+							>
+								<span className="data-name">{n}</span>{" "}
+								<span className="data-type">[{med?.type}]</span>
 							</button>
 						);
 					})}
@@ -393,6 +469,18 @@ const LayerCard = memo(function LayerCard({
 					onCancel={() => setShowAddMaterial(false)}
 				/>
 			)}
+
+			{showAddMedium && (
+				<AddMediumDialog
+					existingNames={medNames}
+					dirHandle={dirHandle}
+					onAdd={(n, med) => {
+						onAddMedium(listTag, layerIdx, n, med);
+						setShowAddMedium(false);
+					}}
+					onCancel={() => setShowAddMedium(false)}
+				/>
+			)}
 		</Collapsible.Root>
 	);
 });
@@ -401,10 +489,13 @@ export function SceneInspector({
 	scene,
 	selectedObjectKey,
 	selectedMaterialKey,
+	selectedMediumKey,
 	onSelectObject,
 	onSelectMaterial,
+	onSelectMedium,
 	onAddGraphNode,
 	onAddMaterial,
+	onAddMedium,
 	dirHandle,
 	renderSettings,
 	onRenderSettingsChange,
@@ -418,8 +509,10 @@ export function SceneInspector({
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
+	selectedMediumKey: string | null;
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
+	onSelectMedium: (key: string | null) => void;
 	onAddGraphNode: (
 		tag: "ctx" | "lyr",
 		layerIdx: number,
@@ -431,6 +524,12 @@ export function SceneInspector({
 		layerIdx: number,
 		name: string,
 		mat: Material,
+	) => void;
+	onAddMedium: (
+		tag: "ctx" | "lyr",
+		layerIdx: number,
+		name: string,
+		medium: Medium,
 	) => void;
 	dirHandle: FileSystemDirectoryHandle;
 	renderSettings: RenderConfig;
@@ -468,10 +567,13 @@ export function SceneInspector({
 							layerIdx={i}
 							selectedObjectKey={selectedObjectKey}
 							selectedMaterialKey={selectedMaterialKey}
+							selectedMediumKey={selectedMediumKey}
 							onSelectObject={onSelectObject}
 							onSelectMaterial={onSelectMaterial}
+							onSelectMedium={onSelectMedium}
 							onAddGraphNode={onAddGraphNode}
 							onAddMaterial={onAddMaterial}
+							onAddMedium={onAddMedium}
 							dirHandle={dirHandle}
 						/>
 					))}
@@ -489,10 +591,13 @@ export function SceneInspector({
 							layerIdx={i}
 							selectedObjectKey={selectedObjectKey}
 							selectedMaterialKey={selectedMaterialKey}
+							selectedMediumKey={selectedMediumKey}
 							onSelectObject={onSelectObject}
 							onSelectMaterial={onSelectMaterial}
+							onSelectMedium={onSelectMedium}
 							onAddGraphNode={onAddGraphNode}
 							onAddMaterial={onAddMaterial}
+							onAddMedium={onAddMedium}
 							dirHandle={dirHandle}
 						/>
 					))}

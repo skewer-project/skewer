@@ -1,7 +1,5 @@
-import { useState } from "react";
-import type { AnimatedNodeTrack } from "../services/transform";
-import { TimelineDopeSheet } from "./TimelineDopeSheet";
-import { TimelineScrubber } from "./TimelineScrubber";
+import { Pause, Play } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
 
 export interface TimelineProps {
 	currentTime: number;
@@ -9,12 +7,8 @@ export interface TimelineProps {
 	isPlaying: boolean;
 	onTogglePlay: () => void;
 	animRange: { start: number; end: number };
-	/** Unique keyframe times across all animated nodes (scrubber header diamonds). */
+	/** Unique keyframe times across all animated nodes (diamond markers). */
 	keyframeTimes?: number[];
-	/** Per-node tracks for the dope-sheet panel. */
-	tracks?: AnimatedNodeTrack[];
-	onKeyframeMove?: (trackKey: string, oldTime: number, newTime: number) => void;
-	onSelectObject?: (key: string | null) => void;
 }
 
 export function Timeline({
@@ -24,35 +18,110 @@ export function Timeline({
 	onTogglePlay,
 	animRange,
 	keyframeTimes,
-	tracks,
-	onKeyframeMove,
-	onSelectObject,
 }: TimelineProps) {
-	const [expanded, setExpanded] = useState(false);
+	const trackRef = useRef<HTMLDivElement>(null);
+	const draggingRef = useRef(false);
+
+	const span = animRange.end - animRange.start;
+	const hasSpan = span > 1e-6;
+
+	const timeFromClientX = useCallback(
+		(clientX: number) => {
+			const el = trackRef.current;
+			if (!el) return animRange.start;
+			const r = el.getBoundingClientRect();
+			const w = r.width;
+			const x = Math.min(w, Math.max(0, clientX - r.left));
+			const u = w > 0 ? x / w : 0;
+			if (!hasSpan) return animRange.start;
+			return animRange.start + u * span;
+		},
+		[animRange.start, hasSpan, span],
+	);
+
+	const playheadFrac = hasSpan ? (currentTime - animRange.start) / span : 0;
+	const playheadPct = Math.min(100, Math.max(0, playheadFrac * 100));
+
+	useEffect(() => {
+		function onMove(e: PointerEvent) {
+			if (!draggingRef.current) return;
+			onTimeChange(timeFromClientX(e.clientX));
+		}
+		function onUp() {
+			draggingRef.current = false;
+		}
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", onUp);
+		window.addEventListener("pointercancel", onUp);
+		return () => {
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", onUp);
+			window.removeEventListener("pointercancel", onUp);
+		};
+	}, [onTimeChange, timeFromClientX]);
+
+	const onTrackPointerDown = (e: React.PointerEvent) => {
+		e.currentTarget.setPointerCapture(e.pointerId);
+		draggingRef.current = true;
+		onTimeChange(timeFromClientX(e.clientX));
+	};
+
+	const onPlayPointerDown = (e: React.PointerEvent) => {
+		e.stopPropagation();
+	};
 
 	return (
-		<div className="timeline-shell">
-			{expanded && (
-				<TimelineDopeSheet
-					key={`${animRange.start}-${animRange.end}`}
-					tracks={tracks ?? []}
-					animRange={animRange}
-					currentTime={currentTime}
-					onTimeChange={onTimeChange}
-					onKeyframeMove={onKeyframeMove}
-					onSelectObject={onSelectObject}
-				/>
-			)}
-			<TimelineScrubber
-				currentTime={currentTime}
-				onTimeChange={onTimeChange}
-				isPlaying={isPlaying}
-				onTogglePlay={onTogglePlay}
-				animRange={animRange}
-				keyframeTimes={keyframeTimes}
-				expanded={expanded}
-				onToggleExpand={() => setExpanded((v) => !v)}
-			/>
+		<div className="timeline panel">
+			<div className="timeline-controls">
+				<button
+					type="button"
+					className="timeline-play-btn"
+					onPointerDown={onPlayPointerDown}
+					onClick={onTogglePlay}
+					aria-label={isPlaying ? "Pause" : "Play"}
+					title={isPlaying ? "Pause (Space)" : "Play (Space)"}
+				>
+					{isPlaying ? (
+						<Pause size={14} strokeWidth={2} aria-hidden />
+					) : (
+						<Play size={14} strokeWidth={2} aria-hidden />
+					)}
+				</button>
+				<span className="timeline-time">{currentTime.toFixed(2)}s</span>
+			</div>
+			<div
+				ref={trackRef}
+				className="timeline-track"
+				onPointerDown={onTrackPointerDown}
+				role="slider"
+				tabIndex={0}
+				aria-valuemin={animRange.start}
+				aria-valuemax={animRange.end}
+				aria-valuenow={currentTime}
+				aria-label="Animation timeline"
+			>
+				<div className="timeline-track-inner">
+					{hasSpan &&
+						keyframeTimes?.map((t) => {
+							const f = (t - animRange.start) / span;
+							if (f < 0 || f > 1) return null;
+							return (
+								<div
+									key={`kf-marker-${t}`}
+									className="timeline-kf-marker"
+									style={{ left: `${f * 100}%` }}
+								/>
+							);
+						})}
+					<div
+						className="timeline-playhead"
+						style={{ left: `${playheadPct}%` }}
+					/>
+				</div>
+			</div>
+			<span className="timeline-end-label">
+				{hasSpan ? `${animRange.end.toFixed(2)}s` : "—"}
+			</span>
 		</div>
 	);
 }

@@ -11,7 +11,9 @@ import type {
 	LambertianMaterial,
 	LayerData,
 	Material,
+	Medium,
 	MetalMaterial,
+	NanoVDBMedium,
 	NodeTransform,
 	ObjNode,
 	QuadNode,
@@ -25,6 +27,7 @@ import type {
 	Vec3,
 } from "../types/scene";
 import { readJsonFile } from "./fs";
+import { getNanoVDBBounds } from "./nanovdb-parser";
 
 // --- Primitive helpers ---
 
@@ -134,6 +137,47 @@ export function parseMaterial(name: string, json: unknown): Material {
 	}
 }
 
+// --- Media ---
+
+export function parseMedium(name: string, json: unknown): Medium {
+	if (!isObject(json)) throw new Error(`medium "${name}": expected object`);
+	const type = str(json.type, `medium "${name}".type`);
+
+	switch (type) {
+		case "nanovdb":
+			return {
+				type: "nanovdb",
+				sigma_a: parseVec3OrDefault(
+					json.sigma_a,
+					`medium "${name}".sigma_a`,
+					[0, 0, 0],
+				),
+				sigma_s: parseVec3OrDefault(
+					json.sigma_s,
+					`medium "${name}".sigma_s`,
+					[0, 0, 0],
+				),
+				g: num(json.g, `medium "${name}".g`, 0),
+				density_multiplier: num(
+					json.density_multiplier,
+					`medium "${name}".density_multiplier`,
+					1,
+				),
+				scale:
+					json.scale !== undefined
+						? num(json.scale, `medium "${name}".scale`)
+						: undefined,
+				translate:
+					json.translate !== undefined
+						? parseVec3(json.translate, `medium "${name}".translate`)
+						: undefined,
+				file: str(json.file, `medium "${name}".file`),
+			} satisfies NanoVDBMedium;
+		default:
+			throw new Error(`medium "${name}": unknown type "${type}"`);
+	}
+}
+
 // --- Transforms ---
 
 function parseInterpCurve(v: unknown, field: string): InterpCurve {
@@ -228,15 +272,29 @@ function parseSphereLeaf(
 	json: Record<string, unknown>,
 	field: string,
 ): SphereNode {
+	// For bounding spheres, center and radius are omitted from JSON
+	// Provide defaults; they will be overwritten during volume sync
+	const center =
+		json.center !== undefined
+			? parseVec3(json.center, `${field}.center`)
+			: ([0, 0, 0] as Vec3);
+	const radius =
+		json.radius !== undefined ? num(json.radius, `${field}.radius`) : 1;
+
 	return {
 		kind: "sphere",
-		material: str(json.material, `${field}.material`),
-		center: parseVec3(json.center, `${field}.center`),
-		radius: num(json.radius, `${field}.radius`),
+		material:
+			json.material !== "null"
+				? str(json.material, `${field}.material`)
+				: "null",
+		center,
+		radius,
 		visible:
 			json.visible !== undefined
 				? bool(json.visible, `${field}.visible`, true)
 				: undefined,
+		inside_medium: optStr(json.inside_medium),
+		outside_medium: optStr(json.outside_medium),
 	};
 }
 
@@ -400,6 +458,14 @@ export function parseLayerData(json: unknown): LayerData {
 		}
 	}
 
+	const media: Record<string, Medium> = {};
+	if (json.media !== undefined) {
+		if (!isObject(json.media)) throw new Error("layer.media: expected object");
+		for (const [name, medJson] of Object.entries(json.media)) {
+			media[name] = parseMedium(name, medJson);
+		}
+	}
+
 	const graph: SceneNode[] = [];
 	for (let i = 0; i < json.graph.length; i++) {
 		graph.push(parseGraphNode(json.graph[i], `graph[${i}]`));
@@ -407,6 +473,7 @@ export function parseLayerData(json: unknown): LayerData {
 
 	return {
 		materials,
+		media,
 		graph,
 		render:
 			json.render !== undefined ? parseRenderConfig(json.render) : undefined,
@@ -463,10 +530,49 @@ export async function loadScene(
 		Promise.all(manifest.layers.map(loadLayer)),
 	]);
 
-	return {
+	const resolvedScene: ResolvedScene = {
 		camera: manifest.camera,
 		contexts,
 		layers,
 		output_dir: manifest.output_dir,
 	};
+
+	// --- Volumetric Bounding Sphere Synchronization ---
+	// Sync spheres with inside_medium to the physical bounds of the .nvdb file.
+	const allLayers = [...resolvedScene.contexts, ...resolvedScene.layers];
+	for (const layer of allLayers) {
+		const media = layer.data.media;
+		if (!media) continue;
+
+		const visitNode = async (node: SceneNode) => {
+			if (node.kind === "sphere" && node.inside_medium) {
+				const med = media[node.inside_medium];
+				if (med && med.type === "nanovdb") {
+					const bounds = await getNanoVDBBounds(dir, med.file);
+					if (bounds) {
+						const scale = med.scale ?? 1.0;
+						const translate = med.translate ?? [0, 0, 0];
+						node.center = [0, 0, 0];
+						node.radius = bounds.radius;
+						node.transform = {
+							translate: translate,
+							rotate: [0, 0, 0],
+							scale: scale,
+						};
+					}
+				}
+			}
+			if (node.kind === "group") {
+				for (const child of node.children) {
+					await visitNode(child);
+				}
+			}
+		};
+
+		for (const node of layer.data.graph) {
+			await visitNode(node);
+		}
+	}
+
+	return resolvedScene;
 }
