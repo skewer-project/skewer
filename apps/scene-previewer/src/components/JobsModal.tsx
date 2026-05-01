@@ -122,7 +122,27 @@ function JobRow({
 			? relativeTime(job.completedAt)
 			: relativeTime(job.createdAt);
 
-	const thumb = job.compositeObjectURL ? (
+	const thumb = job.smearObjectURL ? (
+		<video
+			className="jobs-modal-thumb-img"
+			src={job.smearObjectURL}
+			muted
+			playsInline
+			loop
+			preload="metadata"
+			aria-label="Animation preview (hover to play)"
+			onLoadedMetadata={(e) => {
+				e.currentTarget.currentTime = 0.0001;
+			}}
+			onMouseEnter={(e) => {
+				void e.currentTarget.play().catch(() => {});
+			}}
+			onMouseLeave={(e) => {
+				e.currentTarget.pause();
+				e.currentTarget.currentTime = 0.0001;
+			}}
+		/>
+	) : job.compositeObjectURL ? (
 		<img className="jobs-modal-thumb-img" src={job.compositeObjectURL} alt="" />
 	) : running ? (
 		<Loader2 className="jobs-modal-thumb-spin" size={20} />

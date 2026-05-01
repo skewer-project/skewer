@@ -27,6 +27,7 @@ export { isNonTerminalStatus } from "./jobs-store";
 const UPLOAD_CONCURRENCY = 8;
 const MAX_POLL_MS = 10_000;
 const COMPOSITE_FALLBACK = "frame-0001.png";
+const SMEAR_MP4 = "smeared.mp4";
 
 function sleep(ms: number) {
 	return new Promise((r) => setTimeout(r, ms));
@@ -39,6 +40,40 @@ function compositePngName(status: StatusResponse): string {
 		if (m) return m[1] ?? COMPOSITE_FALLBACK;
 	}
 	return COMPOSITE_FALLBACK;
+}
+
+async function attachSucceededPreviews(
+	pipelineId: string,
+	pngName: string,
+	signal: AbortSignal,
+): Promise<void> {
+	let smearObjectURL: string | undefined;
+	try {
+		if (!signal.aborted) {
+			const vblob = await fetchCompositeBlob(pipelineId, SMEAR_MP4);
+			smearObjectURL = URL.createObjectURL(vblob);
+		}
+	} catch {
+		/* smear step disabled (smear_fps == 0) */
+	}
+	try {
+		if (signal.aborted) {
+			return;
+		}
+		const pblob = await fetchCompositeBlob(pipelineId, pngName);
+		const compositeObjectURL = URL.createObjectURL(pblob);
+		store.patchJob(pipelineId, {
+			status: "succeeded",
+			compositeObjectURL,
+			...(smearObjectURL ? { smearObjectURL } : {}),
+		});
+	} catch (e) {
+		if (smearObjectURL) {
+			store.patchJob(pipelineId, { status: "succeeded", smearObjectURL });
+			return;
+		}
+		throw e;
+	}
 }
 
 async function runWithConcurrency<T, R>(
@@ -102,12 +137,7 @@ async function pollUntilDone(
 					if (signal.aborted) {
 						return;
 					}
-					const blob = await fetchCompositeBlob(pipelineId, name);
-					const url = URL.createObjectURL(blob);
-					store.patchJob(pipelineId, {
-						status: "succeeded",
-						compositeObjectURL: url,
-					});
+					await attachSucceededPreviews(pipelineId, name, signal);
 				} catch (e) {
 					markFailed(
 						pipelineId,
@@ -218,7 +248,14 @@ export async function startCloudRender(args: {
 
 		if (ac.signal.aborted) return;
 		store.patchJob(activeId, { status: "submitting" });
-		await submitJob(activeId, { enable_cache: enableCache });
+		const smearFps =
+			renderConfig?.isAnimation === true && (renderConfig.fps ?? 0) > 0
+				? renderConfig.fps
+				: 0;
+		await submitJob(activeId, {
+			enable_cache: enableCache,
+			smear_fps: smearFps,
+		});
 		if (ac.signal.aborted) return;
 		store.patchJob(activeId, { status: "running" });
 		await pollUntilDone(activeId, ac.signal);
@@ -254,9 +291,7 @@ export async function userCancelRender(id: string) {
 
 async function refetchCompositePreview(id: string) {
 	try {
-		const blob = await fetchCompositeBlob(id, COMPOSITE_FALLBACK);
-		const url = URL.createObjectURL(blob);
-		store.patchJob(id, { compositeObjectURL: url });
+		await attachSucceededPreviews(id, COMPOSITE_FALLBACK, new AbortController().signal);
 	} catch {
 		// keep card without image
 	}
@@ -291,7 +326,7 @@ export function resumePendingJobs() {
 			void pollUntilDone(j.id, ac.signal);
 			continue;
 		}
-		if (j.status === "succeeded" && !j.compositeObjectURL) {
+		if (j.status === "succeeded" && !j.compositeObjectURL && !j.smearObjectURL) {
 			void refetchCompositePreview(j.id);
 		}
 	}
@@ -301,11 +336,18 @@ export async function downloadCompositePng(
 	pipelineId: string,
 	suggestedName: string,
 ) {
-	const blob = await fetchCompositeBlob(pipelineId, COMPOSITE_FALLBACK);
+	let blob: Blob;
+	let name = suggestedName;
+	try {
+		blob = await fetchCompositeBlob(pipelineId, SMEAR_MP4);
+		name = suggestedName.replace(/\.png$/i, ".mp4");
+	} catch {
+		blob = await fetchCompositeBlob(pipelineId, COMPOSITE_FALLBACK);
+	}
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");
 	a.href = url;
-	a.download = suggestedName;
+	a.download = name;
 	a.click();
 	URL.revokeObjectURL(url);
 }

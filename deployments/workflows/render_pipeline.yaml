@@ -31,6 +31,7 @@
 #   subnet                  - string, subnet self_link
 #   batch_sa                - string, batch worker service account email
 #   composite_output_prefix - string, GCS URI prefix for final composited frames
+#   smear_fps               - float, when > 0 run ffmpeg to write smeared.mp4 after composite
 
 main:
   params: [args]
@@ -212,6 +213,25 @@ main:
           provisioning_model: ${loom_provisioning_model}
           max_retry_count: ${loom_max_retry_count}
           parallelism: ${loom_parallelism}
+          network: ${network}
+          subnet: ${subnet}
+          batch_sa: ${batch_sa}
+
+    - maybe_smear:
+        switch:
+          - condition: ${args.smear_fps > 0}
+            next: run_smear
+        next: return_result
+
+    - run_smear:
+        call: submit_batch_smear
+        args:
+          project_id: ${project_id}
+          region: ${region}
+          pipeline_id: ${pipeline_id}
+          data_bucket: ${data_bucket}
+          composite_output_prefix: ${composite_output_prefix}
+          smear_fps: ${args.smear_fps}
           network: ${network}
           subnet: ${subnet}
           batch_sa: ${batch_sa}
@@ -536,6 +556,80 @@ submit_batch_composite:
             steps:
               - composite_failed:
                   raise: '${"composite failed: " + final_composite_state}'
+
+# ── Subworkflow: submit_batch_smear ───────────────────────────────────────────
+#
+# Single Batch task: install ffmpeg, read composited PNGs from the GCS FUSE
+# mount, encode smeared.mp4 at smear_fps, write it next to the frames.
+
+submit_batch_smear:
+  params: [project_id, region, pipeline_id, data_bucket, composite_output_prefix, smear_fps, network, subnet, batch_sa]
+  steps:
+    - smear_prep:
+        assign:
+          - job_id: '${pipeline_id + "-smear"}'
+          - fuse_data: '${"/mnt/" + data_bucket}'
+          - composite_fuse: '${text.replace_all(composite_output_prefix, "gs://", "/mnt/")}'
+          - fps_text: '${string(smear_fps)}'
+          - smear_script: '${"set -euo pipefail; export DEBIAN_FRONTEND=noninteractive; apt-get update -qq; apt-get install -y -qq ffmpeg; ffmpeg -y -hide_banner -loglevel error -framerate " + fps_text + " -start_number 1 -i \"" + composite_fuse + "frame-%04d.png\" -c:v libx264 -pix_fmt yuv420p -movflags +faststart \"" + composite_fuse + "smeared.mp4\""}'
+    - create_smear_job:
+        call: googleapis.batch.v1.projects.locations.jobs.create
+        args:
+          parent: '${"projects/" + project_id + "/locations/" + region}'
+          jobId: ${job_id}
+          body:
+            taskGroups:
+              - taskCount: 1
+                taskCountPerNode: 1
+                taskSpec:
+                  computeResource:
+                    cpuMilli: 4000
+                    memoryMib: 8192
+                  maxRetryCount: 1
+                  maxRunDuration: "7200s"
+                  runnables:
+                    - script:
+                        text: '${"mkdir -p " + fuse_data}'
+                    - container:
+                        imageUri: ubuntu:22.04
+                        entrypoint: /bin/bash
+                        commands:
+                          - "-c"
+                          - ${smear_script}
+                        volumes:
+                          - '${fuse_data + ":" + fuse_data + ":rw"}'
+                  volumes:
+                    - gcs:
+                        remotePath: ${data_bucket}
+                      mountPath: ${fuse_data}
+            allocationPolicy:
+              tags:
+                - skewer-batch-worker
+              instances:
+                - policy:
+                    machineType: e2-standard-4
+                    provisioningModel: SPOT
+              network:
+                networkInterfaces:
+                  - network: ${network}
+                    subnetwork: ${subnet}
+                    noExternalIpAddress: true
+              serviceAccount:
+                email: ${batch_sa}
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: smear_job
+    - poll_smear:
+        call: poll_batch_job
+        args:
+          job_name: ${smear_job.name}
+        result: smear_state
+    - check_smear:
+        switch:
+          - condition: '${smear_state != "SUCCEEDED"}'
+            steps:
+              - smear_failed:
+                  raise: '${"smear (ffmpeg) failed: " + smear_state}'
 
 # ── Subworkflow: poll_batch_job ────────────────────────────────────────────────
 #

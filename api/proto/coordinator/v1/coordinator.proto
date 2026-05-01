@@ -21,6 +21,8 @@ message SubmitPipelineRequest {
     string scene_uri = 2;                   // GCS path to root scene.json (e.g. gs://bucket/scenes/scene.json)
     string composite_output_uri_prefix = 3; // GCS prefix for final composited frames
     bool enable_cache = 4;                  // Enable content-hash layer caching (default false)
+    // When > 0, runs an ffmpeg "smear" step after compositing to write smeared.mp4 at the composite prefix.
+    double smear_fps = 5;
 }
 
 message SubmitPipelineResponse {
