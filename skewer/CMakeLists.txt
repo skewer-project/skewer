@@ -63,7 +63,6 @@ set(SKEWER_CORE_SOURCES
     src/scene/scene.cc
     src/scene/interp_curve.cc
     src/scene/animation.cc
-    src/film/deep_segment_pool.cc
     src/film/film.cc
     src/film/image_buffer.cc
     src/integrators/path_trace.cc

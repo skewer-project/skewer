@@ -134,8 +134,7 @@ static int RunBatchMode() {
             std::filesystem::create_directories(std::filesystem::path(out_path).parent_path());
 
             film->WriteImage(out_path);
-            exrio::DeepImage deep_img = film->BuildDeepImage();
-            exrio::writeDeepEXR(deep_img, out_path);
+            film->WriteDeepEXRStreaming(out_path);
 
             std::cout << "[SKEWER BATCH]: Wrote " << out_path << "\n";
         };
