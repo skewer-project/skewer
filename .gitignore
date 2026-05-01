@@ -52,3 +52,6 @@ opencode.json
 
 # gcp key
 gcp-key.json
+
+# Environment variables:
+.env
