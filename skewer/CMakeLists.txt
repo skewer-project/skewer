@@ -136,6 +136,7 @@ target_compile_definitions(skewer-worker PRIVATE NANOVDB_USE_INTRINSICS)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(skewer-render PRIVATE -ffast-math)
+    target_compile_options(skewer-worker PRIVATE -ffast-math)
 endif()
 
 include(CheckIPOSupported)
@@ -143,6 +144,8 @@ check_ipo_supported(RESULT SKEWER_IPO_SUPPORTED OUTPUT SKEWER_IPO_OUTPUT)
 if(SKEWER_IPO_SUPPORTED)
     set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
+    set_property(TARGET skewer-worker PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    set_property(TARGET skewer-worker PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 endif()
 
 if(BUILD_TESTING)
