@@ -61,7 +61,7 @@ async function attachSucceededPreviews(
 			smearObjectURL = URL.createObjectURL(vblob);
 		}
 	} catch {
-		/* smear step off or still writing */
+		/* smear step disabled (smear_fps == 0) */
 	}
 	try {
 		if (signal.aborted) {
@@ -432,7 +432,11 @@ export async function resumePendingJobs() {
 			startStatusPoll(j.id);
 			continue;
 		}
-		if (j.status === "succeeded" && !j.compositeObjectURL && !j.smearObjectURL) {
+		if (
+			j.status === "succeeded" &&
+			!j.compositeObjectURL &&
+			!j.smearObjectURL
+		) {
 			void refetchCompositePreview(j.id);
 		}
 	}

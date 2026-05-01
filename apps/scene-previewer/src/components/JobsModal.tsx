@@ -159,8 +159,18 @@ function JobRow({
 			muted
 			playsInline
 			loop
-			autoPlay
-			aria-label="Animation preview"
+			preload="metadata"
+			aria-label="Animation preview (hover to play)"
+			onLoadedMetadata={(e) => {
+				e.currentTarget.currentTime = 0.0001;
+			}}
+			onMouseEnter={(e) => {
+				void e.currentTarget.play().catch(() => {});
+			}}
+			onMouseLeave={(e) => {
+				e.currentTarget.pause();
+				e.currentTarget.currentTime = 0.0001;
+			}}
 		/>
 	) : job.compositeObjectURL ? (
 		<img className={j.thumbImg} src={job.compositeObjectURL} alt="" />
