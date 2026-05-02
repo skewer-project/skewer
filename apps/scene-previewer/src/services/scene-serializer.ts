@@ -1,6 +1,7 @@
 // Inverse of scene-parser.ts — serialize ResolvedScene to JSON on disk.
 
 import type {
+	Animation,
 	Camera,
 	InterpCurve,
 	Keyframe,
@@ -16,7 +17,7 @@ import type {
 import { isAnimated } from "../types/scene";
 import { writeFile } from "./fs";
 import { getNanoVDBBounds } from "./nanovdb-parser";
-import { evaluateTransformAt } from "./transform";
+import { evaluateTransformAt, layerHasKeyframes } from "./transform";
 
 function jsonLine(value: unknown): string {
 	return `${JSON.stringify(value, null, 2)}\n`;
@@ -223,8 +224,25 @@ export function serializeLayerData(data: LayerData): Record<string, unknown> {
 	if (Object.keys(media).length > 0) o.media = media;
 	o.graph = data.graph.map(serializeSceneNode);
 
+	// `animated` is the orchestrator's per-layer mode hint (peekLayerAnimated).
+	// Preserve a user-set value; otherwise derive from has-keyframes so the
+	// field is always present after a save.
+	const animated =
+		data.animated !== undefined ? data.animated : layerHasKeyframes(data.graph);
+	o.animated = animated;
+
 	if (data.render !== undefined) o.render = serializeRenderConfig(data.render);
 	if (data.visible !== undefined) o.visible = data.visible;
+	return o;
+}
+
+function serializeAnimation(a: Animation): Record<string, unknown> {
+	const o: Record<string, unknown> = {
+		start: a.start,
+		end: a.end,
+		fps: a.fps,
+	};
+	if (a.shutter_angle !== undefined) o.shutter_angle = a.shutter_angle;
 	return o;
 }
 
@@ -233,6 +251,7 @@ export function serializeManifest(
 ): Record<string, unknown> {
 	return {
 		camera: serializeCamera(scene.camera),
+		animation: serializeAnimation(scene.animation),
 		context: scene.contexts.map((l) => l.path),
 		layers: scene.layers.map((l) => l.path),
 		output_dir: scene.output_dir,

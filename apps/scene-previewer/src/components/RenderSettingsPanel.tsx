@@ -1,6 +1,7 @@
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { ChevronRight } from "lucide-react";
 import { memo } from "react";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { RenderConfig } from "../types/scene";
 import { NumberField, Vec2Field } from "./controls";
 
@@ -37,24 +38,24 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 	};
 
 	return (
-		<Collapsible.Root className="layer-card" defaultOpen>
+		<Collapsible.Root className={u.layerCard} defaultOpen>
 			<Collapsible.Trigger asChild>
-				<button type="button" className="layer-summary">
+				<button type="button" className={u.layerSummary}>
 					<ChevronRight
-						className="layer-chevron-icon"
+						className={u.layerChevronIcon}
 						size={18}
 						strokeWidth={2}
 						aria-hidden
 					/>
-					<span className="layer-tag layer-tag-ctx">RENDER</span>
-					<span className="layer-name">Settings</span>
+					<span className={`${u.layerTag} ${u.layerTagCtx}`}>RENDER</span>
+					<span className={u.layerName}>Settings</span>
 				</button>
 			</Collapsible.Trigger>
 
-			<Collapsible.Content className="layer-collapsible-content">
-				<div className="layer-body">
-					<div className="layer-sub-head">Image</div>
-					<div className="kv-table">
+			<Collapsible.Content>
+				<div className={u.layerBody}>
+					<div className={u.layerSubHead}>Image</div>
+					<div className={u.kvTable}>
 						<Vec2Field
 							label="res"
 							value={[settings.image.width, settings.image.height]}
@@ -65,8 +66,8 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 						/>
 					</div>
 
-					<div className="layer-sub-head">Sampling</div>
-					<div className="kv-table">
+					<div className={u.layerSubHead}>Sampling</div>
+					<div className={u.kvTable}>
 						<Vec2Field
 							label="range"
 							value={[settings.min_samples ?? 16, settings.max_samples]}
@@ -75,10 +76,10 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 							min={1}
 							integer
 						/>
-						<div className="kv-row">
-							<span className="kv-key">noise</span>
-							<div className="vec3-cell">
-								<span className="vec3-component">threshold</span>
+						<div className={u.kvRow}>
+							<span className={u.kvKey}>noise</span>
+							<div className={u.vec3Cell}>
+								<span className={u.vec3Component}>threshold</span>
 								<NumberField
 									label=""
 									value={settings.noise_threshold ?? 0.01}
@@ -91,8 +92,8 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 						</div>
 					</div>
 
-					<div className="layer-sub-head">Output</div>
-					<div className="kv-table">
+					<div className={u.layerSubHead}>Output</div>
+					<div className={u.kvTable}>
 						<Vec2Field
 							label="time"
 							value={[startTime, endTime]}

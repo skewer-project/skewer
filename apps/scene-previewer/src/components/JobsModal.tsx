@@ -26,7 +26,9 @@ import {
 	removeJob,
 	subscribe,
 } from "../services/jobs-store";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { ResolvedScene } from "../types/scene";
+import j from "./JobsModal.module.css";
 
 type Filter = "all" | "running" | "done" | "failed";
 
@@ -122,10 +124,28 @@ function JobRow({
 			? relativeTime(job.completedAt)
 			: relativeTime(job.createdAt);
 
+	const rowMod =
+		tone === "active"
+			? j.rowActive
+			: tone === "err"
+				? j.rowErr
+				: tone === "warn"
+					? j.rowWarn
+					: "";
+
+	const statusClass =
+		tone === "active"
+			? j.statusActive
+			: tone === "ok"
+				? j.statusOk
+				: tone === "err"
+					? j.statusErr
+					: j.statusWarn;
+
 	const thumb = job.compositeObjectURL ? (
-		<img className="jobs-modal-thumb-img" src={job.compositeObjectURL} alt="" />
+		<img className={j.thumbImg} src={job.compositeObjectURL} alt="" />
 	) : running ? (
-		<Loader2 className="jobs-modal-thumb-spin" size={20} />
+		<Loader2 className={j.thumbSpin} size={20} />
 	) : tone === "err" ? (
 		<CloudOff size={20} aria-hidden />
 	) : (
@@ -133,21 +153,21 @@ function JobRow({
 	);
 
 	return (
-		<div className={`jobs-modal-row jobs-modal-row-${tone}`}>
-			<div className="jobs-modal-thumb">{thumb}</div>
-			<div className="jobs-modal-row-main">
-				<div className="jobs-modal-row-head">
-					<span className="jobs-modal-row-title">{job.sceneName}</span>
-					<span className={`jobs-modal-row-status jobs-modal-status-${tone}`}>
+		<div className={rowMod ? `${j.row} ${rowMod}` : j.row}>
+			<div className={j.thumb}>{thumb}</div>
+			<div className={j.rowMain}>
+				<div className={j.rowHead}>
+					<span className={j.rowTitle}>{job.sceneName}</span>
+					<span className={`${j.rowStatus} ${statusClass}`}>
 						{statusLabel(job)}
 					</span>
 				</div>
-				<div className="jobs-modal-row-meta">
-					<span className="jobs-modal-row-stamp">{stamp}</span>
+				<div className={j.rowMeta}>
+					<span className={j.stamp}>{stamp}</span>
 					{job.renderConfig ? (
 						<>
-							<span className="jobs-modal-meta-sep">·</span>
-							<span className="jobs-modal-row-settings">
+							<span className={j.metaSep}>·</span>
+							<span className={j.rowSettings}>
 								{settingsLine(job.renderConfig)}
 							</span>
 						</>
@@ -155,85 +175,77 @@ function JobRow({
 				</div>
 				{job.status === "uploading" && job.totalBytes ? (
 					<div
-						className="jobs-modal-progress"
+						className={j.progress}
 						role="progressbar"
 						aria-label="Upload progress"
 					>
 						<div
-							className="jobs-modal-progress-bar"
+							className={j.progressBar}
 							style={{ width: `${pct.toFixed(1)}%` }}
 						/>
 					</div>
 				) : null}
 				{job.error ? (
-					<div className="jobs-modal-row-error" role="alert">
+					<div className={j.rowError} role="alert">
 						{job.error}
 					</div>
 				) : null}
 				{expanded && job.renderConfig ? (
-					<div className="jobs-modal-detail">
-						<div className="jobs-modal-detail-row">
-							<span className="jobs-modal-detail-k">resolution</span>
-							<span className="jobs-modal-detail-v">
+					<div className={j.detail}>
+						<div className={j.detailRow}>
+							<span className={j.detailK}>resolution</span>
+							<span className={j.detailV}>
 								{job.renderConfig.width} × {job.renderConfig.height}
 							</span>
 						</div>
-						<div className="jobs-modal-detail-row">
-							<span className="jobs-modal-detail-k">samples</span>
-							<span className="jobs-modal-detail-v">
+						<div className={j.detailRow}>
+							<span className={j.detailK}>samples</span>
+							<span className={j.detailV}>
 								{job.renderConfig.minSamples ?? 16} →{" "}
 								{job.renderConfig.maxSamples}
 							</span>
 						</div>
-						<div className="jobs-modal-detail-row">
-							<span className="jobs-modal-detail-k">max depth</span>
-							<span className="jobs-modal-detail-v">
-								{job.renderConfig.maxDepth}
-							</span>
+						<div className={j.detailRow}>
+							<span className={j.detailK}>max depth</span>
+							<span className={j.detailV}>{job.renderConfig.maxDepth}</span>
 						</div>
-						<div className="jobs-modal-detail-row">
-							<span className="jobs-modal-detail-k">integrator</span>
-							<span className="jobs-modal-detail-v">
-								{job.renderConfig.integrator}
-							</span>
+						<div className={j.detailRow}>
+							<span className={j.detailK}>integrator</span>
+							<span className={j.detailV}>{job.renderConfig.integrator}</span>
 						</div>
 						{job.renderConfig.isAnimation ? (
 							<>
-								<div className="jobs-modal-detail-row">
-									<span className="jobs-modal-detail-k">frames</span>
-									<span className="jobs-modal-detail-v">
+								<div className={j.detailRow}>
+									<span className={j.detailK}>frames</span>
+									<span className={j.detailV}>
 										{job.renderConfig.startFrame} → {job.renderConfig.endFrame}
 									</span>
 								</div>
-								<div className="jobs-modal-detail-row">
-									<span className="jobs-modal-detail-k">fps</span>
-									<span className="jobs-modal-detail-v">
-										{job.renderConfig.fps}
-									</span>
+								<div className={j.detailRow}>
+									<span className={j.detailK}>fps</span>
+									<span className={j.detailV}>{job.renderConfig.fps}</span>
 								</div>
-								<div className="jobs-modal-detail-row">
-									<span className="jobs-modal-detail-k">time</span>
-									<span className="jobs-modal-detail-v">
+								<div className={j.detailRow}>
+									<span className={j.detailK}>time</span>
+									<span className={j.detailV}>
 										{job.renderConfig.startTime}s → {job.renderConfig.endTime}s
 									</span>
 								</div>
 							</>
 						) : (
-							<div className="jobs-modal-detail-row">
-								<span className="jobs-modal-detail-k">time</span>
-								<span className="jobs-modal-detail-v">
-									{job.renderConfig.startTime}s
-								</span>
+							<div className={j.detailRow}>
+								<span className={j.detailK}>time</span>
+								<span className={j.detailV}>{job.renderConfig.startTime}s</span>
 							</div>
 						)}
 					</div>
 				) : null}
 			</div>
-			<div className="jobs-modal-row-actions">
+			<div className={j.rowActions}>
 				{job.status === "succeeded" ? (
 					<button
 						type="button"
-						className="open-btn jobs-modal-action"
+						className={`${u.openBtn} ${j.action}`}
 						onClick={onDownload}
 					>
 						<Download size={12} />
@@ -243,7 +255,7 @@ function JobRow({
 				{job.status === "failed" && canRetry ? (
 					<button
 						type="button"
-						className="open-btn jobs-modal-action"
+						className={`${u.openBtn} ${j.action}`}
 						onClick={onRetry}
 					>
 						<RefreshCw size={12} />
@@ -253,7 +265,7 @@ function JobRow({
 				{job.status === "running" ? (
 					<button
 						type="button"
-						className="open-btn jobs-modal-action"
+						className={`${u.openBtn} ${j.action}`}
 						onClick={onCancel}
 					>
 						<span>Cancel</span>
@@ -262,7 +274,7 @@ function JobRow({
 				{job.renderConfig ? (
 					<button
 						type="button"
-						className="jobs-modal-expand"
+						className={j.expand}
 						aria-expanded={expanded}
 						onClick={onToggleExpand}
 					>
@@ -272,7 +284,7 @@ function JobRow({
 				{isTerminalStatus(job.status) ? (
 					<button
 						type="button"
-						className="jobs-modal-dismiss"
+						className={j.dismiss}
 						aria-label="Dismiss"
 						onClick={onRemove}
 					>
@@ -336,47 +348,54 @@ export function JobsModal({
 		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape handled by document listener pattern; backdrop is decorative
 		<div
-			className="jobs-modal-overlay"
+			className={j.overlay}
 			onClick={(e) => e.target === e.currentTarget && onClose()}
 		>
-			<div className="jobs-modal" role="dialog" aria-label="Cloud renders">
-				<div className="jobs-modal-header">
+			<div className={j.modal} role="dialog" aria-label="Cloud renders">
+				<div className={j.header}>
 					<Cloud size={14} aria-hidden style={{ color: "var(--amber)" }} />
-					<span className="jobs-modal-title">Cloud renders</span>
-					<div className="jobs-modal-filters">
+					<span className={j.title}>Cloud renders</span>
+					<div className={j.filters}>
 						<button
 							type="button"
-							className={`jobs-modal-chip${filter === "all" ? " active" : ""}`}
+							className={
+								filter === "all" ? `${j.chip} ${j.chipActive}` : j.chip
+							}
 							onClick={() => setFilter("all")}
 						>
-							All <span className="jobs-modal-chip-n">{counts.all}</span>
+							All <span className={j.chipN}>{counts.all}</span>
 						</button>
 						<button
 							type="button"
-							className={`jobs-modal-chip${filter === "running" ? " active" : ""}`}
+							className={
+								filter === "running" ? `${j.chip} ${j.chipActive}` : j.chip
+							}
 							onClick={() => setFilter("running")}
 						>
-							Running{" "}
-							<span className="jobs-modal-chip-n">{counts.running}</span>
+							Running <span className={j.chipN}>{counts.running}</span>
 						</button>
 						<button
 							type="button"
-							className={`jobs-modal-chip${filter === "done" ? " active" : ""}`}
+							className={
+								filter === "done" ? `${j.chip} ${j.chipActive}` : j.chip
+							}
 							onClick={() => setFilter("done")}
 						>
-							Done <span className="jobs-modal-chip-n">{counts.done}</span>
+							Done <span className={j.chipN}>{counts.done}</span>
 						</button>
 						<button
 							type="button"
-							className={`jobs-modal-chip${filter === "failed" ? " active" : ""}`}
+							className={
+								filter === "failed" ? `${j.chip} ${j.chipActive}` : j.chip
+							}
 							onClick={() => setFilter("failed")}
 						>
-							Failed <span className="jobs-modal-chip-n">{counts.failed}</span>
+							Failed <span className={j.chipN}>{counts.failed}</span>
 						</button>
 					</div>
 					<button
 						type="button"
-						className="open-btn jobs-modal-clear"
+						className={`${u.openBtn} ${j.clearBtn}`}
 						disabled={completedCount === 0}
 						onClick={clearCompleted}
 						title="Remove all completed jobs"
@@ -386,30 +405,30 @@ export function JobsModal({
 					</button>
 					<button
 						type="button"
-						className="jobs-modal-close"
+						className={j.closeBtn}
 						aria-label="Close"
 						onClick={onClose}
 					>
 						<X size={16} />
 					</button>
 				</div>
-				<div className="jobs-modal-body">
+				<div className={j.body}>
 					{filtered.length === 0 ? (
-						<div className="jobs-modal-empty">
+						<div className={j.empty}>
 							<Cloud size={24} aria-hidden />
-							<div className="jobs-modal-empty-title">
+							<div className={j.emptyTitle}>
 								{counts.all === 0
 									? "No render jobs yet"
 									: "No jobs match this filter"}
 							</div>
-							<div className="jobs-modal-empty-sub">
+							<div className={j.emptySub}>
 								{counts.all === 0
 									? "Click Render to dispatch a scene to the cloud."
 									: "Try a different filter to see other jobs."}
 							</div>
 						</div>
 					) : (
-						<div className="jobs-modal-list">
+						<div className={j.list}>
 							{filtered.map((j) => (
 								<JobRow
 									key={j.id}

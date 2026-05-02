@@ -43,6 +43,8 @@ import {
 	evaluateTransformAt,
 	getAnimationRange,
 } from "./services/transform";
+import a from "./styles/App.module.css";
+import u from "./styles/shared/uiPrimitives.module.css";
 import type {
 	Material,
 	Medium,
@@ -82,18 +84,18 @@ function JobsCloudButton({ onClick }: { onClick: () => void }) {
 	return (
 		<button
 			type="button"
-			className={`jobs-cloud-btn jobs-cloud-${state}`}
+			className={`${a.jobsCloudBtn} ${state === "active" ? a.jobsCloudActive : state === "error" ? a.jobsCloudError : ""}`}
 			aria-label={label}
 			title={label}
 			onClick={onClick}
 		>
 			<Cloud size={16} aria-hidden />
 			{running > 0 ? (
-				<span className="jobs-cloud-badge" aria-hidden>
+				<span className={a.jobsCloudBadge} aria-hidden>
 					{running}
 				</span>
 			) : hasFailed ? (
-				<span className="jobs-cloud-error-dot" aria-hidden />
+				<span className={a.jobsCloudErrorDot} aria-hidden />
 			) : null}
 		</button>
 	);
@@ -134,9 +136,9 @@ function App() {
 			height: 1080,
 		},
 	});
-	const [renderStartTime, setRenderStartTime] = useState(0);
-	const [renderEndTime, setRenderEndTime] = useState(0);
-	const [renderFps, setRenderFps] = useState(24);
+	const renderStartTime = scene?.animation.start ?? 0;
+	const renderEndTime = scene?.animation.end ?? 0;
+	const renderFps = scene?.animation.fps ?? 24;
 
 	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
@@ -189,6 +191,28 @@ function App() {
 			});
 		},
 		[],
+	);
+
+	const updateAnimation = useCallback(
+		(patch: Partial<import("./types/scene").Animation>) => {
+			handleSceneEdit((s) => ({
+				...s,
+				animation: { ...s.animation, ...patch },
+			}));
+		},
+		[handleSceneEdit],
+	);
+	const setRenderStartTime = useCallback(
+		(n: number) => updateAnimation({ start: n }),
+		[updateAnimation],
+	);
+	const setRenderEndTime = useCallback(
+		(n: number) => updateAnimation({ end: n }),
+		[updateAnimation],
+	);
+	const setRenderFps = useCallback(
+		(n: number) => updateAnimation({ fps: n }),
+		[updateAnimation],
 	);
 
 	async function handleSave() {
@@ -447,9 +471,9 @@ function App() {
 	}, [error]);
 
 	return (
-		<div className="app-root">
+		<div className={a.appRoot}>
 			{/* Full-screen viewport */}
-			<div className="viewport-fill">
+			<div className={a.viewportFill}>
 				<Viewport
 					ref={viewportRef}
 					scene={scene}
@@ -466,12 +490,12 @@ function App() {
 			</div>
 
 			{/* HUD overlay */}
-			<div className="hud">
+			<div className={a.hud}>
 				{/* Top-left: header panel */}
-				<div className="panel hud-header">
+				<div className={`panel ${a.hudHeader}`}>
 					<button
 						type="button"
-						className={`wordmark${scene ? " wordmark-link" : ""}`}
+						className={`${u.wordmark} ${scene ? u.wordmarkInteractive : ""}`}
 						onClick={handleNavigateHome}
 						disabled={!scene}
 					>
@@ -480,7 +504,7 @@ function App() {
 					{scene && (
 						<button
 							type="button"
-							className="open-btn open-btn-primary"
+							className={`${u.openBtn}`}
 							onClick={() => setShowRenderDialog(true)}
 						>
 							<Cloud
@@ -493,7 +517,7 @@ function App() {
 					{scene && hasUnsavedChanges && (
 						<button
 							type="button"
-							className={`open-btn${saving ? " loading" : ""}`}
+							className={`${u.openBtn}${saving ? " loading" : ""}`}
 							disabled={saving}
 							onClick={handleSave}
 						>
@@ -503,20 +527,20 @@ function App() {
 				</div>
 
 				{/* Top-right: account + cloud jobs */}
-				<div className="panel hud-account">
+				<div className={`panel ${a.hudAccount}`}>
 					<JobsCloudButton onClick={() => setShowJobsModal(true)} />
 					<UserMenu onError={setError} />
 				</div>
 
 				{/* Error toast */}
 				{error && (
-					<div className="hud-toast hud-toast-error" role="alert">
-						<span className="hud-toast-msg" title={error}>
+					<div className={`${a.hudToast} ${a.hudToastError}`} role="alert">
+						<span className={a.hudToastMsg} title={error}>
 							{error}
 						</span>
 						<button
 							type="button"
-							className="hud-toast-x"
+							className={a.hudToastX}
 							aria-label="Dismiss"
 							onClick={() => setError("")}
 						>
@@ -527,11 +551,11 @@ function App() {
 
 				{/* Transform mode toolbar */}
 				{scene && selectedObjectKey && (
-					<div className="panel hud-toolbar">
-						<div className="toolbar-group">
+					<div className={`panel ${a.hudToolbar}`}>
+						<div className={a.toolbarGroup}>
 							<button
 								type="button"
-								className={`toolbar-btn ${transformMode === "translate" ? "active" : ""}`}
+								className={`${a.toolbarBtn} ${transformMode === "translate" ? "active" : ""}`}
 								title="Move (G)"
 								onClick={() => setTransformMode("translate")}
 							>
@@ -539,7 +563,7 @@ function App() {
 							</button>
 							<button
 								type="button"
-								className={`toolbar-btn ${transformMode === "rotate" ? "active" : ""}`}
+								className={`${a.toolbarBtn} ${transformMode === "rotate" ? "active" : ""}`}
 								title="Rotate (R)"
 								onClick={() => setTransformMode("rotate")}
 							>
@@ -547,18 +571,18 @@ function App() {
 							</button>
 							<button
 								type="button"
-								className={`toolbar-btn ${transformMode === "scale" ? "active" : ""}`}
+								className={`${a.toolbarBtn} ${transformMode === "scale" ? "active" : ""}`}
 								title="Scale (S)"
 								onClick={() => setTransformMode("scale")}
 							>
 								<Maximize size={16} />
 							</button>
 						</div>
-						<div className="toolbar-sep" />
-						<div className="toolbar-group">
+						<div className={a.toolbarSep} />
+						<div className={a.toolbarGroup}>
 							<button
 								type="button"
-								className={`toolbar-btn ${transformSpace === "world" ? "active" : ""}`}
+								className={`${a.toolbarBtn} ${transformSpace === "world" ? "active" : ""}`}
 								title="World"
 								onClick={() => setTransformSpace("world")}
 							>
@@ -566,7 +590,7 @@ function App() {
 							</button>
 							<button
 								type="button"
-								className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
+								className={`${a.toolbarBtn} ${transformSpace === "local" ? "active" : ""}`}
 								title="Local"
 								onClick={() => setTransformSpace("local")}
 							>
@@ -578,7 +602,7 @@ function App() {
 
 				{/* Left sidebar: scene inspector */}
 				{scene && dirHandle && (
-					<div className="panel hud-sidebar">
+					<div className={`panel ${a.hudSidebar}`} data-hud="sidebar">
 						<SceneInspector
 							scene={scene}
 							selectedObjectKey={selectedObjectKey}
@@ -606,7 +630,7 @@ function App() {
 				{/* Right sidebar: properties panel */}
 				{scene &&
 					(selectedObjectKey || selectedMaterialKey || selectedMediumKey) && (
-						<div className="panel hud-properties">
+						<div className={`panel ${a.hudProperties}`} data-hud="properties">
 							{selectedObjectKey && (
 								<PropertiesPanel
 									scene={scene}
@@ -660,28 +684,30 @@ function App() {
 				)}
 
 				{scene && (
-					<div className="hud-bottom-stack">
+					<div className={a.hudBottomStack}>
 						<button
 							type="button"
-							className="hud-reset-cam-btn"
+							className={a.hudResetCamBtn}
 							title="Reset view to scene camera"
 							aria-label="Reset view to scene camera"
 							onClick={() => viewportRef.current?.resetCameraToScene()}
 						>
 							<Camera size={16} strokeWidth={1.75} aria-hidden />
 						</button>
-						<div className="panel hud-stats">
-							<span className="stat-tag stat-ctx">
+						<div className={`panel ${a.hudStats}`}>
+							<span className={`${a.statTag} ${a.statCtx}`}>
 								{scene.contexts.length}c
 							</span>
-							<span className="stat-sep">/</span>
-							<span className="stat-tag stat-lyr">{scene.layers.length}L</span>
-							<span className="stat-sep">/</span>
-							<span className="stat-num">{totalObjects} nodes</span>
+							<span className={a.statSep}>/</span>
+							<span className={`${a.statTag} ${a.statLyr}`}>
+								{scene.layers.length}L
+							</span>
+							<span className={a.statSep}>/</span>
+							<span className={a.statNum}>{totalObjects} nodes</span>
 							{scene.output_dir && (
 								<>
-									<span className="stat-sep">&rarr;</span>
-									<span className="stat-dir">{scene.output_dir}</span>
+									<span className={a.statSep}>&rarr;</span>
+									<span className={a.statDir}>{scene.output_dir}</span>
 								</>
 							)}
 						</div>

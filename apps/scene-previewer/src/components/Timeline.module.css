@@ -1,0 +1,105 @@
+.timeline {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 0 14px;
+	border-radius: 0;
+	border-top: 1px solid var(--border);
+	border-left: none;
+	border-right: none;
+	border-bottom: none;
+	z-index: 12;
+}
+
+.controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-shrink: 0;
+}
+
+.playBtn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-mid);
+	color: var(--amber);
+	cursor: pointer;
+	transition:
+		border-color 0.12s,
+		background 0.12s;
+}
+
+.playBtn:hover {
+	border-color: var(--amber-border);
+	background: var(--amber-lo);
+}
+
+.time {
+	font-variant-numeric: tabular-nums;
+	color: var(--t1);
+	font-size: 11px;
+	min-width: 52px;
+}
+
+.track {
+	flex: 1;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	touch-action: none;
+}
+
+.trackInner {
+	position: relative;
+	width: 100%;
+	height: 8px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 2px;
+	border: 1px solid var(--border-mid);
+}
+
+.playhead {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 2px;
+	height: 20px;
+	background: var(--amber);
+	border-radius: 1px;
+	box-shadow: 0 0 6px rgba(232, 165, 60, 0.35);
+	pointer-events: none;
+	z-index: 2;
+}
+
+.kfMarker {
+	position: absolute;
+	top: 50%;
+	z-index: 1;
+	transform: translate(-50%, -50%) rotate(45deg);
+	width: 7px;
+	height: 7px;
+	background: rgba(224, 217, 200, 0.92);
+	border: 1px solid rgba(232, 165, 60, 0.65);
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+	pointer-events: none;
+}
+
+.endLabel {
+	flex-shrink: 0;
+	color: var(--t3);
+	font-variant-numeric: tabular-nums;
+	font-size: 10.5px;
+	min-width: 40px;
+	text-align: right;
+}

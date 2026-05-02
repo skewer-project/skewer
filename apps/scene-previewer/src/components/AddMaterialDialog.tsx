@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import d from "../styles/shared/dialogs.module.css";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { Material } from "../types/scene";
 
 const MATERIAL_TYPES = ["lambertian", "metal", "dielectric"] as const;
@@ -42,21 +44,21 @@ export function AddMaterialDialog({
 		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
 		<div
-			className="dialog-overlay"
+			className={d.overlay}
 			onClick={(e) => e.target === e.currentTarget && onCancel()}
 		>
-			<div className="dialog">
-				<div className="dialog-header">
-					<span className="layer-tag layer-tag-ctx">MAT</span>
-					<span className="dialog-title">New Material</span>
+			<div className={d.dialog}>
+				<div className={d.header}>
+					<span className={`${u.layerTag} ${u.layerTagCtx}`}>MAT</span>
+					<span className={d.title}>New Material</span>
 				</div>
 
-				<div className="dialog-body">
-					<div className="kv-table dialog-fields">
-						<div className="kv-row">
-							<span className="kv-key">name</span>
+				<div className={d.body}>
+					<div className={`${u.kvTable} ${d.fields}`}>
+						<div className={u.kvRow}>
+							<span className={u.kvKey}>name</span>
 							<input
-								className="text-input"
+								className={u.textInput}
 								type="text"
 								placeholder="material_name"
 								value={name}
@@ -66,10 +68,10 @@ export function AddMaterialDialog({
 								onKeyDown={(e) => e.key === "Enter" && handleCreate()}
 							/>
 						</div>
-						<div className="kv-row">
-							<span className="kv-key">type</span>
+						<div className={u.kvRow}>
+							<span className={u.kvKey}>type</span>
 							<select
-								className="mat-select"
+								className={u.matSelect}
 								value={type}
 								onChange={(e) => setType(e.target.value as Material["type"])}
 							>
@@ -82,23 +84,23 @@ export function AddMaterialDialog({
 						</div>
 					</div>
 					{isDuplicate && trimmed !== "" && (
-						<div className="dialog-hint dialog-hint-error">
+						<div className={`${d.hint} ${d.hintError}`}>
 							Name already in use.
 						</div>
 					)}
 				</div>
 
-				<div className="dialog-footer">
+				<div className={d.footer}>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-cancel"
+						className={`${d.btn} ${d.btnCancel}`}
 						onClick={onCancel}
 					>
 						cancel
 					</button>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-confirm"
+						className={`${d.btn} ${d.btnConfirm}`}
 						onClick={handleCreate}
 						disabled={!isValid}
 					>

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { writeFile } from "../services/fs";
+import d from "../styles/shared/dialogs.module.css";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { ObjNode, SceneNode, Vec3 } from "../types/scene";
 import { MaterialDropdown, NumberField, Toggle, Vec3Field } from "./controls";
 
@@ -132,36 +134,33 @@ export function AddObjectDialog({
 		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
 		<div
-			className="dialog-overlay"
+			className={d.overlay}
 			onClick={(e) => e.target === e.currentTarget && onCancel()}
 		>
-			<div className="dialog">
-				<div className="dialog-header">
-					<span className="layer-tag layer-tag-lyr">NODE</span>
-					<span className="dialog-title">Add node</span>
+			<div className={d.dialog}>
+				<div className={d.header}>
+					<span className={`${u.layerTag} ${u.layerTagLyr}`}>NODE</span>
+					<span className={d.title}>Add node</span>
 				</div>
-				<div
-					className="dialog-hint"
-					style={{ padding: "0 1rem", opacity: 0.8 }}
-				>
+				<div className={d.hint} style={{ padding: "0 1rem", opacity: 0.8 }}>
 					Parent: {parentKey}
 				</div>
 
-				<div className="dialog-body">
-					<div className="kv-row dialog-type-row">
-						<span className="kv-key">name</span>
+				<div className={d.body}>
+					<div className={`${u.kvRow} ${d.typeRow}`}>
+						<span className={u.kvKey}>name</span>
 						<input
-							className="mat-select"
+							className={u.matSelect}
 							style={{ flex: 1 }}
 							value={nodeName}
 							placeholder="optional"
 							onChange={(e) => setNodeName(e.target.value)}
 						/>
 					</div>
-					<div className="kv-row dialog-type-row">
-						<span className="kv-key">type</span>
+					<div className={`${u.kvRow} ${d.typeRow}`}>
+						<span className={u.kvKey}>type</span>
 						<select
-							className="mat-select"
+							className={u.matSelect}
 							value={type}
 							onChange={(e) => setType(e.target.value as AddableType)}
 						>
@@ -173,7 +172,7 @@ export function AddObjectDialog({
 						</select>
 					</div>
 
-					<div className="kv-table dialog-fields">
+					<div className={`${u.kvTable} ${d.fields}`}>
 						{type === "sphere" && (
 							<>
 								<Vec3Field label="center" value={center} onChange={setCenter} />
@@ -199,17 +198,17 @@ export function AddObjectDialog({
 
 						{type === "obj" && (
 							<>
-								<div className="kv-row">
-									<span className="kv-key">file</span>
-									<div className="obj-file-row">
-										<span className="obj-file-name">
+								<div className={u.kvRow}>
+									<span className={u.kvKey}>file</span>
+									<div className={u.objFileRow}>
+										<span className={u.objFileName}>
 											{file || (
-												<span className="obj-file-empty">no file selected</span>
+												<span className={u.objFileEmpty}>no file selected</span>
 											)}
 										</span>
 										<button
 											type="button"
-											className={`obj-browse-btn${copying ? " loading" : ""}`}
+											className={`${u.objBrowseBtn}${copying ? " loading" : ""}`}
 											onClick={handleBrowseObj}
 											disabled={copying}
 										>
@@ -218,9 +217,7 @@ export function AddObjectDialog({
 									</div>
 								</div>
 								{fileError && (
-									<div className="dialog-hint dialog-hint-error">
-										{fileError}
-									</div>
+									<div className={`${d.hint} ${d.hintError}`}>{fileError}</div>
 								)}
 								<Toggle label="fit" value={autoFit} onChange={setAutoFit} />
 							</>
@@ -228,7 +225,7 @@ export function AddObjectDialog({
 					</div>
 
 					{hasMaterial && type !== "group" && (
-						<div className="kv-table dialog-fields">
+						<div className={`${u.kvTable} ${d.fields}`}>
 							<MaterialDropdown
 								label="mat"
 								value={material}
@@ -239,23 +236,23 @@ export function AddObjectDialog({
 					)}
 
 					{needsMaterial && !hasMaterial && (
-						<div className="dialog-hint">
+						<div className={d.hint}>
 							Create a material first to use with this object.
 						</div>
 					)}
 				</div>
 
-				<div className="dialog-footer">
+				<div className={d.footer}>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-cancel"
+						className={`${d.btn} ${d.btnCancel}`}
 						onClick={onCancel}
 					>
 						cancel
 					</button>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-confirm"
+						className={`${d.btn} ${d.btnConfirm}`}
 						onClick={handleAdd}
 						disabled={!canAdd}
 					>

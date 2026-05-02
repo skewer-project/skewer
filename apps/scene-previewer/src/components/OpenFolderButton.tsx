@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { openSceneFolder } from "../services/fs";
 import { loadScene } from "../services/scene-parser";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { ResolvedScene } from "../types/scene";
 
 interface Props {
@@ -30,7 +31,7 @@ export function OpenFolderButton({ onSceneLoaded, onError }: Props) {
 			type="button"
 			onClick={handleClick}
 			disabled={loading}
-			className={`open-btn${loading ? " loading" : ""}`}
+			className={`${u.openBtn}${loading ? " loading" : ""}`}
 		>
 			{loading ? "Loading…" : "Open Scene Folder"}
 		</button>
