@@ -7,7 +7,6 @@ enable_testing()
 set(TEST_SOURCES
     ../src/film/image_buffer.cc
     ../src/film/film.cc
-    ../src/film/deep_segment_pool.cc
     ../src/io/image_io.cc
 )
 
@@ -44,6 +43,7 @@ add_executable(unit_tests
     unit/test_tlas.cc
     unit/test_motion_blur.cc
     unit/test_animation_config.cc
+    unit/test_small_vector.cc
     ${TEST_SOURCES}
     ${SKEWER_SCENE_TEST_SOURCES}
 )

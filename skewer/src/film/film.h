@@ -3,28 +3,39 @@
 
 #include <exrio/deep_image.h>
 
-#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <vector>
 
 #include "core/color/color.h"
 #include "core/containers/bounded_array.h"
+#include "core/containers/small_vector.h"
 #include "core/cpu_config.h"
 #include "core/transport/deep_segment.h"
-#include "film/deep_segment_pool.h"
+#include "film/deep_bucket.h"
 #include "film/image_buffer.h"
 
 namespace skwr {
 
-// keep hot accumulation fields first and then cold deep_head last.
+// Pixel buckets use a small-buffer-optimized container: kInlineDeepBuckets
+// entries live inline, anything beyond that spills to the heap. Render is
+// tile-exclusive per thread, so no atomics are needed for sample writes.
 struct Pixel {
     RGB color_sum = RGB(0.0f);
     float alpha_sum = 0.0f;
     float weight_sum = 0.0f;
     int sample_count = 0;
     RGB color_sq_sum = RGB(0.0f);
-    std::atomic<int> deep_head{-1};
+    SmallVector<DeepBucket, kInlineDeepBuckets> deep_buckets;
+};
+
+// Aggregate counters describing how the deep-bucket cap behaved across a
+// render. Used to validate the kMaxDeepBuckets sizing in production.
+struct DeepBucketStats {
+    std::size_t pixels_with_buckets = 0;
+    std::size_t total_buckets = 0;
+    std::size_t peak_buckets_per_pixel = 0;
+    std::size_t forced_evictions = 0;
 };
 
 class Film {
@@ -48,11 +59,23 @@ class Film {
     // Debug: writes a heatmap PNG showing sample count per pixel.
     // Pixels are colored blue (few samples) to red (max_samples).
     void WriteSampleMap(const std::string& filename, int max_samples) const;
+
+    // Streaming deep EXR writer: walks rows, emits one scanline at a time, and
+    // frees per-row buckets as it goes. This is the production path; peak
+    // memory is dominated by the bounded per-pixel buckets, not by a full
+    // intermediate DeepImage.
+    void WriteDeepEXRStreaming(const std::string& filename);
+
+    // Test/debug only: builds the full DeepImage in memory. Costs roughly the
+    // same as the bounded-bucket storage itself and should not be used on
+    // large frames in production — prefer WriteDeepEXRStreaming.
     exrio::DeepImage BuildDeepImage() const;
 
     // Builds a flat RGBA buffer suitable for export as a compositing-friendly EXR.
     // Colors are premultiplied; alpha reflects average coverage per pixel.
     std::unique_ptr<FlatImageBuffer> CreateFlatBuffer() const;
+
+    DeepBucketStats GetDeepBucketStats() const;
 
     int width() { return width_; }
     int height() { return height_; }
@@ -60,12 +83,14 @@ class Film {
   private:
     Pixel& GetPixel(int x, int y) { return pixels_[y * width_ + x]; }
     const Pixel& GetPixel(int x, int y) const { return pixels_[y * width_ + x]; }
-    std::vector<DeepSample> MergeDeepSegments(const std::vector<DeepSample>& input,
-                                              int pixel_sample_count) const;
+
+    // Convert a pixel's merged buckets into normalized, sorted deep samples
+    // ready to hand to exrio. Applies the back-to-front true_opacity pass.
+    void BuildPixelDeepSamples(const Pixel& p, std::vector<exrio::DeepSample>& out) const;
 
     int width_, height_;
     std::vector<Pixel> pixels_;
-    DeepSegmentPool deep_pool_;
+    std::size_t forced_evictions_ = 0;
 };
 
 }  // namespace skwr

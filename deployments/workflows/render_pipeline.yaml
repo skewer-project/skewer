@@ -257,6 +257,8 @@ submit_batch_render_static:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: 1
@@ -366,6 +368,8 @@ submit_batch_render_animated:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: ${task_count}
@@ -473,6 +477,8 @@ submit_batch_composite:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: ${num_frames}

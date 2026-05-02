@@ -142,8 +142,13 @@ static void RenderLayerPass(const SceneConfig& config, const std::string& layer_
     std::cout << "[Session] Wrote " << opts.image_config.outfile << "\n";
 
     if (ic.enable_deep) {
-        exrio::DeepImage img = film->BuildDeepImage();
-        exrio::writeDeepEXR(img, opts.image_config.exrfile);
+        // Capture stats before the streaming writer clears per-row buckets.
+        DeepBucketStats ds = film->GetDeepBucketStats();
+        std::cout << "[Session] Deep stats: pixels_with_buckets=" << ds.pixels_with_buckets
+                  << " total_buckets=" << ds.total_buckets
+                  << " peak/pixel=" << ds.peak_buckets_per_pixel
+                  << " forced_evictions=" << ds.forced_evictions << "\n";
+        film->WriteDeepEXRStreaming(opts.image_config.exrfile);
         std::cout << "[Session] Wrote " << opts.image_config.exrfile << "\n";
     }
 }
@@ -437,8 +442,12 @@ void RenderSession::Save() const {
         }
 
         if (options_.integrator_config.enable_deep) {
-            exrio::DeepImage img = film_->BuildDeepImage();
-            exrio::writeDeepEXR(img, options_.image_config.exrfile);
+            DeepBucketStats ds = film_->GetDeepBucketStats();
+            std::cout << "[Session] Deep stats: pixels_with_buckets=" << ds.pixels_with_buckets
+                      << " total_buckets=" << ds.total_buckets
+                      << " peak/pixel=" << ds.peak_buckets_per_pixel
+                      << " forced_evictions=" << ds.forced_evictions << "\n";
+            film_->WriteDeepEXRStreaming(options_.image_config.exrfile);
             std::cout << "Wrote deep image to " << options_.image_config.exrfile << "\n";
         }
     }
