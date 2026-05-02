@@ -36,6 +36,15 @@
       }
     },
     {
+      "name": "release-milan",
+      "displayName": "Release (Google Cloud N2D / AMD EPYC Milan)",
+      "inherits": "release",
+      "cacheVariables": {
+        "BUILD_TESTING": "OFF",
+        "SKEWER_BUILD_NATIVE_OPTIMIZATIONS": "ON"
+      }
+    },
+    {
       "name": "relwithdebinfo",
       "displayName": "RelWithDebInfo",
       "inherits": "base",
@@ -80,6 +89,7 @@
   "buildPresets": [
     { "name": "debug",   "configurePreset": "debug" },
     { "name": "release", "configurePreset": "release" },
+    { "name": "release-milan", "configurePreset": "release-milan" },
     { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" },
     { "name": "asan",    "configurePreset": "asan" },
     { "name": "ci",      "configurePreset": "ci" },
