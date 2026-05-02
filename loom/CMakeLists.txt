@@ -22,10 +22,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
 cmake_policy(SET CMP0135 NEW)
 
-
-# Meant to disable native optimizations for older macbooks
-set(SKEWER_BUILD_NATIVE_OPTIMIZATIONS OFF CACHE BOOL "" FORCE)
-
 # Needs to be changed to not pull entire skewer renderer in. 
 if(NOT TARGET exrio::exrio)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio/CMakeLists.txt")
