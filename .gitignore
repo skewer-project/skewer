@@ -43,6 +43,7 @@ terraform.tfvars
 /cli
 
 .claude/
+.codex/
 opencode.json
 
 # generated site output from mkdocs
