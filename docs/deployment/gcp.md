@@ -35,12 +35,12 @@ The pipeline orchestrates parallel layer rendering via Cloud Batch, writes frame
 
 Install the following tools before beginning:
 
-| Tool | Minimum Version | Install Guide |
-|------|----------------|---------------|
-| [Google Cloud SDK (`gcloud`)](https://cloud.google.com/sdk/docs/install) | latest | [Install guide](https://cloud.google.com/sdk/docs/install) |
-| [Terraform](https://developer.hashicorp.com/terraform/install) | >= 1.6 | [Install guide](https://developer.hashicorp.com/terraform/install) |
-| [Bun](https://bun.sh/docs/installation) | latest | [Install guide](https://bun.sh/docs/installation) |
-| [Git](https://git-scm.com/) | latest | [Install guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) |
+| Tool                                                                     | Minimum Version | Install Guide                                                                  |
+| ------------------------------------------------------------------------ | --------------- | ------------------------------------------------------------------------------ |
+| [Google Cloud SDK (`gcloud`)](https://cloud.google.com/sdk/docs/install) | latest          | [Install guide](https://cloud.google.com/sdk/docs/install)                     |
+| [Terraform](https://developer.hashicorp.com/terraform/install)           | >= 1.6          | [Install guide](https://developer.hashicorp.com/terraform/install)             |
+| [Bun](https://bun.sh/docs/installation)                                  | latest          | [Install guide](https://bun.sh/docs/installation)                              |
+| [Git](https://git-scm.com/)                                              | latest          | [Install guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) |
 
 !!! note "Authentication"
     After installing `gcloud`, authenticate and set your project:
@@ -64,11 +64,30 @@ Install the following tools before beginning:
 
 ---
 
-## Step 2: Set Up Firebase Authentication
+## Step 2: Configure Environment Variables
+
+1. Copy the example file:
+   ```bash
+   cp apps/scene-previewer/.env.example apps/scene-previewer/.env
+   ```
+
+2. Open `apps/scene-previewer/.env` and fill in the values from Step 2:
+   ```
+   VITE_API_URL=https://skewer-api-XXXXX.REGION.run.app         # filled in after Step 7
+   VITE_FIREBASE_API_KEY=your_api_key                           # from Step 3.3
+   VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com    # from Step 3.3
+   ```
+
+!!! note "API URL"
+    `VITE_API_URL` will be set after Terraform finishes deploying — the Cloud Run API URL is printed in the Terraform output as `api_url`.
+
+---
+
+## Step 3: Set Up Firebase Authentication
 
 The scene previewer uses Firebase Authentication for Google sign-in. This lets users authenticate with their Google account and obtain an ID token that the Skewer API verifies.
 
-### 2.1 Create a Firebase Project
+### 3.1 Create a Firebase Project
 
 1. Open the [Firebase Console](https://console.firebase.google.com/)
 2. Click **Add project**
@@ -77,7 +96,7 @@ The scene previewer uses Firebase Authentication for Google sign-in. This lets u
 
 See [Add Firebase to your project](https://firebase.google.com/docs/projects/learn-more#add-resources-existing-gcp) for details.
 
-### 2.2 Enable Google Sign-In
+### 3.2 Enable Google Sign-In
 
 1. In the Firebase Console, navigate to **Authentication** → **Sign-in method** (sidebar)
 2. Click **Add new provider** → select **Google**
@@ -87,7 +106,7 @@ See [Add Firebase to your project](https://firebase.google.com/docs/projects/lea
 
 See [Google Sign-In with Firebase](https://firebase.google.com/docs/auth/web/google-signin) for more information.
 
-### 2.3 Register a Web Application
+### 3.3 Register a Web Application
 
 1. In the Firebase Console, go to **Project settings** (gear icon) → **General** tab
 2. Scroll to **Your apps** → click the **Web** icon (`</>`)
@@ -103,25 +122,6 @@ See [Google Sign-In with Firebase](https://firebase.google.com/docs/auth/web/goo
 
 ---
 
-## Step 3: Configure Environment Variables
-
-1. Copy the example file:
-   ```bash
-   cp apps/scene-previewer/.env.example apps/scene-previewer/.env
-   ```
-
-2. Open `apps/scene-previewer/.env` and fill in the values from Step 2:
-   ```
-   VITE_API_URL=https://skewer-api-XXXXX.REGION.run.app  # filled in after Step 7
-   VITE_FIREBASE_API_KEY=your_api_key                    # from Step 2.3
-   VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com  # from Step 2.3
-   ```
-
-!!! note "API URL"
-    `VITE_API_URL` will be set after Terraform finishes deploying — the Cloud Run API URL is printed in the Terraform output as `api_url`.
-
----
-
 ## Step 4: Create an OAuth 2.0 Client in GCP Console
 
 Firebase needs an OAuth 2.0 Client ID to authenticate users via Google. This links your Firebase project to your GCP project.
@@ -129,7 +129,7 @@ Firebase needs an OAuth 2.0 Client ID to authenticate users via Google. This lin
 1. Open [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) in the GCP Console
 2. Click **+ Create Credentials** → **OAuth client ID**
 3. If prompted, configure the OAuth consent screen:
-   - User Type: **External**
+   - User Type: **Internal**
    - App name: `Skewer Previewer` (or any name)
    - User support email: your email
    - Developer contact email: your email
@@ -140,7 +140,7 @@ Firebase needs an OAuth 2.0 Client ID to authenticate users via Google. This lin
    - **Authorized JavaScript origins** — add these three URIs:
      ```
      http://localhost
-     http://localhost:5000
+     http://localhost:5173
      https://YOUR_PROJECT_ID.firebaseapp.com
      ```
    - **Authorized redirect URIs** — add this URI:
@@ -255,13 +255,14 @@ terraform apply
 ```
 
 This will provision:
-- VPC network and subnets
-- Cloud Run services (`skewer-api`, `skewer-coordinator`)
-- Cloud Workflows pipeline (`skewer-render-pipeline`)
-- Artifact Registry repository
-- GCS buckets for data and caching
-- IAM service accounts and roles
-- Identity Platform configuration
+
+   - VPC network and subnets
+   - Cloud Run services (`skewer-api`, `skewer-coordinator`)
+   - Cloud Workflows pipeline (`skewer-render-pipeline`)
+   - Artifact Registry repository
+   - GCS buckets for data and caching
+   - IAM service accounts and roles
+   - Identity Platform configuration
 
 ### 7.3 Note the API URL
 
@@ -379,17 +380,17 @@ See [Cloud Build documentation](https://cloud.google.com/build/docs/building/bui
 
 ---
 
-## Troubleshooting & Known Issues
+## Troubleshooting & Common Issues
 
 ### Layer ID Length Limit
 
 Layer IDs (derived from layer JSON filenames, e.g., `mercury.json` → `mercury`) must be **≤ 16 characters**. Longer names cause GCP Batch job ID creation to fail with `INVALID_ARGUMENT`.
 
-| Example | Layer ID | Length | Status |
-|---------|----------|--------|--------|
-| `mercury.json` | `mercury` | 7 | OK |
-| `asteroids.json` | `asteroids` | 9 | OK |
-| `layer-asteroid-belt.json` | `layer-asteroid-belt` | 20 | FAIL |
+| Example                    | Layer ID              | Length | Status |
+| -------------------------- | --------------------- | ------ | ------ |
+| `mercury.json`             | `mercury`             | 7      | OK     |
+| `asteroids.json`           | `asteroids`           | 9      | OK     |
+| `layer-asteroid-belt.json` | `layer-asteroid-belt` | 20     | FAIL   |
 
 ### No Underscores in Filenames
 
