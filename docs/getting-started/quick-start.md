@@ -5,6 +5,7 @@ This guide walks through your first render with Skewer. See [Installation](insta
 ## Prerequisites
 
 Make sure you've completed the installation steps:
+
 1. Installed system dependencies
 2. Built the project with CMake
 3. Built the Go CLI
@@ -15,27 +16,28 @@ The simplest way to render a scene is to run the built binary directly:
 
 ```bash
 # Using the built binary
-./build/relwithdebinfo/skewer/skewer-render --scene <path-to-scene.json> --output output.png
+./build/relwithdebinfo/skewer/skewer-render <path-to-scene.json>
 ```
+
+!!! tip "Getting a scene"
+    Use the [Scene Previewer](http://skewer.pages.dev) to quickly bootstrap and edit an example scene with the Cornell Box
 
 **Example with a sample scene:**
 
 ```bash
-./build/relwithdebinfo/skewer/skewer-render \
-  --scene apps/scene-previewer/public/templates/scene.json \
-  --output output.png
+./build/relwithdebinfo/skewer/skewer-render apps/scene-previewer/public/templates/scene.json
 ```
 
 ### Command-Line Options
 
-| Flag        | Description                            |
-| ----------- | -------------------------------------- |
-| `--scene`   | Path to scene JSON file **[Required]** |
-| `--output`  | Output image path (PNG or EXR)         |
-| `--width`   | Override image width                   |
-| `--height`  | Override image height                  |
-| `--samples` | Override max samples per pixel         |
-| `--threads` | Number of render threads (0 = auto)    |
+| Flag        | Description                              |
+| ----------- | ---------------------------------------- |
+| `--scene`   | Path to scene JSON file **\[Required\]** |
+| `--output`  | Output image path (PNG or EXR)           |
+| `--width`   | Override image width                     |
+| `--height`  | Override image height                    |
+| `--samples` | Override max samples per pixel           |
+| `--threads` | Number of render threads (0 = auto)      |
 
 ## 2. Using the Scene Previewer
 
@@ -58,38 +60,15 @@ Open http://localhost:5173 to view the previewer.
 - **Material Editing** - Edit albedo, roughness, emission, IOR per material
 - **Delete Objects** - Press `Delete` or `Backspace` to remove selected objects
 
-## 3. Running a Distributed Render (GKE)
+## 3. Running a Distributed Render
 
-For distributed rendering on Google Kubernetes Engine:
-
-### Prerequisites
-- `gcloud` CLI installed and configured
-- A GKE cluster with the coordinator and workers deployed
-
-### Submit a Job
-
-```bash
-# Build the CLI first if not already built
-go build -o skewer-cli ./orchestration/cmd/cli/
-
-# Submit a render job
-./skewer-cli submit \
-  --scene gs://your-bucket/scenes/scene-####.json \
-  --frames 4 \
-  --output gs://your-bucket/renders/my_job/
-```
+The easiest way to run a distributed render is through the **Scene Previewer**.
+If you've correctly [setup Google Cloud, Firebase, and the Scene Previewer](../deployment/gcp.md),
+there should be a `Render` button in the **top left corner** of the previewer with a scene open.
 
 ### Check Status
 
-```bash
-./skewer-cli status --job <JOB_ID>
-```
-
-### Cancel a Job
-
-```bash
-./skewer-cli cancel --job <JOB_ID>
-```
+Click on the Cloud icon on the **top right** of the Scene Previewer to track the progress of current and previous cloud renders.
 
 ## Next Steps
 
