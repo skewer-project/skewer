@@ -27,13 +27,13 @@ cmake --build --preset relwithdebinfo --parallel
 
 ## Available Presets
 
-| Preset | Description |
-|--------|-------------|
+| Preset           | Description                                                  |
+| ---------------- | ------------------------------------------------------------ |
 | `relwithdebinfo` | **Default** - Release build with debug symbols (recommended) |
-| `debug` | Debug build with symbols, no optimizations |
-| `release` | Optimized release build (-O3) |
-| `ci` | CI build with tests enabled |
-| `tidy` | Build with clang-tidy analysis |
+| `debug`          | Debug build with symbols, no optimizations                   |
+| `release`        | Optimized release build (-O3)                                |
+| `ci`             | CI build with tests enabled                                  |
+| `tidy`           | Build with clang-tidy analysis                               |
 
 ## Build Outputs
 
@@ -53,7 +53,7 @@ build/relwithdebinfo/
 
 ## Dependencies
 
-### vcpkg (Recommended)
+### vcpkg
 
 The project uses vcpkg for dependency management. A `vcpkg.json` manifest is included:
 

@@ -91,20 +91,6 @@ go build -o skewer-cli ./orchestration/cmd/cli/
 ./skewer-cli cancel --job <JOB_ID>
 ```
 
-## 4. Local Development (Docker)
-
-For local distributed testing:
-
-```bash
-# From the project root
-docker compose up -d
-```
-
-This starts:
-- Coordinator (port 50051)
-- Skewer workers
-- Loom workers
-
 ## Next Steps
 
 - [Scene Format](../usage/scene-format.md) - Understanding scene JSON
