@@ -22,24 +22,24 @@ The simplest way to light a scene is with emissive materials. Set a material's `
 
 ### Material Choices by Surface Type
 
-| Surface | Recommended Type | Typical Settings |
-|---------|-----------------|------------------|
-| Matte paint, fabric, wood | `lambertian` | `albedo: [0.8, 0.2, 0.2]`, no roughness |
-| Polished metal, chrome | `metal` | `albedo: [1, 0.84, 0]`, `roughness: 0.05` |
-| Brushed metal | `metal` | `albedo: [0.9, 0.9, 0.9]`, `roughness: 0.3` |
-| Glass window | `dielectric` | `ior: 1.5`, `roughness: 0.0` |
-| Frosted glass | `dielectric` | `ior: 1.5`, `roughness: 0.2` |
-| Water | `dielectric` | `ior: 1.33`, `roughness: 0.01` |
-| Diamond | `dielectric` | `ior: 2.42`, `roughness: 0.0` |
+| Surface                   | Recommended Type | Typical Settings                            |
+| ------------------------- | ---------------- | ------------------------------------------- |
+| Matte paint, fabric, wood | `lambertian`     | `albedo: [0.8, 0.2, 0.2]`, no roughness     |
+| Polished metal, chrome    | `metal`          | `albedo: [1, 0.84, 0]`, `roughness: 0.05`   |
+| Brushed metal             | `metal`          | `albedo: [0.9, 0.9, 0.9]`, `roughness: 0.3` |
+| Glass window              | `dielectric`     | `ior: 1.5`, `roughness: 0.0`                |
+| Frosted glass             | `dielectric`     | `ior: 1.5`, `roughness: 0.2`                |
+| Water                     | `dielectric`     | `ior: 1.33`, `roughness: 0.01`              |
+| Diamond                   | `dielectric`     | `ior: 2.42`, `roughness: 0.0`               |
 
 ### Textures
 
 Skewer supports three texture maps per material:
 
-| Texture | Supported On | Purpose |
-|---------|-------------|---------|
-| `albedo_texture` | All types | Surface color variation |
-| `normal_texture` | All types | Surface detail via perturbed normals |
+| Texture             | Supported On      | Purpose                                |
+| ------------------- | ----------------- | -------------------------------------- |
+| `albedo_texture`    | All types         | Surface color variation                |
+| `normal_texture`    | All types         | Surface detail via perturbed normals   |
 | `roughness_texture` | Metal, Dielectric | Spatially varying microfacet roughness |
 
 Texture paths are resolved **relative to the layer file's directory**. For cloud rendering, ensure textures are uploaded alongside the scene.
@@ -61,12 +61,12 @@ Skewer uses a thin-lens DOF model controlled by two camera parameters:
 }
 ```
 
-| Parameter | Effect |
-|-----------|--------|
-| `aperture_radius: 0` | Pinhole camera, everything in focus |
-| `aperture_radius: 0.05-0.1` | Subtle blur, shallow depth of field |
-| `aperture_radius: 0.15-0.5` | Noticeable blur, bokeh effect |
-| `aperture_radius: 1.0+` | Strong blur, only focus plane is sharp |
+| Parameter                   | Effect                                 |
+| --------------------------- | -------------------------------------- |
+| `aperture_radius: 0`        | Pinhole camera, everything in focus    |
+| `aperture_radius: 0.05-0.1` | Subtle blur, shallow depth of field    |
+| `aperture_radius: 0.15-0.5` | Noticeable blur, bokeh effect          |
+| `aperture_radius: 1.0+`     | Strong blur, only focus plane is sharp |
 
 - `focus_distance` is the distance from the camera where objects are perfectly sharp. It defaults to `1.0`.
 - The view frustum automatically scales so that `look_at` is at `focus_distance` — this means if you set `focus_distance` far from the `look_at` distance, the framing will shift.
@@ -104,12 +104,12 @@ Adaptive sampling stops sampling pixels that have converged, saving time on simp
 }
 ```
 
-| Parameter | Recommended | Effect |
-|-----------|------------|--------|
-| `noise_threshold` | `0.01` - `0.05` | Lower = stricter convergence, more samples. `0` disables adaptive sampling |
-| `min_samples` | `32` - `128` | Minimum samples before checking convergence. Higher = more reliable initial estimate |
-| `adaptive_step` | `16` - `64` | How often to check convergence. Smaller = more frequent checks (more overhead but faster convergence) |
-| `max_samples` | `512` - `8192` | Upper bound. Some pixels may never converge (fireflies, caustics) |
+| Parameter         | Recommended    | Effect                                                                                                |
+| ----------------- | -------------- | ----------------------------------------------------------------------------------------------------- |
+| `noise_threshold` | `0.01` - `0.5` | Lower = stricter convergence, more samples. `0` disables adaptive sampling                            |
+| `min_samples`     | `32` - `128`   | Minimum samples before checking convergence. Higher = more reliable initial estimate                  |
+| `adaptive_step`   | `32` - `64`    | How often to check convergence. Smaller = more frequent checks (more overhead but faster convergence) |
+| `max_samples`     | `512` - `8192` | Upper bound. Some pixels may never converge (fireflies, caustics)                                     |
 
 **How convergence works:** Skewer measures the luminance variance across samples per pixel. When `noise / max(mean_luminance, 0.5) < noise_threshold`, the pixel is considered converged. The 0.5 luminance floor prevents near-black pixels from requiring excessive samples.
 
@@ -123,7 +123,8 @@ To see which regions are under-sampled, enable the sample map:
 }
 ```
 
-This writes a heatmap image showing per-pixel sample counts. Dark regions sampled to completion; bright regions hit `max_samples` without converging.
+This writes a heatmap image showing per-pixel sample counts.
+Cooler (dark blue) pixels indicate early convergence, while warmer (orange/red) pixels indicate approaching max_samples.
 
 ### Fireflies
 
@@ -149,13 +150,13 @@ The `max_depth` parameter controls how many surface interactions a ray can under
 }
 ```
 
-| max_depth | Result |
-|-----------|--------|
-| 1 | Direct lighting only — no reflections, no refractions, no indirect illumination |
-| 2-3 | One bounce of indirect light, single reflections visible |
-| 4-6 | Good quality for most scenes — multiple bounces, some caustics |
-| 8-12 | High quality — glass-through-glass, mirror-mirror reflections |
-| 20+ | Diminishing returns unless scene has many nested transparent surfaces |
+| max_depth | Result                                                                          |
+| --------- | ------------------------------------------------------------------------------- |
+| 1         | Direct lighting only — no reflections, no refractions, no indirect illumination |
+| 2-3       | One bounce of indirect light, single reflections visible                        |
+| 4-6       | Good quality for most scenes — multiple bounces, some caustics                  |
+| 8-12      | High quality — glass-through-glass, mirror-mirror reflections                   |
+| 20+       | Diminishing returns unless scene has many nested transparent surfaces           |
 
 Beyond `max_depth`, rays are terminated. Russian Roulette takes over after depth 3, probabilistically terminating paths with very low throughput (`< 0.001`).
 
@@ -169,7 +170,7 @@ Beyond `max_depth`, rays are terminated. Russian Roulette takes over after depth
 }
 ```
 
-- `0` (default) auto-detects CPU cores via `hardware_concurrency()`
+- `0` (default) auto-detects CPU cores
 - Set to a specific number to leave cores free for other tasks
 - Performance scales roughly linearly up to physical core count, then plateaus
 
