@@ -21,11 +21,12 @@ import {
 	resolveNodeAtPath,
 	updateMedium,
 	updateNodeAtPath,
-} from "./services/graph-path";
+} from "./services/graph-path"; // check difference between resolve and update
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
 	applyStaticTransformToAnimatedAtTime,
+	collectAnimatedNodeTracks,
 	collectSceneKeyframeTimes,
 	evaluateTransformAt,
 	getAnimationRange,
@@ -155,6 +156,23 @@ function App() {
 			setSaving(false);
 		}
 	}
+
+	const handleKeyframeMove = useCallback(
+		(trackKey: string, oldTime: number, newTime: number) => {
+			handleSceneEdit((s) =>
+				updateNodeAtPath(s, trackKey, (node) => {
+					if (!isAnimated(node.transform)) return node;
+					const kfs = node.transform.keyframes
+						.map((k) =>
+							Math.abs(k.time - oldTime) < 1e-6 ? { ...k, time: newTime } : k,
+						)
+						.sort((a, b) => a.time - b.time);
+					return { ...node, transform: { keyframes: kfs } };
+				}),
+			);
+		},
+		[handleSceneEdit],
+	);
 
 	const handleDeleteObject = useCallback(
 		(objectKey: string) => {
@@ -346,10 +364,17 @@ function App() {
 		() => (scene ? getAnimationRange(scene) : { start: 0, end: 0 }),
 		[scene],
 	);
-	animRangeRef.current = animRange;
+	useEffect(() => {
+		animRangeRef.current = animRange;
+	}, [animRange]);
 
 	const timelineKeyframeTimes = useMemo(
 		() => (scene ? collectSceneKeyframeTimes(scene) : []),
+		[scene],
+	);
+
+	const timelineTracks = useMemo(
+		() => (scene ? collectAnimatedNodeTracks(scene) : []),
 		[scene],
 	);
 
@@ -572,6 +597,9 @@ function App() {
 						onTogglePlay={() => setIsPlaying((p) => !p)}
 						animRange={animRange}
 						keyframeTimes={timelineKeyframeTimes}
+						tracks={timelineTracks}
+						onKeyframeMove={handleKeyframeMove}
+						onSelectObject={handleSelectObject}
 					/>
 				)}
 
