@@ -21,6 +21,7 @@ The top-level file that orchestrates a render:
 ```json
 {
   "camera": { ... },
+  "animation": { ... },
   "context": ["ctx.json"],
   "layers": ["layer_bg.json", "layer_fg.json"],
   "output_dir": "renders/"
@@ -30,12 +31,31 @@ The top-level file that orchestrates a render:
 !!! tip "Quick Start"
     **Quick Start:** Use the sample scene template at `apps/scene-previewer/public/templates/scene.json` as a starting point. It includes a camera, context layer, and three object layers — just copy it into your scene directory and customize the values.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `camera` | object | Yes | Camera configuration |
-| `context` | string[] | No | Paths to context layer files |
-| `layers` | string[] | Yes | Paths to render layer files (back-to-front order) |
-| `output_dir` | string | No | Output directory (local path or `gs://` URI). Empty = cwd |
+| Field        | Type     | Required | Description                                               |
+| ------------ | -------- | -------- | --------------------------------------------------------- |
+| `animation`  | object   | No       | Animation configuration                                   |
+| `camera`     | object   | Yes      | Camera configuration                                      |
+| `context`    | string[] | No       | Paths to context layer files                              |
+| `layers`     | string[] | Yes      | Paths to render layer files (back-to-front order)         |
+| `output_dir` | string   | No       | Output directory (local path or `gs://` URI). Empty = cwd |
+
+### Animation
+
+```json
+"animation": {
+  "start": 0.0,
+  "end": 5.0,
+  "fps": 24,
+  "shutter_angle": 270
+}
+```
+
+| Field           | Type   | Required | Description                                                                                                                                                                                                     |
+| --------------- | ------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start`         | number | Yes      | Start time for animation (seconds)                                                                                                                                                                              |
+| `end`           | number | Yes      | End time for animation (seconds)                                                                                                                                                                                |
+| `fps`           | number | Yes      | Frames per second of animation                                                                                                                                                                                  |
+| `shutter_angle` | number | Yes      | The shutter period of each frame relative to the frame interval, defined as the arc-angle, in **degrees** of a semi-circle. See [this article](https://en.wikipedia.org/wiki/Rotary_disc_shutter) for more info |
 
 ### Camera
 
@@ -52,20 +72,23 @@ The top-level file that orchestrates a render:
 }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `look_from` | Vec3 | — | Camera position in world space |
-| `look_at` | Vec3 | — | Point the camera looks toward |
-| `vup` | Vec3 | `[0, 1, 0]` | Up vector for camera orientation |
-| `vfov` | float | `90` | Vertical field of view in degrees |
-| `aperture_radius` | float | `0` | Lens aperture radius. `0` = no depth of field; >0 enables DOF with `focus_distance` |
-| `focus_distance` | float | `1.0` | Distance from camera that is in focus (meaningful when `aperture_radius > 0`) |
-| `shutter_open` | float | `0` | Time when shutter opens (animation time units). Non-zero enables motion blur |
-| `shutter_close` | float | `0` | Time when shutter closes. If equal to `shutter_open`, no motion blur |
+| Field             | Type  | Default     | Description                                                                         |
+| ----------------- | ----- | ----------- | ----------------------------------------------------------------------------------- |
+| `look_from`       | Vec3  | —           | Camera position in world space                                                      |
+| `look_at`         | Vec3  | —           | Point the camera looks toward                                                       |
+| `vup`             | Vec3  | `[0, 1, 0]` | Up vector for camera orientation                                                    |
+| `vfov`            | float | `90`        | Vertical field of view in degrees                                                   |
+| `aperture_radius` | float | `0`         | Lens aperture radius. `0` = no depth of field; >0 enables DOF with `focus_distance` |
+| `focus_distance`  | float | `1.0`       | Distance from camera that is in focus (meaningful when `aperture_radius > 0`)       |
+| `shutter_open`    | float | `0`         | Time when shutter opens (animation time units). Non-zero enables motion blur        |
+| `shutter_close`   | float | `0`         | Time when shutter closes. If equal to `shutter_open`, no motion blur                |
 
 **Depth of Field:** Set `aperture_radius > 0` and `focus_distance` to the distance of your subject. Objects at `focus_distance` are sharp; objects closer or farther are progressively blurred.
 
-**Motion Blur:** Set `shutter_open` and `shutter_close` to different values (e.g., `0.0` and `0.1`). Animated objects will blur according to their movement during this interval. The shutter interval must match the time range of your animation keyframes for correct blur.
+**Motion Blur:** Set `shutter_open` and `shutter_close` to different values (e.g., `0.0` and `0.1`).
+
+!!!important
+    **Do not** set `shutter_open` and `shutter_close` for animated scenes. Instead, define the `shutter_angle` property in the [animation configuration](#animation).
 
 ## Layer/Context Files
 
@@ -73,6 +96,7 @@ Both context and layer files share the same structure:
 
 ```json
 {
+  "animated": true,
   "materials": { ... },
   "media": { ... },
   "graph": [ ... ],
@@ -81,13 +105,14 @@ Both context and layer files share the same structure:
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `materials` | object | Named material definitions |
-| `media` | object | Named volume medium definitions (NanoVDB) |
-| `graph` | array | Scene graph — hierarchical tree of geometry nodes |
-| `render` | object | Render options override (optional) |
-| `visible` | bool | Layer-level visibility. If `false`, all materials become invisible but still cast shadows/reflections |
+| Field       | Type   | Description                                                                                                                                         |
+| ----------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `animated`  | bool   | Defines if frames for this layer will be generated. Requires keyframes in the scene, along with the [animation](#animation) configuration to be set |
+| `materials` | object | Named material definitions                                                                                                                          |
+| `media`     | object | Named volume medium definitions (NanoVDB)                                                                                                           |
+| `graph`     | array  | Scene graph — hierarchical tree of geometry nodes                                                                                                   |
+| `render`    | object | Render options override (optional)                                                                                                                  |
+| `visible`   | bool   | Layer-level visibility. If `false`, all materials become invisible but still cast shadows/reflections                                               |
 
 ## Materials
 
@@ -143,18 +168,18 @@ Materials are defined by name in the `materials` object. Each material has a `ty
 
 ### Material Properties
 
-| Property | Type | Default | Lambertian | Metal | Dielectric | Description |
-|----------|------|---------|:----------:|:-----:|:----------:|-------------|
-| `type` | string | — | ✓ | ✓ | ✓ | `lambertian`, `metal`, or `dielectric` |
-| `albedo` | Vec3 | `[1,1,1]` | ✓ | ✓ | ✓ | Base color (RGB, 0-1) |
-| `emission` | Vec3 | `[0,0,0]` | ✓ | ✓ | ✓ | Emissive color (RGB, 0+). Use values >1 for HDR light sources |
-| `opacity` | Vec3 | `[1,1,1]` | ✓ | ✓ | ✓ | Per-channel opacity (RGB, 0-1) |
-| `visible` | bool | `true` | ✓ | ✓ | ✓ | Whether the material contributes to the image. Invisible materials still cast shadows and appear in reflections |
-| `roughness` | float | `0` | — | ✓ | ✓ | Microfacet roughness (0=mirror, 1=matte) |
-| `ior` | float | — | — | — | ✓ | Index of refraction (1.5=glass, 1.33=water, 2.42=diamond) |
-| `albedo_texture` | string | — | ✓ | ✓ | ✓ | Path to albedo/color texture map |
-| `normal_texture` | string | — | ✓ | ✓ | ✓ | Path to normal map |
-| `roughness_texture` | string | — | — | ✓ | ✓ | Path to roughness map |
+| Property            | Type   | Default   | Lambertian | Metal | Dielectric | Description                                                                                                     |
+| ------------------- | ------ | --------- | :--------: | :---: | :--------: | --------------------------------------------------------------------------------------------------------------- |
+| `type`              | string | —         |     ✓      |   ✓   |     ✓      | `lambertian`, `metal`, or `dielectric`                                                                          |
+| `albedo`            | Vec3   | `[1,1,1]` |     ✓      |   ✓   |     ✓      | Base color (RGB, 0-1)                                                                                           |
+| `emission`          | Vec3   | `[0,0,0]` |     ✓      |   ✓   |     ✓      | Emissive color (RGB, 0+). Use values >1 for HDR light sources                                                   |
+| `opacity`           | Vec3   | `[1,1,1]` |     ✓      |   ✓   |     ✓      | Per-channel opacity (RGB, 0-1)                                                                                  |
+| `visible`           | bool   | `true`    |     ✓      |   ✓   |     ✓      | Whether the material contributes to the image. Invisible materials still cast shadows and appear in reflections |
+| `roughness`         | float  | `0`       |     —      |   ✓   |     ✓      | Microfacet roughness (0=mirror, 1=matte)                                                                        |
+| `ior`               | float  | —         |     —      |   —   |     ✓      | Index of refraction (1.5=glass, 1.33=water, 2.42=diamond)                                                       |
+| `albedo_texture`    | string | —         |     ✓      |   ✓   |     ✓      | Path to albedo/color texture map                                                                                |
+| `normal_texture`    | string | —         |     ✓      |   ✓   |     ✓      | Path to normal map                                                                                              |
+| `roughness_texture` | string | —         |     —      |   ✓   |     ✓      | Path to roughness map                                                                                           |
 
 **Textures** are resolved relative to the layer file's directory.
 
@@ -193,11 +218,11 @@ A container node that groups children and applies a transform to all of them:
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Optional identifier for the node |
+| Field       | Type   | Description                                            |
+| ----------- | ------ | ------------------------------------------------------ |
+| `name`      | string | Optional identifier for the node                       |
 | `transform` | object | Static or animated transform (applied to all children) |
-| `children` | array | Child nodes (groups, spheres, quads, or objs) |
+| `children`  | array  | Child nodes (groups, spheres, quads, or objs)          |
 
 #### Sphere
 
@@ -213,15 +238,15 @@ A container node that groups children and applies a transform to all of them:
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `"sphere"` |
-| `material` | string | Yes | Material name (or `"null"`/`"none"` for no material) |
-| `center` | Vec3 | Yes | Center position |
-| `radius` | float | Yes | Radius |
-| `visible` | bool | No | Per-object visibility override |
-| `inside_medium` | string | No | Volume medium inside the sphere |
-| `outside_medium` | string | No | Volume medium outside the sphere |
+| Field            | Type   | Required | Description                                          |
+| ---------------- | ------ | -------- | ---------------------------------------------------- |
+| `type`           | string | Yes      | Must be `"sphere"`                                   |
+| `material`       | string | Yes      | Material name (or `"null"`/`"none"` for no material) |
+| `center`         | Vec3   | Yes      | Center position                                      |
+| `radius`         | float  | Yes      | Radius                                               |
+| `visible`        | bool   | No       | Per-object visibility override                       |
+| `inside_medium`  | string | No       | Volume medium inside the sphere                      |
+| `outside_medium` | string | No       | Volume medium outside the sphere                     |
 
 #### Quad
 
@@ -241,12 +266,12 @@ A four-vertex planar surface (useful for mirrors, light panels, floors):
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `"quad"` |
-| `material` | string | Yes | Material name |
-| `vertices` | Vec3[4] | Yes | Four corner vertices in counter-clockwise order |
-| `visible` | bool | No | Per-object visibility override |
+| Field      | Type    | Required | Description                                     |
+| ---------- | ------- | -------- | ----------------------------------------------- |
+| `type`     | string  | Yes      | Must be `"quad"`                                |
+| `material` | string  | Yes      | Material name                                   |
+| `vertices` | Vec3[4] | Yes      | Four corner vertices in counter-clockwise order |
+| `visible`  | bool    | No       | Per-object visibility override                  |
 
 #### OBJ Mesh
 
@@ -268,15 +293,15 @@ Loads a Wavefront `.obj` file:
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | Must be `"obj"` |
-| `file` | string | Yes | Path to `.obj` file (relative to scene directory) |
-| `material` | string | No | Overrides all mesh materials with this one |
-| `name` | string | No | Node identifier |
-| `auto_fit` | bool | No (default `true`) | Auto-scale and center the mesh to fit a unit bounding box |
-| `visible` | bool | No | Per-object visibility override |
-| `transform` | object | No | Static or animated transform |
+| Field       | Type   | Required            | Description                                               |
+| ----------- | ------ | ------------------- | --------------------------------------------------------- |
+| `type`      | string | Yes                 | Must be `"obj"`                                           |
+| `file`      | string | Yes                 | Path to `.obj` file (relative to scene directory)         |
+| `material`  | string | No                  | Overrides all mesh materials with this one                |
+| `name`      | string | No                  | Node identifier                                           |
+| `auto_fit`  | bool   | No (default `true`) | Auto-scale and center the mesh to fit a unit bounding box |
+| `visible`   | bool   | No                  | Per-object visibility override                            |
+| `transform` | object | No                  | Static or animated transform                              |
 
 ## Transforms
 
@@ -292,11 +317,11 @@ Transforms can be **static** (single TRS values) or **animated** (keyframes with
 }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `translate` | Vec3 | `[0, 0, 0]` | Position offset |
-| `rotate` | Vec3 | `[0, 0, 0]` | Rotation in degrees, applied as Euler angles (X, Y, Z) |
-| `scale` | float or Vec3 | `1` | Uniform scale (float) or per-axis scale (Vec3) |
+| Field       | Type          | Default     | Description                                            |
+| ----------- | ------------- | ----------- | ------------------------------------------------------ |
+| `translate` | Vec3          | `[0, 0, 0]` | Position offset                                        |
+| `rotate`    | Vec3          | `[0, 0, 0]` | Rotation in degrees, applied as Euler angles (X, Y, Z) |
+| `scale`     | float or Vec3 | `1`         | Uniform scale (float) or per-axis scale (Vec3)         |
 
 ### Animated Transform (Keyframes)
 
@@ -312,13 +337,13 @@ Transforms can be **static** (single TRS values) or **animated** (keyframes with
 
 Each keyframe has:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `time` | float | Yes | Time value (animation time units) |
-| `translate` | Vec3 | No | Position at this keyframe. Accumulates from previous keyframe if omitted |
-| `rotate` | Vec3 | No | Rotation at this keyframe (degrees). Accumulates from previous keyframe if omitted |
-| `scale` | float or Vec3 | No | Scale at this keyframe. Accumulates from previous keyframe if omitted |
-| `curve` | string or object | No (default `"linear"`) | Interpolation curve from this keyframe to the next |
+| Field       | Type             | Required                | Description                                                                        |
+| ----------- | ---------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `time`      | float            | Yes                     | Time value (animation time units)                                                  |
+| `translate` | Vec3             | No                      | Position at this keyframe. Accumulates from previous keyframe if omitted           |
+| `rotate`    | Vec3             | No                      | Rotation at this keyframe (degrees). Accumulates from previous keyframe if omitted |
+| `scale`     | float or Vec3    | No                      | Scale at this keyframe. Accumulates from previous keyframe if omitted              |
+| `curve`     | string or object | No (default `"linear"`) | Interpolation curve from this keyframe to the next                                 |
 
 **TRS accumulation:** When a keyframe omits a field, it inherits and continues from the previous keyframe's accumulated value. This means `rotate: [0, 360, 0]` at time 1 after `rotate: [0, 180, 0]` at time 0.5 produces continuous rotation, not a snap back.
 
@@ -326,11 +351,11 @@ Each keyframe has:
 
 The `curve` field controls easing between keyframes:
 
-| Preset | Description |
-|--------|-------------|
-| `"linear"` | Constant speed (default) |
-| `"ease-in"` | Slow start, fast end |
-| `"ease-out"` | Fast start, slow end |
+| Preset          | Description                     |
+| --------------- | ------------------------------- |
+| `"linear"`      | Constant speed (default)        |
+| `"ease-in"`     | Slow start, fast end            |
+| `"ease-out"`    | Fast start, slow end            |
 | `"ease-in-out"` | Slow start and end, fast middle |
 
 #### Custom Bezier Curve
@@ -372,16 +397,16 @@ NanoVDB volumes add participating media (fog, smoke, clouds) to the scene:
 }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `type` | string | — | Must be `"nanovdb"` |
-| `file` | string | — | Path to `.vdb` file |
-| `sigma_a` | Vec3 | `[0,0,0]` | Absorption coefficient (RGB) |
-| `sigma_s` | Vec3 | `[0,0,0]` | Scattering coefficient (RGB) |
-| `g` | float | `0` | Henyey-Greenstein phase function parameter (-1 to 1, 0=isotropic) |
-| `density_multiplier` | float | `1.0` | Scales all density values from the VDB |
-| `scale` | float | `1.0` | Spatial scale factor |
-| `translate` | Vec3 | `[0,0,0]` | Spatial offset |
+| Field                | Type   | Default   | Description                                                       |
+| -------------------- | ------ | --------- | ----------------------------------------------------------------- |
+| `type`               | string | —         | Must be `"nanovdb"`                                               |
+| `file`               | string | —         | Path to `.vdb` file                                               |
+| `sigma_a`            | Vec3   | `[0,0,0]` | Absorption coefficient (RGB)                                      |
+| `sigma_s`            | Vec3   | `[0,0,0]` | Scattering coefficient (RGB)                                      |
+| `g`                  | float  | `0`       | Henyey-Greenstein phase function parameter (-1 to 1, 0=isotropic) |
+| `density_multiplier` | float  | `1.0`     | Scales all density values from the VDB                            |
+| `scale`              | float  | `1.0`     | Spatial scale factor                                              |
+| `translate`          | Vec3   | `[0,0,0]` | Spatial offset                                                    |
 
 Use `inside_medium` / `outside_medium` on spheres to attach media to geometry:
 
@@ -422,24 +447,24 @@ Each layer file can override render settings. The highest-priority render config
 }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `integrator` | string | `"path_trace"` | `"path_trace"` for standard rendering, `"normals"` for normal visualization |
-| `max_samples` | int | `200` | Maximum samples per pixel |
-| `min_samples` | int | `1` | Minimum samples before adaptive convergence checks begin |
-| `max_depth` | int | `50` | Maximum ray bounce depth |
-| `threads` | int | `0` | Number of render threads. `0` = auto-detect (all available cores) |
-| `tile_size` | int | `32` | Tile dimension for work-stealing parallelism (NxN pixels) |
-| `noise_threshold` | float | `0` | Adaptive sampling convergence threshold. `0` = disabled (always render to `max_samples`) |
-| `adaptive_step` | int | `16` | Samples between convergence checks when adaptive sampling is enabled |
-| `enable_deep` | bool | `false` | Enable deep pixel buffers (for compositing) |
-| `transparent_background` | bool | `false` | Missed primary rays produce alpha=0 instead of black. Required for clean layer compositing |
-| `visibility_depth` | int | `1` | How many surface bounces to check for "covered" pixels when `transparent_background=true`. `1` = only direct camera visibility; higher values allow seeing visible objects through invisible surfaces |
-| `save_sample_map` | bool | `false` | Write per-pixel sample count heatmap (debug) |
-| `image.width` | int | `800` | Output image width in pixels |
-| `image.height` | int | `450` | Output image height in pixels |
-| `image.outfile` | string | `"output.png"` | Output PNG filename |
-| `image.exrfile` | string | `"output.exr"` | Output EXR filename (HDR) |
+| Field                    | Type   | Default        | Description                                                                                                                                                                                           |
+| ------------------------ | ------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `integrator`             | string | `"path_trace"` | `"path_trace"` for standard rendering, `"normals"` for normal visualization                                                                                                                           |
+| `max_samples`            | int    | `200`          | Maximum samples per pixel                                                                                                                                                                             |
+| `min_samples`            | int    | `1`            | Minimum samples before adaptive convergence checks begin                                                                                                                                              |
+| `max_depth`              | int    | `50`           | Maximum ray bounce depth                                                                                                                                                                              |
+| `threads`                | int    | `0`            | Number of render threads. `0` = auto-detect (all available cores)                                                                                                                                     |
+| `tile_size`              | int    | `32`           | Tile dimension for work-stealing parallelism (NxN pixels)                                                                                                                                             |
+| `noise_threshold`        | float  | `0`            | Adaptive sampling convergence threshold. `0` = disabled (always render to `max_samples`)                                                                                                              |
+| `adaptive_step`          | int    | `16`           | Samples between convergence checks when adaptive sampling is enabled                                                                                                                                  |
+| `enable_deep`            | bool   | `false`        | Enable deep pixel buffers (for compositing)                                                                                                                                                           |
+| `transparent_background` | bool   | `false`        | Missed primary rays produce alpha=0 instead of black. Required for clean layer compositing                                                                                                            |
+| `visibility_depth`       | int    | `1`            | How many surface bounces to check for "covered" pixels when `transparent_background=true`. `1` = only direct camera visibility; higher values allow seeing visible objects through invisible surfaces |
+| `save_sample_map`        | bool   | `false`        | Write per-pixel sample count heatmap (debug)                                                                                                                                                          |
+| `image.width`            | int    | `800`          | Output image width in pixels                                                                                                                                                                          |
+| `image.height`           | int    | `450`          | Output image height in pixels                                                                                                                                                                         |
+| `image.outfile`          | string | `"output.png"` | Output PNG filename                                                                                                                                                                                   |
+| `image.exrfile`          | string | `"output.exr"` | Output EXR filename (HDR)                                                                                                                                                                             |
 
 ### Adaptive Sampling
 
@@ -573,16 +598,6 @@ A scene with an animated solar system:
   }
 }
 ```
-
-## Frame Sequences
-
-Render a sequence of scene files using `####` as a frame number placeholder:
-
-```bash
-skewer-render --scene scene-####.json --frames 4
-```
-
-This renders `scene-0001.json`, `scene-0002.json`, `scene-0003.json`, `scene-0004.json`.
 
 ## See Also
 
