@@ -93,5 +93,5 @@ Workers read/write to GCS using `gs://` URIs. Ensure:
 
 ## See Also
 
-- [Local Deployment](local.md) - Local development setup
+- [Local Deployment](../deployment/local.md) - Local development setup
 - [Architecture Overview](../architecture/overview.md) - System design

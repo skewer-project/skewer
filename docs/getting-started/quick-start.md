@@ -28,14 +28,14 @@ The simplest way to render a scene is to run the built binary directly:
 
 ### Command-Line Options
 
-| Flag | Description |
-|------|-------------|
-| `--scene` | Path to scene JSON file **[Required]** |
-| `--output` | Output image path (PNG or EXR) |
-| `--width` | Override image width |
-| `--height` | Override image height |
-| `--samples` | Override max samples per pixel |
-| `--threads` | Number of render threads (0 = auto) |
+| Flag        | Description                            |
+| ----------- | -------------------------------------- |
+| `--scene`   | Path to scene JSON file **[Required]** |
+| `--output`  | Output image path (PNG or EXR)         |
+| `--width`   | Override image width                   |
+| `--height`  | Override image height                  |
+| `--samples` | Override max samples per pixel         |
+| `--threads` | Number of render threads (0 = auto)    |
 
 ## 2. Using the Scene Previewer
 
@@ -115,4 +115,4 @@ This starts:
 - [Architecture](../architecture/overview.md) - How the system works
 - [Deployment](../deployment/local.md) - Local cluster setup
 - [GCP Deployment](../deployment/gcp.md) - Cloud rendering setup
-- [GKE Deployment](../deployment/gke.md) - Running on Google Kubernetes Engine
+- [GKE Deployment](../legacy/gke.md) - Running on Google Kubernetes Engine

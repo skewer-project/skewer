@@ -53,22 +53,21 @@ Skewer workers are no longer persistent. They are executed as **Batch Task Group
 
 When running in Cloud Batch, Skewer is typically invoked with specific environment variables passed by the workflow:
 
-| Variable | Description |
-|----------|-------------|
-| `SCENE_URI` | Path to the scene JSON (e.g., `/mnt/data/scenes/forest.json`). |
-| `OUTPUT_URI_PREFIX` | Where to write the final deep EXR. |
-| `CACHE_PREFIX` | Location in the cache bucket to check before rendering. |
-| `NUM_FRAMES` | Total frames in the current job sequence. |
+| Variable            | Description                                                    |
+| ------------------- | -------------------------------------------------------------- |
+| `SCENE_URI`         | Path to the scene JSON (e.g., `/mnt/data/scenes/forest.json`). |
+| `OUTPUT_URI_PREFIX` | Where to write the final deep EXR.                             |
+| `CACHE_PREFIX`      | Location in the cache bucket to check before rendering.        |
+| `NUM_FRAMES`        | Total frames in the current job sequence.                      |
 
 ## Performance Profiles
 
-| Profile | Machine Type | Provisioning | Use Case |
-|---------|--------------|--------------|----------|
-| **Standard** | `n2d-highcpu-8` | Spot | High-throughput, cost-optimized rendering. |
-| **High-Mem** | `n2-highmem-16` | Standard | Extremely complex scenes with large BVHs. |
+| Profile      | Machine Type    | Provisioning | Use Case                                   |
+| ------------ | --------------- | ------------ | ------------------------------------------ |
+| **Standard** | `n2d-highcpu-8` | Spot         | High-throughput, cost-optimized rendering. |
+| **High-Mem** | `n2-highmem-16` | Standard     | Extremely complex scenes with large BVHs.  |
 
 ## See Also
 
 - [Architecture Overview](overview.md) - System-level architecture
 - [Loom](loom.md) - Deep compositing worker
-- [GCS FUSE](../deployment/gcp.md#storage) - How workers access cloud data
