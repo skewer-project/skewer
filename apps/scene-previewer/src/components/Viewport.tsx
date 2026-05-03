@@ -309,12 +309,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 					const nodeGrp = findGroupByKey(sc, objectKey);
 					if (nodeGrp) {
 						const proxy = gizmoProxy.current;
-						const isSelected = nodeGrp.parent === proxy;
-						if (isSelected && proxy) {
-							// Detach before applying so patch.value (world transform) is applied correctly
-							const grp = sceneGroup.current;
-							if (grp) grp.attach(nodeGrp);
-						}
+						const isSelected = proxy?.userData.target === nodeGrp;
 
 						applyStaticTransformToObject3D(nodeGrp, patch.value);
 
@@ -323,19 +318,20 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 							// If we are NOT dragging (e.g. typing into UI), update proxy to match new object transform.
 							if (!proxy.userData.isDragging) {
 								const center = gizmoAnchorTmp.current;
-								if (nodeGrp.userData.sceneNodeKind === "group") {
-									nodeGrp.getWorldPosition(center);
+								const worldQuat = new THREE.Quaternion();
+
+								getWorldCenter(nodeGrp, center);
+								if (latestTransformRef.current.space === "local") {
+									nodeGrp.getWorldQuaternion(worldQuat);
 								} else {
-									const box = new THREE.Box3().setFromObject(nodeGrp);
-									if (!box.isEmpty()) box.getCenter(center);
-									else nodeGrp.getWorldPosition(center);
+									worldQuat.identity();
 								}
+
 								proxy.position.copy(center);
-								proxy.quaternion.copy(nodeGrp.quaternion);
-								proxy.scale.copy(nodeGrp.scale);
+								proxy.quaternion.copy(worldQuat);
+								proxy.scale.setScalar(1);
 								proxy.updateMatrixWorld(true);
 							}
-							proxy.attach(nodeGrp);
 						}
 					}
 				} else if (patch.kind === "material") {
@@ -553,9 +549,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			cancelAnimationFrame(animId);
 			ro.disconnect();
 			const proxy = gizmoProxy.current;
-			const grp = sceneGroup.current;
-			if (proxy && grp && proxy.userData.target) {
-				grp.attach(proxy.userData.target as THREE.Group);
+			if (proxy?.userData.target) {
 				proxy.userData.target = null;
 			}
 			ctrl.dispose();
@@ -710,42 +704,21 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			const nodeGrp = findGroupByKey(grp, selectedObjectKey);
 			const proxy = gizmoProxy.current;
 			if (nodeGrp && proxy) {
-				if (proxy.userData.target && proxy.userData.target !== nodeGrp) {
-					grp.attach(proxy.userData.target as THREE.Group);
-					proxy.userData.target = null;
-				}
+				if (proxy.userData.target !== nodeGrp) proxy.userData.target = null;
 
 				delete proxy.userData.startProxyMatrix;
 				delete proxy.userData.startTargetMatrix;
 
-				const center = gizmoAnchorTmp.current;
-				if (nodeGrp.userData.sceneNodeKind === "group") {
-					nodeGrp.getWorldPosition(center);
-				} else {
-					const box = new THREE.Box3().setFromObject(nodeGrp);
-					if (!box.isEmpty()) box.getCenter(center);
-					else nodeGrp.getWorldPosition(center);
-				}
-
-				proxy.position.copy(center);
-				proxy.quaternion.copy(nodeGrp.quaternion);
-				proxy.scale.copy(nodeGrp.scale);
 				proxy.userData.target = nodeGrp;
 				proxy.userData.isDragging = false;
-				proxy.updateMatrixWorld(true);
 
-				proxy.attach(nodeGrp);
 				tctrl.attach(proxy);
 				latestTransformRef.current.objectKey = selectedObjectKey;
 			}
 		} else if (!selectedObjectKey) {
 			const proxy = gizmoProxy.current;
 			if (proxy) {
-				if (proxy.userData.target) {
-					// Detach and put target back into the scene group
-					grp.attach(proxy.userData.target);
-					proxy.userData.target = null;
-				}
+				proxy.userData.target = null;
 				proxy.userData.isDragging = false;
 			}
 			tctrl.detach();
