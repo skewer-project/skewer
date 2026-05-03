@@ -266,12 +266,12 @@ A four-vertex planar surface (useful for mirrors, light panels, floors):
 }
 ```
 
-| Field      | Type    | Required | Description                                     |
-| ---------- | ------- | -------- | ----------------------------------------------- |
-| `type`     | string  | Yes      | Must be `"quad"`                                |
-| `material` | string  | Yes      | Material name                                   |
-| `vertices` | Vec3[4] | Yes      | Four corner vertices in counter-clockwise order |
-| `visible`  | bool    | No       | Per-object visibility override                  |
+| Field      | Type      | Required | Description                                     |
+| ---------- | --------- | -------- | ----------------------------------------------- |
+| `type`     | string    | Yes      | Must be `"quad"`                                |
+| `material` | string    | Yes      | Material name                                   |
+| `vertices` | Vec3\[4\] | Yes      | Four corner vertices in counter-clockwise order |
+| `visible`  | bool      | No       | Per-object visibility override                  |
 
 #### OBJ Mesh
 

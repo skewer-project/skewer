@@ -31,13 +31,13 @@ In this example, a group node rotates 360 degrees around the Y-axis from time 0 
 
 Each keyframe in the `keyframes` array has:
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `time` | float | Yes | Time value in arbitrary animation units |
-| `translate` | Vec3 | No | Position `[x, y, z]`. Omitted fields accumulate from previous keyframe |
-| `rotate` | Vec3 | No | Rotation in degrees `[rx, ry, rz]` (Euler angles). Accumulates from previous |
-| `scale` | float or Vec3 | No | Uniform scale (number) or per-axis scale `[sx, sy, sz]`. Accumulates from previous |
-| `curve` | string or object | No (default `"linear"`) | Interpolation curve to the next keyframe |
+| Field       | Type             | Required                | Description                                                                        |
+| ----------- | ---------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `time`      | float            | Yes                     | Time value in arbitrary animation units                                            |
+| `translate` | Vec3             | No                      | Position `[x, y, z]`. Omitted fields accumulate from previous keyframe             |
+| `rotate`    | Vec3             | No                      | Rotation in degrees `[rx, ry, rz]` (Euler angles). Accumulates from previous       |
+| `scale`     | float or Vec3    | No                      | Uniform scale (number) or per-axis scale `[sx, sy, sz]`. Accumulates from previous |
+| `curve`     | string or object | No (default `"linear"`) | Interpolation curve to the next keyframe                                           |
 
 ### TRS Accumulation
 
@@ -88,12 +88,12 @@ The `curve` field on each keyframe controls how the interpolation eases between 
 
 ### Preset Curves
 
-| Preset | Description | Visual |
-|--------|-------------|--------|
-| `"linear"` | Constant speed (default) | Straight line |
-| `"ease-in"` | Slow start, fast end | Accelerating |
-| `"ease-out"` | Fast start, slow end | Decelerating |
-| `"ease-in-out"` | Slow start and end, fast middle | S-curve |
+| Preset          | Description                     | Visual        |
+| --------------- | ------------------------------- | ------------- |
+| `"linear"`      | Constant speed (default)        | Straight line |
+| `"ease-in"`     | Slow start, fast end            | Accelerating  |
+| `"ease-out"`    | Fast start, slow end            | Decelerating  |
+| `"ease-in-out"` | Slow start and end, fast middle | S-curve       |
 
 ### Custom Bezier Curves
 
@@ -180,22 +180,6 @@ If animation runs from time 0 to time 1:
 !!! tip "Shutter Interval"
     For a specific motion blur amount, set `shutter_close - shutter_open` to the fraction of the animation you want blurred. A 10% blur on a 1-second animation uses `[0, 0.1]`.
 
-### Shutter and Frame Sequences
-
-When rendering frame sequences (`####` placeholder), each frame loads a **separate scene file** with its own independent animation timeline. The shutter interval is per-scene-file:
-
-```json
-// scene-0001.json
-"camera": { "shutter_open": 0.0, "shutter_close": 0.1 }
-
-// scene-0002.json
-"camera": { "shutter_open": 0.0, "shutter_close": 0.1 }
-```
-
-If you want motion blur to progress across frames, you must either:
-1. Use different shutter intervals in each scene file, or
-2. Use a single scene file with keyframes that span all frame times and advance the shutter interval per frame
-
 ### Performance Impact
 
 Motion blur significantly increases noise because each sample effectively renders a different frame of the animation. Expect to need **2-4× more samples** than a static scene for comparable quality.
@@ -203,27 +187,6 @@ Motion blur significantly increases noise because each sample effectively render
 ### Bounding Volume Expansion
 
 Animated objects require expanded bounding volumes for the BVH acceleration structure. The bounding box is computed as the union of the object's bounds at `shutter_open` and `shutter_close`. This can make the BVH less efficient for fast-moving objects, slightly increasing ray intersection cost.
-
-## Frame Sequences
-
-To render an animation as a sequence of still frames, use the `####` placeholder:
-
-```bash
-skewer-render --scene scene-####.json --frames 10
-```
-
-This renders `scene-0001.json` through `scene-0010.json`. Each file is a complete, independent scene with its own:
-- Camera (including shutter settings)
-- Context and layer references
-- Keyframe time values
-
-### Creating Frame Sequences
-
-There are two common patterns:
-
-**Pattern 1: Separate files per frame.** Each `scene-NNNN.json` has keyframes at times appropriate for that frame. This gives maximum flexibility but requires generating many files.
-
-**Pattern 2: Single timeline.** One scene file with keyframes spanning the full animation duration (e.g., `time: 0` to `time: 10`). Each frame uses the same file but with different `shutter_open`/`shutter_close` values to capture different portions of the motion. This requires a script to generate per-frame scene files with adjusted shutter intervals.
 
 ## Acceleration Structure for Animation
 
