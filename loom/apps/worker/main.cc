@@ -15,15 +15,20 @@
 // Required env vars (set by Cloud Workflows + Cloud Batch):
 //   BATCH_TASK_INDEX     — 0-based frame index (set automatically by Cloud Batch)
 //   LAYER_URI_PREFIXES   — comma-separated GCS FUSE paths for each rendered layer
+//   LAYER_MODES          — comma-separated modes ("static" or "animated"), one per layer
 //   OUTPUT_URI_PREFIX    — GCS FUSE output directory for composited frames
+//
+// Static layers contribute static.exr to every frame.
+// Animated layers contribute frame-NNNN.exr for the frame being composited.
 static int RunBatchMode() {
     const char* task_index_str = std::getenv("BATCH_TASK_INDEX");
     const char* layer_prefixes_env = std::getenv("LAYER_URI_PREFIXES");
+    const char* layer_modes_env = std::getenv("LAYER_MODES");
     const char* output_prefix_env = std::getenv("OUTPUT_URI_PREFIX");
 
-    if (!task_index_str || !layer_prefixes_env || !output_prefix_env) {
+    if (!task_index_str || !layer_prefixes_env || !layer_modes_env || !output_prefix_env) {
         std::cerr << "[LOOM BATCH]: Missing required env vars (BATCH_TASK_INDEX, "
-                     "LAYER_URI_PREFIXES, OUTPUT_URI_PREFIX)\n";
+                     "LAYER_URI_PREFIXES, LAYER_MODES, OUTPUT_URI_PREFIX)\n";
         return 1;
     }
 
@@ -31,21 +36,42 @@ static int RunBatchMode() {
     char frame_str[8];
     std::snprintf(frame_str, sizeof(frame_str), "%04d", frame);
 
-    // Build per-frame input file list from comma-separated layer prefixes
-    std::vector<std::string> input_files;
-    {
-        std::istringstream ss(layer_prefixes_env);
+    // Parse comma-separated layer prefixes and modes in parallel.
+    auto split_csv = [](const char* env) -> std::vector<std::string> {
+        std::vector<std::string> parts;
+        std::istringstream ss(env);
         std::string token;
         while (std::getline(ss, token, ',')) {
-            if (token.empty()) continue;
-            if (token.back() != '/') token += '/';
-            input_files.push_back(token + "frame-" + frame_str + ".exr");
+            if (!token.empty()) parts.push_back(token);
         }
+        return parts;
+    };
+
+    std::vector<std::string> prefixes = split_csv(layer_prefixes_env);
+    std::vector<std::string> modes = split_csv(layer_modes_env);
+
+    if (prefixes.empty()) {
+        std::cerr << "[LOOM BATCH]: No input layers derived from LAYER_URI_PREFIXES\n";
+        return 1;
+    }
+    if (modes.size() != prefixes.size()) {
+        std::cerr << "[LOOM BATCH]: LAYER_MODES count (" << modes.size()
+                  << ") does not match LAYER_URI_PREFIXES count (" << prefixes.size() << ")\n";
+        return 1;
     }
 
-    if (input_files.empty()) {
-        std::cerr << "[LOOM BATCH]: No input files derived from LAYER_URI_PREFIXES\n";
-        return 1;
+    // Build per-frame input file list.
+    // Static layers always use static.exr; animated layers use frame-NNNN.exr.
+    std::vector<std::string> input_files;
+    for (size_t i = 0; i < prefixes.size(); ++i) {
+        std::string prefix = prefixes[i];
+        if (!prefix.empty() && prefix.back() != '/') prefix += '/';
+
+        if (modes[i] == "static") {
+            input_files.push_back(prefix + "static.exr");
+        } else {
+            input_files.push_back(prefix + "frame-" + frame_str + ".exr");
+        }
     }
 
     std::string output_prefix = output_prefix_env;
@@ -54,8 +80,9 @@ static int RunBatchMode() {
 
     std::cout << "[LOOM BATCH]: Frame " << frame << " | " << input_files.size()
               << " layers | output: " << output_path << "\n";
-    for (const auto& f : input_files) {
-        std::cout << "[LOOM BATCH]:   layer: " << f << "\n";
+    for (size_t i = 0; i < input_files.size(); ++i) {
+        std::cout << "[LOOM BATCH]:   layer[" << i << "] (" << modes[i] << "): " << input_files[i]
+                  << "\n";
     }
 
     try {
@@ -92,7 +119,6 @@ int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
 
-    // Cloud Batch sets BATCH_TASK_INDEX on every task VM.
     if (!std::getenv("BATCH_TASK_INDEX")) {
         std::cerr << "[LOOM BATCH]: BATCH_TASK_INDEX not set. "
                      "This binary runs as a Cloud Batch task only.\n";

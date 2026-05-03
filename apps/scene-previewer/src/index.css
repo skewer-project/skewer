@@ -94,7 +94,11 @@ body {
 	left: 16px;
 	display: flex;
 	align-items: stretch;
+	gap: 0;
 	height: 34px;
+	width: max-content;
+	min-width: 280px;
+	max-width: min(90vw, 520px);
 }
 
 .wordmark {
@@ -267,31 +271,57 @@ body {
 	background: var(--border-mid);
 }
 
-/* ── Timeline (animation scrubber) ──────── */
+/* ── Timeline ──────────────────────────── */
 
-.timeline {
+/* Shared horizontal insets so scrubber and dope-sheet track columns align. */
+:root {
+	--timeline-track-inset: 14px;
+}
+
+/* Outer shell: anchored at bottom, grows upward when expanded. */
+.timeline-shell {
 	position: absolute;
 	bottom: 0;
 	left: 0;
 	right: 0;
-	height: 48px;
 	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 0 14px;
+	flex-direction: column;
+	z-index: 12;
+}
+
+/* 48px scrubber row — uses same 220px|1fr grid as dope-sheet rows so playheads align. */
+.timeline-scrubber {
+	height: 48px;
+	display: grid;
+	grid-template-columns: 220px 1fr;
+	align-items: stretch;
 	border-radius: 0;
 	border-top: 1px solid var(--border);
 	border-left: none;
 	border-right: none;
 	border-bottom: none;
-	z-index: 12;
+	flex-shrink: 0;
 }
 
+/* Left 220px column: play controls + end-label + chevron, matching the label column. */
 .timeline-controls {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	flex-shrink: 0;
+	justify-content: space-between;
+	padding: 0 6px 0 var(--timeline-track-inset);
+	border-right: 1px solid var(--border);
+}
+
+.timeline-controls-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.timeline-controls-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 
 .timeline-play-btn {
@@ -322,13 +352,13 @@ body {
 	min-width: 52px;
 }
 
+/* Right 1fr column: the track slider, inset to match .timeline-row-track. */
 .timeline-track {
-	flex: 1;
-	height: 32px;
 	display: flex;
 	align-items: center;
 	cursor: pointer;
 	touch-action: none;
+	padding: 0 var(--timeline-track-inset);
 }
 
 .timeline-track-inner {
@@ -367,12 +397,194 @@ body {
 }
 
 .timeline-end-label {
-	flex-shrink: 0;
 	color: var(--t3);
 	font-variant-numeric: tabular-nums;
 	font-size: 10.5px;
-	min-width: 40px;
+	min-width: 36px;
 	text-align: right;
+}
+
+/* Expand/collapse chevron in the scrubber */
+.timeline-chevron-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--t3);
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		border-color 0.12s;
+}
+
+.timeline-chevron-btn:hover {
+	color: var(--t1);
+	border-color: var(--border-mid);
+}
+
+.timeline-chevron-icon {
+	transition: transform 0.18s ease;
+}
+
+.timeline-chevron-open {
+	transform: rotate(180deg);
+}
+
+/* ── Dope-sheet panel (expands above scrubber) ──────── */
+
+.timeline-dope-sheet {
+	border-top: 1px solid var(--border);
+	border-left: none;
+	border-right: none;
+	border-bottom: none;
+	border-radius: 0;
+	overflow-y: auto;
+	max-height: min(40vh, 280px);
+	min-height: 60px;
+}
+
+.timeline-dope-inner {
+	position: relative;
+}
+
+/* Full-height playhead overlay — aligns with row track diamonds.
+   220px = label column width; --timeline-track-inset = padding on each side. */
+.timeline-dope-playhead {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	background: rgba(232, 165, 60, 0.4);
+	pointer-events: none;
+	z-index: 2;
+	left: calc(
+		220px +
+		var(--timeline-track-inset) +
+		var(--playhead-frac, 0) *
+		(100% - 220px - 2 * var(--timeline-track-inset))
+	);
+	transform: translateX(-50%);
+}
+
+.timeline-dope-empty {
+	padding: 12px var(--timeline-track-inset);
+	color: var(--t3);
+	font-size: 11px;
+}
+
+/* One row: [label 220px | track flex-1] */
+.timeline-row {
+	display: grid;
+	grid-template-columns: 220px 1fr;
+	height: 22px;
+	align-items: center;
+	border-bottom: 1px solid transparent;
+}
+
+.timeline-row:nth-child(even) {
+	background: rgba(255, 255, 255, 0.018);
+}
+
+.timeline-group-row {
+	background: rgba(255, 255, 255, 0.028);
+}
+
+.timeline-group-row:nth-child(even) {
+	background: rgba(255, 255, 255, 0.038);
+}
+
+.timeline-row-label {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	overflow: hidden;
+	white-space: nowrap;
+	border-right: 1px solid var(--border);
+	height: 100%;
+	padding-right: 6px;
+	flex-shrink: 0;
+}
+
+.timeline-row-leaf-spacer {
+	display: inline-block;
+	width: 16px;
+	flex-shrink: 0;
+}
+
+.timeline-row-expand {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	padding: 0;
+	flex-shrink: 0;
+	background: transparent;
+	border: none;
+	color: var(--t3);
+	cursor: pointer;
+}
+
+.timeline-row-expand:hover {
+	color: var(--t1);
+}
+
+.timeline-row-expand-icon {
+	transition: transform 0.14s ease;
+}
+
+.timeline-row-expand-open {
+	transform: rotate(90deg);
+}
+
+.timeline-row-kind-badge {
+	font-size: 9px;
+	color: var(--t3);
+	font-family: var(--mono);
+	flex-shrink: 0;
+	letter-spacing: 0.02em;
+}
+
+.timeline-row-name {
+	font-size: 11px;
+	color: var(--t1);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Track area: same horizontal padding as scrubber so diamonds align */
+.timeline-row-track {
+	position: relative;
+	height: 100%;
+	padding: 0 var(--timeline-track-inset);
+}
+
+/* Small row diamond (5px vs scrubber 7px) */
+.timeline-row-kf {
+	position: absolute;
+	top: 50%;
+	z-index: 1;
+	transform: translate(-50%, -50%) rotate(45deg);
+	width: 5px;
+	height: 5px;
+	background: rgba(224, 217, 200, 0.75);
+	border: 1px solid rgba(232, 165, 60, 0.5);
+}
+
+.timeline-row-kf.draggable {
+	cursor: grab;
+}
+
+.timeline-row-kf.dragging {
+	cursor: grabbing;
+	background: var(--amber);
+	border-color: var(--amber);
+	box-shadow: 0 0 4px rgba(232, 165, 60, 0.6);
 }
 
 /* ── Bottom-right stack: reset camera + stats ──────── */
@@ -381,6 +593,7 @@ body {
 	position: absolute;
 	bottom: 72px;
 	right: 16px;
+	z-index: 15;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
@@ -1210,6 +1423,15 @@ button.data-row {
 	min-height: 1.7lh;
 }
 
+/* Vec2 row: label + 2 number inputs */
+.vec2-row {
+	display: grid;
+	grid-template-columns: 40px 1fr 1fr;
+	gap: 0 6px;
+	align-items: center;
+	min-height: 1.7lh;
+}
+
 .vec3-cell {
 	display: flex;
 	flex-direction: row;
@@ -1633,4 +1855,233 @@ button.data-row {
 
 .kf-action-btn {
 	margin-top: 0;
+}
+
+/* ── Cloud jobs + auth ─────────────────── */
+
+.user-menu {
+	display: flex;
+	align-items: center;
+	padding-right: 4px;
+	border-right: 1px solid var(--border-mid);
+}
+
+.user-menu-signin {
+	padding: 0 10px;
+	font-size: 10.5px;
+	white-space: nowrap;
+}
+
+.user-menu-err {
+	margin-left: 6px;
+	font-size: 9px;
+	color: var(--red);
+	max-width: 100px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.user-menu-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.avatar {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	margin: 0 8px;
+	border: 1px solid var(--border-mid);
+	border-radius: 50%;
+	background: var(--bg);
+	cursor: pointer;
+	overflow: hidden;
+}
+
+.avatar img {
+	width: 100%;
+	height: 100%;
+	display: block;
+	object-fit: cover;
+}
+
+.avatar-fallback {
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--t1);
+}
+
+.user-menu-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 5;
+}
+
+.user-menu-popover {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	margin-top: 4px;
+	z-index: 6;
+	min-width: 180px;
+	padding: 8px 10px;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	backdrop-filter: blur(12px);
+}
+
+.user-menu-email {
+	color: var(--t1);
+	font-size: 10px;
+	margin-bottom: 6px;
+	word-break: break-all;
+}
+
+.user-menu-out {
+	margin-top: 0;
+	background: transparent;
+	border: 1px solid var(--border-mid);
+	color: var(--t2);
+	font-family: var(--mono);
+	font-size: 10px;
+	padding: 4px 8px;
+	cursor: pointer;
+}
+
+.user-menu-out:hover {
+	color: var(--t0);
+	border-color: var(--t3);
+}
+
+.jobs-panel {
+	position: absolute;
+	bottom: 120px;
+	right: 16px;
+	z-index: 8;
+	pointer-events: auto;
+}
+
+.jobs-panel-toggle {
+	white-space: nowrap;
+}
+
+.jobs-panel-inner {
+	max-width: 280px;
+	max-height: 40vh;
+	overflow: auto;
+	margin-top: 4px;
+	padding: 8px;
+}
+
+.jobs-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.jobs-card {
+	font-size: 10px;
+	border: 1px solid var(--border-mid);
+	background: rgba(0, 0, 0, 0.2);
+	padding: 8px;
+	cursor: default;
+}
+
+.jobs-card-terminal {
+	cursor: pointer;
+}
+
+.jobs-card-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px;
+	margin-bottom: 4px;
+}
+
+.jobs-card-title {
+	color: var(--t1);
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	flex: 1;
+}
+
+.jobs-card-cancel,
+.jobs-card-x {
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--t3);
+	padding: 2px 4px;
+	cursor: pointer;
+}
+
+.jobs-card-cancel:hover,
+.jobs-card-x:hover {
+	color: var(--t1);
+	border-color: var(--border-mid);
+}
+
+.jobs-card-status-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--t2);
+}
+
+.jobs-status-txt {
+	flex: 1;
+}
+
+.jobs-spinner {
+	animation: jobs-spin 0.9s linear infinite;
+	color: var(--amber);
+}
+
+@keyframes jobs-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.progress-bar-wrap {
+	flex: 1;
+	height: 4px;
+	background: var(--border);
+	border-radius: 1px;
+	overflow: hidden;
+}
+
+.progress-bar {
+	height: 100%;
+	background: var(--amber);
+}
+
+.jobs-error {
+	color: var(--red);
+	margin-top: 4px;
+	font-size: 9.5px;
+}
+
+.jobs-composite {
+	margin-top: 6px;
+	max-width: 100%;
+	border: 1px solid var(--border);
+}
+
+.jobs-actions {
+	margin-top: 6px;
+}
+
+.jobs-retry {
+	width: 100%;
+	justify-content: center;
+}
+
+.jobs-empty {
+	color: var(--t3);
+	font-size: 10px;
+	padding: 4px 0;
 }

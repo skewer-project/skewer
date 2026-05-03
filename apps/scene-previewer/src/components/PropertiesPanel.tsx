@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { resolveNodeAtPath, updateNodeAtPath } from "../services/graph-path";
 import { evaluateTransformAt } from "../services/transform";
 import type {
@@ -127,12 +127,16 @@ function CommonTransformBlock({
 	onTimeChange: Props["onTimeChange"];
 }) {
 	const animated = isAnimated(node.transform);
-	const [kfSelIdx, setKfSelIdx] = useState(0);
 
 	const sortedKfs = useMemo(() => {
 		if (!isAnimated(node.transform)) return [];
 		return sortKeyframes(node.transform.keyframes);
 	}, [node.transform]);
+
+	// Auto-select the keyframe whose time matches currentTime (e.g. from dope-sheet click).
+	const kfSelIdx = useMemo(() => {
+		return sortedKfs.findIndex((k) => Math.abs(k.time - currentTime) < 1e-4);
+	}, [currentTime, sortedKfs]);
 
 	const idx = Math.min(kfSelIdx, Math.max(0, sortedKfs.length - 1));
 	const selKf = sortedKfs[idx];
@@ -189,7 +193,6 @@ function CommonTransformBlock({
 								className={`kf-row${rowIdx === idx ? " kf-row-selected" : ""}`}
 								onClick={() => {
 									onTimeChange(kf.time);
-									setKfSelIdx(rowIdx);
 								}}
 							>
 								<span className="kf-row-time">{kf.time.toFixed(2)}s</span>
@@ -199,7 +202,7 @@ function CommonTransformBlock({
 					})}
 				</div>
 
-				{selKf && idx < sortedKfs.length - 1 && (
+				{selKf && idx > 0 && (
 					<div className="kv-row kf-curve-row">
 						<span className="kv-key">curve</span>
 						<select
@@ -219,7 +222,7 @@ function CommonTransformBlock({
 					</div>
 				)}
 
-				{selKf && curveToPreset(selKf.curve) === "custom" && (
+				{selKf && idx > 0 && curveToPreset(selKf.curve) === "custom" && (
 					<div className="kf-bezier-grid">
 						{(["p1x", "p1y", "p2x", "p2y"] as const).map((label, i) => (
 							<NumberField
@@ -311,7 +314,6 @@ function CommonTransformBlock({
 							);
 							if (next.length === 0) return;
 							replaceKeyframes(next);
-							setKfSelIdx(0);
 						}}
 					>
 						delete keyframe
@@ -419,6 +421,25 @@ function CommonTransformBlock({
 				}}
 			>
 				animate
+			</button>
+			<button
+				type="button"
+				className="delete-obj-btn kf-action-btn"
+				onClick={() => {
+					const st = evaluateTransformAt(node.transform, currentTime);
+					onSceneEdit((s) =>
+						updateNodeAtPath(s, objectKey, (o) => ({
+							...o,
+							transform: st,
+						})),
+					);
+					viewportRef.current?.applyPatch(scene, objectKey, {
+						kind: "node-transform",
+						value: st,
+					});
+				}}
+			>
+				reset to anim
 			</button>
 		</div>
 	);

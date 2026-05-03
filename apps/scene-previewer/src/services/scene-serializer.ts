@@ -18,6 +18,11 @@ function jsonLine(value: unknown): string {
 	return `${JSON.stringify(value, null, 2)}\n`;
 }
 
+/** Same as on-disk `scene.json` / layer JSON (trailing newline). */
+export function formatJsonLine(value: unknown): string {
+	return jsonLine(value);
+}
+
 function serializeCamera(c: Camera): Record<string, unknown> {
 	const o: Record<string, unknown> = {
 		look_from: c.look_from,
@@ -167,7 +172,7 @@ function serializeRenderConfig(r: RenderConfig): Record<string, unknown> {
 	return j;
 }
 
-function serializeLayerData(data: LayerData): Record<string, unknown> {
+export function serializeLayerData(data: LayerData): Record<string, unknown> {
 	const materials: Record<string, unknown> = {};
 	for (const [name, mat] of Object.entries(data.materials)) {
 		materials[name] = serializeMaterial(mat);
@@ -181,13 +186,19 @@ function serializeLayerData(data: LayerData): Record<string, unknown> {
 	return o;
 }
 
-function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
+export function serializeManifest(
+	scene: ResolvedScene,
+): Record<string, unknown> {
 	return {
 		camera: serializeCamera(scene.camera),
 		context: scene.contexts.map((l) => l.path),
 		layers: scene.layers.map((l) => l.path),
 		output_dir: scene.output_dir,
 	};
+}
+
+export function serializeSceneJSON(scene: ResolvedScene): string {
+	return formatJsonLine(serializeManifest(scene));
 }
 
 export async function saveScene(

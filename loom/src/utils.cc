@@ -1,7 +1,9 @@
 #include "utils.h"
 
-#include <algorithm>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
 namespace deep_compositor {
 

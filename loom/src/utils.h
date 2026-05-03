@@ -1,10 +1,8 @@
 #ifndef LOOM_SRC_UTILS_H
 #define LOOM_SRC_UTILS_H
 
+#include <algorithm>
 #include <chrono>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
 #include <string>
 
 namespace deep_compositor {

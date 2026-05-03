@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -524,6 +525,33 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
     config.shutter_open = GetOr(cam, "shutter_open", 0.0f);
     config.shutter_close = GetOr(cam, "shutter_close", 0.0f);
 
+    if (j.contains("animation")) {
+        const auto& a = j["animation"];
+        AnimationConfig anim{};
+        anim.start = a.at("start").get<float>();
+        anim.end = a.at("end").get<float>();
+        anim.fps = a.at("fps").get<float>();
+        anim.shutter_angle = a.at("shutter_angle").get<float>();
+
+        if (!(anim.fps > 0.0f)) {
+            throw std::runtime_error("animation.fps must be positive in: " + filepath);
+        }
+        if (anim.end < anim.start) {
+            throw std::runtime_error("animation.end must be >= animation.start in: " + filepath);
+        }
+        if (!(anim.shutter_angle > 0.0f) || anim.shutter_angle > 360.0f) {
+            throw std::runtime_error("animation.shutter_angle must be in (0, 360] in: " + filepath);
+        }
+
+        if (cam.contains("shutter_open") || cam.contains("shutter_close")) {
+            std::cerr << "[Warning] Scene \"" << filepath
+                      << "\" has both \"animation\" and camera shutter_open/shutter_close; "
+                         "camera shutter is ignored for rendering.\n";
+        }
+
+        config.animation = anim;
+    }
+
     // Output directory (local path or cloud URI — used as-is, not resolved)
     config.output_dir = GetOr<std::string>(j, "output_dir", "");
 
@@ -540,6 +568,14 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
     }
 
     return config;
+}
+
+LayerAnimationFlags PeekLayerAnimationFlags(const std::string& filepath) {
+    json j = OpenJSON(filepath);
+    LayerAnimationFlags f{};
+    f.animated_key_present = j.contains("animated");
+    f.animated = GetOr(j, "animated", false);
+    return f;
 }
 
 LayerConfig LoadLayerFile(const std::string& filepath, Scene& scene) {
@@ -560,6 +596,8 @@ LayerConfig LoadLayerFile(const std::string& filepath, Scene& scene) {
 
     LayerConfig lcfg{};
     lcfg.visible = layer_visible;
+    lcfg.animated_key_present = j.contains("animated");
+    lcfg.animated = GetOr(j, "animated", false);
     lcfg.render_options = ParseRenderOptions(j);
     return lcfg;
 }

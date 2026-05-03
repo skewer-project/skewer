@@ -1,33 +1,41 @@
-import { Camera, Maximize, Move, Rotate3d } from "lucide-react";
+import { Camera, Cloud, Maximize, Move, Rotate3d } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { JobsPanel } from "./components/JobsPanel";
 import { LandingPage } from "./components/LandingPage";
 import {
 	MaterialPropertiesPanel,
 	PropertiesPanel,
 } from "./components/PropertiesPanel";
+import { RenderConfirmDialog } from "./components/RenderConfirmDialog";
 import { SceneInspector } from "./components/SceneInspector";
 import { Timeline } from "./components/Timeline";
+import { UserMenu } from "./components/UserMenu";
 import type { ViewportHandle } from "./components/Viewport";
 import { Viewport } from "./components/Viewport";
+import { resumePendingJobs, startCloudRender } from "./services/cloud-render";
 import {
 	countGraphNodes,
 	deleteNodeAtPath,
 	insertChild,
 	resolveNodeAtPath,
 	updateNodeAtPath,
-} from "./services/graph-path";
-import {
-	applyStaticTransformToAnimatedAtTime,
-	evaluateTransformAt,
-} from "./services/transform";
-import { isAnimated } from "./types/scene";
+} from "./services/graph-path"; // check difference between resolve and update
 import { addRecentScene } from "./services/recent-scenes";
 import { saveScene } from "./services/scene-serializer";
 import {
+	applyStaticTransformToAnimatedAtTime,
+	collectAnimatedNodeTracks,
 	collectSceneKeyframeTimes,
+	evaluateTransformAt,
 	getAnimationRange,
 } from "./services/transform";
-import type { Material, ResolvedScene, SceneNode } from "./types/scene";
+import type {
+	Material,
+	RenderConfig,
+	ResolvedScene,
+	SceneNode,
+} from "./types/scene";
+import { isAnimated } from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
@@ -58,6 +66,23 @@ function App() {
 		"world",
 	);
 
+	const [renderSettings, setRenderSettings] = useState<RenderConfig>({
+		integrator: "path_trace",
+		max_samples: 128,
+		min_samples: 16,
+		max_depth: 8,
+		threads: 0,
+		noise_threshold: 0.01,
+		enable_deep: false,
+		image: {
+			width: 1920,
+			height: 1080,
+		},
+	});
+	const [renderStartTime, setRenderStartTime] = useState(0);
+	const [renderEndTime, setRenderEndTime] = useState(0);
+	const [renderFps, setRenderFps] = useState(24);
+
 	const handleSelectObject = useCallback((key: string | null) => {
 		setSelectedObjectKey(key);
 		setSelectedMaterialKey(null);
@@ -69,6 +94,7 @@ function App() {
 	}, []);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
+	const [showRenderDialog, setShowRenderDialog] = useState(false);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [isPlaying, setIsPlaying] = useState(false);
@@ -114,6 +140,23 @@ function App() {
 			setSaving(false);
 		}
 	}
+
+	const handleKeyframeMove = useCallback(
+		(trackKey: string, oldTime: number, newTime: number) => {
+			handleSceneEdit((s) =>
+				updateNodeAtPath(s, trackKey, (node) => {
+					if (!isAnimated(node.transform)) return node;
+					const kfs = node.transform.keyframes
+						.map((k) =>
+							Math.abs(k.time - oldTime) < 1e-6 ? { ...k, time: newTime } : k,
+						)
+						.sort((a, b) => a.time - b.time);
+					return { ...node, transform: { keyframes: kfs } };
+				}),
+			);
+		},
+		[handleSceneEdit],
+	);
 
 	const handleDeleteObject = useCallback(
 		(objectKey: string) => {
@@ -245,10 +288,17 @@ function App() {
 		() => (scene ? getAnimationRange(scene) : { start: 0, end: 0 }),
 		[scene],
 	);
-	animRangeRef.current = animRange;
+	useEffect(() => {
+		animRangeRef.current = animRange;
+	}, [animRange]);
 
 	const timelineKeyframeTimes = useMemo(
 		() => (scene ? collectSceneKeyframeTimes(scene) : []),
+		[scene],
+	);
+
+	const timelineTracks = useMemo(
+		() => (scene ? collectAnimatedNodeTracks(scene) : []),
 		[scene],
 	);
 
@@ -285,6 +335,10 @@ function App() {
 		return () => window.removeEventListener("keydown", onKey);
 	}, [scene]);
 
+	useEffect(() => {
+		resumePendingJobs();
+	}, []);
+
 	return (
 		<div className="app-root">
 			{/* Full-screen viewport */}
@@ -308,6 +362,7 @@ function App() {
 			<div className="hud">
 				{/* Top-left: header panel */}
 				<div className="panel hud-header">
+					<UserMenu />
 					<button
 						type="button"
 						className={`wordmark${scene ? " wordmark-link" : ""}`}
@@ -316,6 +371,20 @@ function App() {
 					>
 						Skewer
 					</button>
+					{scene && (
+						<button
+							type="button"
+							className="open-btn"
+							style={{ flex: 1 }}
+							onClick={() => setShowRenderDialog(true)}
+						>
+							<Cloud
+								size={14}
+								style={{ verticalAlign: "middle", marginRight: "6px" }}
+							/>
+							Render
+						</button>
+					)}
 					{scene && hasUnsavedChanges && (
 						<button
 							type="button"
@@ -363,7 +432,7 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "world" ? "active" : ""}`}
-								title="World (.)"
+								title="World"
 								onClick={() => setTransformSpace("world")}
 							>
 								Global
@@ -371,7 +440,7 @@ function App() {
 							<button
 								type="button"
 								className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
-								title="Local (,)"
+								title="Local"
 								onClick={() => setTransformSpace("local")}
 							>
 								Local
@@ -392,6 +461,14 @@ function App() {
 							onAddGraphNode={handleAddGraphNode}
 							onAddMaterial={handleAddMaterial}
 							dirHandle={dirHandle}
+							renderSettings={renderSettings}
+							onRenderSettingsChange={setRenderSettings}
+							startTime={renderStartTime}
+							onStartTimeChange={setRenderStartTime}
+							endTime={renderEndTime}
+							onEndTimeChange={setRenderEndTime}
+							fps={renderFps}
+							onFpsChange={setRenderFps}
 						/>
 					</div>
 				)}
@@ -430,7 +507,14 @@ function App() {
 						onTogglePlay={() => setIsPlaying((p) => !p)}
 						animRange={animRange}
 						keyframeTimes={timelineKeyframeTimes}
+						tracks={timelineTracks}
+						onKeyframeMove={handleKeyframeMove}
+						onSelectObject={handleSelectObject}
 					/>
+				)}
+
+				{scene && dirHandle && (
+					<JobsPanel scene={scene} dirHandle={dirHandle} />
 				)}
 
 				{scene && (
@@ -460,6 +544,32 @@ function App() {
 							)}
 						</div>
 					</div>
+				)}
+
+				{/* Render Confirmation Dialog */}
+				{scene && showRenderDialog && (
+					<RenderConfirmDialog
+						settings={renderSettings}
+						startTime={renderStartTime}
+						endTime={renderEndTime}
+						fps={renderFps}
+						onCancel={() => setShowRenderDialog(false)}
+						onConfirm={async () => {
+							setShowRenderDialog(false);
+							if (!scene || !dirHandle) return;
+							setError("");
+							try {
+								await startCloudRender({
+									scene,
+									dir: dirHandle,
+									enableCache: true,
+								});
+							} catch (e) {
+								const msg = e instanceof Error ? e.message : String(e);
+								setError(msg);
+							}
+						}}
+					/>
 				)}
 
 				{/* Landing page */}

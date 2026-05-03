@@ -53,7 +53,7 @@ TRS AnimatedTransform::Evaluate(float t) const {
     }
     float local_u = (t - k0.time) / dt;
     local_u = std::clamp(local_u, 0.0f, 1.0f);
-    float alpha = EvalCurveOrLinear(k0.curve, local_u);
+    float alpha = EvalCurveOrLinear(k1.curve, local_u);
 
     TRS out{};
     out.translation = LerpVec3(k0.transform.translation, k1.transform.translation, alpha);

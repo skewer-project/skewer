@@ -10,6 +10,8 @@ import type {
 	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
+import { formatObjectPathKey } from "./graph-path";
+import { displayLabel } from "./node-labels";
 
 const BEZIER_NEWTON_EPS = 1e-6;
 const BEZIER_NEWTON_MAX_ITER = 32;
@@ -114,7 +116,7 @@ function solveBezierParameter(
 	return sampleBezierY(t, p1y, p2y);
 }
 
-/** Easing alpha in [0,1] for segment progress u in [0,1], using k0's curve (k0 → k1). */
+/** Easing alpha in [0,1] for segment progress u in [0,1], using k1's curve (k0 → k1). */
 export function evaluateBezierEasing(
 	curve: InterpCurve | undefined,
 	u: number,
@@ -220,7 +222,7 @@ export function evaluateTransformAt(
 
 	let localU = (time - k0.time) / dt;
 	localU = Math.min(1, Math.max(0, localU));
-	const alpha = evaluateBezierEasing(k0.curve, localU);
+	const alpha = evaluateBezierEasing(k1.curve, localU);
 	return interpolateResolved(k0, k1, alpha);
 }
 
@@ -291,7 +293,10 @@ export function applyStaticTransformToObject3D(
 	}
 }
 
-function visitSceneNodes(nodes: SceneNode[], fn: (n: SceneNode) => void) {
+export function visitSceneNodes(
+	nodes: SceneNode[],
+	fn: (n: SceneNode) => void,
+) {
 	for (const n of nodes) {
 		fn(n);
 		if (n.kind === "group") visitSceneNodes(n.children, fn);
@@ -334,4 +339,107 @@ export function collectSceneKeyframeTimes(scene: ResolvedScene): number[] {
 		});
 	}
 	return [...times].sort((a, b) => a - b);
+}
+
+/** One row in the dope-sheet: one animated scene node with its raw keyframes. */
+export interface AnimatedNodeTrack {
+	/** Stable identity key, same format as used throughout the app. */
+	key: string;
+	label: string;
+	kind: SceneNode["kind"];
+	layerTag: "ctx" | "lyr";
+	layerIdx: number;
+	layerName: string;
+	/** Nesting depth for visual indentation (root nodes = 0). */
+	depth: number;
+	/** Path keys of every ancestor group, root-first. Used for tree-expand logic. */
+	ancestorKeys: string[];
+	/** Raw keyframes — future per-property graph editor reads translate/rotate/scale/curve. */
+	keyframes: Keyframe[];
+}
+
+/**
+ * Collect one AnimatedNodeTrack per animated node, DFS pre-order (contexts → layers).
+ * Also emits group-ancestor tracks (keyframes=[]) so the dope-sheet can render tree rows
+ * for groups that contain animated descendants even if they are not animated themselves.
+ */
+export function collectAnimatedNodeTracks(
+	scene: ResolvedScene,
+): AnimatedNodeTrack[] {
+	const tracks: AnimatedNodeTrack[] = [];
+
+	function walk(
+		nodes: SceneNode[],
+		tag: "ctx" | "lyr",
+		layerIdx: number,
+		layerName: string,
+		indices: number[],
+		ancestorKeys: string[],
+	): boolean {
+		let subtreeHasAnimation = false;
+		for (let i = 0; i < nodes.length; i++) {
+			const node = nodes[i];
+			const nodeIndices = [...indices, i];
+			const key = formatObjectPathKey(tag, layerIdx, nodeIndices);
+
+			if (node.kind === "group") {
+				// Speculatively record the insertion point; fill in after we know if
+				// any descendant is animated (we don't want empty group rows).
+				const insertIdx = tracks.length;
+				const groupAncestors = [...ancestorKeys, key];
+				const childHasAnim = walk(
+					node.children,
+					tag,
+					layerIdx,
+					layerName,
+					nodeIndices,
+					groupAncestors,
+				);
+				if (childHasAnim || isAnimated(node.transform)) {
+					subtreeHasAnimation = true;
+					// Insert the group row BEFORE its children (pre-order).
+					tracks.splice(insertIdx, 0, {
+						key,
+						label: displayLabel(node, key),
+						kind: node.kind,
+						layerTag: tag,
+						layerIdx,
+						layerName,
+						depth: indices.length,
+						ancestorKeys,
+						keyframes: isAnimated(node.transform)
+							? node.transform.keyframes
+							: [],
+					});
+				}
+			} else {
+				if (isAnimated(node.transform)) {
+					subtreeHasAnimation = true;
+					tracks.push({
+						key,
+						label: displayLabel(node, key),
+						kind: node.kind,
+						layerTag: tag,
+						layerIdx,
+						layerName,
+						depth: indices.length,
+						ancestorKeys,
+						keyframes: node.transform.keyframes,
+					});
+				}
+			}
+		}
+		return subtreeHasAnimation;
+	}
+
+	for (let i = 0; i < scene.contexts.length; i++) {
+		const layer = scene.contexts[i];
+		walk(layer.data.graph, "ctx", i, layer.name, [], []);
+	}
+	for (let i = 0; i < scene.layers.length; i++) {
+		const layer = scene.layers[i];
+		walk(layer.data.graph, "lyr", i, layer.name, [], []);
+	}
+
+	return tracks;
 }

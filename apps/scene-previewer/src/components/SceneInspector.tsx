@@ -6,9 +6,11 @@ import {
 	formatObjectPathKey,
 	parseObjectPathKey,
 } from "../services/graph-path";
+import { displayLabel, kindShort } from "../services/node-labels";
 import type {
 	Camera,
 	Material,
+	RenderConfig,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneNode,
@@ -17,37 +19,10 @@ import type {
 import { isAnimated } from "../types/scene";
 import { AddMaterialDialog } from "./AddMaterialDialog";
 import { AddObjectDialog } from "./AddObjectDialog";
+import { RenderSettingsPanel } from "./RenderSettingsPanel";
 
 function vec3(v: Vec3): string {
 	return `[${v.map((n) => +n.toFixed(3)).join(", ")}]`;
-}
-
-function displayLabel(node: SceneNode, pathKey: string): string {
-	if (node.name?.trim()) return node.name.trim();
-	const tail = pathKey.split(":").slice(2).join(":") || "0";
-	switch (node.kind) {
-		case "group":
-			return `group ${tail}`;
-		case "obj":
-			return node.file.split("/").pop() ?? node.file;
-		case "sphere":
-			return node.material ?? "sphere";
-		case "quad":
-			return node.material ?? "quad";
-	}
-}
-
-function kindShort(node: SceneNode): string {
-	switch (node.kind) {
-		case "group":
-			return "GRP";
-		case "sphere":
-			return "SPH";
-		case "quad":
-			return "QUAD";
-		case "obj":
-			return "OBJ";
-	}
 }
 
 function ancestorOpenKeys(selectedKey: string | null): string[] {
@@ -431,6 +406,14 @@ export function SceneInspector({
 	onAddGraphNode,
 	onAddMaterial,
 	dirHandle,
+	renderSettings,
+	onRenderSettingsChange,
+	startTime,
+	onStartTimeChange,
+	endTime,
+	onEndTimeChange,
+	fps,
+	onFpsChange,
 }: {
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
@@ -450,10 +433,29 @@ export function SceneInspector({
 		mat: Material,
 	) => void;
 	dirHandle: FileSystemDirectoryHandle;
+	renderSettings: RenderConfig;
+	onRenderSettingsChange: (s: RenderConfig) => void;
+	startTime: number;
+	onStartTimeChange: (n: number) => void;
+	endTime: number;
+	onEndTimeChange: (n: number) => void;
+	fps: number;
+	onFpsChange: (n: number) => void;
 }) {
 	return (
 		<div className="inspector">
 			<CameraSection camera={scene.camera} />
+
+			<RenderSettingsPanel
+				settings={renderSettings}
+				onSettingsChange={onRenderSettingsChange}
+				startTime={startTime}
+				onStartTimeChange={onStartTimeChange}
+				endTime={endTime}
+				onEndTimeChange={onEndTimeChange}
+				fps={fps}
+				onFpsChange={onFpsChange}
+			/>
 
 			{scene.contexts.length > 0 && (
 				<>

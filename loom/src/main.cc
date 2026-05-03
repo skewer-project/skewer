@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -170,51 +171,10 @@ int main(int argc, char* argv[]) {
     Timer loadTimer;
 
     std::vector<std::unique_ptr<DeepInfo>> imagesInfo;
-
-    for (size_t i = 0; i < opts.input_files.size(); ++i) {
-        const std::string& filename = opts.input_files[i];
-
-        LogVerbose("  [" + std::to_string(i + 1) + "/" + std::to_string(opts.input_files.size()) +
-                   "] " + filename);
-        printf("Preloading [%zu/%zu]: %s\n", i + 1, opts.input_files.size(), filename.c_str());
-        try {
-            // Check if it's a deep EXR
-            if (!exrio::isDeepEXR(filename)) {
-                LogError("File is not a deep EXR: " + filename);
-                return 1;
-            }
-
-            auto img = std::make_unique<DeepInfo>(filename);
-            // Log statistics
-            std::string stats =
-                "    " + std::to_string(img->width()) + "x" + std::to_string(img->height());
-            LogVerbose(stats);
-            if (!imagesInfo.empty()) {
-                if (img->width() != imagesInfo[0]->width() ||
-                    img->height() != imagesInfo[0]->height()) {
-                    LogError("Image dimensions mismatch: " + filename);
-                    LogError("  Expected: " + std::to_string(imagesInfo[0]->width()) + "x" +
-                             std::to_string(imagesInfo[0]->height()));
-                    LogError("  Got: " + std::to_string(img->width()) + "x" +
-                             std::to_string(img->height()));
-                    return 1;
-                }
-            }
-
-            imagesInfo.push_back(std::move(img));
-
-        } catch (const exrio::DeepReaderException& e) {
-            LogError("Failed to load " + filename + ": " + e.what());
-            return 1;
-        } catch (const std::exception& e) {
-            LogError("Unexpected error loading " + filename + ": " + e.what());
-            return 1;
-        }
-        if (!exrio::isDeepEXR(filename)) {
-            LogError("File is not a deep EXR: " + filename);
-            return 1;
-        }
+    if (exrio::SaveImageInfo(opts, imagesInfo)) {
+        return 1;
     }
+
     int height = imagesInfo[0]->height();
     int width = imagesInfo[0]->width();
 

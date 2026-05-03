@@ -48,6 +48,21 @@ resource "google_service_account_iam_member" "cloudbuild_actAs_coordinator" {
   member             = "serviceAccount:${google_service_account.cloudbuild.email}"
 }
 
+# Allow Cloud Build to deploy new revisions to the skewer-api Cloud Run service
+resource "google_cloud_run_v2_service_iam_member" "cloudbuild_api_developer" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.api.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
+
+resource "google_service_account_iam_member" "cloudbuild_actAs_api" {
+  service_account_id = google_service_account.api.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
+
 resource "google_cloudbuild_trigger" "main_image_rebuild" {
   count       = var.cloudbuild_repository_id == null ? 0 : 1
   location    = var.region
@@ -69,7 +84,9 @@ resource "google_cloudbuild_trigger" "main_image_rebuild" {
     google_project_iam_member.cloudbuild_logs_writer,
     google_artifact_registry_repository_iam_member.cloudbuild_ar_writer,
     google_cloud_run_v2_service_iam_member.cloudbuild_run_developer,
-    google_service_account_iam_member.cloudbuild_actAs_coordinator
+    google_service_account_iam_member.cloudbuild_actAs_coordinator,
+    google_cloud_run_v2_service_iam_member.cloudbuild_api_developer,
+    google_service_account_iam_member.cloudbuild_actAs_api,
   ]
 }
 

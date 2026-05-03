@@ -5,6 +5,13 @@ resource "google_storage_bucket" "data" {
 
   uniform_bucket_level_access = true
 
+  cors {
+    origin          = var.previewer_cors_origins
+    method          = ["GET", "PUT", "OPTIONS", "HEAD"]
+    response_header = ["Content-Type", "x-goog-meta-*"]
+    max_age_seconds = 3600
+  }
+
   lifecycle_rule {
     condition {
       age = var.data_retention_days
