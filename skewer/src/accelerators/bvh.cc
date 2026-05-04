@@ -35,6 +35,20 @@ static BoundBox GetBounds(const Triangle& t) {
     return bbox;
 }
 
+struct BVHTraversalEntry {
+    uint32_t node_idx;
+    float t_near;
+};
+
+static bool IntersectBoundsNear(const BoundBox& bounds, const Ray& r, float t_min, float t_max,
+                                float* out_t_near) {
+    float near_t = t_min;
+    float far_t = t_max;
+    if (!bounds.IntersectP(r, near_t, far_t)) return false;
+    *out_t_near = near_t;
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Build
 // ---------------------------------------------------------------------------
@@ -216,21 +230,22 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
     bool hit_anything = false;
     float closest_t = t_max;
 
-    const Vec3& inv_dir = r.inv_direction();
-    const int dir_is_neg[3] = {inv_dir.x() < 0, inv_dir.y() < 0, inv_dir.z() < 0};
+    const BVHNode* nodes = nodes_.data();
+    const Triangle* triangle_data = triangles.data();
+    BVHTraversalEntry nodes_to_visit[64];
+    int to_visit_offset = -1;
+    uint32_t current_node_idx = 0;
+    float current_t_near = t_min;
 
-    int nodes_to_visit[64];
-    int to_visit_offset = 0;
+    if (!IntersectBoundsNear(nodes[0].bounds, r, t_min, closest_t, &current_t_near)) return false;
 
-    nodes_to_visit[0] = 0;
-    while (to_visit_offset >= 0) {
-        int current_node_idx = nodes_to_visit[to_visit_offset--];
-        const BVHNode& node = GetNodes()[current_node_idx];
+    while (true) {
+        const BVHNode& node = nodes[current_node_idx];
 
-        if (node.bounds.Intersect(r, t_min, closest_t)) {
+        if (current_t_near < closest_t) {
             if (node.tri_count > 0) {
                 for (uint32_t i = 0; i < node.tri_count; ++i) {
-                    const Triangle& tri = triangles[node.left_first + i];
+                    const Triangle& tri = triangle_data[node.left_first + i];
                     if (IntersectTriangle(r, tri, t_min, closest_t, si)) {
                         hit_anything = true;
                         closest_t = si->t;
@@ -240,16 +255,47 @@ bool BVH::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction* 
                     }
                 }
             } else {
-                int axis = node.bounds.LongestAxis();
-                if (dir_is_neg[axis]) {
-                    nodes_to_visit[++to_visit_offset] = node.left_first;
-                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
-                } else {
-                    nodes_to_visit[++to_visit_offset] = node.left_first + 1;
-                    nodes_to_visit[++to_visit_offset] = node.left_first;
+                const uint32_t left_idx = node.left_first;
+                const uint32_t right_idx = left_idx + 1;
+                float left_t_near = t_min;
+                float right_t_near = t_min;
+                bool hit_left =
+                    IntersectBoundsNear(nodes[left_idx].bounds, r, t_min, closest_t, &left_t_near);
+                bool hit_right = IntersectBoundsNear(nodes[right_idx].bounds, r, t_min, closest_t,
+                                                     &right_t_near);
+
+                if (hit_left && hit_right) {
+                    uint32_t near_idx = left_idx;
+                    uint32_t far_idx = right_idx;
+                    float near_t = left_t_near;
+                    float far_t = right_t_near;
+                    if (right_t_near < left_t_near) {
+                        near_idx = right_idx;
+                        far_idx = left_idx;
+                        near_t = right_t_near;
+                        far_t = left_t_near;
+                    }
+                    nodes_to_visit[++to_visit_offset] = {far_idx, far_t};
+                    current_node_idx = near_idx;
+                    current_t_near = near_t;
+                    continue;
+                }
+                if (hit_left) {
+                    current_node_idx = left_idx;
+                    current_t_near = left_t_near;
+                    continue;
+                }
+                if (hit_right) {
+                    current_node_idx = right_idx;
+                    current_t_near = right_t_near;
+                    continue;
                 }
             }
         }
+        if (to_visit_offset < 0) break;
+        const BVHTraversalEntry next = nodes_to_visit[to_visit_offset--];
+        current_node_idx = next.node_idx;
+        current_t_near = next.t_near;
     }
     return hit_anything;
 }
