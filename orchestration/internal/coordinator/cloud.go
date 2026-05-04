@@ -105,8 +105,8 @@ type layerDescriptor struct {
 // minimalSceneJSON is the minimal subset of scene.json parsed by the coordinator.
 // It mirrors the keys in the C++ SceneConfig / LoadSceneFile.
 type minimalSceneJSON struct {
-	Layers  []string `json:"layers"`
-	Context []string `json:"context"`
+	Layers    []string `json:"layers"`
+	Context   []string `json:"context"`
 	Animation *struct {
 		Start        float64 `json:"start"`
 		End          float64 `json:"end"`
@@ -173,6 +173,14 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		layerID := gcsFileStem(layerURI)
 		if layerID == "" {
 			layerID = fmt.Sprintf("layer%d", i)
+		}
+
+		// Validate layer_id length so GCP Batch job IDs stay under the 63-char limit.
+		// Pipeline IDs are 37 chars ("p-" + 36-char UUID). The longest suffix is
+		// "-animated" (9 chars) plus two separator dashes. That leaves 16 chars max.
+		// So this is essentially a validation test to not waste the user's time
+		if len(layerID) > 16 {
+			return "", fmt.Errorf("layer_id %q from %s is %d characters, exceeds 16-char limit; GCP Batch job IDs are capped at 63 characters", layerID, layerURI, len(layerID))
 		}
 
 		cacheKey := ""
