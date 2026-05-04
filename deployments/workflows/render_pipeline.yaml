@@ -235,7 +235,7 @@ submit_batch_render_static:
   steps:
     - init_static:
         assign:
-          - job_id: '${pipeline_id + "-" + layer.layer_id + "-static"}'
+          - job_id: '${text.replace_all(pipeline_id + "-" + layer.layer_id + "-static", "_", "-")}'
           - fuse_data: '${"/mnt/" + data_bucket}'
           - fuse_cache: '${"/mnt/" + cache_bucket}'
           - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
@@ -257,6 +257,8 @@ submit_batch_render_static:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: 1
@@ -342,7 +344,7 @@ submit_batch_render_animated:
   steps:
     - init_animated:
         assign:
-          - job_id: '${pipeline_id + "-" + layer.layer_id + "-animated"}'
+          - job_id: '${text.replace_all(pipeline_id + "-" + layer.layer_id + "-animated", "_", "-")}'
           - fuse_data: '${"/mnt/" + data_bucket}'
           - fuse_cache: '${"/mnt/" + cache_bucket}'
           - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
@@ -366,6 +368,8 @@ submit_batch_render_animated:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: ${task_count}
@@ -473,6 +477,8 @@ submit_batch_composite:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: ${num_frames}
