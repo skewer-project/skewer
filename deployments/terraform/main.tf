@@ -8,7 +8,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "skewer-488003-tfstate"
+    bucket = "skwr-ucd-tfstate"
     prefix = "skewer"
   }
 }
