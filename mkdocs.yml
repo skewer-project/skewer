@@ -40,18 +40,18 @@ nav:
   - Developer Guide:
       - Overview & Onboarding: developer/index.md
       - Skewer (Renderer):
-          - Accelerators: developer/skewer/accelerators.md
-          - Core: developer/skewer/core.md
-          - Film: developer/skewer/film.md
-          - Deep Image System: developer/skewer/deep_data.md
-          - Geometry: developer/skewer/geometry.md
-          - Integrators: developer/skewer/integrators.md
-          - IO: developer/skewer/io.md
-          - Kernels: developer/skewer/kernels.md
-          - Materials: developer/skewer/materials.md
-          - Media & Volumes: developer/skewer/media.md
-          - Scene: developer/skewer/scene.md
-          - Session: developer/skewer/session.md
+          - The Deep Image System: developer/skewer/deep_data.md
+          - accelerators/: developer/skewer/accelerators.md
+          - core/: developer/skewer/core.md
+          - film/: developer/skewer/film.md
+          - geometry/: developer/skewer/geometry.md
+          - integrators/: developer/skewer/integrators.md
+          - io/: developer/skewer/io.md
+          - kernels/: developer/skewer/kernels.md
+          - materials/: developer/skewer/materials.md
+          - media/: developer/skewer/media.md
+          - scene/: developer/skewer/scene.md
+          - session/: developer/skewer/session.md
       - Loom (Compositor):
           - Interval Merge: developer/loom/interval_merge.md
   - Legacy: legacy/index.md
