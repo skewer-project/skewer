@@ -7,7 +7,13 @@ import {
 	Trash2,
 	X,
 } from "lucide-react";
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
 import type {
 	CloudJob,
@@ -15,6 +21,8 @@ import type {
 } from "../services/cloud-job-types";
 import {
 	downloadCompositePng,
+	refreshCloudJob,
+	refreshCloudJobs,
 	startCloudRender,
 	userCancelRender,
 } from "../services/cloud-render";
@@ -102,6 +110,7 @@ function JobRow({
 	onDownload,
 	onCancel,
 	onRemove,
+	onRefresh,
 	canRetry,
 }: {
 	job: CloudJob;
@@ -111,6 +120,7 @@ function JobRow({
 	onDownload: () => void;
 	onCancel: () => void;
 	onRemove: () => void;
+	onRefresh: () => void;
 	canRetry: boolean;
 }) {
 	const tone = statusTone(job);
@@ -190,6 +200,11 @@ function JobRow({
 						{job.error}
 					</div>
 				) : null}
+				{job.lastSyncError ? (
+					<div className={j.rowSync} role="status">
+						Last status check failed; retrying. {job.lastSyncError}
+					</div>
+				) : null}
 				{expanded && job.renderConfig ? (
 					<div className={j.detail}>
 						<div className={j.detailRow}>
@@ -262,6 +277,17 @@ function JobRow({
 						<span>Retry</span>
 					</button>
 				) : null}
+				{(job.status === "submitting" || job.status === "running") &&
+				!job.id.startsWith("local-") ? (
+					<button
+						type="button"
+						className={`${u.openBtn} ${j.action}`}
+						onClick={onRefresh}
+					>
+						<RefreshCw size={12} />
+						<span>Refresh</span>
+					</button>
+				) : null}
 				{job.status === "running" ? (
 					<button
 						type="button"
@@ -308,6 +334,10 @@ export function JobsModal({
 	const jobs = useJobs();
 	const [filter, setFilter] = useState<Filter>("all");
 	const [expandedId, setExpandedId] = useState<string | null>(null);
+
+	useEffect(() => {
+		refreshCloudJobs();
+	}, []);
 
 	const counts = useMemo(() => {
 		let running = 0;
@@ -395,6 +425,15 @@ export function JobsModal({
 					</div>
 					<button
 						type="button"
+						className={`${u.openBtn} ${j.refreshBtn}`}
+						onClick={refreshCloudJobs}
+						title="Refresh cloud render statuses"
+					>
+						<RefreshCw size={12} />
+						<span>Refresh</span>
+					</button>
+					<button
+						type="button"
 						className={`${u.openBtn} ${j.clearBtn}`}
 						disabled={completedCount === 0}
 						onClick={clearCompleted}
@@ -441,6 +480,7 @@ export function JobsModal({
 									onDownload={() => onDownload(j.id)}
 									onCancel={() => void userCancelRender(j.id)}
 									onRemove={() => onRemove(j.id)}
+									onRefresh={() => refreshCloudJob(j.id)}
 									canRetry={!!scene && !!dirHandle}
 								/>
 							))}
