@@ -1,35 +1,46 @@
-# Film & Deep Data
+# Film Architecture
 
-The Film system is responsible for aggregating high-frequency radiance samples into a final image or deep data structure.
+The Film system is responsible for aggregating high-frequency radiance samples into a final image. It acts as the collection point for the Monte Carlo path tracer.
 
-## Lock-Free Deep Memory Management
+Importantly, the Film takes AoS (Array of Structures) output produced by the integrator and applies any necessary operations before converting into a SoA (Structure of Arrays) format for writing/export.
 
-Rendering deep images requires storing millions of depth samples (segments) per frame. To handle this in a highly concurrent environment, Skewer uses a **Deep Segment Pool** (`skewer/src/film/deep_segment_pool.h`).
+## Pixel Data Structure
 
-### Chunked Allocation
-Instead of one massive upfront allocation, the pool uses a **Chunked Pool Allocator**.
-- **Chunks**: Nodes are allocated in fixed-size blocks (chunks).
-- **Scalability**: Threads use an `std::atomic` cursor for fast-path allocation. A mutex is only engaged when the pool needs to grow (allocate a new chunk).
+Skewer stores pixel data in a highly optimized `Pixel` struct (`skewer/src/film/film.h`). 
 
-### Atomic Linked Lists
-Each pixel in the film contains an `std::atomic<int> deep_head`, which is an index into the pool.
-- When a path tracer thread completes a sample, it pushes the new segments to the pixel using `compare_exchange_weak`.
-- This creates a per-pixel linked list of deep segments that is entirely **lock-free** during the primary path tracing loop.
+```cpp
+struct Pixel {
+    RGB color_sum;
+    float alpha_sum;
+    float weight_sum;
+    int sample_count;
+    RGB color_sq_sum;
+    std::atomic<int> deep_head;
+};
+```
+### Memory Layout (Hot vs. Cold)
+To maximize cache efficiency during the intensive path tracing loop, the `Pixel` struct groups all "hot" accumulation fields (`color_sum`, `color_sq_sum`, `sample_count`) at the beginning of the struct. The `deep_head` (an atomic integer used only for deep image linked lists) is placed at the end, as it is accessed far less frequently (only when paths terminate) or accessed cold during the final image assembly.
 
-## Deep Path Recording
+## The SampleWriter Pattern
 
-During the path trace, Skewer cannot immediately write segments to the film because the final radiance of a segment depends on the rest of the light path (Global Illumination).
+To decouple the integrator from the film and reduce contention, Skewer uses a `SampleWriter` (`skewer/src/film/sample_writer.h`). 
+- When an integrator begins evaluating a ray for a specific pixel, it instantiates a local `SampleWriter`.
+- The `SampleWriter` buffers the final beauty pass values and any generated deep segments locally (`BoundedArray<DeepSegment>`).
+- Once the path is fully resolved, the writer commits the data to the global `Film` object using `WriteBeauty` or `FlushDeepSegments`, minimizing the time spent modifying shared pixel state.
 
-### The Backward Pass
-Skewer uses a `DeepPathRecorder` (`skewer/src/core/transport/deep_path_recorder.h`) to solve this:
-1. **Forward Path**: As the ray bounces, we record `PathVertex` objects (local emission and BSDF weights).
-2. **Backward Resolve**: Once the path terminates, we iterate backwards from the end of the path to the camera.
-3. **Radiance Accumulation**: We resolve the Rendering Equation at each vertex: $L_{out} = L_{local} + (\text{BSDF}_{weight} \cdot L_{incoming})$.
-4. **Segment Extraction**: Only vertices still on the "Camera Path" (those that haven't been deflected by a non-transparent event) are pushed to the film as deep segments.
+## Adaptive Sampling & Convergence
 
-## Deep Image Assembly
+Skewer supports adaptive sampling to focus computational power on high-variance regions (noise).
 
-Once rendering is complete, the Film performs a final assembly pass (`BuildDeepImage`) to convert the raw linked lists into an OpenEXR-compatible format:
-1. **Depth Sorting**: Segments for each pixel are collected and sorted by `z_front`.
-2. **Stochastic Merging**: Since path tracing is stochastic, many segments might overlap. Skewer uses a depth-based **epsilon** to group and merge segments that are physically close, reducing file size.
-3. **True Opacity Calculation**: The opacity of a deep segment is calculated as the fraction of Monte Carlo paths that terminated at that depth versus the total number of paths that reached that depth.
+### Variance Tracking
+The film tracks both the sum of colors (`color_sum`) and the sum of squared colors (`color_sq_sum`). This allows the `IsPixelConverged` method to calculate the running variance of the pixel on the fly.
+
+### Luminance Clamping (Cycles Approach)
+Variance is evaluated based on human-perceived luminance (using Rec. 709 weights). A common issue in adaptive path tracers is that extremely dark pixels (where the mean luminance is near zero) will falsely report a massive relative variance, causing the renderer to waste samples there.
+Skewer implements the "Cycles approach" by clamping the minimum mean luminance to `0.5f` in the denominator:
+`noise = std::sqrt(var_lum / n) / std::max(mean_lum, 0.5f);`
+This ensures dark pixels use an absolute noise threshold, while bright pixels use a relative noise threshold.
+
+## Image Buffers
+
+Once rendering is complete, the `Film` translates the raw accumulated pixel data into exportable formats using `CreateFlatBuffer`. This divides the accumulated `color_sum` by `weight_sum` to produce the final, converged premultiplied RGB values, along with an average coverage alpha. These buffers are then routed to `image_io` for saving as PNGs or flat OpenEXR files.

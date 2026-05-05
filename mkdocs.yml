@@ -42,7 +42,8 @@ nav:
       - Skewer (Renderer):
           - Accelerators: developer/skewer/accelerators.md
           - Core: developer/skewer/core.md
-          - Film & Deep Data: developer/skewer/film.md
+          - Film: developer/skewer/film.md
+          - Deep Image System: developer/skewer/deep_data.md
           - Geometry: developer/skewer/geometry.md
           - Integrators: developer/skewer/integrators.md
           - IO: developer/skewer/io.md
