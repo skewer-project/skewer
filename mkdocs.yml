@@ -11,6 +11,7 @@ theme:
   features:
     - navigation.tracking
     - navigation.tabs
+    - navigation.expand
     - search.suggest
 
 nav:
