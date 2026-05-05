@@ -7,10 +7,7 @@ terraform {
     }
   }
 
-  backend "gcs" {
-    bucket = "skwr-ucd-tfstate"
-    prefix = "skewer"
-  }
+  backend "gcs" {}
 }
 
 provider "google" {
