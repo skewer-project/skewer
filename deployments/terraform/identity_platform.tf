@@ -18,6 +18,10 @@ resource "google_identity_platform_config" "default" {
     anonymous {
       enabled = false
     }
+    phone_number {
+      enabled            = false
+      test_phone_numbers = {}
+    }
   }
 
   authorized_domains = var.previewer_authorized_domains
