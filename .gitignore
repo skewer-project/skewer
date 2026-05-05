@@ -37,6 +37,7 @@ renders/
 *.tfstate.backup
 .terraform/
 terraform.tfvars
+deployments/terraform/backend.hcl
 
 # Go binaries
 /coordinator
