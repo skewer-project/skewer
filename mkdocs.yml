@@ -37,6 +37,22 @@ nav:
   - Deployment:
       - deployment/local.md
       - deployment/gcp.md
+  - Developer Guide:
+      - Overview & Onboarding: developer/index.md
+      - Skewer (Renderer):
+          - Accelerators: developer/skewer/accelerators.md
+          - Core: developer/skewer/core.md
+          - Film & Deep Data: developer/skewer/film.md
+          - Geometry: developer/skewer/geometry.md
+          - Integrators: developer/skewer/integrators.md
+          - IO: developer/skewer/io.md
+          - Kernels: developer/skewer/kernels.md
+          - Materials: developer/skewer/materials.md
+          - Media & Volumes: developer/skewer/media.md
+          - Scene: developer/skewer/scene.md
+          - Session: developer/skewer/session.md
+      - Loom (Compositor):
+          - Interval Merge: developer/loom/interval_merge.md
   - Legacy: legacy/index.md
 
 extra_javascript:
