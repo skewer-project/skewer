@@ -73,7 +73,7 @@ jobs:
         run: ccache -z
 
       - name: Build
-        run: cmake --build --preset ci --parallel
+        run: cmake --build --preset ci --parallel 6
 
       - name: Test
         run: ctest --preset ci --parallel -E "integration"
