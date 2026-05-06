@@ -47,6 +47,11 @@ if(SKEWER_COMBINED_BUILD_SKEWER)
   add_subdirectory(skewer)
 endif()
 
+# Required for integration tests
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
+
 # FetchContent deps (e.g. googletest) inherit directory compile options including -Werror.
 # Do not treat their warnings as build failures.
 if(BUILD_TESTING)
