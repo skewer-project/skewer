@@ -1,0 +1,343 @@
+.appRoot {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+.viewportFill {
+	position: absolute;
+	inset: 0;
+}
+
+.hud {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: 10;
+}
+
+.hud > * {
+	pointer-events: auto;
+}
+
+.hudHeader {
+	position: absolute;
+	top: 16px;
+	left: 16px;
+	display: flex;
+	align-items: stretch;
+	gap: 0;
+	height: 34px;
+	width: max-content;
+	z-index: 20;
+}
+
+.hudAccount {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	display: flex;
+	align-items: stretch;
+	height: 34px;
+	z-index: 20;
+}
+
+.hudToast {
+	position: absolute;
+	bottom: 60px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-width: min(80vw, 600px);
+	padding: 8px 8px 8px 14px;
+	font-size: 11px;
+	z-index: 50;
+	backdrop-filter: blur(18px) saturate(1.5);
+	-webkit-backdrop-filter: blur(18px) saturate(1.5);
+	animation: hudToastIn 0.18s ease-out;
+}
+
+.hudToastError {
+	color: var(--red);
+	background: rgba(224, 92, 92, 0.1);
+	border: 1px solid rgba(224, 92, 92, 0.32);
+}
+
+.hudToastMsg {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.hudToastX {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	color: inherit;
+	opacity: 0.65;
+	cursor: pointer;
+	padding: 4px;
+	line-height: 0;
+	transition: opacity 0.12s;
+}
+
+.hudToastX:hover {
+	opacity: 1;
+}
+
+.hudToolbar {
+	position: absolute;
+	top: 16px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: stretch;
+	height: 34px;
+	gap: 0;
+}
+
+.toolbarGroup {
+	display: flex;
+	align-items: stretch;
+}
+
+.toolbarBtn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	border-right: 1px solid var(--border-mid);
+	color: var(--t2);
+	font-family: var(--mono);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	padding: 0 12px;
+	height: 100%;
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		background 0.12s;
+	white-space: nowrap;
+}
+
+.toolbarBtn:hover:not(:disabled) {
+	color: var(--t1);
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.toolbarBtn:global(.active) {
+	background: var(--amber-lo);
+	border-color: var(--amber-border);
+	color: var(--amber);
+}
+
+.toolbarSep {
+	width: 1px;
+	background: var(--border-mid);
+}
+
+.hudSidebar {
+	position: absolute;
+	top: 62px;
+	left: 16px;
+	width: 318px;
+	max-height: calc(100dvh - 94px - 52px);
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-mid) transparent;
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.hudSidebar::-webkit-scrollbar {
+	width: 3px;
+}
+.hudSidebar::-webkit-scrollbar-track {
+	background: transparent;
+}
+.hudSidebar::-webkit-scrollbar-thumb {
+	background: var(--border-mid);
+}
+
+.hudProperties {
+	position: absolute;
+	top: 62px;
+	right: 16px;
+	width: 284px;
+	max-height: calc(100dvh - 94px - 52px);
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-mid) transparent;
+}
+
+.hudProperties::-webkit-scrollbar {
+	width: 3px;
+}
+.hudProperties::-webkit-scrollbar-track {
+	background: transparent;
+}
+.hudProperties::-webkit-scrollbar-thumb {
+	background: var(--border-mid);
+}
+
+.hudBottomStack {
+	position: absolute;
+	bottom: 72px;
+	right: 16px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 4px;
+}
+
+.hudResetCamBtn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 5px;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	backdrop-filter: blur(18px) saturate(1.5);
+	-webkit-backdrop-filter: blur(18px) saturate(1.5);
+	color: var(--t2);
+	cursor: pointer;
+	border-radius: 0px;
+	transition:
+		color 0.12s ease,
+		border-color 0.12s ease;
+}
+
+.hudResetCamBtn:hover {
+	color: var(--amber);
+	border-color: var(--amber-border);
+}
+
+.hudStats {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 0 13px;
+	height: 26px;
+	font-size: 10.5px;
+	letter-spacing: 0.04em;
+}
+
+.statTag {
+	font-weight: 500;
+	letter-spacing: 0.06em;
+}
+
+.statCtx {
+	color: var(--blue);
+}
+.statLyr {
+	color: var(--amber);
+}
+.statSep {
+	color: var(--t3);
+}
+.statNum {
+	color: var(--t2);
+}
+.statDir {
+	color: var(--t3);
+	max-width: 220px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.jobsCloudBtn {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 100%;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--t2);
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		background 0.12s;
+}
+
+.jobsCloudBtn:hover {
+	color: var(--t0);
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.jobsCloudActive {
+	color: var(--amber);
+	background: var(--amber-lo);
+}
+
+.jobsCloudActive:hover {
+	color: var(--amber);
+	background: rgba(232, 165, 60, 0.14);
+}
+
+.jobsCloudActive :global(svg) {
+	fill: var(--amber);
+	fill-opacity: 0.18;
+	animation: jobsCloudPulse 1.6s ease-in-out infinite;
+}
+
+.jobsCloudError {
+	color: var(--t1);
+}
+
+@keyframes jobsCloudPulse {
+	0%,
+	100% {
+		opacity: 0.85;
+	}
+	50% {
+		opacity: 1;
+		filter: drop-shadow(0 0 4px rgba(232, 165, 60, 0.55));
+	}
+}
+
+.jobsCloudBadge {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	min-width: 14px;
+	height: 14px;
+	padding: 0 3px;
+	border-radius: 999px;
+	background: var(--amber);
+	color: #1a1208;
+	font-family: var(--mono);
+	font-size: 9px;
+	font-weight: 600;
+	line-height: 14px;
+	letter-spacing: 0;
+	text-align: center;
+	pointer-events: none;
+	box-shadow: 0 0 0 2px var(--bg);
+}
+
+.jobsCloudErrorDot {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--red);
+	box-shadow: 0 0 0 2px var(--bg);
+	pointer-events: none;
+}

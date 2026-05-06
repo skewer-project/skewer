@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { writeFile } from "../services/fs";
+import d from "../styles/shared/dialogs.module.css";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { Medium } from "../types/scene";
 
 function defaultMedium(type: Medium["type"], file: string): Medium {
@@ -81,21 +83,21 @@ export function AddMediumDialog({
 		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
 		<div
-			className="dialog-overlay"
+			className={d.overlay}
 			onClick={(e) => e.target === e.currentTarget && onCancel()}
 		>
-			<div className="dialog">
-				<div className="dialog-header">
-					<span className="layer-tag layer-tag-med">MED</span>
-					<span className="dialog-title">New Medium</span>
+			<div className={d.dialog}>
+				<div className={d.header}>
+					<span className={`${u.layerTag} ${u.layerTagMed}`}>MED</span>
+					<span className={d.title}>New Medium</span>
 				</div>
 
-				<div className="dialog-body">
-					<div className="kv-table dialog-fields">
-						<div className="kv-row">
-							<span className="kv-key">name</span>
+				<div className={d.body}>
+					<div className={`${u.kvTable} ${d.fields}`}>
+						<div className={u.kvRow}>
+							<span className={u.kvKey}>name</span>
 							<input
-								className="text-input"
+								className={u.textInput}
 								type="text"
 								placeholder="medium_name"
 								value={name}
@@ -105,23 +107,23 @@ export function AddMediumDialog({
 								onKeyDown={(e) => e.key === "Enter" && handleCreate()}
 							/>
 						</div>
-						<div className="kv-row">
-							<span className="kv-key">type</span>
-							<select className="mat-select" value={type} disabled>
+						<div className={u.kvRow}>
+							<span className={u.kvKey}>type</span>
+							<select className={u.matSelect} value={type} disabled>
 								<option value="nanovdb">nanovdb</option>
 							</select>
 						</div>
-						<div className="kv-row">
-							<span className="kv-key">file</span>
-							<div className="obj-file-row">
-								<span className="obj-file-name">
+						<div className={u.kvRow}>
+							<span className={u.kvKey}>file</span>
+							<div className={u.objFileRow}>
+								<span className={u.objFileName}>
 									{file || (
-										<span className="obj-file-empty">no file selected</span>
+										<span className={u.objFileEmpty}>no file selected</span>
 									)}
 								</span>
 								<button
 									type="button"
-									className={`obj-browse-btn${copying ? " loading" : ""}`}
+									className={`${u.objBrowseBtn}${copying ? " loading" : ""}`}
 									onClick={handleBrowseVdb}
 									disabled={copying}
 								>
@@ -131,26 +133,26 @@ export function AddMediumDialog({
 						</div>
 					</div>
 					{fileError && (
-						<div className="dialog-hint dialog-hint-error">{fileError}</div>
+						<div className={`${d.hint} ${d.hintError}`}>{fileError}</div>
 					)}
 					{isDuplicate && trimmed !== "" && (
-						<div className="dialog-hint dialog-hint-error">
+						<div className={`${d.hint} ${d.hintError}`}>
 							Name already in use.
 						</div>
 					)}
 				</div>
 
-				<div className="dialog-footer">
+				<div className={d.footer}>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-cancel"
+						className={`${d.btn} ${d.btnCancel}`}
 						onClick={onCancel}
 					>
 						cancel
 					</button>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-confirm"
+						className={`${d.btn} ${d.btnConfirm}`}
 						onClick={handleCreate}
 						disabled={!isValid}
 					>

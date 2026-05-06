@@ -6,6 +6,8 @@ import {
 	signOutUser,
 	subscribeAuth,
 } from "../services/auth";
+import u from "../styles/shared/uiPrimitives.module.css";
+import um from "./UserMenu.module.css";
 
 export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 	const [user, setUser] = useState<User | null>(null);
@@ -20,11 +22,11 @@ export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 	}
 
 	return (
-		<div className="user-menu">
+		<div className={um.userMenu}>
 			{!user ? (
 				<button
 					type="button"
-					className="open-btn user-menu-signin"
+					className={`${u.openBtn} ${um.userMenuSignin}`}
 					onClick={async () => {
 						try {
 							await signInWithGoogle();
@@ -38,10 +40,10 @@ export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 					Sign in
 				</button>
 			) : (
-				<div className="user-menu-wrap">
+				<div className={um.userMenuWrap}>
 					<button
 						type="button"
-						className="avatar"
+						className={um.avatar}
 						aria-label="Account"
 						aria-haspopup="menu"
 						aria-expanded={open}
@@ -56,7 +58,7 @@ export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 								alt=""
 							/>
 						) : (
-							<span className="avatar-fallback" aria-hidden>
+							<span className={um.avatarFallback} aria-hidden>
 								{(user.displayName?.[0] ?? user.email?.[0])?.toUpperCase() ??
 									"?"}
 							</span>
@@ -65,18 +67,18 @@ export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 					{open && (
 						// biome-ignore lint/a11y/noStaticElementInteractions: intentional transparent backdrop to close menu on outside click
 						<div
-							className="user-menu-backdrop"
+							className={um.userMenuBackdrop}
 							role="presentation"
 							onClick={() => setOpen(false)}
 						/>
 					)}
 					{open && (
-						<div className="user-menu-popover" role="menu">
-							<div className="user-menu-email">{user.email}</div>
+						<div className={um.userMenuPopover} role="menu">
+							<div className={um.userMenuEmail}>{user.email}</div>
 							<button
 								type="button"
 								role="menuitem"
-								className="user-menu-out"
+								className={um.userMenuOut}
 								onClick={async () => {
 									setOpen(false);
 									await signOutUser();

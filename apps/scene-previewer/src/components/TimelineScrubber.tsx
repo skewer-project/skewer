@@ -1,6 +1,7 @@
 import { ChevronUp, Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { KeyframeMarker } from "./KeyframeMarker";
+import s from "./TimelineScrubber.module.css";
 
 const TRACK_INSET_PX = 14;
 
@@ -83,12 +84,12 @@ export function TimelineScrubber({
 	};
 
 	return (
-		<div className="timeline-scrubber panel">
-			<div className="timeline-controls">
-				<div className="timeline-controls-left">
+		<div className={`${s.timelineScrubber} panel`}>
+			<div className={s.controls}>
+				<div className={s.controlsLeft}>
 					<button
 						type="button"
-						className="timeline-play-btn"
+						className={s.playBtn}
 						onPointerDown={onPlayPointerDown}
 						onClick={onTogglePlay}
 						aria-label={isPlaying ? "Pause" : "Play"}
@@ -100,21 +101,21 @@ export function TimelineScrubber({
 							<Play size={14} strokeWidth={2} aria-hidden />
 						)}
 					</button>
-					<span className="timeline-time">{currentTime.toFixed(2)}s</span>
+					<span className={s.time}>{currentTime.toFixed(2)}s</span>
 				</div>
-				<div className="timeline-controls-right">
-					<span className="timeline-end-label">
+				<div className={s.controlsRight}>
+					<span className={s.endLabel}>
 						{hasSpan ? `${animRange.end.toFixed(2)}s` : "—"}
 					</span>
 					<button
 						type="button"
-						className="timeline-chevron-btn"
+						className={s.chevronBtn}
 						onClick={onToggleExpand}
 						aria-label={expanded ? "Collapse dope-sheet" : "Expand dope-sheet"}
 						title={expanded ? "Collapse timeline" : "Expand timeline"}
 					>
 						<ChevronUp
-							className={`timeline-chevron-icon${expanded ? " timeline-chevron-open" : ""}`}
+							className={`${s.chevronIcon}${expanded ? ` ${s.chevronOpen}` : ""}`}
 							size={14}
 							strokeWidth={2}
 							aria-hidden
@@ -124,7 +125,7 @@ export function TimelineScrubber({
 			</div>
 			<div
 				ref={trackRef}
-				className="timeline-track"
+				className={s.track}
 				onPointerDown={onTrackPointerDown}
 				role="slider"
 				tabIndex={0}
@@ -133,7 +134,7 @@ export function TimelineScrubber({
 				aria-valuenow={currentTime}
 				aria-label="Animation timeline"
 			>
-				<div className="timeline-track-inner">
+				<div className={s.trackInner}>
 					{hasSpan &&
 						keyframeTimes?.map((t) => {
 							const f = (t - animRange.start) / span;
@@ -147,10 +148,7 @@ export function TimelineScrubber({
 								/>
 							);
 						})}
-					<div
-						className="timeline-playhead"
-						style={{ left: `${playheadPct}%` }}
-					/>
+					<div className={s.playhead} style={{ left: `${playheadPct}%` }} />
 				</div>
 			</div>
 		</div>

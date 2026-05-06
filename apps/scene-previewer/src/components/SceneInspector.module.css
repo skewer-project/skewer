@@ -1,0 +1,88 @@
+:global([data-hud="sidebar"]) .inspectRoot {
+	--inspector-row-min-h: 34px;
+}
+
+.sceneTreeDetails {
+	margin-bottom: 2px;
+}
+
+.sceneTreeSummary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: var(--inspector-row-min-h, 34px);
+	padding: 3px 0;
+}
+
+.sceneTreeExpand {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 30px;
+	height: 30px;
+	margin: 0;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--t2);
+	cursor: pointer;
+	transition:
+		background 0.12s,
+		color 0.12s;
+}
+
+.sceneTreeExpand:hover {
+	background: rgba(255, 255, 255, 0.06);
+	color: var(--t1);
+}
+
+.sceneTreeExpand:focus-visible {
+	outline: 2px solid var(--amber);
+	outline-offset: 1px;
+}
+
+.sceneTreeExpandIcon {
+	transition: transform 0.16s ease;
+}
+
+.sceneTreeExpand[data-state="open"] .sceneTreeExpandIcon {
+	transform: rotate(90deg);
+}
+
+.sceneTreeRow {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 6px;
+}
+
+.sceneTreeLeaf .sceneTreeRow {
+	width: 100%;
+}
+
+.sceneTreeChildren {
+	padding-left: 4px;
+	border-left: 1px solid rgba(255, 255, 255, 0.06);
+	margin-left: 13px;
+}
+
+.sceneTreeLeaf {
+	margin-bottom: 2px;
+}
+
+.sceneTreeLeafSpacer {
+	display: inline-block;
+	width: 22px;
+	flex-shrink: 0;
+}
+
+.sceneTreeAdd {
+	min-width: 28px;
+	min-height: 28px;
+	font-size: 16px;
+	line-height: 1;
+}

@@ -1,0 +1,106 @@
+.overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.55);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 200;
+}
+
+.dialog {
+	background: var(--bg);
+	border: 1px solid var(--border-mid);
+	width: 300px;
+	max-height: 80vh;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.title {
+	font-family: var(--display);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	color: var(--t0);
+}
+
+.body {
+	padding: 14px;
+	flex: 1;
+	overflow-y: auto;
+}
+
+.typeRow {
+	margin-bottom: 10px;
+}
+
+.fields {
+	gap: 6px;
+}
+
+.hint {
+	font-size: 10px;
+	color: var(--t3);
+	margin-top: 8px;
+	letter-spacing: 0.02em;
+}
+
+.hintError {
+	color: var(--red);
+}
+
+.footer {
+	display: flex;
+	gap: 0;
+	border-top: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.btn {
+	flex: 1;
+	background: transparent;
+	border: none;
+	font-family: var(--mono);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	padding: 9px 0;
+	cursor: pointer;
+	transition:
+		background 0.12s,
+		color 0.12s;
+}
+
+.btnCancel {
+	color: var(--t3);
+	border-right: 1px solid var(--border);
+}
+
+.btnCancel:hover {
+	color: var(--t1);
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.btnConfirm {
+	color: var(--amber);
+}
+
+.btnConfirm:hover:not(:disabled) {
+	background: var(--amber-lo);
+}
+
+.btnConfirm:disabled {
+	color: var(--t3);
+	cursor: default;
+	opacity: 0.5;
+}

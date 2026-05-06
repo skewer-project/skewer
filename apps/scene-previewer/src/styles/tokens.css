@@ -1,0 +1,22 @@
+:root {
+	--bg: #0c0d0f;
+	--panel: rgba(10, 11, 14, 0.88);
+	--border: #191c22;
+	--border-mid: #22262f;
+
+	--t3: #384055;
+	--t2: #6e7a94;
+	--t1: #b0b9cc;
+	--t0: #dde3ef;
+
+	--amber: #e8a53c;
+	--amber-lo: rgba(232, 165, 60, 0.07);
+	--amber-border: rgba(232, 165, 60, 0.22);
+	--blue: #4d80ff;
+	--blue-lo: rgba(77, 128, 255, 0.08);
+	--green: #5fba6f;
+	--red: #e05c5c;
+
+	--mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
+	--display: "Chakra Petch", system-ui, sans-serif;
+}

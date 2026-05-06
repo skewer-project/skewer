@@ -1,4 +1,6 @@
 import { createPortal } from "react-dom";
+import d from "../styles/shared/dialogs.module.css";
+import u from "../styles/shared/uiPrimitives.module.css";
 import type { RenderConfig } from "../types/scene";
 
 export function RenderConfirmDialog({
@@ -24,18 +26,18 @@ export function RenderConfirmDialog({
 		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
 		<div
-			className="dialog-overlay"
+			className={d.overlay}
 			onClick={(e) => e.target === e.currentTarget && onCancel()}
 		>
-			<div className="dialog render-confirm-dialog">
-				<div className="dialog-header">
-					<span className="layer-tag layer-tag-ctx">RENDER</span>
-					<span className="dialog-title">Confirm Cloud Render</span>
+			<div className={d.dialog}>
+				<div className={d.header}>
+					<span className={`${u.layerTag} ${u.layerTagCtx}`}>RENDER</span>
+					<span className={d.title}>Confirm Cloud Render</span>
 				</div>
 
-				<div className="dialog-body">
+				<div className={d.body}>
 					<div
-						className="dialog-hint"
+						className={d.hint}
 						style={{ marginBottom: "20px", textAlign: "left" }}
 					>
 						Confirm render {isAnimation ? "animation" : "image"} with the
@@ -43,7 +45,7 @@ export function RenderConfirmDialog({
 					</div>
 
 					<div
-						className="kv-table"
+						className={u.kvTable}
 						style={{
 							display: "flex",
 							flexDirection: "column",
@@ -51,54 +53,54 @@ export function RenderConfirmDialog({
 							width: "100%",
 						}}
 					>
-						<div className="kv-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
-							<span className="kv-key" style={{ textAlign: "left" }}>
+						<div className={u.kvRow} style={{ gridTemplateColumns: "1fr 1fr" }}>
+							<span className={u.kvKey} style={{ textAlign: "left" }}>
 								dimensions
 							</span>
-							<span className="kv-val" style={{ textAlign: "right" }}>
+							<span className={u.kvVal} style={{ textAlign: "right" }}>
 								{settings.image.width} × {settings.image.height}
 							</span>
 						</div>
-						<div className="kv-row" style={{ gridTemplateColumns: "1fr 1fr" }}>
-							<span className="kv-key" style={{ textAlign: "left" }}>
+						<div className={u.kvRow} style={{ gridTemplateColumns: "1fr 1fr" }}>
+							<span className={u.kvKey} style={{ textAlign: "left" }}>
 								sampling
 							</span>
-							<span className="kv-val" style={{ textAlign: "right" }}>
+							<span className={u.kvVal} style={{ textAlign: "right" }}>
 								{settings.min_samples ?? 16} to {settings.max_samples}
 							</span>
 						</div>
 						{isAnimation ? (
 							<>
 								<div
-									className="kv-row"
+									className={u.kvRow}
 									style={{ gridTemplateColumns: "1fr 1fr" }}
 								>
-									<span className="kv-key" style={{ textAlign: "left" }}>
+									<span className={u.kvKey} style={{ textAlign: "left" }}>
 										time range
 									</span>
-									<span className="kv-val" style={{ textAlign: "right" }}>
+									<span className={u.kvVal} style={{ textAlign: "right" }}>
 										{startTime}s to {endTime}s
 									</span>
 								</div>
 								<div
-									className="kv-row"
+									className={u.kvRow}
 									style={{ gridTemplateColumns: "1fr 1fr" }}
 								>
-									<span className="kv-key" style={{ textAlign: "left" }}>
+									<span className={u.kvKey} style={{ textAlign: "left" }}>
 										frame range
 									</span>
-									<span className="kv-val" style={{ textAlign: "right" }}>
+									<span className={u.kvVal} style={{ textAlign: "right" }}>
 										{startFrame} to {endFrame}
 									</span>
 								</div>
 								<div
-									className="kv-row"
+									className={u.kvRow}
 									style={{ gridTemplateColumns: "1fr 1fr" }}
 								>
-									<span className="kv-key" style={{ textAlign: "left" }}>
+									<span className={u.kvKey} style={{ textAlign: "left" }}>
 										fps
 									</span>
-									<span className="kv-val" style={{ textAlign: "right" }}>
+									<span className={u.kvVal} style={{ textAlign: "right" }}>
 										{fps}
 									</span>
 								</div>
@@ -106,24 +108,24 @@ export function RenderConfirmDialog({
 						) : (
 							<>
 								<div
-									className="kv-row"
+									className={u.kvRow}
 									style={{ gridTemplateColumns: "1fr 1fr" }}
 								>
-									<span className="kv-key" style={{ textAlign: "left" }}>
+									<span className={u.kvKey} style={{ textAlign: "left" }}>
 										time
 									</span>
-									<span className="kv-val" style={{ textAlign: "right" }}>
+									<span className={u.kvVal} style={{ textAlign: "right" }}>
 										{startTime}s
 									</span>
 								</div>
 								<div
-									className="kv-row"
+									className={u.kvRow}
 									style={{ gridTemplateColumns: "1fr 1fr" }}
 								>
-									<span className="kv-key" style={{ textAlign: "left" }}>
+									<span className={u.kvKey} style={{ textAlign: "left" }}>
 										frame
 									</span>
-									<span className="kv-val" style={{ textAlign: "right" }}>
+									<span className={u.kvVal} style={{ textAlign: "right" }}>
 										{startFrame}
 									</span>
 								</div>
@@ -131,25 +133,22 @@ export function RenderConfirmDialog({
 						)}
 					</div>
 
-					<div
-						className="dialog-hint"
-						style={{ marginTop: "24px", opacity: 0.6 }}
-					>
+					<div className={d.hint} style={{ marginTop: "24px", opacity: 0.6 }}>
 						The job will be dispatched to the cloud coordinator.
 					</div>
 				</div>
 
-				<div className="dialog-footer">
+				<div className={d.footer}>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-cancel"
+						className={`${d.btn} ${d.btnCancel}`}
 						onClick={onCancel}
 					>
 						cancel
 					</button>
 					<button
 						type="button"
-						className="dialog-btn dialog-btn-confirm"
+						className={`${d.btn} ${d.btnConfirm}`}
 						onClick={onConfirm}
 					>
 						confirm

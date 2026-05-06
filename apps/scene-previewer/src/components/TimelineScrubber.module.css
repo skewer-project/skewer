@@ -1,0 +1,127 @@
+.timelineScrubber {
+	height: 48px;
+	display: grid;
+	grid-template-columns: 220px 1fr;
+	align-items: stretch;
+	border-radius: 0;
+	border-top: 1px solid var(--border);
+	border-left: none;
+	border-right: none;
+	border-bottom: none;
+	flex-shrink: 0;
+}
+
+.controls {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 6px 0 var(--timeline-track-inset);
+	border-right: 1px solid var(--border);
+}
+
+.controlsLeft {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.controlsRight {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.playBtn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-mid);
+	color: var(--amber);
+	cursor: pointer;
+	transition:
+		border-color 0.12s,
+		background 0.12s;
+}
+
+.playBtn:hover {
+	border-color: var(--amber-border);
+	background: var(--amber-lo);
+}
+
+.time {
+	font-variant-numeric: tabular-nums;
+	color: var(--t1);
+	font-size: 11px;
+	min-width: 52px;
+}
+
+.track {
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+	touch-action: none;
+	padding: 0 var(--timeline-track-inset);
+}
+
+.trackInner {
+	position: relative;
+	width: 100%;
+	height: 8px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 2px;
+	border: 1px solid var(--border-mid);
+}
+
+.playhead {
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 2px;
+	height: 20px;
+	background: var(--amber);
+	border-radius: 1px;
+	box-shadow: 0 0 6px rgba(232, 165, 60, 0.35);
+	pointer-events: none;
+	z-index: 2;
+}
+
+.endLabel {
+	color: var(--t3);
+	font-variant-numeric: tabular-nums;
+	font-size: 10.5px;
+	min-width: 36px;
+	text-align: right;
+}
+
+.chevronBtn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--t3);
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		border-color 0.12s;
+}
+
+.chevronBtn:hover {
+	color: var(--t1);
+	border-color: var(--border-mid);
+}
+
+.chevronIcon {
+	transition: transform 0.18s ease;
+}
+
+.chevronOpen {
+	transform: rotate(180deg);
+}

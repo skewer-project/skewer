@@ -8,6 +8,7 @@ import {
 } from "../services/recent-scenes";
 import { loadScene } from "../services/scene-parser";
 import type { ResolvedScene } from "../types/scene";
+import l from "./LandingPage.module.css";
 
 interface Props {
 	onSceneLoaded: (scene: ResolvedScene, dir: FileSystemDirectoryHandle) => void;
@@ -106,29 +107,29 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 	}
 
 	return (
-		<div className="landing">
+		<div className={l.landing}>
 			{/* Decorative grid background */}
-			<div className="landing-grid" />
+			<div className={l.landingGrid} />
 
-			<div className="landing-content">
+			<div className={l.landingContent}>
 				{/* Branding */}
-				<div className="landing-brand">
-					<div className="landing-wordmark">Skewer</div>
-					<div className="landing-tagline">Scene Previewer</div>
+				<div className={l.landingBrand}>
+					<div className={l.landingWordmark}>Skewer</div>
+					<div className={l.landingTagline}>Scene Previewer</div>
 				</div>
 
-				<div className="landing-columns">
+				<div className={l.landingColumns}>
 					{/* Start section */}
-					<div className="landing-section">
-						<div className="landing-section-head">Start</div>
+					<div className={l.landingSection}>
+						<div className={l.landingSectionHead}>Start</div>
 
 						<button
 							type="button"
-							className="landing-action"
+							className={l.landingAction}
 							onClick={handleNewScene}
 							disabled={loading !== null}
 						>
-							<span className="landing-action-icon">
+							<span className={l.landingActionIcon}>
 								<svg
 									width="16"
 									height="16"
@@ -144,11 +145,11 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 									/>
 								</svg>
 							</span>
-							<span className="landing-action-body">
-								<span className="landing-action-title">
+							<span className={l.landingActionBody}>
+								<span className={l.landingActionTitle}>
 									{loading === "new" ? "Creating\u2026" : "New Scene"}
 								</span>
-								<span className="landing-action-desc">
+								<span className={l.landingActionDesc}>
 									Bootstrap a new scene
 								</span>
 							</span>
@@ -156,11 +157,11 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 
 						<button
 							type="button"
-							className="landing-action"
+							className={l.landingAction}
 							onClick={handleOpenFolder}
 							disabled={loading !== null}
 						>
-							<span className="landing-action-icon">
+							<span className={l.landingActionIcon}>
 								<svg
 									width="16"
 									height="16"
@@ -176,11 +177,11 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 									/>
 								</svg>
 							</span>
-							<span className="landing-action-body">
-								<span className="landing-action-title">
+							<span className={l.landingActionBody}>
+								<span className={l.landingActionTitle}>
 									{loading === "open" ? "Opening\u2026" : "Open Scene Folder"}
 								</span>
-								<span className="landing-action-desc">
+								<span className={l.landingActionDesc}>
 									Load an existing scene
 								</span>
 							</span>
@@ -189,20 +190,20 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 
 					{/* Recent section */}
 					{recents.length > 0 && (
-						<div className="landing-section">
-							<div className="landing-section-head">Recent</div>
-							<div className="landing-recents">
+						<div className={l.landingSection}>
+							<div className={l.landingSectionHead}>Recent</div>
+							<div className={l.landingRecents}>
 								{recents.map((entry) => {
 									const key = `recent:${entry.name}`;
 									return (
-										<div key={entry.name} className="landing-recent-row">
+										<div key={entry.name} className={l.landingRecentRow}>
 											<button
 												type="button"
-												className={`landing-recent${loading === key ? " loading" : ""}`}
+												className={`${l.landingRecent} ${loading === key ? l.landingRecentLoading : ""}`}
 												onClick={() => handleOpenRecent(entry)}
 												disabled={loading !== null}
 											>
-												<span className="landing-recent-icon">
+												<span className={l.landingRecentIcon}>
 													<svg
 														width="14"
 														height="14"
@@ -228,16 +229,16 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 														/>
 													</svg>
 												</span>
-												<span className="landing-recent-name">
+												<span className={l.landingRecentName}>
 													{entry.name}
 												</span>
-												<span className="landing-recent-time">
+												<span className={l.landingRecentTime}>
 													{timeSince(entry.lastOpened)}
 												</span>
 											</button>
 											<button
 												type="button"
-												className="landing-recent-remove"
+												className={l.landingRecentRemove}
 												onClick={(e) => handleRemoveRecent(e, entry)}
 												tabIndex={-1}
 												title="Remove from recent"
@@ -253,9 +254,9 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 				</div>
 
 				{/* Footer hint */}
-				<div className="landing-footer">
+				<div className={l.landingFooter}>
 					scenes use the{" "}
-					<span className="landing-footer-hl">layers format</span>: a folder
+					<span className={l.landingFooterHl}>layers format</span>: a folder
 					with scene.json + layer file(s)
 				</div>
 			</div>

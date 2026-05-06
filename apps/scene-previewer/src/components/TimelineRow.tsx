@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { kindShortFromKind } from "../services/node-labels";
 import type { AnimatedNodeTrack } from "../services/transform";
 import { KeyframeMarker } from "./KeyframeMarker";
+import r from "./TimelineRow.module.css";
 
 const TRACK_INSET_PX = 14;
 
@@ -88,19 +89,17 @@ export function TimelineRow({
 	}, []); // stable — all live values accessed via refs
 
 	return (
-		<div className="timeline-row">
+		<div className={r.row}>
 			<div
-				className="timeline-row-label"
+				className={r.label}
 				style={{ paddingLeft: 8 + indent }}
 				title={track.label}
 			>
-				<span className="timeline-row-leaf-spacer" aria-hidden />
-				<span className="timeline-row-kind-badge">
-					{kindShortFromKind(track.kind)}
-				</span>
-				<span className="timeline-row-name">{track.label}</span>
+				<span className={r.leafSpacer} aria-hidden />
+				<span className={r.kindBadge}>{kindShortFromKind(track.kind)}</span>
+				<span className={r.name}>{track.label}</span>
 			</div>
-			<div className="timeline-row-track" ref={trackRef}>
+			<div className={r.track} ref={trackRef}>
 				{hasSpan &&
 					track.keyframes.map((kf) => {
 						const realFrac = (kf.time - viewRange.start) / span;
