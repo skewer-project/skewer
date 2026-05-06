@@ -9,6 +9,20 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "batch_vm_region" {
+  description = "GCP region where Cloud Batch worker VMs and their subnet/NAT are created. Defaults to region."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "batch_vm_allowed_locations" {
+  description = "Allowed Cloud Batch VM locations, using internal URLs such as regions/us-central1 or zones/us-central1-a. Batch supports one region or multiple zones within one region."
+  type        = list(string)
+  default     = null
+  nullable    = true
+}
+
 variable "environment" {
   description = "Deployment environment (dev, staging, prod)"
   type        = string

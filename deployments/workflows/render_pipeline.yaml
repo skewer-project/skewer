@@ -29,6 +29,7 @@
 #   loom_parallelism        - int, max concurrent composite tasks (caps VM usage)
 #   network                 - string, VPC self_link
 #   subnet                  - string, subnet self_link
+#   batch_allowed_locations - list of Batch VM locations, e.g. ["regions/us-central1"]
 #   batch_sa                - string, batch worker service account email
 #   composite_output_prefix - string, GCS URI prefix for final composited frames
 
@@ -59,6 +60,9 @@ main:
           - loom_parallelism: ${args.loom_parallelism}
           - network: ${args.network}
           - subnet: ${args.subnet}
+          - subnet_region_tail: ${text.split(args.subnet, "/regions/")[1]}
+          - subnet_region: ${text.split(subnet_region_tail, "/subnetworks/")[0]}
+          - batch_allowed_locations: ${default(map.get(args, "batch_allowed_locations"), ["regions/" + subnet_region])}
           - batch_sa: ${args.batch_sa}
           - composite_output_prefix: ${args.composite_output_prefix}
           - layer_output_prefixes: {}
@@ -119,6 +123,7 @@ main:
                     max_retry_count: ${skewer_max_retry_count}
                     network: ${network}
                     subnet: ${subnet}
+                    batch_allowed_locations: ${batch_allowed_locations}
                     batch_sa: ${batch_sa}
                   result: static_output_prefix
               - record_static_output:
@@ -145,6 +150,7 @@ main:
                     max_retry_count: ${skewer_max_retry_count}
                     network: ${network}
                     subnet: ${subnet}
+                    batch_allowed_locations: ${batch_allowed_locations}
                     batch_sa: ${batch_sa}
                   result: animated_output_prefix
               - record_animated_output:
@@ -214,6 +220,7 @@ main:
           parallelism: ${loom_parallelism}
           network: ${network}
           subnet: ${subnet}
+          batch_allowed_locations: ${batch_allowed_locations}
           batch_sa: ${batch_sa}
 
     - return_result:
@@ -231,7 +238,7 @@ main:
 submit_batch_render_static:
   params: [project_id, region, pipeline_id, layer, data_bucket, cache_bucket,
            skewer_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, network, subnet, batch_sa]
+           provisioning_model, max_retry_count, network, subnet, batch_allowed_locations, batch_sa]
   steps:
     - init_static:
         assign:
@@ -297,6 +304,8 @@ submit_batch_render_static:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              location:
+                allowedLocations: ${batch_allowed_locations}
               tags:
                 - skewer-batch-worker
               instances:
@@ -340,7 +349,7 @@ submit_batch_render_static:
 submit_batch_render_animated:
   params: [project_id, region, pipeline_id, layer, num_frames, frames_per_task,
            data_bucket, cache_bucket, skewer_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, network, subnet, batch_sa]
+           provisioning_model, max_retry_count, parallelism, network, subnet, batch_allowed_locations, batch_sa]
   steps:
     - init_animated:
         assign:
@@ -408,6 +417,8 @@ submit_batch_render_animated:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              location:
+                allowedLocations: ${batch_allowed_locations}
               tags:
                 - skewer-batch-worker
               instances:
@@ -451,7 +462,7 @@ submit_batch_composite:
   params: [project_id, region, pipeline_id, layer_output_prefixes, layer_output_modes,
            num_frames, data_bucket, cache_bucket, composite_output_prefix,
            loom_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, parallelism, network, subnet, batch_sa]
+           provisioning_model, max_retry_count, parallelism, network, subnet, batch_allowed_locations, batch_sa]
   steps:
     - init_composite:
         assign:
@@ -513,6 +524,8 @@ submit_batch_composite:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              location:
+                allowedLocations: ${batch_allowed_locations}
               tags:
                 - skewer-batch-worker
               instances:

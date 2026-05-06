@@ -33,6 +33,11 @@ output "batch_worker_sa_email" {
   value       = google_service_account.batch_worker.email
 }
 
+output "batch_allowed_locations" {
+  description = "Allowed Cloud Batch worker VM locations"
+  value       = local.batch_allowed_locations
+}
+
 output "api_url" {
   description = "Cloud Run URL for the previewer-facing skewer-api service"
   value       = google_cloud_run_v2_service.api.uri

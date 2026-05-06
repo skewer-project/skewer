@@ -1,5 +1,7 @@
 locals {
-  ar_base = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.skewer.repository_id}"
+  ar_base                 = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.skewer.repository_id}"
+  batch_vm_region         = coalesce(var.batch_vm_region, var.region)
+  batch_allowed_locations = var.batch_vm_allowed_locations == null ? ["regions/${local.batch_vm_region}"] : var.batch_vm_allowed_locations
 }
 
 resource "google_cloud_run_v2_service" "coordinator" {
