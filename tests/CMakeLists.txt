@@ -7,33 +7,7 @@ if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
   find_package(OpenEXR REQUIRED)
   find_package(ZLIB REQUIRED)
 
-  # Skewer core sources (same as used by skewer-render)
-  set(SKEWER_CORE_SOURCES
-        ${PROJECT_SOURCE_DIR}/skewer/src/session/render_session.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/scene/scene.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/scene/interp_curve.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/scene/animation.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/film/deep_segment_pool.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/film/film.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/film/image_buffer.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/integrators/path_trace.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/integrators/normals.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/accelerators/bvh.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/accelerators/tlas.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/scene/light.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/io/obj_loader.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/io/graph_from_json.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/io/scene_loader.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/io/image_io.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/materials/bsdf.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/materials/texture.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/core/spectral/rgb2spec.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/kernels/path_kernel.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/kernels/sample_media.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/kernels/volume_dispatch.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/kernels/utils/visibility.cc
-        ${PROJECT_SOURCE_DIR}/skewer/src/kernels/utils/volume_tracking.cc
-    )
+  include("${PROJECT_SOURCE_DIR}/skewer/cmake/SkewerCoreSources.cmake")
 
   # Create integration tests executable
   add_executable(integration_tests
@@ -47,7 +21,6 @@ if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
         ${PROJECT_SOURCE_DIR}/skewer/src
         ${PROJECT_SOURCE_DIR}/skewer/external
         ${PROJECT_SOURCE_DIR}/libs/exrio/include
-        ${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include
     )
 
   # Link dependencies

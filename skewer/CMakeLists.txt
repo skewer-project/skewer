@@ -56,34 +56,7 @@ if(BUILD_TESTING AND NOT TARGET GTest::gtest_main)
   FetchContent_MakeAvailable(googletest)
 endif()
 
-# Define Source Files
-# list every .cpp file here. no need for .h
-set(SKEWER_CORE_SOURCES
-    src/session/render_session.cc
-    src/scene/scene.cc
-    src/scene/interp_curve.cc
-    src/scene/animation.cc
-    src/film/deep_segment_pool.cc
-    src/film/film.cc
-    src/film/image_buffer.cc
-    src/integrators/path_trace.cc
-    src/integrators/normals.cc
-    src/accelerators/bvh.cc
-    src/accelerators/tlas.cc
-    src/scene/light.cc
-    src/io/obj_loader.cc
-    src/io/graph_from_json.cc
-    src/io/scene_loader.cc
-    src/io/image_io.cc
-    src/materials/bsdf.cc
-    src/materials/texture.cc
-    src/core/spectral/rgb2spec.cc
-    src/kernels/path_kernel.cc
-    src/kernels/sample_media.cc
-    src/kernels/volume_dispatch.cc
-    src/kernels/utils/visibility.cc
-    src/kernels/utils/volume_tracking.cc
-)
+include(cmake/SkewerCoreSources.cmake)
 
 # Find Required Dependencies for worker binaries
 find_package(Imath REQUIRED)
@@ -107,10 +80,10 @@ target_include_directories(skewer-worker
         ${CMAKE_BINARY_DIR}
 )
 
-set_source_files_properties(src/io/scene_loader.cc PROPERTIES
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
     COMPILE_OPTIONS "-fno-fast-math"
 )
-set_source_files_properties(src/io/graph_from_json.cc PROPERTIES
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
     COMPILE_OPTIONS "-fno-fast-math"
 )
 
@@ -150,5 +123,11 @@ if(BUILD_TESTING)
   include(GoogleTest)
   enable_testing()
   add_subdirectory(tests)
-  target_compile_options(gtest PRIVATE "-fno-fast-math")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    foreach(_skewer_gtest_target IN ITEMS gtest gtest_main gmock gmock_main)
+      if(TARGET ${_skewer_gtest_target})
+        target_compile_options(${_skewer_gtest_target} PRIVATE "-fno-fast-math")
+      endif()
+    endforeach()
+  endif()
 endif()
