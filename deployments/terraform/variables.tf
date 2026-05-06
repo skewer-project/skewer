@@ -9,6 +9,20 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "batch_vm_region" {
+  description = "GCP region where Cloud Batch worker VMs and their subnet/NAT are created. Defaults to region."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "batch_vm_allowed_locations" {
+  description = "Allowed Cloud Batch VM locations, using internal URLs such as regions/us-central1 or zones/us-central1-a. Batch supports one region or multiple zones within one region."
+  type        = list(string)
+  default     = null
+  nullable    = true
+}
+
 variable "environment" {
   description = "Deployment environment (dev, staging, prod)"
   type        = string
@@ -48,6 +62,24 @@ variable "skewer_batch_max_retry_count" {
   description = "Automatic retry count for transient Skewer render task failures"
   type        = number
   default     = 3
+}
+
+variable "skewer_batch_frames_per_task" {
+  description = "Frames rendered per animated-layer Batch task. Lower values increase parallelism and reduce SPOT preemption blast radius; higher values amortize VM startup."
+  type        = number
+  default     = 8
+}
+
+variable "skewer_batch_parallelism" {
+  description = "Max concurrent Skewer render tasks per animated-layer Batch job. Caps worker VMs requested by one render layer."
+  type        = number
+  default     = 24
+}
+
+variable "render_layer_parallelism" {
+  description = "Max layer render Batch jobs submitted concurrently by one workflow execution."
+  type        = number
+  default     = 1
 }
 
 variable "loom_batch_machine_type" {

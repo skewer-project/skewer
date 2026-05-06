@@ -42,9 +42,12 @@ type GCPManager struct {
 	loomProvisioningModel   string
 	loomMaxRetryCount       int
 	loomParallelism         int
+	skewerParallelism       int
+	renderLayerParallelism  int
 	network                 string
 	subnet                  string
 	batchSA                 string
+	batchAllowedLocations   []string
 	framesPerTask           int
 }
 
@@ -83,9 +86,12 @@ func NewGCPManager(ctx context.Context) (*GCPManager, error) {
 		loomProvisioningModel:   getEnvOrDefault("LOOM_BATCH_PROVISIONING_MODEL", "STANDARD"),
 		loomMaxRetryCount:       getEnvIntOrDefault("LOOM_BATCH_MAX_RETRY_COUNT", 2),
 		loomParallelism:         getEnvIntOrDefault("LOOM_BATCH_PARALLELISM", 16),
+		skewerParallelism:       getEnvIntOrDefault("SKEWER_BATCH_PARALLELISM", 24),
+		renderLayerParallelism:  getEnvIntOrDefault("RENDER_LAYER_PARALLELISM", 1),
 		network:                 mustEnv("VPC_NETWORK"),
 		subnet:                  mustEnv("VPC_SUBNET"),
 		batchSA:                 mustEnv("BATCH_SA_EMAIL"),
+		batchAllowedLocations:   getEnvCSVOrDefault("BATCH_ALLOWED_LOCATIONS", nil),
 		framesPerTask:           getEnvIntOrDefault("SKEWER_BATCH_FRAMES_PER_TASK", 8),
 	}, nil
 }
@@ -105,8 +111,8 @@ type layerDescriptor struct {
 // minimalSceneJSON is the minimal subset of scene.json parsed by the coordinator.
 // It mirrors the keys in the C++ SceneConfig / LoadSceneFile.
 type minimalSceneJSON struct {
-	Layers  []string `json:"layers"`
-	Context []string `json:"context"`
+	Layers    []string `json:"layers"`
+	Context   []string `json:"context"`
 	Animation *struct {
 		Start        float64 `json:"start"`
 		End          float64 `json:"end"`
@@ -175,6 +181,14 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 			layerID = fmt.Sprintf("layer%d", i)
 		}
 
+		// Validate layer_id length so GCP Batch job IDs stay under the 63-char limit.
+		// Pipeline IDs are 37 chars ("p-" + 36-char UUID). The longest suffix is
+		// "-animated" (9 chars) plus two separator dashes. That leaves 16 chars max.
+		// So this is essentially a validation test to not waste the user's time
+		if len(layerID) > 16 {
+			return "", fmt.Errorf("layer_id %q from %s is %d characters, exceeds 16-char limit; GCP Batch job IDs are capped at 63 characters", layerID, layerURI, len(layerID))
+		}
+
 		cacheKey := ""
 		enableCache := req.EnableCache
 		if req.EnableCache {
@@ -220,9 +234,12 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"loom_provisioning_model":   m.loomProvisioningModel,
 		"loom_max_retry_count":      m.loomMaxRetryCount,
 		"loom_parallelism":          m.loomParallelism,
+		"skewer_parallelism":        m.skewerParallelism,
+		"render_layer_parallelism":  m.renderLayerParallelism,
 		"network":                   m.network,
 		"subnet":                    m.subnet,
 		"batch_sa":                  m.batchSA,
+		"batch_allowed_locations":   m.batchAllowedLocations,
 		"composite_output_prefix":   req.CompositeOutputUriPrefix,
 	}
 
@@ -389,6 +406,25 @@ func getEnvIntOrDefault(key string, def int) int {
 		return n
 	}
 	return def
+}
+
+func getEnvCSVOrDefault(key string, def []string) []string {
+	if v := os.Getenv(key); v != "" {
+		return splitCSV(v)
+	}
+	return def
+}
+
+func splitCSV(v string) []string {
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 // sceneURIToBucketObject parses "gs://bucket/path/to/object" into (bucket, object).

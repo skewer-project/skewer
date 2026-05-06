@@ -8,6 +8,7 @@
 #include "core/containers/bounded_array.h"
 #include "core/cpu_config.h"
 #include "core/math/constants.h"
+#include "core/progress_config.h"
 #include "core/transport/deep_segment.h"
 #include "film/deep_segment_pool.h"
 #include "film/image_buffer.h"
@@ -116,10 +117,13 @@ exrio::DeepImage Film::BuildDeepImage() const {
 
     std::cout << "\nBuilding deep image (scanline-by-scanline)...\n";
     std::atomic<size_t> scanlines_done(0);
+    const auto progress_mode = GetProgressOutputMode();
     auto bar = bk::ProgressBar(&scanlines_done, {.total = static_cast<size_t>(height_),
                                                  .speed = 1.0,
                                                  .speed_unit = "lines/s",
-                                                 .style = bk::ProgressBarStyle::Rich});
+                                                 .style = progress_mode.style,
+                                                 .interval = progress_mode.interval,
+                                                 .no_tty = progress_mode.no_tty});
     if (height_ > 0) bar->show();
 
     // Process one scanline at a time to keep transient memory (sorting buffers) small.

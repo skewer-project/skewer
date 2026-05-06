@@ -9,15 +9,15 @@ import (
 // TestNumFramesFromAnimation verifies frame count derivation from the scene animation block.
 func TestNumFramesFromAnimation(t *testing.T) {
 	cases := []struct {
-		name      string
-		start     float64
-		end       float64
-		fps       float64
+		name       string
+		start      float64
+		end        float64
+		fps        float64
 		wantFrames int
 	}{
 		{"24fps 5s", 0, 5, 24, 120},
 		{"30fps 1s", 0, 1, 30, 30},
-		{"no animation", 0, 0, 0, 1},  // fps=0 → default 1
+		{"no animation", 0, 0, 0, 1}, // fps=0 → default 1
 		{"fractional frames", 0, 2.5, 24, 60},
 	}
 
@@ -89,7 +89,7 @@ func TestLayerJSONAnimatedParsing(t *testing.T) {
 	}{
 		{`{"animated": true, "render": {}}`, true},
 		{`{"animated": false}`, false},
-		{`{}`, false},  // absent key → false
+		{`{}`, false}, // absent key → false
 	}
 	for _, tc := range cases {
 		var lj minimalLayerJSON
@@ -186,6 +186,56 @@ func TestFramesPerTaskChunking(t *testing.T) {
 		}
 		if got != tc.wantTasks {
 			t.Errorf("ceil(%d/%d) = %d, want %d", tc.numFrames, tc.framesPerTask, got, tc.wantTasks)
+		}
+	}
+}
+
+func TestSplitCSV(t *testing.T) {
+	got := splitCSV("regions/us-central1, zones/us-central1-a, ,zones/us-central1-b")
+	want := []string{"regions/us-central1", "zones/us-central1-a", "zones/us-central1-b"}
+	if len(got) != len(want) {
+		t.Fatalf("splitCSV length = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("splitCSV[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestRenderParallelismDefaults(t *testing.T) {
+	if got := getEnvIntOrDefault("SKEWER_BATCH_PARALLELISM", 24); got != 24 {
+		t.Fatalf("SKEWER_BATCH_PARALLELISM default = %d, want 24", got)
+	}
+	if got := getEnvIntOrDefault("RENDER_LAYER_PARALLELISM", 1); got != 1 {
+		t.Fatalf("RENDER_LAYER_PARALLELISM default = %d, want 1", got)
+	}
+}
+
+// TestLayerIDLengthLimit verifies the 16-character constraint on layer IDs.
+// GCP Batch job IDs are capped at 63 characters. With pipeline_id = "p-" + UUID
+// (37 chars) and the longest suffix "-animated" (9 chars) plus 2 dashes,
+// layer IDs must be ≤ 16 characters.
+func TestLayerIDLengthLimit(t *testing.T) {
+	const maxLayerIDLen = 16
+	cases := []struct {
+		layerID string
+		wantOK  bool
+	}{
+		{"mercury", true},
+		{"venus", true},
+		{"asteroid-belt", true},         // 13 chars
+		{"layer_env", true},             // 9 chars
+		{"layer-16-chars-x", true},      // exactly 16 chars
+		{"layer-17-chars-xx", false},    // 17 chars
+		{"this-is-way-too-long", false}, // 20 chars
+		{"", true},                      // empty is OK (fallback to layer%d)
+	}
+	for _, tc := range cases {
+		ok := len(tc.layerID) == 0 || len(tc.layerID) <= maxLayerIDLen
+		if ok != tc.wantOK {
+			t.Errorf("layer_id %q (%d chars): valid=%v, want %v",
+				tc.layerID, len(tc.layerID), ok, tc.wantOK)
 		}
 	}
 }

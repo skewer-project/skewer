@@ -21,6 +21,8 @@
 #   skewer_memory_mib       - int, memory request per render task in MiB
 #   skewer_provisioning_model - string, "SPOT" or "STANDARD"
 #   skewer_max_retry_count  - int, automatic retries for render task failures
+#   skewer_parallelism      - int, max concurrent render tasks per animated-layer Batch job
+#   render_layer_parallelism - int, max concurrent layer render Batch jobs
 #   loom_machine_type       - string, e.g. "e2-highmem-8"
 #   loom_cpu_milli          - int, vCPU request per composite task in milliCPU
 #   loom_memory_mib         - int, memory request per composite task in MiB
@@ -29,6 +31,7 @@
 #   loom_parallelism        - int, max concurrent composite tasks (caps VM usage)
 #   network                 - string, VPC self_link
 #   subnet                  - string, subnet self_link
+#   batch_allowed_locations - list of Batch VM locations, e.g. ["regions/us-central1"]
 #   batch_sa                - string, batch worker service account email
 #   composite_output_prefix - string, GCS URI prefix for final composited frames
 
@@ -57,8 +60,13 @@ main:
           - loom_provisioning_model: ${args.loom_provisioning_model}
           - loom_max_retry_count: ${args.loom_max_retry_count}
           - loom_parallelism: ${args.loom_parallelism}
+          - skewer_parallelism: ${default(map.get(args, "skewer_parallelism"), 24)}
+          - render_layer_parallelism: ${default(map.get(args, "render_layer_parallelism"), 1)}
           - network: ${args.network}
           - subnet: ${args.subnet}
+          - subnet_region_tail: ${text.split(args.subnet, "/regions/")[1]}
+          - subnet_region: ${text.split(subnet_region_tail, "/subnetworks/")[0]}
+          - batch_allowed_locations: ${default(map.get(args, "batch_allowed_locations"), ["regions/" + subnet_region])}
           - batch_sa: ${args.batch_sa}
           - composite_output_prefix: ${args.composite_output_prefix}
           - layer_output_prefixes: {}
@@ -68,6 +76,7 @@ main:
     - render_layers:
         parallel:
           shared: [layer_output_prefixes, layer_output_modes]
+          concurrency_limit: ${render_layer_parallelism}
           for:
             value: layer
             in: ${args.layers}
@@ -119,6 +128,7 @@ main:
                     max_retry_count: ${skewer_max_retry_count}
                     network: ${network}
                     subnet: ${subnet}
+                    batch_allowed_locations: ${batch_allowed_locations}
                     batch_sa: ${batch_sa}
                   result: static_output_prefix
               - record_static_output:
@@ -143,8 +153,10 @@ main:
                     memory_mib: ${skewer_memory_mib}
                     provisioning_model: ${skewer_provisioning_model}
                     max_retry_count: ${skewer_max_retry_count}
+                    parallelism: ${skewer_parallelism}
                     network: ${network}
                     subnet: ${subnet}
+                    batch_allowed_locations: ${batch_allowed_locations}
                     batch_sa: ${batch_sa}
                   result: animated_output_prefix
               - record_animated_output:
@@ -214,6 +226,7 @@ main:
           parallelism: ${loom_parallelism}
           network: ${network}
           subnet: ${subnet}
+          batch_allowed_locations: ${batch_allowed_locations}
           batch_sa: ${batch_sa}
 
     - return_result:
@@ -231,11 +244,11 @@ main:
 submit_batch_render_static:
   params: [project_id, region, pipeline_id, layer, data_bucket, cache_bucket,
            skewer_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, network, subnet, batch_sa]
+           provisioning_model, max_retry_count, network, subnet, batch_allowed_locations, batch_sa]
   steps:
     - init_static:
         assign:
-          - job_id: '${pipeline_id + "-" + layer.layer_id + "-static"}'
+          - job_id: '${text.replace_all(pipeline_id + "-" + layer.layer_id + "-static", "_", "-")}'
           - fuse_data: '${"/mnt/" + data_bucket}'
           - fuse_cache: '${"/mnt/" + cache_bucket}'
           - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
@@ -257,6 +270,8 @@ submit_batch_render_static:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: 1
@@ -295,6 +310,8 @@ submit_batch_render_static:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              location:
+                allowedLocations: ${batch_allowed_locations}
               tags:
                 - skewer-batch-worker
               instances:
@@ -338,11 +355,11 @@ submit_batch_render_static:
 submit_batch_render_animated:
   params: [project_id, region, pipeline_id, layer, num_frames, frames_per_task,
            data_bucket, cache_bucket, skewer_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, network, subnet, batch_sa]
+           provisioning_model, max_retry_count, parallelism, network, subnet, batch_allowed_locations, batch_sa]
   steps:
     - init_animated:
         assign:
-          - job_id: '${pipeline_id + "-" + layer.layer_id + "-animated"}'
+          - job_id: '${text.replace_all(pipeline_id + "-" + layer.layer_id + "-animated", "_", "-")}'
           - fuse_data: '${"/mnt/" + data_bucket}'
           - fuse_cache: '${"/mnt/" + cache_bucket}'
           - scene_fuse: '${text.replace_all(layer.scene_uri, "gs://", "/mnt/")}'
@@ -366,9 +383,12 @@ submit_batch_render_animated:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: ${task_count}
+                parallelism: ${parallelism}
                 taskCountPerNode: 1
                 taskSpec:
                   computeResource:
@@ -404,6 +424,8 @@ submit_batch_render_animated:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              location:
+                allowedLocations: ${batch_allowed_locations}
               tags:
                 - skewer-batch-worker
               instances:
@@ -447,7 +469,7 @@ submit_batch_composite:
   params: [project_id, region, pipeline_id, layer_output_prefixes, layer_output_modes,
            num_frames, data_bucket, cache_bucket, composite_output_prefix,
            loom_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, parallelism, network, subnet, batch_sa]
+           provisioning_model, max_retry_count, parallelism, network, subnet, batch_allowed_locations, batch_sa]
   steps:
     - init_composite:
         assign:
@@ -473,6 +495,8 @@ submit_batch_composite:
         args:
           parent: '${"projects/" + project_id + "/locations/" + region}'
           jobId: ${job_id}
+          connector_params:
+            skip_polling: true
           body:
             taskGroups:
               - taskCount: ${num_frames}
@@ -507,6 +531,8 @@ submit_batch_composite:
                         remotePath: ${cache_bucket}
                       mountPath: ${fuse_cache}
             allocationPolicy:
+              location:
+                allowedLocations: ${batch_allowed_locations}
               tags:
                 - skewer-batch-worker
               instances:

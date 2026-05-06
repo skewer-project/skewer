@@ -1,5 +1,7 @@
 locals {
-  ar_base = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.skewer.repository_id}"
+  ar_base                 = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.skewer.repository_id}"
+  batch_vm_region         = coalesce(var.batch_vm_region, var.region)
+  batch_allowed_locations = var.batch_vm_allowed_locations == null ? ["regions/${local.batch_vm_region}"] : var.batch_vm_allowed_locations
 }
 
 resource "google_cloud_run_v2_service" "coordinator" {
@@ -67,6 +69,22 @@ resource "google_cloud_run_v2_service" "coordinator" {
       env {
         name  = "SKEWER_BATCH_MAX_RETRY_COUNT"
         value = tostring(var.skewer_batch_max_retry_count)
+      }
+      env {
+        name  = "SKEWER_BATCH_FRAMES_PER_TASK"
+        value = tostring(var.skewer_batch_frames_per_task)
+      }
+      env {
+        name  = "SKEWER_BATCH_PARALLELISM"
+        value = tostring(var.skewer_batch_parallelism)
+      }
+      env {
+        name  = "RENDER_LAYER_PARALLELISM"
+        value = tostring(var.render_layer_parallelism)
+      }
+      env {
+        name  = "BATCH_ALLOWED_LOCATIONS"
+        value = join(",", local.batch_allowed_locations)
       }
       env {
         name  = "LOOM_BATCH_MACHINE_TYPE"

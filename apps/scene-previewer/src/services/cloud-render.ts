@@ -10,15 +10,23 @@ import type { StatusResponse } from "./api/types";
 import { ApiError } from "./api/types";
 import { getCurrentUser, signInWithGoogle } from "./auth";
 import { type BundleFile, collectSceneBundle } from "./bundle";
-import type { CloudJob, CloudJobStatus } from "./cloud-job-types";
+import type {
+	CloudJob,
+	CloudJobRenderConfig,
+	CloudJobStatus,
+} from "./cloud-job-types";
 import * as store from "./jobs-store";
 
-export type { CloudJob, CloudJobStatus } from "./cloud-job-types";
+export type {
+	CloudJob,
+	CloudJobRenderConfig,
+	CloudJobStatus,
+} from "./cloud-job-types";
 export { isNonTerminalStatus } from "./jobs-store";
 
 const UPLOAD_CONCURRENCY = 8;
 const MAX_POLL_MS = 10_000;
-const COMPOSITE_FALLBACK = "1.png";
+const COMPOSITE_FALLBACK = "frame-0001.png";
 
 function sleep(ms: number) {
 	return new Promise((r) => setTimeout(r, ms));
@@ -45,10 +53,7 @@ async function runWithConcurrency<T, R>(
 		for (;;) {
 			const i = next++;
 			if (i >= items.length) return;
-			const item = items[i];
-			if (item !== undefined) {
-				await fn(item);
-			}
+			await fn(items[i] as T);
 		}
 	};
 	await Promise.all(Array.from({ length: cap }, () => runWorker()));
@@ -132,8 +137,9 @@ export async function startCloudRender(args: {
 	scene: ResolvedScene;
 	dir: FileSystemDirectoryHandle;
 	enableCache?: boolean;
+	renderConfig?: CloudJobRenderConfig;
 }): Promise<void> {
-	const { scene, dir, enableCache = true } = args;
+	const { scene, dir, enableCache = true, renderConfig } = args;
 	await ensureSignedIn();
 
 	const localId = `local-${crypto.randomUUID()}`;
@@ -146,6 +152,7 @@ export async function startCloudRender(args: {
 		sceneName: dir.name,
 		status: "packaging",
 		abort: ac,
+		renderConfig,
 	};
 	store.upsertJob(baseJob);
 

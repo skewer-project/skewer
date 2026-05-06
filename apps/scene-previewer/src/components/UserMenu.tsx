@@ -7,10 +7,9 @@ import {
 	subscribeAuth,
 } from "../services/auth";
 
-export function UserMenu() {
+export function UserMenu({ onError }: { onError?: (msg: string) => void }) {
 	const [user, setUser] = useState<User | null>(null);
 	const [open, setOpen] = useState(false);
-	const [authError, setAuthError] = useState("");
 
 	useEffect(() => {
 		return subscribeAuth(setUser);
@@ -27,11 +26,12 @@ export function UserMenu() {
 					type="button"
 					className="open-btn user-menu-signin"
 					onClick={async () => {
-						setAuthError("");
 						try {
 							await signInWithGoogle();
 						} catch (e) {
-							setAuthError(e instanceof Error ? e.message : "Sign in failed");
+							if (onError) {
+								onError(e instanceof Error ? e.message : "Sign in failed");
+							}
 						}
 					}}
 				>
@@ -48,18 +48,25 @@ export function UserMenu() {
 						onClick={() => setOpen((o) => !o)}
 					>
 						{user.photoURL ? (
-							<img src={user.photoURL} width={24} height={24} alt="" />
+							<img
+								src={user.photoURL}
+								referrerPolicy="no-referrer"
+								width={24}
+								height={24}
+								alt=""
+							/>
 						) : (
 							<span className="avatar-fallback" aria-hidden>
-								{user.email?.[0]?.toUpperCase() ?? "?"}
+								{(user.displayName?.[0] ?? user.email?.[0])?.toUpperCase() ??
+									"?"}
 							</span>
 						)}
 					</button>
 					{open && (
-						<button
-							type="button"
+						// biome-ignore lint/a11y/noStaticElementInteractions: intentional transparent backdrop to close menu on outside click
+						<div
 							className="user-menu-backdrop"
-							aria-label="Close menu"
+							role="presentation"
 							onClick={() => setOpen(false)}
 						/>
 					)}
@@ -81,11 +88,6 @@ export function UserMenu() {
 					)}
 				</div>
 			)}
-			{authError ? (
-				<span className="user-menu-err" title={authError}>
-					{authError}
-				</span>
-			) : null}
 		</div>
 	);
 }

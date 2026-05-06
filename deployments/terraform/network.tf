@@ -8,7 +8,7 @@ resource "google_compute_network" "skewer" {
 resource "google_compute_subnetwork" "skewer" {
   name                     = "${local.name_prefix}-subnet"
   network                  = google_compute_network.skewer.id
-  region                   = var.region
+  region                   = local.batch_vm_region
   ip_cidr_range            = "10.10.0.0/22"
   private_ip_google_access = true # Allows VMs without public IPs to reach GCP APIs
 }
@@ -16,13 +16,13 @@ resource "google_compute_subnetwork" "skewer" {
 resource "google_compute_router" "skewer" {
   name    = "${local.name_prefix}-router"
   network = google_compute_network.skewer.id
-  region  = var.region
+  region  = local.batch_vm_region
 }
 
 resource "google_compute_router_nat" "skewer" {
   name   = "${local.name_prefix}-nat"
   router = google_compute_router.skewer.name
-  region = var.region
+  region = local.batch_vm_region
 
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"

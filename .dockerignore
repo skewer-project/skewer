@@ -39,3 +39,6 @@ scripts/
 deployments/terraform/*.tfstate
 deployments/terraform/*.tfstate.backup
 deployments/terraform/.terraform/
+
+# golden image tests
+tests/integration

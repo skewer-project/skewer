@@ -274,7 +274,6 @@ void Scene::Build() {
         spheres_.clear();
         std::unordered_map<uint32_t, uint32_t> mesh_to_blas;
         ExtractInstancesFromGraph(*graph_root_, {}, mesh_to_blas);
-        graph_root_.reset();
 
         float mid_t = 0.5f * (shutter_open_ + shutter_close_);
 

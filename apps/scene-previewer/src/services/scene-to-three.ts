@@ -63,14 +63,14 @@ export function makeThreeMaterial(mat: Material): THREE.Material {
 		case "lambertian":
 			return new THREE.MeshLambertMaterial({
 				color,
-				emissive: hasEmission ? emissive : undefined,
+				...(hasEmission && { emissive }),
 			});
 		case "metal":
 			return new THREE.MeshStandardMaterial({
 				color,
 				metalness: 1,
 				roughness: mat.roughness,
-				emissive: hasEmission ? emissive : undefined,
+				...(hasEmission && { emissive }),
 			});
 		case "dielectric":
 			return new THREE.MeshPhysicalMaterial({
