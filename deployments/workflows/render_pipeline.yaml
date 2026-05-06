@@ -21,6 +21,8 @@
 #   skewer_memory_mib       - int, memory request per render task in MiB
 #   skewer_provisioning_model - string, "SPOT" or "STANDARD"
 #   skewer_max_retry_count  - int, automatic retries for render task failures
+#   skewer_parallelism      - int, max concurrent render tasks per animated-layer Batch job
+#   render_layer_parallelism - int, max concurrent layer render Batch jobs
 #   loom_machine_type       - string, e.g. "e2-highmem-8"
 #   loom_cpu_milli          - int, vCPU request per composite task in milliCPU
 #   loom_memory_mib         - int, memory request per composite task in MiB
@@ -58,6 +60,8 @@ main:
           - loom_provisioning_model: ${args.loom_provisioning_model}
           - loom_max_retry_count: ${args.loom_max_retry_count}
           - loom_parallelism: ${args.loom_parallelism}
+          - skewer_parallelism: ${default(map.get(args, "skewer_parallelism"), 24)}
+          - render_layer_parallelism: ${default(map.get(args, "render_layer_parallelism"), 1)}
           - network: ${args.network}
           - subnet: ${args.subnet}
           - subnet_region_tail: ${text.split(args.subnet, "/regions/")[1]}
@@ -72,6 +76,7 @@ main:
     - render_layers:
         parallel:
           shared: [layer_output_prefixes, layer_output_modes]
+          concurrency_limit: ${render_layer_parallelism}
           for:
             value: layer
             in: ${args.layers}
@@ -148,6 +153,7 @@ main:
                     memory_mib: ${skewer_memory_mib}
                     provisioning_model: ${skewer_provisioning_model}
                     max_retry_count: ${skewer_max_retry_count}
+                    parallelism: ${skewer_parallelism}
                     network: ${network}
                     subnet: ${subnet}
                     batch_allowed_locations: ${batch_allowed_locations}
@@ -382,6 +388,7 @@ submit_batch_render_animated:
           body:
             taskGroups:
               - taskCount: ${task_count}
+                parallelism: ${parallelism}
                 taskCountPerNode: 1
                 taskSpec:
                   computeResource:

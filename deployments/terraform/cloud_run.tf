@@ -75,6 +75,18 @@ resource "google_cloud_run_v2_service" "coordinator" {
         value = tostring(var.skewer_batch_frames_per_task)
       }
       env {
+        name  = "SKEWER_BATCH_PARALLELISM"
+        value = tostring(var.skewer_batch_parallelism)
+      }
+      env {
+        name  = "RENDER_LAYER_PARALLELISM"
+        value = tostring(var.render_layer_parallelism)
+      }
+      env {
+        name  = "BATCH_ALLOWED_LOCATIONS"
+        value = join(",", local.batch_allowed_locations)
+      }
+      env {
         name  = "LOOM_BATCH_MACHINE_TYPE"
         value = var.loom_batch_machine_type
       }

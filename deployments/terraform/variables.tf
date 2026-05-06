@@ -70,6 +70,18 @@ variable "skewer_batch_frames_per_task" {
   default     = 8
 }
 
+variable "skewer_batch_parallelism" {
+  description = "Max concurrent Skewer render tasks per animated-layer Batch job. Caps worker VMs requested by one render layer."
+  type        = number
+  default     = 24
+}
+
+variable "render_layer_parallelism" {
+  description = "Max layer render Batch jobs submitted concurrently by one workflow execution."
+  type        = number
+  default     = 1
+}
+
 variable "loom_batch_machine_type" {
   description = "Machine type for Cloud Batch Loom composite jobs"
   type        = string
