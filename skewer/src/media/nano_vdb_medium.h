@@ -251,7 +251,10 @@ struct NanoVDBMedium {
     }
 
     Vec3 Center() const { return bbox.Centroid(); }
-    float BoundingRadius() const { return 0.5f * bbox.Diagonal().Length(); }
+    float BoundingRadius() const {
+        Vec3 d = bbox.Diagonal();
+        return 0.5f * std::max({d.x(), d.y(), d.z()});
+    }
 };
 
 // Accessor constructor implementation

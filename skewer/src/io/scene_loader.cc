@@ -354,7 +354,7 @@ static SceneNode ParseGraphNode(const json& j, const MaterialMap& mat_map,
         if (inside != kVacuumMediumId && med_type == MediumType::NanoVDB) {
             const NanoVDBMedium& medium = scene.nanovdb_media()[med_index];
             sd.center = medium.Center();
-            sd.radius = medium.BoundingRadius() * 1.05f;
+            sd.radius = medium.BoundingRadius();
             sd.center_is_world = true;
         } else {
             sd.center = ParseVec3(j.at("center"));

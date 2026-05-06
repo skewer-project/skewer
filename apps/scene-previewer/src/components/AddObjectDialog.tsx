@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { writeTextFile } from "../services/fs";
+import { writeFile } from "../services/fs";
 import type { ObjNode, SceneNode, Vec3 } from "../types/scene";
 import { MaterialDropdown, NumberField, Toggle, Vec3Field } from "./controls";
 
@@ -78,7 +78,7 @@ export function AddObjectDialog({
 			const picked = await fileHandle.getFile();
 			const content = await picked.text();
 			const destPath = `models/${picked.name}`;
-			await writeTextFile(dirHandle, destPath, content);
+			await writeFile(dirHandle, destPath, content);
 			setFile(destPath);
 		} catch (err) {
 			if (err instanceof Error && err.name !== "AbortError") {

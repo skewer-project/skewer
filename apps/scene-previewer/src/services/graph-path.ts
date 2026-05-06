@@ -3,6 +3,8 @@
 import type {
 	AnimatedTransform,
 	LayerData,
+	Material,
+	Medium,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneNode,
@@ -14,6 +16,50 @@ export interface ParsedObjectPath {
 	layerIdx: number;
 	/** Indices from root graph; empty = layer graph root (virtual parent). */
 	indices: number[];
+}
+
+export function updateMaterial(
+	scene: ResolvedScene,
+	layerRefKey: string,
+	matName: string,
+	mutator: (mat: Material) => Material,
+): ResolvedScene {
+	const parts = layerRefKey.split(":");
+	const tag = parts[0];
+	const li = Number(parts[1]);
+	const listKey = tag === "ctx" ? "contexts" : "layers";
+
+	const newList = [...scene[listKey]];
+	const newLayer = { ...newList[li], data: { ...newList[li].data } };
+	newLayer.data.materials = { ...newLayer.data.materials };
+	const prev = newLayer.data.materials[matName];
+	if (!prev) return scene;
+	newLayer.data.materials[matName] = mutator(prev);
+	newList[li] = newLayer;
+
+	return { ...scene, [listKey]: newList };
+}
+
+export function updateMedium(
+	scene: ResolvedScene,
+	layerRefKey: string,
+	medName: string,
+	mutator: (med: Medium) => Medium,
+): ResolvedScene {
+	const parts = layerRefKey.split(":");
+	const tag = parts[0];
+	const li = Number(parts[1]);
+	const listKey = tag === "ctx" ? "contexts" : "layers";
+
+	const newList = [...scene[listKey]];
+	const newLayer = { ...newList[li], data: { ...newList[li].data } };
+	newLayer.data.media = { ...newLayer.data.media };
+	const prev = newLayer.data.media?.[medName];
+	if (!prev) return scene;
+	newLayer.data.media[medName] = mutator(prev);
+	newList[li] = newLayer;
+
+	return { ...scene, [listKey]: newList };
 }
 
 /** True if this is a material selection key, not an object path. */
@@ -67,6 +113,7 @@ export interface ResolvedNodeContext {
 	siblingIndex: number;
 	depth: number;
 	materialNames: string[];
+	mediumNames: string[];
 }
 
 /** Walk to the node at `indices`; returns null if path invalid. */
@@ -105,6 +152,7 @@ export function resolveNodeAtPath(
 		siblingIndex,
 		depth: indices.length - 1,
 		materialNames: Object.keys(layer.data.materials),
+		mediumNames: Object.keys(layer.data.media ?? {}),
 	};
 }
 

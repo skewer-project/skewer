@@ -46,6 +46,21 @@ export interface DielectricMaterial extends MaterialBase {
 
 export type Material = LambertianMaterial | MetalMaterial | DielectricMaterial;
 
+// --- Media ---
+
+export interface NanoVDBMedium {
+	type: "nanovdb";
+	sigma_a: Vec3;
+	sigma_s: Vec3;
+	g: number;
+	density_multiplier: number;
+	scale?: number;
+	translate?: Vec3;
+	file: string;
+}
+
+export type Medium = NanoVDBMedium;
+
 // --- Transforms ---
 
 export type InterpCurve =
@@ -99,6 +114,8 @@ export interface SphereNode extends NodeBase {
 	center: Vec3;
 	radius: number;
 	visible?: boolean;
+	inside_medium?: string;
+	outside_medium?: string;
 }
 
 export interface QuadNode extends NodeBase {
@@ -147,6 +164,7 @@ export interface RenderConfig {
 
 export interface LayerData {
 	materials: Record<string, Material>;
+	media?: Record<string, Medium>;
 	graph: SceneNode[];
 	render?: RenderConfig;
 	visible?: boolean;
