@@ -486,7 +486,7 @@ function App() {
 	}, [scene]);
 
 	useEffect(() => {
-		resumePendingJobs();
+		void resumePendingJobs();
 	}, []);
 
 	useEffect(() => {

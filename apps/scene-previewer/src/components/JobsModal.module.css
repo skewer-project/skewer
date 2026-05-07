@@ -85,6 +85,7 @@
 	opacity: 0.85;
 }
 
+.refreshBtn,
 .clearBtn {
 	margin-left: auto;
 	display: inline-flex;
@@ -95,6 +96,10 @@
 	border-right: none;
 	border: 1px solid var(--border-mid);
 	font-size: 10.5px;
+}
+
+.clearBtn {
+	margin-left: 0;
 }
 
 .clearBtn:disabled {
@@ -281,6 +286,12 @@
 
 .rowError {
 	color: var(--red);
+	font-size: 10.5px;
+	margin-top: 4px;
+}
+
+.rowSync {
+	color: var(--amber);
 	font-size: 10.5px;
 	margin-top: 4px;
 }

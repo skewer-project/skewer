@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64")
-    add_compile_options(-isystem /usr/local/include)
-    link_directories(/usr/local/lib)
+  add_compile_options(-isystem /usr/local/include)
+  link_directories(/usr/local/lib)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -45,6 +45,11 @@ endif()
 
 if(SKEWER_COMBINED_BUILD_SKEWER)
   add_subdirectory(skewer)
+endif()
+
+# Required for integration tests
+if(BUILD_TESTING)
+  add_subdirectory(tests)
 endif()
 
 # FetchContent deps (e.g. googletest) inherit directory compile options including -Werror.

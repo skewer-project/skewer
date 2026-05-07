@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-#     add_compile_options(-Wall -Wextra -Wpedantic) 
+#     add_compile_options(-Wall -Wextra -Wpedantic)
 #     message(STATUS "Clang detected: Strict mode and Werror enabled.")
 # endif()
 
@@ -22,17 +22,17 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
 cmake_policy(SET CMP0135 NEW)
 
-# Needs to be changed to not pull entire skewer renderer in. 
+# Needs to be changed to not pull entire skewer renderer in.
 if(NOT TARGET exrio::exrio)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio/CMakeLists.txt")
-        add_subdirectory(
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio/CMakeLists.txt")
+    add_subdirectory(
             "${CMAKE_CURRENT_SOURCE_DIR}/../libs/exrio"
             "${CMAKE_CURRENT_BINARY_DIR}/exrio"
             SYSTEM
         )
-    else()
-        find_package(exrio REQUIRED CONFIG)
-    endif()
+  else()
+    find_package(exrio REQUIRED CONFIG)
+  endif()
 endif()
 
 # Loom compositor logic (composition/merging) sits here.
@@ -66,19 +66,19 @@ file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
 target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic)
 
 if(BUILD_TESTING)
-    include(FetchContent)
-    if(NOT TARGET GTest::gtest_main)
-        FetchContent_Declare(
+  include(FetchContent)
+  if(NOT TARGET GTest::gtest_main)
+    FetchContent_Declare(
             googletest
             URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
         )
-        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(googletest)
-    endif()
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+  endif()
 
-    enable_testing()
-    include(GoogleTest)
-    add_subdirectory(tests)
+  enable_testing()
+  include(GoogleTest)
+  add_subdirectory(tests)
 endif()
 
 # Install targets
