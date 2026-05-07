@@ -4,15 +4,23 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      regen_goldens:
+        description: 'Regenerate golden images instead of comparing'
+        type: boolean
+        default: false
 
 jobs:
   integration-tests:
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 20
+    permissions:
+      contents: write
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 500M
       SKEWER_RUN_GOLDEN: "1"
+      SKEWER_GENERATE_GOLDEN: ${{ inputs.regen_goldens == true && 'ON' || 'OFF' }}
       GIT_LFS_SKIP_SMUDGE: "1"
       LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/**
 
@@ -69,6 +77,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=clang++-17
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DSKEWER_GENERATE_GOLDEN=${{ env.SKEWER_GENERATE_GOLDEN }}
 
       - name: Reset ccache stats
         run: ccache -z
@@ -82,3 +91,12 @@ jobs:
       - name: ccache stats
         if: always()
         run: ccache -s
+
+      - name: Commit regenerated golden images
+        if: ${{ inputs.regen_goldens == true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/integration/fixtures/golden_scenes/
+          git commit -m "regenerate golden images [skip ci]" || echo "no changes"
+          git push
