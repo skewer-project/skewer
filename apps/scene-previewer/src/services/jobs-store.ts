@@ -143,10 +143,10 @@ function clearLegacyJobs() {
 function mergeJobs(preferred: CloudJob[], fallback: CloudJob[]): CloudJob[] {
 	const byId = new Map<string, CloudJob>();
 	for (const job of fallback) {
-		byId.set(job.id, { ...job });
+		byId.set(job.id, normalizeJob(job));
 	}
 	for (const job of preferred) {
-		byId.set(job.id, { ...job });
+		byId.set(job.id, normalizeJob(job));
 	}
 	return pruneList([...byId.values()]);
 }
