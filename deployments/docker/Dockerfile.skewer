@@ -34,7 +34,7 @@ COPY . .
 # Use BuildKit cache mounts for ccache and CMake build directory
 RUN --mount=type=cache,id=skewer-ccache,target=/ccache \
     --mount=type=cache,id=skewer-build,target=/app/build,sharing=locked \
-    cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF && \
+    cmake --preset release -DSKEWER_COMBINED_BUILD_LOOM=OFF -DBUILD_TESTING=OFF && \
     cmake --build --preset release --target skewer-worker --parallel 4 && \
     cp /app/build/release/skewer/skewer-worker /tmp/skewer-worker
 
