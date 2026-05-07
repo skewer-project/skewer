@@ -5,7 +5,6 @@ set(SKEWER_CORE_SOURCES
     "${_SKEWER_CORE_SOURCE_ROOT}/src/scene/scene.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/scene/interp_curve.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/scene/animation.cc"
-    "${_SKEWER_CORE_SOURCE_ROOT}/src/film/deep_segment_pool.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/film/film.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/film/image_buffer.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/integrators/path_trace.cc"
