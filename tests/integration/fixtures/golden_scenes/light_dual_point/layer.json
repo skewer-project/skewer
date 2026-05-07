@@ -77,7 +77,7 @@
       "visible": true
     }
   },
-  "objects": [
+  "graph": [
     {
       "type": "quad",
       "material": "matte_white",

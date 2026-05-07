@@ -135,7 +135,7 @@
       "visible": true
     }
   },
-  "objects": [
+  "graph": [
     {
       "type": "quad",
       "material": "green",
