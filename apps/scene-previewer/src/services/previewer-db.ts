@@ -16,7 +16,19 @@ export function openPreviewerDB(): Promise<IDBDatabase> {
 				db.createObjectStore(CLOUD_JOBS_STORE, { keyPath: "id" });
 			}
 		};
-		req.onsuccess = () => resolve(req.result);
+		req.onblocked = () =>
+			reject(
+				new Error(
+					`Opening IndexedDB "${PREVIEWER_DB_NAME}" was blocked by another open connection using an older version. Please close other tabs or reload and try again.`,
+				),
+			);
+		req.onsuccess = () => {
+			const db = req.result;
+			db.onversionchange = () => {
+				db.close();
+			};
+			resolve(db);
+		};
 		req.onerror = () => reject(req.error);
 	});
 }
