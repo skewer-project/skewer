@@ -1,9 +1,8 @@
 // Persists recently opened scene folders using IndexedDB.
 // FileSystemDirectoryHandle objects can be stored in IDB but not localStorage.
 
-const DB_NAME = "skewer-previewer";
-const STORE_NAME = "recent-scenes";
-const DB_VERSION = 1;
+import { openPreviewerDB, RECENT_SCENES_STORE } from "./previewer-db";
+
 const MAX_ENTRIES = 8;
 
 export interface RecentEntry {
@@ -12,26 +11,12 @@ export interface RecentEntry {
 	lastOpened: number; // epoch ms
 }
 
-function openDB(): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(DB_NAME, DB_VERSION);
-		req.onupgradeneeded = () => {
-			const db = req.result;
-			if (!db.objectStoreNames.contains(STORE_NAME)) {
-				db.createObjectStore(STORE_NAME, { keyPath: "name" });
-			}
-		};
-		req.onsuccess = () => resolve(req.result);
-		req.onerror = () => reject(req.error);
-	});
-}
-
 export async function getRecentScenes(): Promise<RecentEntry[]> {
 	try {
-		const db = await openDB();
+		const db = await openPreviewerDB();
 		return new Promise((resolve, reject) => {
-			const tx = db.transaction(STORE_NAME, "readonly");
-			const store = tx.objectStore(STORE_NAME);
+			const tx = db.transaction(RECENT_SCENES_STORE, "readonly");
+			const store = tx.objectStore(RECENT_SCENES_STORE);
 			const req = store.getAll();
 			req.onsuccess = () => {
 				const entries = req.result as RecentEntry[];
@@ -50,9 +35,9 @@ export async function addRecentScene(
 	handle: FileSystemDirectoryHandle,
 ): Promise<void> {
 	try {
-		const db = await openDB();
-		const tx = db.transaction(STORE_NAME, "readwrite");
-		const store = tx.objectStore(STORE_NAME);
+		const db = await openPreviewerDB();
+		const tx = db.transaction(RECENT_SCENES_STORE, "readwrite");
+		const store = tx.objectStore(RECENT_SCENES_STORE);
 		store.put({ name, handle, lastOpened: Date.now() } satisfies RecentEntry);
 
 		// Prune old entries
@@ -73,9 +58,9 @@ export async function addRecentScene(
 
 export async function removeRecentScene(name: string): Promise<void> {
 	try {
-		const db = await openDB();
-		const tx = db.transaction(STORE_NAME, "readwrite");
-		tx.objectStore(STORE_NAME).delete(name);
+		const db = await openPreviewerDB();
+		const tx = db.transaction(RECENT_SCENES_STORE, "readwrite");
+		tx.objectStore(RECENT_SCENES_STORE).delete(name);
 	} catch {
 		// noop
 	}

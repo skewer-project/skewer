@@ -1,12 +1,16 @@
-export type CloudJobStatus =
+export type CloudJobClientStatus =
 	| "packaging"
 	| "uploading-init"
 	| "uploading"
-	| "submitting"
+	| "submitting";
+
+export type CloudJobServerStatus =
 	| "running"
 	| "succeeded"
 	| "failed"
 	| "cancelled";
+
+export type CloudJobStatus = CloudJobClientStatus | CloudJobServerStatus;
 
 export interface CloudJobRenderConfig {
 	width: number;
@@ -33,6 +37,9 @@ export interface CloudJob {
 	totalBytes?: number;
 	uploadedBytes?: number;
 	error?: string;
+	lastSyncedAt?: number;
+	lastSyncError?: string;
+	compositeName?: string;
 	compositeObjectURL?: string;
 	abort?: AbortController;
 	renderConfig?: CloudJobRenderConfig;

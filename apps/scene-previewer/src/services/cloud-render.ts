@@ -25,11 +25,18 @@ export type {
 export { isNonTerminalStatus } from "./jobs-store";
 
 const UPLOAD_CONCURRENCY = 8;
+const INITIAL_POLL_MS = 2000;
 const MAX_POLL_MS = 10_000;
 const COMPOSITE_FALLBACK = "frame-0001.png";
 
+const activePolls = new Map<string, AbortController>();
+
 function sleep(ms: number) {
 	return new Promise((r) => setTimeout(r, ms));
+}
+
+function isLocalJob(id: string): boolean {
+	return id.startsWith("local-");
 }
 
 function compositePngName(status: StatusResponse): string {
@@ -64,72 +71,154 @@ async function ensureSignedIn() {
 	await signInWithGoogle();
 }
 
-function markFailed(id: string, message: string) {
-	const exists = store.getSnapshot().some((j) => j.id === id);
-	if (exists) {
-		store.patchJob(id, { status: "failed" as CloudJobStatus, error: message });
+function jobExists(id: string): boolean {
+	return store.getSnapshot().some((j) => j.id === id);
+}
+
+function patchIfExists(id: string, patch: Partial<CloudJob>) {
+	if (jobExists(id)) {
+		store.patchJob(id, patch);
 	}
+}
+
+function markFailed(id: string, message: string) {
+	patchIfExists(id, {
+		status: "failed" as CloudJobStatus,
+		error: message,
+		lastSyncError: undefined,
+	});
+}
+
+function markSyncError(id: string, message: string) {
+	patchIfExists(id, { lastSyncError: message });
+}
+
+function markSynced(id: string, patch: Partial<CloudJob>) {
+	patchIfExists(id, {
+		...patch,
+		lastSyncedAt: Date.now(),
+		lastSyncError: undefined,
+	});
+}
+
+async function refetchCompositePreview(id: string, name?: string) {
+	const job = store.getSnapshot().find((j) => j.id === id);
+	const artifactName = name ?? job?.compositeName ?? COMPOSITE_FALLBACK;
+	try {
+		const blob = await fetchCompositeBlob(id, artifactName);
+		const url = URL.createObjectURL(blob);
+		store.patchJob(id, {
+			compositeName: artifactName,
+			compositeObjectURL: url,
+			lastSyncError: undefined,
+		});
+	} catch (e) {
+		markSyncError(
+			id,
+			`Composite preview unavailable: ${e instanceof Error ? e.message : String(e)}`,
+		);
+	}
+}
+
+async function reconcileJobStatus(
+	pipelineId: string,
+	signal: AbortSignal,
+): Promise<boolean> {
+	let st: Awaited<ReturnType<typeof getJobStatus>>;
+	try {
+		st = await getJobStatus(pipelineId);
+	} catch (e) {
+		markSyncError(pipelineId, e instanceof Error ? e.message : String(e));
+		return false;
+	}
+
+	if (signal.aborted) return true;
+
+	if (st === "pending") {
+		markSynced(pipelineId, { status: "submitting" });
+		return false;
+	}
+
+	const s = st.status;
+	if (s === "PIPELINE_STATUS_RUNNING" || s === "PIPELINE_STATUS_UNSPECIFIED") {
+		markSynced(pipelineId, { status: "running", error: undefined });
+		return false;
+	}
+	if (s === "PIPELINE_STATUS_SUCCEEDED") {
+		const name = compositePngName(st);
+		markSynced(pipelineId, {
+			status: "succeeded",
+			compositeName: name,
+			error: undefined,
+		});
+		if (!signal.aborted) {
+			await refetchCompositePreview(pipelineId, name);
+		}
+		return true;
+	}
+	if (s === "PIPELINE_STATUS_FAILED") {
+		markSynced(pipelineId, {
+			status: "failed",
+			error: st.error_message || "Render failed",
+		});
+		return true;
+	}
+	if (s === "PIPELINE_STATUS_CANCELLED") {
+		markSynced(pipelineId, { status: "cancelled", error: undefined });
+		return true;
+	}
+
+	markSyncError(pipelineId, `Unknown pipeline status: ${s}`);
+	return false;
 }
 
 async function pollUntilDone(
 	pipelineId: string,
 	signal: AbortSignal,
 ): Promise<void> {
-	let delay = 2000;
+	let delay = INITIAL_POLL_MS;
 	for (;;) {
-		if (signal.aborted) {
-			return;
-		}
-		let st: Awaited<ReturnType<typeof getJobStatus>>;
-		try {
-			st = await getJobStatus(pipelineId);
-		} catch (e) {
-			markFailed(pipelineId, e instanceof Error ? e.message : String(e));
-			return;
-		}
-		if (st === "pending") {
-			store.patchJob(pipelineId, { status: "running" });
-		} else {
-			const s = st.status;
-			if (
-				s === "PIPELINE_STATUS_RUNNING" ||
-				s === "PIPELINE_STATUS_UNSPECIFIED"
-			) {
-				store.patchJob(pipelineId, { status: "running" });
-			} else if (s === "PIPELINE_STATUS_SUCCEEDED") {
-				const name = compositePngName(st);
-				try {
-					if (signal.aborted) {
-						return;
-					}
-					const blob = await fetchCompositeBlob(pipelineId, name);
-					const url = URL.createObjectURL(blob);
-					store.patchJob(pipelineId, {
-						status: "succeeded",
-						compositeObjectURL: url,
-					});
-				} catch (e) {
-					markFailed(
-						pipelineId,
-						`Composite download failed: ${e instanceof Error ? e.message : String(e)}`,
-					);
-				}
-				return;
-			} else if (s === "PIPELINE_STATUS_FAILED") {
-				store.patchJob(pipelineId, {
-					status: "failed",
-					error: st.error_message || "Render failed",
-				});
-				return;
-			} else if (s === "PIPELINE_STATUS_CANCELLED") {
-				store.patchJob(pipelineId, { status: "cancelled" });
-				return;
-			}
-		}
-		const wait = signal.aborted ? 0 : delay;
-		if (wait > 0) await sleep(wait);
 		if (signal.aborted) return;
+		const done = await reconcileJobStatus(pipelineId, signal);
+		if (done || signal.aborted) return;
+		await sleep(delay);
 		delay = Math.min(MAX_POLL_MS, Math.floor(delay * 1.4));
+	}
+}
+
+function startStatusPoll(
+	pipelineId: string,
+	ac = new AbortController(),
+	force = false,
+) {
+	if (isLocalJob(pipelineId)) return;
+	const existing = activePolls.get(pipelineId);
+	if (existing && !existing.signal.aborted) {
+		if (!force) return;
+		existing.abort();
+	}
+	activePolls.set(pipelineId, ac);
+	store.patchJob(pipelineId, { abort: ac });
+	void pollUntilDone(pipelineId, ac.signal).finally(() => {
+		if (activePolls.get(pipelineId) === ac) {
+			activePolls.delete(pipelineId);
+		}
+	});
+}
+
+async function pollTracked(
+	pipelineId: string,
+	ac: AbortController,
+): Promise<void> {
+	if (isLocalJob(pipelineId)) return;
+	activePolls.set(pipelineId, ac);
+	store.patchJob(pipelineId, { abort: ac });
+	try {
+		await pollUntilDone(pipelineId, ac.signal);
+	} finally {
+		if (activePolls.get(pipelineId) === ac) {
+			activePolls.delete(pipelineId);
+		}
 	}
 }
 
@@ -174,6 +263,7 @@ export async function startCloudRender(args: {
 			totalFiles: bundle.length,
 			totalBytes,
 			uploadedBytes: 0,
+			lastSyncError: undefined,
 		});
 
 		const init = await initJob({
@@ -189,6 +279,7 @@ export async function startCloudRender(args: {
 		store.patchJob(activeId, {
 			id: pipelineId,
 			status: "uploading",
+			lastSyncError: undefined,
 		});
 		activeId = pipelineId;
 
@@ -217,16 +308,15 @@ export async function startCloudRender(args: {
 		);
 
 		if (ac.signal.aborted) return;
-		store.patchJob(activeId, { status: "submitting" });
+		store.patchJob(activeId, {
+			status: "submitting",
+			lastSyncError: undefined,
+		});
 		await submitJob(activeId, { enable_cache: enableCache });
 		if (ac.signal.aborted) return;
 		store.patchJob(activeId, { status: "running" });
-		await pollUntilDone(activeId, ac.signal);
+		await pollTracked(activeId, ac);
 	} catch (e) {
-		if (e instanceof ApiError) {
-			fail(e.message);
-			return;
-		}
 		if (e instanceof DOMException && e.name === "AbortError") {
 			store.removeJob(activeId);
 			return;
@@ -234,6 +324,19 @@ export async function startCloudRender(args: {
 		if (inBundlePhase) {
 			store.removeJob(activeId);
 			throw e;
+		}
+		if (e instanceof ApiError) {
+			fail(e.message);
+			return;
+		}
+		const current = store.getSnapshot().find((j) => j.id === activeId);
+		if (current?.status === "submitting" && !isLocalJob(activeId)) {
+			markSyncError(
+				activeId,
+				`Submit result unknown: ${e instanceof Error ? e.message : String(e)}`,
+			);
+			startStatusPoll(activeId, ac, true);
+			return;
 		}
 		fail(e instanceof Error ? e.message : String(e));
 	}
@@ -245,33 +348,26 @@ export async function userCancelRender(id: string) {
 	try {
 		await cancelJob(id);
 	} catch {
-		// not submitted, or already ended
+		markSyncError(id, "Cancel request failed; refreshing server status.");
+		startStatusPoll(id, new AbortController(), true);
+		return;
 	}
-	if (store.getSnapshot().some((x) => x.id === id)) {
-		store.patchJob(id, { status: "cancelled" });
-	}
-}
-
-async function refetchCompositePreview(id: string) {
-	try {
-		const blob = await fetchCompositeBlob(id, COMPOSITE_FALLBACK);
-		const url = URL.createObjectURL(blob);
-		store.patchJob(id, { compositeObjectURL: url });
-	} catch {
-		// keep card without image
+	if (jobExists(id)) {
+		store.patchJob(id, { status: "cancelled", lastSyncError: undefined });
 	}
 }
 
-export function resumePendingJobs() {
+export async function resumePendingJobs() {
+	await store.whenHydrated();
 	for (const j of store.getSnapshot()) {
-		if (j.id.startsWith("local-") && store.isNonTerminalStatus(j.status)) {
+		if (isLocalJob(j.id) && store.isNonTerminalStatus(j.status)) {
 			store.patchJob(j.id, {
 				status: "failed",
 				error: "Client restarted before job was created on the server.",
 			});
 			continue;
 		}
-		if (j.id.startsWith("local-")) {
+		if (isLocalJob(j.id)) {
 			continue;
 		}
 		if (
@@ -286,9 +382,7 @@ export function resumePendingJobs() {
 			continue;
 		}
 		if (j.status === "submitting" || j.status === "running") {
-			const ac = new AbortController();
-			store.patchJob(j.id, { abort: ac });
-			void pollUntilDone(j.id, ac.signal);
+			startStatusPoll(j.id);
 			continue;
 		}
 		if (j.status === "succeeded" && !j.compositeObjectURL) {
@@ -297,11 +391,43 @@ export function resumePendingJobs() {
 	}
 }
 
+export function refreshCloudJob(id: string) {
+	const job = store.getSnapshot().find((j) => j.id === id);
+	if (!job || isLocalJob(id)) return;
+	if (job.status === "succeeded") {
+		void refetchCompositePreview(id);
+		return;
+	}
+	if (store.isNonTerminalStatus(job.status)) {
+		startStatusPoll(id, new AbortController(), true);
+		return;
+	}
+	const ac = new AbortController();
+	void reconcileJobStatus(id, ac.signal);
+}
+
+export function refreshCloudJobs() {
+	for (const job of store.getSnapshot()) {
+		if (isLocalJob(job.id)) continue;
+		if (job.status === "succeeded" && !job.compositeObjectURL) {
+			void refetchCompositePreview(job.id);
+			continue;
+		}
+		if (store.isNonTerminalStatus(job.status)) {
+			startStatusPoll(job.id, new AbortController(), true);
+		}
+	}
+}
+
 export async function downloadCompositePng(
 	pipelineId: string,
 	suggestedName: string,
 ) {
-	const blob = await fetchCompositeBlob(pipelineId, COMPOSITE_FALLBACK);
+	const job = store.getSnapshot().find((j) => j.id === pipelineId);
+	const blob = await fetchCompositeBlob(
+		pipelineId,
+		job?.compositeName ?? COMPOSITE_FALLBACK,
+	);
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");
 	a.href = url;
