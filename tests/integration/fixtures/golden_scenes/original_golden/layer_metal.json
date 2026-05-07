@@ -61,7 +61,7 @@
       "roughness": 0.2
     }
   },
-  "objects": [
+  "graph": [
     {
       "type": "sphere",
       "material": "gold_metal",

@@ -1,6 +1,6 @@
 {
   "materials": {},
-  "objects": [],
+  "graph": [],
   "render": {
     "integrator": "path_trace",
     "max_samples": 512,

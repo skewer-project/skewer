@@ -41,7 +41,7 @@
       "visible": true
     }
   },
-  "objects": [
+  "graph": [
     {
       "type": "sphere",
       "material": "null",
