@@ -34,7 +34,9 @@ nav:
       - architecture/coordinator.md
       - architecture/skewer.md
       - architecture/loom.md
-  - API: api/grpc.md
+  - API:
+      - Internal Networking (gRPC): api/grpc.md
+      - Middleware: api/http.md
   - Deployment:
       - deployment/local.md
       - deployment/gcp.md
@@ -79,3 +81,4 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.arithmatex:
       generic: true
+  - tables
