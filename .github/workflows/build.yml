@@ -84,7 +84,7 @@ jobs:
           github.event.pull_request.head.repo.full_name == github.repository &&
           contains(github.event.pull_request.labels.*.name, 'regen-goldens')
         run: |
-          git lfs fetch --include="tests/integration/fixtures/golden_images/**"
+          git lfs fetch --include="tests/integration/fixtures/golden_images/**,tests/integration/fixtures/golden_scenes/**/*.nvdb"
           git lfs checkout
 
       - name: Configure golden regeneration
