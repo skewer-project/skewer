@@ -39,7 +39,7 @@ func NewAuthVerifier(ctx context.Context, projectID, adminEmails string) (*AuthV
 	}
 
 	allowed := map[string]struct{}{}
-	for _, e := range strings.Split(adminEmails, ",") {
+	for e := range strings.SplitSeq(adminEmails, ",") {
 		e = strings.TrimSpace(strings.ToLower(e))
 		if e != "" {
 			allowed[e] = struct{}{}

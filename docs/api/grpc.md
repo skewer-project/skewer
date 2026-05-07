@@ -1,131 +1,99 @@
 # gRPC API Reference
 
-This document describes the gRPC API between the Coordinator and Workers.
+This document describes the internal gRPC `CoordinatorService` used by the Skewer rendering pipeline. External clients interact with the [HTTP API](http.md) instead — the HTTP API proxies to this gRPC service after enforcing authentication, rate limiting, ownership, and scene normalization.
 
 ## Service Definition
 
 Located in: `api/proto/coordinator/v1/coordinator.proto`
 
+```protobuf
+package api.proto.coordinator.v1;
+
+option go_package = "github.com/skewer-project/skewer/api/proto/coordinator/v1;coordinatorv1";
+```
+
 ## CoordinatorService
 
-### External API (CLI → Coordinator)
+Workers communicate directly with Cloud Batch/Workflows, not this service.
 
-#### SubmitJob
+### SubmitPipeline
+
+Submits a scene-first rendering request. The coordinator downloads `scene_uri`, parses it, classifies layers as static or animated, derives `num_frames` from the animation block, and orchestrates rendering.
 
 ```protobuf
-rpc SubmitJob(SubmitJobRequest) returns (SubmitJobResponse);
+rpc SubmitPipeline(SubmitPipelineRequest) returns (SubmitPipelineResponse);
 ```
 
 **Request:**
 ```protobuf
-message SubmitJobRequest {
-  string job_id = 1;      // UUID
-  string job_name = 2;    // e.g., "smoke_layer"
-  repeated string depends_on = 3;
-  int32 num_frames = 4;
-  int32 width = 5;
-  int32 height = 6;
-  oneof job_type {
-    RenderJob render_job = 7;
-    CompositeJob composite_job = 8;
-  }
+message SubmitPipelineRequest {
+    string pipeline_id = 1;                 // Optional; server generates a UUID if empty
+    string scene_uri = 2;                   // GCS path to root scene.json (e.g. gs://bucket/scenes/scene.json)
+    string composite_output_uri_prefix = 3; // GCS prefix for final composited frames
+    bool enable_cache = 4;                  // Enable content-hash layer caching (default false)
 }
 ```
 
 **Response:**
 ```protobuf
-message SubmitJobResponse {
-  string job_id = 1;
+message SubmitPipelineResponse {
+    string pipeline_id = 1;
 }
 ```
 
-#### GetJobStatus
+### GetPipelineStatus
+
+Retrieves the current status of a submitted pipeline.
 
 ```protobuf
-rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
+rpc GetPipelineStatus(GetPipelineStatusRequest) returns (GetPipelineStatusResponse);
 ```
 
 **Request:**
 ```protobuf
-message GetJobStatusRequest {
-  string job_id = 1;
+message GetPipelineStatusRequest {
+    string pipeline_id = 1;
 }
 ```
 
 **Response:**
 ```protobuf
-message GetJobStatusResponse {
-  enum JobStatus {
-    JOB_STATUS_UNSPECIFIED = 0;
-    JOB_STATUS_PENDING_DEPENDENCIES = 1;
-    JOB_STATUS_QUEUED = 2;
-    JOB_STATUS_RUNNING = 3;
-    JOB_STATUS_COMPLETED = 4;
-    JOB_STATUS_FAILED = 5;
-  }
-  JobStatus job_status = 1;
-  float progress_percent = 2;
-  string error_message = 3;
+message GetPipelineStatusResponse {
+    enum PipelineStatus {
+        PIPELINE_STATUS_UNSPECIFIED = 0;
+        PIPELINE_STATUS_RUNNING = 1;
+        PIPELINE_STATUS_SUCCEEDED = 2;
+        PIPELINE_STATUS_FAILED = 3;
+        PIPELINE_STATUS_CANCELLED = 4;
+    }
+    PipelineStatus status = 1;
+    string error_message = 2;
+    map<string, string> layer_outputs = 3; // layer_id -> GCS output prefix
+    string composite_output = 4;           // GCS prefix of final composited frames
 }
 ```
 
-#### CancelJob
+### CancelPipeline
+
+Cancels a running pipeline.
 
 ```protobuf
-rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
-```
-
----
-
-### Internal API (Worker → Coordinator)
-
-#### GetWorkStream
-
-```protobuf
-rpc GetWorkStream(GetWorkStreamRequest) returns (stream GetWorkStreamResponse);
+rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
 ```
 
 **Request:**
 ```protobuf
-message GetWorkStreamRequest {
-  string worker_id = 1;
-  repeated string capabilities = 2;  // e.g., ["skewer"], ["loom"]
+message CancelPipelineRequest {
+    string pipeline_id = 1;
 }
 ```
 
 **Response:**
 ```protobuf
-message GetWorkStreamResponse {
-  string job_id = 1;
-  string task_id = 2;
-  string frame_id = 3;
-  oneof payload {
-    RenderTask render_task = 4;
-    CompositeTask composite_task = 5;
-  }
+message CancelPipelineResponse {
+    bool success = 1;
 }
 ```
-
-#### ReportTaskResult
-
-```protobuf
-rpc ReportTaskResult(ReportTaskResultRequest) returns (ReportTaskResultResponse);
-```
-
-**Request:**
-```protobuf
-message ReportTaskResultRequest {
-  string task_id = 1;
-  string job_id = 2;
-  string worker_id = 3;
-  bool success = 4;
-  string error_message = 5;
-  string output_uri = 6;
-  int64 execution_time_ms = 7;
-}
-```
-
----
 
 ## Code Generation
 
@@ -136,5 +104,5 @@ bash scripts/gen_proto.sh
 ```
 
 This generates:
-- `api/proto/coordinator/v1/coordinator.pb.go` - Protobuf messages
-- `api/proto/coordinator/v1/coordinator_grpc.pb.go` - gRPC service stubs
+- `api/proto/coordinator/v1/coordinator.pb.go` — Protobuf messages
+- `api/proto/coordinator/v1/coordinator_grpc.pb.go` — gRPC service stubs

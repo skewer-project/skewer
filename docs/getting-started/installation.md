@@ -40,14 +40,6 @@ sudo apt-get install -y libopenexr-dev libimath-dev zlib1g-dev libpng-dev protob
 brew install openexr libpng protobuf grpc
 ```
 
-### Additional Tools
-
-For local deployment:
-
-- **Docker CLI** - Building container images
-- **Kubernetes** - [OrbStack](https://orbstack.dev/) (recommended for macOS) or [Minikube](https://minikube.sigs.k8s.io/)
-- **kubectl** - Kubernetes CLI
-
 ## Verify Installation
 
 ```bash
@@ -67,9 +59,9 @@ protoc --version
 python3 --version
 ```
 
-## vcpkg (Recommended)
+## vcpkg
 
-For dependency management, the project uses vcpkg:
+Optionally, this project uses vcpkg for dependency management:
 
 ```bash
 # Install vcpkg (one-time)
