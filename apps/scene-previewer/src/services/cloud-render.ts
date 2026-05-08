@@ -457,6 +457,10 @@ export function refreshCloudJob(id: string) {
 	void reconcileJobStatus(id, ac.signal);
 }
 
+export function markStitchPreviewUnavailable(id: string) {
+	store.patchJob(id, { stitchVideoURL: undefined });
+}
+
 export function refreshCloudJobs() {
 	for (const job of store.getSnapshot()) {
 		if (isLocalJob(job.id)) continue;

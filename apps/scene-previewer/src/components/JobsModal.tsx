@@ -21,6 +21,7 @@ import type {
 } from "../services/cloud-job-types";
 import {
 	downloadCompositePng,
+	markStitchPreviewUnavailable,
 	refreshCloudJob,
 	refreshCloudJobs,
 	startCloudRender,
@@ -161,7 +162,7 @@ function JobRow({
 			loop
 			preload="metadata"
 			aria-label="Animation preview (hover to play)"
-			onError={onRefresh}
+			onError={() => markStitchPreviewUnavailable(job.id)}
 			onLoadedMetadata={(e) => {
 				e.currentTarget.currentTime = 0.0001;
 			}}
