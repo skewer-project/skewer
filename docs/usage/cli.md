@@ -94,3 +94,10 @@ go run ./orchestration/cmd/cli/main.go help
 ## Auto Port-Forward
 
 The CLI automatically handles `kubectl port-forward` if the coordinator isn't reachable on `localhost:50051`.
+
+## See Also
+
+- [Scene Format](scene-format.md) - Complete scene file specification
+- [Rendering Tips](rendering-tips.md) - Best practices for quality and performance
+- [GCP Deployment](../deployment/gcp.md) - Cloud rendering setup
+- [Local Deployment](../deployment/local.md) - Local cluster setup

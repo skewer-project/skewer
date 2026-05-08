@@ -34,7 +34,7 @@ COPY . .
 # Use BuildKit cache mounts for ccache and CMake build directory
 RUN --mount=type=cache,id=loom-ccache,target=/ccache \
     --mount=type=cache,id=loom-build,target=/app/build,sharing=locked \
-    cmake --preset release -DSKEWER_COMBINED_BUILD_SKEWER=OFF && \
+    cmake --preset release -DSKEWER_COMBINED_BUILD_SKEWER=OFF -DBUILD_TESTING=OFF && \
     cmake --build --preset release --target loom-worker --parallel 4 && \
     cp /app/build/release/loom/loom-worker /tmp/loom-worker
 

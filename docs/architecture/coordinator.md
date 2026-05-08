@@ -1,66 +1,67 @@
 # Coordinator
 
-The Coordinator is the "brain" of the Skewer distributed rendering system. It's a Go-based service that manages job orchestration, worker scheduling, and cluster state.
+The Coordinator is the entry point for the Skewer system, deployed as a stateless **Cloud Run** service. It serves as the bridge between the user (CLI) and the serverless execution pipeline.
 
 ## Responsibilities
 
-### 1. Job Orchestration
+### 1. Job Validation & Submission
 
-The Coordinator takes high-level render jobs and breaks them into atomic tasks:
+The Coordinator receives gRPC requests from the CLI and performs:
 
-- **Task Generation** - Splits frames into renderable chunks
-- **Scheduling** - Assigns tasks to available workers
-- **Retries** - Re-queues failed tasks for another worker
+- **Scene Validation** - Checks that referenced assets exist in GCS.
+- **Workflow Triggering** - Initiates a `skewer-render-pipeline` execution in **Cloud Workflows**.
+- **Execution Tracking** - Maps user job IDs to internal GCP execution resource names.
 
-### 2. Worker Management
+### 2. Pipeline Configuration
 
-- **Registration** - Workers connect on startup
-- **Heartbeats** - Workers send periodic updates; missed heartbeats trigger rescheduling
-- **State Tracking** - Maintains cluster state as source of truth
+The Coordinator translates high-level job parameters into the precise environment variables and Batch profiles needed by the pipeline:
 
-### 3. Job Tracking
+- **Resource Selection** - Determines if the job requires Spot or Standard instances based on user flags.
+- **Bucket Mapping** - Passes the correct GCS bucket URIs for data and caching to the workflow.
 
-- **Progress Aggregation** - Reports job completion percentage
-- **Status API** - CLI queries job status via gRPC
+### 3. Monitoring & Progress
+
+- **Status Aggregation** - Queries the Cloud Workflows and Cloud Batch APIs to provide a unified status back to the user.
+- **Metadata Management** - Stores job metadata and completion status for future reference.
 
 ## Architecture
 
 ```
-Job Submit ─▶ DAG Builder ─▶ Scheduler ─▶ Workers
-                │              │
-                ▼              ▼
-            Job Queue      Task Queue
+User CLI ─▶ Coordinator (Cloud Run) ─▶ Cloud Workflows ─▶ Cloud Batch
 ```
 
 ### Key Components
 
-| Component | Description |
-|-----------|-------------|
-| **DAG Builder** | Constructs dependency graph from job layers |
-| **Scheduler** | Assigns tasks to workers based on capacity |
-| **Cloud Manager** | Provisions GKE resources (BYOP) |
-| **Job Tracker** | Tracks in-progress jobs and tasks |
+| Component | Platform | Description |
+|-----------|----------|-------------|
+| **gRPC Server** | Cloud Run | Handles `SubmitJob` and `GetJobStatus` RPCs. |
+| **Workflow Client** | Google SDK | Triggers and monitors the managed orchestration DAG. |
+| **IAM Integration** | Google Cloud | Uses Service Account impersonation to securely interact with Batch and Storage. |
 
-## Running the Coordinator
+## Deployment
+
+The Coordinator is built via **Cloud Build** and deployed using **Terraform**.
 
 ```bash
-# Build
-go build -o coordinator ./orchestration/cmd/coordinator/
-
-# Run locally
-./coordinator --port 50051 --local-storage /path/to/data
+# Example manual deploy (handled by CI/CD)
+gcloud run deploy skewer-coordinator \
+  --image gcr.io/PROJECT/skewer-coordinator \
+  --env-vars DATA_BUCKET=my-bucket,WORKFLOW_NAME=render-pipeline
 ```
 
 ## Configuration
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--port` | gRPC listen port | `50051` |
-| `--local-storage` | Base path for local files | `./data` |
-| `--gcp-project` | GCP project for BYOP | (none) |
+The Coordinator's behavior is primarily controlled via Environment Variables in the Cloud Run service:
+
+| Variable | Description |
+|----------|-------------|
+| `DATA_BUCKET` | The GCS bucket where assets and renders are stored. |
+| `CACHE_BUCKET` | The GCS bucket used for content-hash layer caching. |
+| `WORKFLOW_NAME` | The full resource ID of the Cloud Workflow to trigger. |
+| `GCP_PROJECT` | The project ID for API calls. |
 
 ## See Also
 
+- [Architecture Overview](overview.md) - System-level architecture
+- [GCP Deployment](../deployment/gcp.md) - Terraform and Infrastructure details
 - [gRPC API](../api/grpc.md) - Protocol definitions
-- [Local Deployment](../deployment/local.md) - Running locally with K8s
-- [GKE Deployment](../deployment/gke.md) - Running on Google Kubernetes Engine
