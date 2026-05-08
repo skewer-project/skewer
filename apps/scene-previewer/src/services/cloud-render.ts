@@ -74,6 +74,7 @@ async function attachSucceededPreviews(
 			compositeName: pngName,
 			compositeObjectURL,
 			lastSyncError: undefined,
+			previewLoading: false,
 			...(stitchVideoURL ? { stitchVideoURL } : {}),
 		});
 	} catch (e) {
@@ -83,6 +84,7 @@ async function attachSucceededPreviews(
 				compositeName: pngName,
 				stitchVideoURL,
 				lastSyncError: undefined,
+				previewLoading: false,
 			});
 			return;
 		}
@@ -146,6 +148,7 @@ function markSynced(id: string, patch: Partial<CloudJob>) {
 async function refetchCompositePreview(id: string, name?: string) {
 	const job = store.getSnapshot().find((j) => j.id === id);
 	const artifactName = name ?? job?.compositeName ?? COMPOSITE_FALLBACK;
+	store.patchJob(id, { lastSyncError: undefined, previewLoading: true });
 	try {
 		await attachSucceededPreviews(
 			id,
@@ -153,6 +156,7 @@ async function refetchCompositePreview(id: string, name?: string) {
 			new AbortController().signal,
 		);
 	} catch (e) {
+		store.patchJob(id, { previewLoading: false });
 		markSyncError(
 			id,
 			`Composite preview unavailable: ${e instanceof Error ? e.message : String(e)}`,

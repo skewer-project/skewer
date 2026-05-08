@@ -182,6 +182,8 @@ function JobRow({
 					? j.statusErr
 					: j.statusWarn;
 	const mediaKind = mediaLabel(job);
+	const waitingForPreview =
+		job.status === "succeeded" && !mediaKind && job.previewLoading;
 	const thumbClass = [
 		j.thumb,
 		previewOrientation(job) === "portrait" ? j.thumbPortrait : "",
@@ -273,7 +275,12 @@ function JobRow({
 						{job.error}
 					</div>
 				) : null}
-				{job.lastSyncError ? (
+				{waitingForPreview ? (
+					<div className={j.rowPreviewLoading} role="status">
+						<Loader2 className={j.inlineSpin} size={11} aria-hidden />
+						Loading preview artifact…
+					</div>
+				) : job.lastSyncError ? (
 					<div className={j.rowSync} role="status">
 						Last status check failed; retrying. {job.lastSyncError}
 					</div>
