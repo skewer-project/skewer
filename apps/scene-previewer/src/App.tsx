@@ -127,7 +127,9 @@ function App() {
 	const renderSettings = scene?.settings ?? DEFAULT_RENDER_CONFIG;
 
 	const setSceneSettings = useCallback((s: ResolvedScene) => {
-		const loadedRender = s.layers[0]?.data.render ?? s.contexts[0]?.data.render;
+		const loadedRender =
+			s.layers.find((l) => l.data.render != null)?.data.render ??
+			s.contexts.find((c) => c.data.render != null)?.data.render;
 		const sceneWithSettings: ResolvedScene = {
 			...s,
 			settings: loadedRender ?? DEFAULT_RENDER_CONFIG,
