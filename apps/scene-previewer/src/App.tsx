@@ -54,7 +54,7 @@ import type {
 	SceneNode,
 	Vec3,
 } from "./types/scene";
-import { isAnimated } from "./types/scene";
+import { DEFAULT_RENDER_CONFIG, isAnimated } from "./types/scene";
 
 function isEditableTarget(target: EventTarget | null) {
 	if (!(target instanceof HTMLElement)) return false;
@@ -124,35 +124,17 @@ function App() {
 		"world",
 	);
 
-	const DEFAULT_RENDER_CONFIG: RenderConfig = useMemo(
-		() => ({
-			integrator: "path_trace",
-			max_samples: 128,
-			min_samples: 16,
-			max_depth: 8,
-			threads: 0,
-			noise_threshold: 0.01,
-			enable_deep: false,
-			image: { width: 1920, height: 1080 },
-		}),
-		[],
-	);
-
 	const renderSettings = scene?.settings ?? DEFAULT_RENDER_CONFIG;
 
-	const setSceneSettings = useCallback(
-		(s: ResolvedScene) => {
-			const loadedRender =
-				s.layers[0]?.data.render ?? s.contexts[0]?.data.render;
-			const sceneWithSettings: ResolvedScene = {
-				...s,
-				settings: loadedRender ?? DEFAULT_RENDER_CONFIG,
-			};
+	const setSceneSettings = useCallback((s: ResolvedScene) => {
+		const loadedRender = s.layers[0]?.data.render ?? s.contexts[0]?.data.render;
+		const sceneWithSettings: ResolvedScene = {
+			...s,
+			settings: loadedRender ?? DEFAULT_RENDER_CONFIG,
+		};
 
-			setScene(sceneWithSettings);
-		},
-		[DEFAULT_RENDER_CONFIG],
-	);
+		setScene(sceneWithSettings);
+	}, []);
 
 	const renderStartTime = scene?.animation.start ?? 0;
 	const renderEndTime = scene?.animation.end ?? 0;
