@@ -51,6 +51,10 @@ resource "google_cloud_run_v2_service" "coordinator" {
         value = "${local.ar_base}/loom-worker:latest"
       }
       env {
+        name  = "STITCH_IMAGE"
+        value = "${local.ar_base}/stitch-worker:latest"
+      }
+      env {
         name  = "SKEWER_BATCH_MACHINE_TYPE"
         value = var.skewer_batch_machine_type
       }
