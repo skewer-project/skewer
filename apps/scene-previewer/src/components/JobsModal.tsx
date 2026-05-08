@@ -152,10 +152,10 @@ function JobRow({
 					? j.statusErr
 					: j.statusWarn;
 
-	const thumb = job.smearObjectURL ? (
+	const thumb = job.stitchVideoURL ? (
 		<video
-			className="jobs-modal-thumb-img"
-			src={job.smearObjectURL}
+			className={j.thumbImg}
+			src={job.stitchVideoURL}
 			muted
 			playsInline
 			loop

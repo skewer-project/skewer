@@ -86,8 +86,8 @@ type SubmitPipelineRequest struct {
 	SceneUri                 string                 `protobuf:"bytes,2,opt,name=scene_uri,json=sceneUri,proto3" json:"scene_uri,omitempty"`                                                     // GCS path to root scene.json (e.g. gs://bucket/scenes/scene.json)
 	CompositeOutputUriPrefix string                 `protobuf:"bytes,3,opt,name=composite_output_uri_prefix,json=compositeOutputUriPrefix,proto3" json:"composite_output_uri_prefix,omitempty"` // GCS prefix for final composited frames
 	EnableCache              bool                   `protobuf:"varint,4,opt,name=enable_cache,json=enableCache,proto3" json:"enable_cache,omitempty"`                                           // Enable content-hash layer caching (default false)
-	// When > 0, runs an ffmpeg "smear" step after compositing to write smeared.mp4 at the composite prefix.
-	SmearFps      float64 `protobuf:"fixed64,5,opt,name=smear_fps,json=smearFps,proto3" json:"smear_fps,omitempty"`
+	// When > 0, runs an ffmpeg stitch step after compositing to write stitched.mp4 at the composite prefix.
+	StitchFps     float64 `protobuf:"fixed64,5,opt,name=stitch_fps,json=stitchFps,proto3" json:"stitch_fps,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -150,9 +150,9 @@ func (x *SubmitPipelineRequest) GetEnableCache() bool {
 	return false
 }
 
-func (x *SubmitPipelineRequest) GetSmearFps() float64 {
+func (x *SubmitPipelineRequest) GetStitchFps() float64 {
 	if x != nil {
-		return x.SmearFps
+		return x.StitchFps
 	}
 	return 0
 }
@@ -405,14 +405,15 @@ var File_api_proto_coordinator_v1_coordinator_proto protoreflect.FileDescriptor
 
 const file_api_proto_coordinator_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
-	"*api/proto/coordinator/v1/coordinator.proto\x12\x18api.proto.coordinator.v1\"\xd4\x01\n" +
+	"*api/proto/coordinator/v1/coordinator.proto\x12\x18api.proto.coordinator.v1\"\xd6\x01\n" +
 	"\x15SubmitPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12\x1b\n" +
 	"\tscene_uri\x18\x02 \x01(\tR\bsceneUri\x12=\n" +
 	"\x1bcomposite_output_uri_prefix\x18\x03 \x01(\tR\x18compositeOutputUriPrefix\x12!\n" +
-	"\fenable_cache\x18\x04 \x01(\bR\venableCache\x12\x1b\n" +
-	"\tsmear_fps\x18\x05 \x01(\x01R\bsmearFps\"9\n" +
+	"\fenable_cache\x18\x04 \x01(\bR\venableCache\x12\x1d\n" +
+	"\n" +
+	"stitch_fps\x18\x05 \x01(\x01R\tstitchFps\"9\n" +
 	"\x16SubmitPipelineResponse\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\";\n" +

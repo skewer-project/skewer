@@ -19,7 +19,7 @@ export interface SubmitRequest {
 	scene_path?: string;
 	composite_output_uri_prefix?: string;
 	enable_cache?: boolean;
-	smear_fps?: number;
+	stitch_fps?: number;
 }
 
 export interface SubmitResponse {
