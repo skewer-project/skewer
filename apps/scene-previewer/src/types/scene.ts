@@ -212,4 +212,5 @@ export interface ResolvedScene {
 	layers: ResolvedLayer[];
 	output_dir: string;
 	animation: Animation;
+	settings: RenderConfig;
 }
