@@ -2,6 +2,7 @@ import type { ResolvedScene } from "../types/scene";
 import {
 	cancelJob,
 	fetchCompositeBlob,
+	getCompositeArtifactURL,
 	getJobStatus,
 	initJob,
 	submitJob,
@@ -28,7 +29,7 @@ const UPLOAD_CONCURRENCY = 8;
 const INITIAL_POLL_MS = 2000;
 const MAX_POLL_MS = 10_000;
 const COMPOSITE_FALLBACK = "frame-0001.png";
-const SMEAR_MP4 = "smeared.mp4";
+const STITCH_MP4 = "stitched.mp4";
 
 const activePolls = new Map<string, AbortController>();
 
@@ -54,14 +55,13 @@ async function attachSucceededPreviews(
 	pngName: string,
 	signal: AbortSignal,
 ): Promise<void> {
-	let smearObjectURL: string | undefined;
+	let stitchVideoURL: string | undefined;
 	try {
 		if (!signal.aborted) {
-			const vblob = await fetchCompositeBlob(pipelineId, SMEAR_MP4);
-			smearObjectURL = URL.createObjectURL(vblob);
+			stitchVideoURL = await getCompositeArtifactURL(pipelineId, STITCH_MP4);
 		}
 	} catch {
-		/* smear step disabled (smear_fps == 0) */
+		/* stitch step disabled (stitch_fps == 0) */
 	}
 	try {
 		if (signal.aborted) {
@@ -74,14 +74,14 @@ async function attachSucceededPreviews(
 			compositeName: pngName,
 			compositeObjectURL,
 			lastSyncError: undefined,
-			...(smearObjectURL ? { smearObjectURL } : {}),
+			...(stitchVideoURL ? { stitchVideoURL } : {}),
 		});
 	} catch (e) {
-		if (smearObjectURL) {
+		if (stitchVideoURL) {
 			store.patchJob(pipelineId, {
 				status: "succeeded",
 				compositeName: pngName,
-				smearObjectURL,
+				stitchVideoURL,
 				lastSyncError: undefined,
 			});
 			return;
@@ -352,13 +352,13 @@ export async function startCloudRender(args: {
 			status: "submitting",
 			lastSyncError: undefined,
 		});
-		const smearFps =
+		const stitchFps =
 			renderConfig?.isAnimation === true && (renderConfig.fps ?? 0) > 0
 				? renderConfig.fps
 				: 0;
 		await submitJob(activeId, {
 			enable_cache: enableCache,
-			smear_fps: smearFps,
+			stitch_fps: stitchFps,
 		});
 		if (ac.signal.aborted) return;
 		store.patchJob(activeId, { status: "running" });
@@ -435,7 +435,7 @@ export async function resumePendingJobs() {
 		if (
 			j.status === "succeeded" &&
 			!j.compositeObjectURL &&
-			!j.smearObjectURL
+			!j.stitchVideoURL
 		) {
 			void refetchCompositePreview(j.id);
 		}
@@ -460,7 +460,11 @@ export function refreshCloudJob(id: string) {
 export function refreshCloudJobs() {
 	for (const job of store.getSnapshot()) {
 		if (isLocalJob(job.id)) continue;
-		if (job.status === "succeeded" && !job.compositeObjectURL) {
+		if (
+			job.status === "succeeded" &&
+			!job.compositeObjectURL &&
+			!job.stitchVideoURL
+		) {
 			void refetchCompositePreview(job.id);
 			continue;
 		}
@@ -478,7 +482,7 @@ export async function downloadCompositePng(
 	let blob: Blob;
 	let name = suggestedName;
 	try {
-		blob = await fetchCompositeBlob(pipelineId, SMEAR_MP4);
+		blob = await fetchCompositeBlob(pipelineId, STITCH_MP4);
 		name = suggestedName.replace(/\.png$/i, ".mp4");
 	} catch {
 		blob = await fetchCompositeBlob(

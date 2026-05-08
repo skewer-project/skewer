@@ -161,6 +161,7 @@ function JobRow({
 			loop
 			preload="metadata"
 			aria-label="Animation preview (hover to play)"
+			onError={onRefresh}
 			onLoadedMetadata={(e) => {
 				e.currentTarget.currentTime = 0.0001;
 			}}
