@@ -39,7 +39,7 @@ function isTerminal(s: CloudJobStatus): boolean {
 }
 
 function sortJobs(list: CloudJob[]): CloudJob[] {
-	return [...list].sort((a, b) => b.createdAt - a.createdAt);
+	return list.toSorted((a, b) => b.createdAt - a.createdAt);
 }
 
 function stripRuntimeFields(j: CloudJob): PersistedCloudJob {
@@ -66,7 +66,7 @@ function pruneList(list: CloudJob[]): CloudJob[] {
 		const drop = terminals.reduce((a, b) =>
 			a.createdAt < b.createdAt ? a : b,
 		);
-		revokeObjectURL(next.find((j) => j.id === drop.id));
+		revokeObjectURL(drop);
 		next = next.filter((j) => j.id !== drop.id);
 	}
 	return next;

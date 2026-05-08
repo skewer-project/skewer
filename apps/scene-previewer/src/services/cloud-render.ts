@@ -23,7 +23,6 @@ export type {
 	CloudJobRenderConfig,
 	CloudJobStatus,
 } from "./cloud-job-types";
-export { isNonTerminalStatus } from "./jobs-store";
 
 const UPLOAD_CONCURRENCY = 8;
 const INITIAL_POLL_MS = 2000;

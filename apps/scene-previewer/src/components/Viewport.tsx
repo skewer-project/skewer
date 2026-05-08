@@ -518,12 +518,13 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		sc.add(tctrl.getHelper());
 		transformControls.current = tctrl;
 
-		tctrl.addEventListener("dragging-changed", (event) => {
+		const handleDraggingChanged = (event: { value: unknown }) => {
 			ctrl.enabled = !event.value;
 			if (gizmoProxy.current) {
 				gizmoProxy.current.userData.isDragging = event.value;
 			}
-		});
+		};
+		tctrl.addEventListener("dragging-changed", handleDraggingChanged);
 
 		// Resize
 		const ro = new ResizeObserver(() => {
@@ -553,6 +554,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				proxy.userData.target = null;
 			}
 			ctrl.dispose();
+			tctrl.removeEventListener("dragging-changed", handleDraggingChanged);
 			tctrl.dispose();
 
 			const old = sceneGroup.current;
