@@ -124,19 +124,36 @@ function App() {
 		"world",
 	);
 
-	const [renderSettings, setRenderSettings] = useState<RenderConfig>({
-		integrator: "path_trace",
-		max_samples: 128,
-		min_samples: 16,
-		max_depth: 8,
-		threads: 0,
-		noise_threshold: 0.01,
-		enable_deep: false,
-		image: {
-			width: 1920,
-			height: 1080,
+	const DEFAULT_RENDER_CONFIG: RenderConfig = useMemo(
+		() => ({
+			integrator: "path_trace",
+			max_samples: 128,
+			min_samples: 16,
+			max_depth: 8,
+			threads: 0,
+			noise_threshold: 0.01,
+			enable_deep: false,
+			image: { width: 1920, height: 1080 },
+		}),
+		[],
+	);
+
+	const renderSettings = scene?.settings ?? DEFAULT_RENDER_CONFIG;
+
+	const setSceneSettings = useCallback(
+		(s: ResolvedScene) => {
+			const loadedRender =
+				s.layers[0]?.data.render ?? s.contexts[0]?.data.render;
+			const sceneWithSettings: ResolvedScene = {
+				...s,
+				settings: loadedRender ?? DEFAULT_RENDER_CONFIG,
+			};
+
+			setScene(sceneWithSettings);
 		},
-	});
+		[DEFAULT_RENDER_CONFIG],
+	);
+
 	const renderStartTime = scene?.animation.start ?? 0;
 	const renderEndTime = scene?.animation.end ?? 0;
 	const renderFps = scene?.animation.fps ?? 24;
@@ -169,7 +186,7 @@ function App() {
 	const animRangeRef = useRef({ start: 0, end: 0 });
 
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
-		setScene(s);
+		setSceneSettings(s);
 		setDirHandle(dir);
 		setError("");
 		setSelectedObjectKey(null);
@@ -410,6 +427,24 @@ function App() {
 		[handleSceneEdit],
 	);
 
+	const handleRenderSettingsChange = useCallback(
+		(config: RenderConfig) => {
+			handleSceneEdit((s) => ({
+				...s,
+				settings: config,
+				layers: s.layers.map((l) => ({
+					...l,
+					data: { ...l.data, render: config },
+				})),
+				contexts: s.contexts.map((c) => ({
+					...c,
+					data: { ...c.data, render: config },
+				})),
+			}));
+		},
+		[handleSceneEdit],
+	);
+
 	function handleNavigateHome() {
 		if (
 			hasUnsavedChanges &&
@@ -641,7 +676,7 @@ function App() {
 							onAddMedium={handleAddMedium}
 							dirHandle={dirHandle}
 							renderSettings={renderSettings}
-							onRenderSettingsChange={setRenderSettings}
+							onRenderSettingsChange={handleRenderSettingsChange}
 							startTime={renderStartTime}
 							onStartTimeChange={setRenderStartTime}
 							endTime={renderEndTime}
