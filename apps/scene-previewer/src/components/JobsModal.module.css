@@ -399,7 +399,6 @@
 }
 
 .previewStage {
-	width: min(100%, 720px);
 	max-height: 52vh;
 	display: flex;
 	align-items: center;
