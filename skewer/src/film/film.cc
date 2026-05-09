@@ -204,23 +204,6 @@ void Film::BuildPixelDeepSamples(const Pixel& p, std::vector<exrio::DeepSample>&
     }
 }
 
-exrio::DeepImage Film::BuildDeepImage() const {
-    exrio::DeepImage result(width_, height_);
-
-    std::vector<exrio::DeepSample> per_pixel;
-    for (int y = 0; y < height_; ++y) {
-        for (int x = 0; x < width_; ++x) {
-            BuildPixelDeepSamples(GetPixel(x, y), per_pixel);
-            if (per_pixel.empty()) continue;
-            exrio::DeepPixel& pixel = result.pixel(x, y);
-            for (const exrio::DeepSample& ds : per_pixel) {
-                pixel.addSample(ds);
-            }
-        }
-    }
-    return result;
-}
-
 void Film::WriteDeepEXRStreaming(const std::string& filename) {
     if (width_ <= 0 || height_ <= 0) {
         throw std::runtime_error("Film::WriteDeepEXRStreaming: invalid dimensions");

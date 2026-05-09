@@ -67,11 +67,6 @@ class Film {
     // intermediate DeepImage.
     void WriteDeepEXRStreaming(const std::string& filename);
 
-    // Test/debug only: builds the full DeepImage in memory. Costs roughly the
-    // same as the bounded-bucket storage itself and should not be used on
-    // large frames in production — prefer WriteDeepEXRStreaming.
-    exrio::DeepImage BuildDeepImage() const;
-
     // Builds a flat RGBA buffer suitable for export as a compositing-friendly EXR.
     // Colors are premultiplied; alpha reflects average coverage per pixel.
     std::unique_ptr<FlatImageBuffer> CreateFlatBuffer() const;
