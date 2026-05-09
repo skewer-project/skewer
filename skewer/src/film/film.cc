@@ -117,7 +117,7 @@ void Film::AddDeepSample(int x, int y,
         }
 
         // 2. Append a new bucket if we still have room.
-        if (p.deep_buckets.size() < kMaxDeepBuckets) {
+        if (p.deep_buckets.size() < Memory::kMaxDeepBuckets) {
             DeepBucket nb;
             nb.z_front = seg.z_front;
             nb.z_back = seg.z_back;

@@ -11,6 +11,7 @@
 #include "core/containers/bounded_array.h"
 #include "core/containers/small_vector.h"
 #include "core/cpu_config.h"
+#include "core/math/constants.h"
 #include "core/transport/deep_segment.h"
 #include "film/deep_bucket.h"
 #include "film/image_buffer.h"
@@ -26,7 +27,7 @@ struct Pixel {
     float weight_sum = 0.0f;
     int sample_count = 0;
     RGB color_sq_sum = RGB(0.0f);
-    SmallVector<DeepBucket, kInlineDeepBuckets> deep_buckets;
+    SmallVector<DeepBucket, Memory::kInlineDeepBuckets> deep_buckets;
 };
 
 // Aggregate counters describing how the deep-bucket cap behaved across a
