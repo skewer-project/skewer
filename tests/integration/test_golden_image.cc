@@ -1,14 +1,19 @@
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "exrio/deep_image.h"
 #include "exrio/deep_reader.h"
+#include "picosha2.h"
 #include "session/render_session.h"
 
-constexpr float kEpsilon = 1e-1f;  // Very relaxed for ARM/x86 differences
 #ifdef SKEWER_GENERATE_GOLDEN
 static bool kGenerateGolden = true;  // Set via CMake option
 #else
@@ -16,6 +21,105 @@ static bool kGenerateGolden = false;  // Default: compare against goldens
 #endif
 
 namespace fs = std::filesystem;
+using json = nlohmann::json;
+
+// ---------------------------------------------------------------------------
+// Hash helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute a SHA-256 hex digest of the raw pixel data in a DeepImage.
+ *
+ * The hash covers: width, height, per-pixel sample counts, and every float
+ * field (depth, depth_back, r, g, b, a) of every sample in row-major order.
+ * This guarantees that any regression that changes geometry, colour, or
+ * sample structure will be detected.
+ */
+static std::string computeDeepImageHash(const exrio::DeepImage& img) {
+    picosha2::hash256_one_by_one hasher;
+
+    // Helper: feed raw bytes of a POD value into the hasher.
+    auto feedBytes = [&](const void* ptr, size_t len) {
+        const auto* bytes = reinterpret_cast<const picosha2::byte_t*>(ptr);
+        hasher.process(bytes, bytes + len);
+    };
+
+    // Hash dimensions so that two images with different sizes never collide.
+    // may not be needed for now, but it's a good guardrail.
+    int32_t dims[2] = {static_cast<int32_t>(img.width()), static_cast<int32_t>(img.height())};
+    feedBytes(dims, sizeof(dims));
+
+    // Hash every pixel's sample data, row-major.
+    for (int y = 0; y < img.height(); ++y) {
+        for (int x = 0; x < img.width(); ++x) {
+            const auto& px = img.pixel(x, y);
+            uint32_t count = static_cast<uint32_t>(px.sampleCount());
+            feedBytes(&count, sizeof(count));
+            for (size_t i = 0; i < px.sampleCount(); ++i) {
+                const auto& s = px[i];
+                float vals[6] = {s.depth, s.depth_back, s.red, s.green, s.blue, s.alpha};
+                feedBytes(vals, sizeof(vals));
+            }
+        }
+    }
+
+    hasher.finish();
+    return picosha2::get_hash_hex_string(hasher);
+}
+
+// ---------------------------------------------------------------------------
+// JSON manifest I/O
+// ---------------------------------------------------------------------------
+
+static fs::path hashManifestPath() {
+    fs::path projectRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
+    return projectRoot / "tests" / "integration" / "fixtures" / "golden_hashes.json";
+}
+
+/**
+ * Read the golden_hashes.json manifest into a json object.
+ * Returns an empty object if the file does not exist.
+ */
+static json loadHashManifest() {
+    fs::path path = hashManifestPath();
+    if (!fs::exists(path)) return json::object();
+    std::ifstream ifs(path);
+    return json::parse(ifs);
+}
+
+/**
+ * Read a single hash from the manifest.  Returns "" if not found.
+ */
+static std::string lookupHash(const json& manifest, const std::string& key) {
+    if (!manifest.contains("hashes")) return "";
+    const auto& hashes = manifest["hashes"];
+    if (!hashes.contains(key)) return "";
+    return hashes[key].get<std::string>();
+}
+
+/**
+ * Write / update a hash in the manifest and flush to disk.
+ * Thread-safety is not a concern: gtest runs parameterised cases
+ * sequentially within a single binary.
+ */
+static void upsertHash(const std::string& key, const std::string& hash) {
+    json manifest = loadHashManifest();
+
+    // Ensure top-level metadata fields exist.
+    manifest["format_version"] = 1;
+    manifest["hash_algorithm"] = "sha256";
+    manifest["image_width"] = 800;
+    manifest["image_height"] = 450;
+
+    manifest["hashes"][key] = hash;
+
+    std::ofstream ofs(hashManifestPath());
+    ofs << manifest.dump(2) << "\n";
+}
+
+// ---------------------------------------------------------------------------
+// Test fixture
+// ---------------------------------------------------------------------------
 
 struct TestCase {
     std::string name;
@@ -49,7 +153,6 @@ class GoldenImageTest : public ::testing::TestWithParam<TestCase> {
 
         fs::path projectRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
         fixturesDir_ = projectRoot / "tests" / "integration" / "fixtures";
-        goldenImagePath_ = fixturesDir_ / "golden_images" / (sceneFolder_ + "_800x450.exr");
 
         tempDir_ = fs::temp_directory_path() / "skewer_tests" / testName_;
         fs::create_directories(tempDir_);
@@ -60,35 +163,15 @@ class GoldenImageTest : public ::testing::TestWithParam<TestCase> {
         fs::remove_all(tempDir_, ec);
     }
 
-    bool compareDeepImages(const exrio::DeepImage& a, const exrio::DeepImage& b,
-                           float epsilon = kEpsilon) {
-        if (a.width() != b.width() || a.height() != b.height()) return false;
-        for (int y = 0; y < a.height(); ++y) {
-            for (int x = 0; x < a.width(); ++x) {
-                auto& pixelA = a.pixel(x, y);
-                auto& pixelB = b.pixel(x, y);
-                if (pixelA.sampleCount() != pixelB.sampleCount()) return false;
-                for (size_t i = 0; i < pixelA.sampleCount(); ++i) {
-                    const auto& sampleA = pixelA[i];
-                    const auto& sampleB = pixelB[i];
-                    if (std::abs(sampleA.depth - sampleB.depth) > epsilon) return false;
-                    if (std::abs(sampleA.depth_back - sampleB.depth_back) > epsilon) return false;
-                    if (std::abs(sampleA.red - sampleB.red) > epsilon) return false;
-                    if (std::abs(sampleA.green - sampleB.green) > epsilon) return false;
-                    if (std::abs(sampleA.blue - sampleB.blue) > epsilon) return false;
-                    if (std::abs(sampleA.alpha - sampleB.alpha) > epsilon) return false;
-                }
-            }
-        }
-        return true;
-    }
-
     std::string testName_;
     std::string sceneFolder_;
     fs::path fixturesDir_;
-    fs::path goldenImagePath_;
     fs::path tempDir_;
 };
+
+// ---------------------------------------------------------------------------
+// The test
+// ---------------------------------------------------------------------------
 
 TEST_P(GoldenImageTest, RendersIdentically) {
     // Skip golden image tests in CI unless regenerating or explicitly enabled.
@@ -97,6 +180,7 @@ TEST_P(GoldenImageTest, RendersIdentically) {
         GTEST_SKIP_("Golden image tests run in integration.yml workflow");
     }
 
+    // Render the scene
     fs::path scenePath = fixturesDir_ / "golden_scenes" / sceneFolder_ / "scene.json";
     fs::path outputPath = tempDir_ / "test_render.exr";
     fs::path pngPath = tempDir_ / "test_render.png";
@@ -117,22 +201,33 @@ TEST_P(GoldenImageTest, RendersIdentically) {
     session.Render();
     session.Save();
 
-    if (kGenerateGolden) {
-        fs::copy_file(outputPath, goldenImagePath_, fs::copy_options::overwrite_existing);
-        fs::path pngGolden = fixturesDir_ / "golden_images" / (sceneFolder_ + "_800x450.png");
-        if (fs::exists(pngPath)) {
-            fs::copy_file(pngPath, pngGolden, fs::copy_options::overwrite_existing);
-        }
-    }
-
     ASSERT_TRUE(fs::exists(outputPath)) << "Render output not found";
+
+    // Hash the rendered deep image
     exrio::DeepImage renderedImage = exrio::loadDeepEXR(outputPath.string());
+    std::string renderedHash = computeDeepImageHash(renderedImage);
 
-    ASSERT_TRUE(fs::exists(goldenImagePath_)) << "Golden image not found";
-    exrio::DeepImage goldenImage = exrio::loadDeepEXR(goldenImagePath_.string());
+    if (kGenerateGolden) {
+        // Generate mode: persist the hash to the manifest
+        upsertHash(sceneFolder_, renderedHash);
+        std::cout << "[GOLDEN-REGEN] " << sceneFolder_ << " => " << renderedHash << "\n";
+    } else {
+        // Check mode: compare against the committed manifest
+        json manifest = loadHashManifest();
+        std::string goldenHash = lookupHash(manifest, sceneFolder_);
 
-    EXPECT_TRUE(compareDeepImages(renderedImage, goldenImage, kEpsilon))
-        << " Rendered image differs from golden image - possible regression!";
+        ASSERT_FALSE(goldenHash.empty())
+            << "No golden hash found for '" << sceneFolder_
+            << "' in golden_hashes.json. Run with SKEWER_GENERATE_GOLDEN=ON "
+               "to generate.";
+
+        EXPECT_EQ(renderedHash, goldenHash)
+            << "Rendered image hash differs from golden hash — possible "
+               "regression!\n"
+            << "  scene:    " << sceneFolder_ << "\n"
+            << "  expected: " << goldenHash << "\n"
+            << "  actual:   " << renderedHash;
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(MaterialTests, GoldenImageTest, ::testing::ValuesIn(kTestCases),
