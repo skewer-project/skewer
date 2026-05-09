@@ -27,7 +27,7 @@ import type {
 	StaticTransform,
 	Vec3,
 } from "../types/scene";
-import { DEFAULT_ANIMATION } from "../types/scene";
+import { DEFAULT_ANIMATION, DEFAULT_RENDER_CONFIG } from "../types/scene";
 import { readJsonFile } from "./fs";
 import { getNanoVDBBounds } from "./nanovdb-parser";
 
@@ -559,6 +559,7 @@ export async function loadScene(
 		layers,
 		output_dir: manifest.output_dir,
 		animation: manifest.animation ?? { ...DEFAULT_ANIMATION },
+		settings: DEFAULT_RENDER_CONFIG,
 	};
 
 	// --- Volumetric Bounding Sphere Synchronization ---

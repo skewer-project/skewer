@@ -117,7 +117,7 @@ void Film::AddDeepSample(int x, int y,
         }
 
         // 2. Append a new bucket if we still have room.
-        if (p.deep_buckets.size() < kMaxDeepBuckets) {
+        if (p.deep_buckets.size() < Memory::kMaxDeepBuckets) {
             DeepBucket nb;
             nb.z_front = seg.z_front;
             nb.z_back = seg.z_back;
@@ -202,23 +202,6 @@ void Film::BuildPixelDeepSamples(const Pixel& p, std::vector<exrio::DeepSample>&
 
         active_paths -= paths_in_bucket;
     }
-}
-
-exrio::DeepImage Film::BuildDeepImage() const {
-    exrio::DeepImage result(width_, height_);
-
-    std::vector<exrio::DeepSample> per_pixel;
-    for (int y = 0; y < height_; ++y) {
-        for (int x = 0; x < width_; ++x) {
-            BuildPixelDeepSamples(GetPixel(x, y), per_pixel);
-            if (per_pixel.empty()) continue;
-            exrio::DeepPixel& pixel = result.pixel(x, y);
-            for (const exrio::DeepSample& ds : per_pixel) {
-                pixel.addSample(ds);
-            }
-        }
-    }
-    return result;
 }
 
 void Film::WriteDeepEXRStreaming(const std::string& filename) {
