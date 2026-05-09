@@ -6,12 +6,6 @@
 
 namespace skwr {
 
-// Maximum number of merged depth buckets stored per pixel. Sized to handle
-// realistic scene depth complexity (a handful of overlapping surfaces and
-// volumes per pixel) while keeping per-pixel deep storage bounded at compile
-// time. Forced eviction kicks in when this is exceeded.
-constexpr std::size_t kMaxDeepBuckets = 16;
-
 // Distinguishes hard surfaces (per-sample alpha == 1.0) from volumes
 // (fractional per-sample alpha). Set when a bucket is created and never
 // changed: forced merges may contaminate but do not reclassify.
