@@ -114,7 +114,7 @@ jobs:
           contains(github.event.pull_request.labels.*.name, 'regen-goldens')
         run: ctest --preset ci -R GoldenImageTest -V
 
-      - name: Upload golden hashes and rendered images
+      - name: Upload golden hashes
         if: >
           github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name == github.repository &&

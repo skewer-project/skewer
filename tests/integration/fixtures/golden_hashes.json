@@ -1,23 +1,23 @@
 {
-  "format_version": 1,
-  "hash_algorithm": "sha256",
-  "hashes": {
-    "light_area_emissive": "85588fe3d4dc47710029045b2e13c2b233e5bd535c9ae50f7dfcc1408df094a8",
-    "light_backlight": "342a2b3576b85fb96060c3112624ce9e00f6845acc700e89f9c43fab3e38aef7",
-    "light_dual_point": "c6d28e5fb9612b8d8f29373a33b5084ad7441ed0800efd45b5e7a56cafd858fa",
-    "light_hard_shadow": "0892d0c9fc0de352bfdea995cf5c9b978719b05da67bb712bc76db6c54004184",
-    "light_single_point": "a5a0145d188845d986701b1238898d9bac97ce34ae40e82ea4b53f72749a62ed",
-    "light_soft_shadow": "570ca493dd48aa08eea664a9d476bb90728814ecf47b751ac3d4f93cde3bb746",
-    "mat_all_mixed": "b8acc66aac3ee90ab8d565c079bb8e264acb3171959ef83b7ce121af47ef54bd",
-    "mat_glass_clear": "7e5463bd4ca524cb7abc48b4b897177d54ad8a8647c163f9c4e514d372a9fe5e",
-    "mat_glass_diamond": "fcdcffc4b93043e7881d54f4b85d685bc6898a6d5bbdcd38e1ca25f3dc1704c4",
-    "mat_lambertian_red": "d410f78cf46001cd292f8b856da1b4fe433aa9aafb006a118401810a52827403",
-    "mat_metal_gold": "68763b9cd8bdf7c39ccf3935f83f76ba46d7728797b407de0a1639fb823c602a",
-    "mat_metal_mirror": "a9e73ac2293237939df48a6de6a38f385538a20f60d4bf46e581e0a8d81180bf",
-    "mat_metal_rough": "5e433da270dbfe2939635f15764bf67bed96c1b5020f991cae1f465801c08bce",
-    "vol_cloud_05": "e2d139f030a5c2dfb4602f0f54c900dac62a674ad58d7a26e1f461fa4b4239b1",
-    "vol_wdas_cloud": "8759f2de66abb42a9847e5bf8160cd5987ea866311fa6e3c9ab79f6e3dcb51cf"
-  },
-  "image_height": 450,
-  "image_width": 800
+    "format_version": 1,
+    "hash_algorithm": "sha256",
+    "hashes": {
+        "light_area_emissive": "85588fe3d4dc47710029045b2e13c2b233e5bd535c9ae50f7dfcc1408df094a8",
+        "light_backlight": "342a2b3576b85fb96060c3112624ce9e00f6845acc700e89f9c43fab3e38aef7",
+        "light_dual_point": "c6d28e5fb9612b8d8f29373a33b5084ad7441ed0800efd45b5e7a56cafd858fa",
+        "light_hard_shadow": "0892d0c9fc0de352bfdea995cf5c9b978719b05da67bb712bc76db6c54004184",
+        "light_single_point": "a5a0145d188845d986701b1238898d9bac97ce34ae40e82ea4b53f72749a62ed",
+        "light_soft_shadow": "570ca493dd48aa08eea664a9d476bb90728814ecf47b751ac3d4f93cde3bb746",
+        "mat_all_mixed": "b8acc66aac3ee90ab8d565c079bb8e264acb3171959ef83b7ce121af47ef54bd",
+        "mat_glass_clear": "7e5463bd4ca524cb7abc48b4b897177d54ad8a8647c163f9c4e514d372a9fe5e",
+        "mat_glass_diamond": "fcdcffc4b93043e7881d54f4b85d685bc6898a6d5bbdcd38e1ca25f3dc1704c4",
+        "mat_lambertian_red": "d410f78cf46001cd292f8b856da1b4fe433aa9aafb006a118401810a52827403",
+        "mat_metal_gold": "68763b9cd8bdf7c39ccf3935f83f76ba46d7728797b407de0a1639fb823c602a",
+        "mat_metal_mirror": "a9e73ac2293237939df48a6de6a38f385538a20f60d4bf46e581e0a8d81180bf",
+        "mat_metal_rough": "5e433da270dbfe2939635f15764bf67bed96c1b5020f991cae1f465801c08bce",
+        "vol_cloud_05": "e2d139f030a5c2dfb4602f0f54c900dac62a674ad58d7a26e1f461fa4b4239b1",
+        "vol_wdas_cloud": "8759f2de66abb42a9847e5bf8160cd5987ea866311fa6e3c9ab79f6e3dcb51cf"
+    },
+    "image_height": 450,
+    "image_width": 800
 }

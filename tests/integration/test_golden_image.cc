@@ -4,6 +4,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+<<<<<<< HEAD
+=======
+#include <iostream>
+>>>>>>> 56905818 (replace golden image comparison with SHA-256 hash manifest)
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
@@ -84,7 +88,17 @@ static json loadHashManifest() {
     fs::path path = hashManifestPath();
     if (!fs::exists(path)) return json::object();
     std::ifstream ifs(path);
+<<<<<<< HEAD
     return json::parse(ifs);
+=======
+    if (!ifs.is_open()) return json::object();
+    try {
+        return json::parse(ifs);
+    } catch (const json::parse_error& e) {
+        ADD_FAILURE() << "Failed to parse golden_hashes.json: " << e.what();
+        return json::object();
+    }
+>>>>>>> 56905818 (replace golden image comparison with SHA-256 hash manifest)
 }
 
 /**
