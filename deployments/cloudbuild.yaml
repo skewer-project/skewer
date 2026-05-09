@@ -118,6 +118,23 @@ steps:
           -f deployments/docker/Dockerfile.loom \
           .
 
+  # Build stitch worker image (ffmpeg only; used after compositing animations)
+  - name: gcr.io/cloud-builders/docker
+    id: build-stitch
+    waitFor:
+      - lfs-fetch
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker pull ${_AR_BASE}/stitch-worker:latest || true
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from ${_AR_BASE}/stitch-worker:latest \
+          -t ${_AR_BASE}/stitch-worker:latest \
+          -f deployments/docker/Dockerfile.stitch \
+          .
+
   # Push all images
   - name: gcr.io/cloud-builders/docker
     id: push-coordinator
@@ -144,6 +161,14 @@ steps:
       - ${_AR_BASE}/loom-worker:latest
 
   - name: gcr.io/cloud-builders/docker
+    id: push-stitch
+    waitFor:
+      - build-stitch
+    args:
+      - push
+      - ${_AR_BASE}/stitch-worker:latest
+
+  - name: gcr.io/cloud-builders/docker
     id: push-api
     waitFor:
       - build-api
@@ -156,6 +181,7 @@ steps:
     id: deploy-coordinator
     waitFor:
       - push-coordinator
+      - push-stitch
     args:
       - gcloud
       - run

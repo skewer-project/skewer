@@ -1,8 +1,8 @@
-# Kebab File Format (.kebab) - Architectural Strategy
+# Kebab Files (.kebab) - Architectural Strategy
 
 The Kebab format is a specialized, flat-binary deep image format designed for high-performance distributed compositing. Unlike OpenEXR, which is optimized for storage and network efficiency, Kebab is optimized for **memory-mapped random access** during the merging process.
 
-## 1. Why Kebab? (The "RAM Cheat Code")
+## 1. Why Kebab?
 Deep images are massive. A single 1080p frame with 10 samples per pixel can exceed 500MB. Merging 20+ layers in a compositor would normally require tens of gigabytes of RAM.
 
 ### The Storage vs. Processing Trade-off

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,11 @@ import (
 type OwnerStore struct {
 	client *storage.Client
 	bucket string
+}
+
+type executionMarker struct {
+	ExecutionName            string `json:"execution_name"`
+	CompositeOutputURIPrefix string `json:"composite_output_uri_prefix,omitempty"`
 }
 
 func NewOwnerStore(client *storage.Client, dataBucket string) *OwnerStore {
@@ -69,13 +75,20 @@ func (o *OwnerStore) Require(ctx context.Context, pipelineID, email string) erro
 	return nil
 }
 
-// WriteExecution records the Cloud Workflows execution name so status/cancel
-// can look it up later.
-func (o *OwnerStore) WriteExecution(ctx context.Context, pipelineID, executionName string) error {
+// WriteExecution records the Cloud Workflows execution name and output prefix
+// so status/cancel/artifact handlers can look them up later.
+func (o *OwnerStore) WriteExecution(ctx context.Context, pipelineID, executionName, compositeOutputURIPrefix string) error {
 	obj := o.client.Bucket(o.bucket).Object(executionObjectKey(pipelineID))
 	w := obj.NewWriter(ctx)
-	w.ContentType = "text/plain"
-	if _, err := io.WriteString(w, executionName); err != nil {
+	w.ContentType = "application/json"
+	body, err := json.Marshal(executionMarker{
+		ExecutionName:            executionName,
+		CompositeOutputURIPrefix: compositeOutputURIPrefix,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal execution marker: %w", err)
+	}
+	if _, err := w.Write(body); err != nil {
 		_ = w.Close()
 		return fmt.Errorf("write execution marker: %w", err)
 	}
@@ -85,23 +98,56 @@ func (o *OwnerStore) WriteExecution(ctx context.Context, pipelineID, executionNa
 	return nil
 }
 
-// ReadExecution returns the Cloud Workflows execution name for the pipeline,
-// or ErrPipelineNotFound if the marker is missing.
-func (o *OwnerStore) ReadExecution(ctx context.Context, pipelineID string) (string, error) {
+func (o *OwnerStore) readExecutionMarker(ctx context.Context, pipelineID string) (executionMarker, error) {
 	obj := o.client.Bucket(o.bucket).Object(executionObjectKey(pipelineID))
 	r, err := obj.NewReader(ctx)
 	if err != nil {
 		if errors.Is(err, storage.ErrObjectNotExist) {
-			return "", ErrPipelineNotFound
+			return executionMarker{}, ErrPipelineNotFound
 		}
-		return "", fmt.Errorf("read execution marker: %w", err)
+		return executionMarker{}, fmt.Errorf("read execution marker: %w", err)
 	}
 	defer r.Close()
 	buf, err := io.ReadAll(r)
 	if err != nil {
-		return "", fmt.Errorf("read execution marker body: %w", err)
+		return executionMarker{}, fmt.Errorf("read execution marker body: %w", err)
 	}
-	return strings.TrimSpace(string(buf)), nil
+	raw := strings.TrimSpace(string(buf))
+	if raw == "" {
+		return executionMarker{}, ErrPipelineNotFound
+	}
+	if raw[0] != '{' {
+		return executionMarker{ExecutionName: raw}, nil
+	}
+	var marker executionMarker
+	if err := json.Unmarshal([]byte(raw), &marker); err != nil {
+		return executionMarker{}, fmt.Errorf("decode execution marker: %w", err)
+	}
+	if marker.ExecutionName == "" {
+		return executionMarker{}, ErrPipelineNotFound
+	}
+	return marker, nil
+}
+
+// ReadExecution returns the Cloud Workflows execution name for the pipeline,
+// or ErrPipelineNotFound if the marker is missing.
+func (o *OwnerStore) ReadExecution(ctx context.Context, pipelineID string) (string, error) {
+	marker, err := o.readExecutionMarker(ctx, pipelineID)
+	if err != nil {
+		return "", err
+	}
+	return marker.ExecutionName, nil
+}
+
+func (o *OwnerStore) ReadCompositeOutputPrefix(ctx context.Context, pipelineID string) (string, error) {
+	marker, err := o.readExecutionMarker(ctx, pipelineID)
+	if err != nil {
+		return "", err
+	}
+	if marker.CompositeOutputURIPrefix == "" {
+		return "", ErrPipelineNotFound
+	}
+	return marker.CompositeOutputURIPrefix, nil
 }
 
 var (

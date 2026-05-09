@@ -129,34 +129,13 @@ if(SKEWER_BUILD_NATIVE_OPTIMIZATIONS)
         message(STATUS
             "SKEWER_BUILD_NATIVE_OPTIMIZATIONS requested, but Milan tuning is only enabled on Linux x86_64")
     endif()
-    target_compile_options(skewer-worker PRIVATE -ffast-math)
-endif()
-
-if(SKEWER_BUILD_NATIVE_OPTIMIZATIONS)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
-        foreach(_skewer_render_target IN ITEMS skewer-render skewer-worker)
-            target_compile_options(${_skewer_render_target} PRIVATE
-                -O3
-                # Google Cloud N2D is AMD EPYC Milan / Zen 3. Change these if the worker
-                # machine type moves off Milan.
-                -march=znver3
-                -mtune=znver3
-            )
-        endforeach()
-        message(STATUS "Skewer render targets tuned for Google Cloud N2D AMD EPYC Milan")
-    else()
-        message(STATUS
-            "SKEWER_BUILD_NATIVE_OPTIMIZATIONS requested, but Milan tuning is only enabled on Linux x86_64")
-    endif()
 endif()
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT SKEWER_IPO_SUPPORTED OUTPUT SKEWER_IPO_OUTPUT)
 if(SKEWER_IPO_SUPPORTED)
-    set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-    set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
-    set_property(TARGET skewer-worker PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-    set_property(TARGET skewer-worker PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
+  set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+  set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 endif()
 
 if(BUILD_TESTING)

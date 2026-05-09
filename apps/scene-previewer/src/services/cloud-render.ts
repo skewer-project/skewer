@@ -2,6 +2,7 @@ import type { ResolvedScene } from "../types/scene";
 import {
 	cancelJob,
 	fetchCompositeBlob,
+	getCompositeArtifactURL,
 	getJobStatus,
 	initJob,
 	submitJob,
@@ -28,6 +29,7 @@ const UPLOAD_CONCURRENCY = 8;
 const INITIAL_POLL_MS = 2000;
 const MAX_POLL_MS = 10_000;
 const COMPOSITE_FALLBACK = "frame-0001.png";
+const STITCH_MP4 = "stitched.mp4";
 
 const activePolls = new Map<string, AbortController>();
 
@@ -46,6 +48,48 @@ function compositePngName(status: StatusResponse): string {
 		if (m) return m[1] ?? COMPOSITE_FALLBACK;
 	}
 	return COMPOSITE_FALLBACK;
+}
+
+async function attachSucceededPreviews(
+	pipelineId: string,
+	pngName: string,
+	signal: AbortSignal,
+): Promise<void> {
+	let stitchVideoURL: string | undefined;
+	try {
+		if (!signal.aborted) {
+			stitchVideoURL = await getCompositeArtifactURL(pipelineId, STITCH_MP4);
+		}
+	} catch {
+		/* stitch step disabled (stitch_fps == 0) */
+	}
+	try {
+		if (signal.aborted) {
+			return;
+		}
+		const pblob = await fetchCompositeBlob(pipelineId, pngName);
+		const compositeObjectURL = URL.createObjectURL(pblob);
+		store.patchJob(pipelineId, {
+			status: "succeeded",
+			compositeName: pngName,
+			compositeObjectURL,
+			lastSyncError: undefined,
+			previewLoading: false,
+			...(stitchVideoURL ? { stitchVideoURL } : {}),
+		});
+	} catch (e) {
+		if (stitchVideoURL) {
+			store.patchJob(pipelineId, {
+				status: "succeeded",
+				compositeName: pngName,
+				stitchVideoURL,
+				lastSyncError: undefined,
+				previewLoading: false,
+			});
+			return;
+		}
+		throw e;
+	}
 }
 
 async function runWithConcurrency<T, R>(
@@ -104,15 +148,15 @@ function markSynced(id: string, patch: Partial<CloudJob>) {
 async function refetchCompositePreview(id: string, name?: string) {
 	const job = store.getSnapshot().find((j) => j.id === id);
 	const artifactName = name ?? job?.compositeName ?? COMPOSITE_FALLBACK;
+	store.patchJob(id, { lastSyncError: undefined, previewLoading: true });
 	try {
-		const blob = await fetchCompositeBlob(id, artifactName);
-		const url = URL.createObjectURL(blob);
-		store.patchJob(id, {
-			compositeName: artifactName,
-			compositeObjectURL: url,
-			lastSyncError: undefined,
-		});
+		await attachSucceededPreviews(
+			id,
+			artifactName,
+			new AbortController().signal,
+		);
 	} catch (e) {
+		store.patchJob(id, { previewLoading: false });
 		markSyncError(
 			id,
 			`Composite preview unavailable: ${e instanceof Error ? e.message : String(e)}`,
@@ -312,7 +356,14 @@ export async function startCloudRender(args: {
 			status: "submitting",
 			lastSyncError: undefined,
 		});
-		await submitJob(activeId, { enable_cache: enableCache });
+		const stitchFps =
+			renderConfig?.isAnimation === true && (renderConfig.fps ?? 0) > 0
+				? renderConfig.fps
+				: 0;
+		await submitJob(activeId, {
+			enable_cache: enableCache,
+			stitch_fps: stitchFps,
+		});
 		if (ac.signal.aborted) return;
 		store.patchJob(activeId, { status: "running" });
 		await pollTracked(activeId, ac);
@@ -385,7 +436,11 @@ export async function resumePendingJobs() {
 			startStatusPoll(j.id);
 			continue;
 		}
-		if (j.status === "succeeded" && !j.compositeObjectURL) {
+		if (
+			j.status === "succeeded" &&
+			!j.compositeObjectURL &&
+			!j.stitchVideoURL
+		) {
 			void refetchCompositePreview(j.id);
 		}
 	}
@@ -406,10 +461,18 @@ export function refreshCloudJob(id: string) {
 	void reconcileJobStatus(id, ac.signal);
 }
 
+export function markStitchPreviewUnavailable(id: string) {
+	store.patchJob(id, { stitchVideoURL: undefined });
+}
+
 export function refreshCloudJobs() {
 	for (const job of store.getSnapshot()) {
 		if (isLocalJob(job.id)) continue;
-		if (job.status === "succeeded" && !job.compositeObjectURL) {
+		if (
+			job.status === "succeeded" &&
+			!job.compositeObjectURL &&
+			!job.stitchVideoURL
+		) {
 			void refetchCompositePreview(job.id);
 			continue;
 		}
@@ -424,14 +487,21 @@ export async function downloadCompositePng(
 	suggestedName: string,
 ) {
 	const job = store.getSnapshot().find((j) => j.id === pipelineId);
-	const blob = await fetchCompositeBlob(
-		pipelineId,
-		job?.compositeName ?? COMPOSITE_FALLBACK,
-	);
+	let blob: Blob;
+	let name = suggestedName;
+	try {
+		blob = await fetchCompositeBlob(pipelineId, STITCH_MP4);
+		name = suggestedName.replace(/\.png$/i, ".mp4");
+	} catch {
+		blob = await fetchCompositeBlob(
+			pipelineId,
+			job?.compositeName ?? COMPOSITE_FALLBACK,
+		);
+	}
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");
 	a.href = url;
-	a.download = suggestedName;
+	a.download = name;
 	a.click();
 	URL.revokeObjectURL(url);
 }

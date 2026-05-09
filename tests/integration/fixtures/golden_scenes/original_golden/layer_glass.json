@@ -64,7 +64,7 @@
       "roughness": 0
     }
   },
-  "objects": [
+  "graph": [
     {
       "type": "sphere",
       "material": "glass_clear",
