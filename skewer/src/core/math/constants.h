@@ -30,8 +30,6 @@ constexpr float kRayOffsetEpsilon = 1e-3f;
 constexpr float kBoundsEpsilon = 1e-4f;
 constexpr float kFarClip = 1e10f;
 constexpr float kIsotropicPhaseEpsilon = 1e-3f;
-// amount of DeepSegmentNodes in one chunk in the DeepSegmentPool
-static constexpr std::size_t kChunkSize = 1 << 20;  // ~1M nodes per chunk (~28 MB)
 }  // namespace RenderConstants
 
 namespace Rec709 {

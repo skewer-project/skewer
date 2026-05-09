@@ -16,6 +16,7 @@
 #   cache_bucket            - string, GCS bucket name for layer cache
 #   skewer_image            - string, Artifact Registry URI for skewer-worker
 #   loom_image              - string, Artifact Registry URI for loom-worker
+#   stitch_image            - string, Artifact Registry URI for stitch-worker
 #   skewer_machine_type     - string, e.g. "n2d-highcpu-8"
 #   skewer_cpu_milli        - int, vCPU request per render task in milliCPU
 #   skewer_memory_mib       - int, memory request per render task in MiB
@@ -34,6 +35,7 @@
 #   batch_allowed_locations - list of Batch VM locations, e.g. ["regions/us-central1"]
 #   batch_sa                - string, batch worker service account email
 #   composite_output_prefix - string, GCS URI prefix for final composited frames
+#   stitch_fps              - float, when > 0 run ffmpeg to write stitched.mp4 after composite
 
 main:
   params: [args]
@@ -49,6 +51,7 @@ main:
           - cache_bucket: ${args.cache_bucket}
           - skewer_image: ${args.skewer_image}
           - loom_image: ${args.loom_image}
+          - stitch_image: ${args.stitch_image}
           - skewer_machine_type: ${args.skewer_machine_type}
           - skewer_cpu_milli: ${args.skewer_cpu_milli}
           - skewer_memory_mib: ${args.skewer_memory_mib}
@@ -224,6 +227,27 @@ main:
           provisioning_model: ${loom_provisioning_model}
           max_retry_count: ${loom_max_retry_count}
           parallelism: ${loom_parallelism}
+          network: ${network}
+          subnet: ${subnet}
+          batch_allowed_locations: ${batch_allowed_locations}
+          batch_sa: ${batch_sa}
+
+    - maybe_stitch:
+        switch:
+          - condition: ${args.stitch_fps > 0}
+            next: run_stitch
+        next: return_result
+
+    - run_stitch:
+        call: submit_batch_stitch
+        args:
+          project_id: ${project_id}
+          region: ${region}
+          pipeline_id: ${pipeline_id}
+          data_bucket: ${data_bucket}
+          composite_output_prefix: ${composite_output_prefix}
+          stitch_fps: ${args.stitch_fps}
+          stitch_image: ${stitch_image}
           network: ${network}
           subnet: ${subnet}
           batch_allowed_locations: ${batch_allowed_locations}
@@ -562,6 +586,84 @@ submit_batch_composite:
             steps:
               - composite_failed:
                   raise: '${"composite failed: " + final_composite_state}'
+
+# ── Subworkflow: submit_batch_stitch ──────────────────────────────────────────
+#
+# Single Batch task: read composited PNGs from the GCS FUSE mount, encode
+# stitched.mp4 at stitch_fps, and write it next to the frames.
+
+submit_batch_stitch:
+  params: [project_id, region, pipeline_id, data_bucket, composite_output_prefix, stitch_fps, stitch_image, network, subnet, batch_allowed_locations, batch_sa]
+  steps:
+    - stitch_prep:
+        assign:
+          - job_id: '${pipeline_id + "-stitch"}'
+          - fuse_data: '${"/mnt/" + data_bucket}'
+          - composite_fuse: '${text.replace_all(composite_output_prefix, "gs://", "/mnt/")}'
+          - fps_text: '${string(stitch_fps)}'
+          - stitch_script: '${"set -euo pipefail; ffmpeg -y -hide_banner -loglevel error -framerate " + fps_text + " -start_number 1 -i \"" + composite_fuse + "frame-%04d.png\" -c:v libx264 -pix_fmt yuv420p -movflags +faststart \"" + composite_fuse + "stitched.mp4\""}'
+    - create_stitch_job:
+        call: googleapis.batch.v1.projects.locations.jobs.create
+        args:
+          parent: '${"projects/" + project_id + "/locations/" + region}'
+          jobId: ${job_id}
+          connector_params:
+            skip_polling: true
+          body:
+            taskGroups:
+              - taskCount: 1
+                taskCountPerNode: 1
+                taskSpec:
+                  computeResource:
+                    cpuMilli: 4000
+                    memoryMib: 8192
+                  maxRetryCount: 1
+                  maxRunDuration: "7200s"
+                  runnables:
+                    - script:
+                        text: '${"mkdir -p " + fuse_data}'
+                    - container:
+                        imageUri: ${stitch_image}
+                        entrypoint: /bin/bash
+                        commands:
+                          - "-c"
+                          - ${stitch_script}
+                        volumes:
+                          - '${fuse_data + ":" + fuse_data + ":rw"}'
+                  volumes:
+                    - gcs:
+                        remotePath: ${data_bucket}
+                      mountPath: ${fuse_data}
+            allocationPolicy:
+              location:
+                allowedLocations: ${batch_allowed_locations}
+              tags:
+                - skewer-batch-worker
+              instances:
+                - policy:
+                    machineType: e2-standard-4
+                    provisioningModel: SPOT
+              network:
+                networkInterfaces:
+                  - network: ${network}
+                    subnetwork: ${subnet}
+                    noExternalIpAddress: true
+              serviceAccount:
+                email: ${batch_sa}
+            logsPolicy:
+              destination: CLOUD_LOGGING
+        result: stitch_job
+    - poll_stitch:
+        call: poll_batch_job
+        args:
+          job_name: ${stitch_job.name}
+        result: stitch_state
+    - check_stitch:
+        switch:
+          - condition: '${stitch_state != "SUCCEEDED"}'
+            steps:
+              - stitch_failed:
+                  raise: '${"stitch (ffmpeg) failed: " + stitch_state}'
 
 # ── Subworkflow: poll_batch_job ────────────────────────────────────────────────
 #

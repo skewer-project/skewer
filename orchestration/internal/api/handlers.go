@@ -26,8 +26,8 @@ const (
 
 // Config bundles all the wiring required by the API handlers.
 type Config struct {
-	DataBucket       string
-	UploadRoot       string // "uploads"
+	DataBucket             string
+	UploadRoot             string // "uploads"
 	DefaultCompositePrefix string // "composites"
 	DefaultRenderPrefix    string // "renders"
 }
@@ -186,9 +186,10 @@ func (s *Server) handleInit(w http.ResponseWriter, r *http.Request) {
 // ── /v1/jobs/{id}/submit ─────────────────────────────────────────────────
 
 type submitRequest struct {
-	ScenePath              string `json:"scene_path"`
-	CompositeOutputURIPrefix string `json:"composite_output_uri_prefix"`
-	EnableCache            bool   `json:"enable_cache"`
+	ScenePath                string  `json:"scene_path"`
+	CompositeOutputURIPrefix string  `json:"composite_output_uri_prefix"`
+	EnableCache              bool    `json:"enable_cache"`
+	StitchFPS                float64 `json:"stitch_fps,omitempty"`
 }
 
 type submitResponse struct {
@@ -235,12 +236,28 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "composite_output_uri_prefix must start with gs://")
 		return
 	}
+	compositeBucket, compositeObjectPrefix, err := gsURIToBucketObject(compositePrefix)
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if compositeBucket != s.cfg.DataBucket {
+		httpError(w, http.StatusBadRequest, "composite_output_uri_prefix must use the configured data bucket")
+		return
+	}
+	cleanCompositePrefix := strings.Trim(path.Clean("/"+compositeObjectPrefix), "/")
+	if !hasPathSegment(cleanCompositePrefix, pipelineID) {
+		httpError(w, http.StatusBadRequest, "composite_output_uri_prefix must include the pipeline id")
+		return
+	}
+	compositePrefix = fmt.Sprintf("gs://%s/%s/", compositeBucket, cleanCompositePrefix)
 
 	resp, err := s.coordinator.Submit(r.Context(), &pb.SubmitPipelineRequest{
 		PipelineId:               pipelineID,
 		SceneUri:                 sceneURI,
 		CompositeOutputUriPrefix: compositePrefix,
 		EnableCache:              req.EnableCache,
+		StitchFps:                req.StitchFPS,
 	})
 	if err != nil {
 		log.Printf("[API]: coordinator.Submit: %v", err)
@@ -248,7 +265,7 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.owner.WriteExecution(r.Context(), pipelineID, resp.PipelineId); err != nil {
+	if err := s.owner.WriteExecution(r.Context(), pipelineID, resp.PipelineId, compositePrefix); err != nil {
 		log.Printf("[API]: write execution marker: %v", err)
 		// Best-effort: the pipeline already started, just surface a warning.
 	}
@@ -339,7 +356,7 @@ func (s *Server) handleCancel(w http.ResponseWriter, r *http.Request) {
 // ── /v1/jobs/{id}/artifacts/{kind}/{name} ─────────────────────────────────
 
 // handleArtifact issues a short-lived signed GET URL for a render output
-// artifact and 302-redirects the client to it. Supported kinds:
+// artifact as JSON. Supported kinds:
 //   - "composite"  → gs://<data>/composites/<pipeline_id>/<name>
 //   - "render"     → gs://<data>/renders/<pipeline_id>/<name>
 //     (name may contain slashes, e.g. "layer_main/frame_0001.exr")
@@ -362,11 +379,39 @@ func (s *Server) handleArtifact(w http.ResponseWriter, r *http.Request) {
 	var object string
 	switch kind {
 	case "composite":
-		object = path.Join(s.cfg.DefaultCompositePrefix, pipelineID, cleaned)
+		compositePrefix, err := s.owner.ReadCompositeOutputPrefix(r.Context(), pipelineID)
+		if err != nil {
+			if !errors.Is(err, ErrPipelineNotFound) {
+				log.Printf("[API]: read composite prefix: %v", err)
+				httpError(w, http.StatusInternalServerError, "failed to read artifact metadata")
+				return
+			}
+			compositePrefix = fmt.Sprintf("gs://%s/%s/%s/", s.cfg.DataBucket, s.cfg.DefaultCompositePrefix, pipelineID)
+		}
+		bucket, prefix, err := gsURIToBucketObject(compositePrefix)
+		if err != nil {
+			httpError(w, http.StatusBadRequest, "invalid composite output prefix")
+			return
+		}
+		if bucket != s.cfg.DataBucket {
+			httpError(w, http.StatusBadRequest, "composite artifact bucket is not readable by this API")
+			return
+		}
+		object = path.Join(prefix, cleaned)
 	case "render":
 		object = path.Join(s.cfg.DefaultRenderPrefix, pipelineID, cleaned)
 	default:
 		httpError(w, http.StatusBadRequest, fmt.Sprintf("unknown artifact kind %q", kind))
+		return
+	}
+
+	if _, err := s.storage.Bucket(s.cfg.DataBucket).Object(object).Attrs(r.Context()); err != nil {
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			httpError(w, http.StatusNotFound, "artifact not found")
+			return
+		}
+		log.Printf("[API]: stat artifact: %v", err)
+		httpError(w, http.StatusInternalServerError, "failed to check artifact")
 		return
 	}
 
@@ -411,6 +456,27 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func httpError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+func gsURIToBucketObject(uri string) (string, string, error) {
+	if !strings.HasPrefix(uri, "gs://") {
+		return "", "", fmt.Errorf("GCS URI must start with gs://")
+	}
+	rest := strings.TrimPrefix(uri, "gs://")
+	i := strings.IndexByte(rest, '/')
+	if i < 0 {
+		return rest, "", nil
+	}
+	return rest[:i], rest[i+1:], nil
+}
+
+func hasPathSegment(p, segment string) bool {
+	for part := range strings.SplitSeq(p, "/") {
+		if part == segment {
+			return true
+		}
+	}
+	return false
 }
 
 // CORSMiddleware allows the previewer origins to call the API. origins is a

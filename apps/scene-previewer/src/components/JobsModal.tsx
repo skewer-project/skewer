@@ -2,12 +2,16 @@ import {
 	Cloud,
 	CloudOff,
 	Download,
+	Film,
+	ImageIcon,
 	Loader2,
+	Play,
 	RefreshCw,
 	Trash2,
 	X,
 } from "lucide-react";
 import {
+	type CSSProperties,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -21,6 +25,7 @@ import type {
 } from "../services/cloud-job-types";
 import {
 	downloadCompositePng,
+	markStitchPreviewUnavailable,
 	refreshCloudJob,
 	refreshCloudJobs,
 	startCloudRender,
@@ -102,6 +107,31 @@ function settingsLine(rc: CloudJobRenderConfig): string {
 	return parts.join("  ·  ");
 }
 
+function previewAspect(job: CloudJob): CSSProperties {
+	const rc = job.renderConfig;
+	if (!rc || rc.width <= 0 || rc.height <= 0) {
+		return { aspectRatio: "16 / 9" };
+	}
+	return { aspectRatio: `${rc.width} / ${rc.height}` };
+}
+
+function previewOrientation(
+	job: CloudJob,
+): "landscape" | "portrait" | "square" {
+	const rc = job.renderConfig;
+	if (!rc || rc.width <= 0 || rc.height <= 0) return "landscape";
+	const ratio = rc.width / rc.height;
+	if (ratio > 1.08) return "landscape";
+	if (ratio < 0.92) return "portrait";
+	return "square";
+}
+
+function mediaLabel(job: CloudJob): "Video" | "Image" | null {
+	if (job.stitchVideoURL) return "Video";
+	if (job.compositeObjectURL) return "Image";
+	return null;
+}
+
 function JobRow({
 	job,
 	expanded,
@@ -151,6 +181,16 @@ function JobRow({
 				: tone === "err"
 					? j.statusErr
 					: j.statusWarn;
+	const mediaKind = mediaLabel(job);
+	const waitingForPreview =
+		job.status === "succeeded" && !mediaKind && job.previewLoading;
+	const thumbClass = [
+		j.thumb,
+		previewOrientation(job) === "portrait" ? j.thumbPortrait : "",
+		previewOrientation(job) === "square" ? j.thumbSquare : "",
+	]
+		.filter(Boolean)
+		.join(" ");
 
 	const thumb = job.compositeObjectURL ? (
 		<img className={j.thumbImg} src={job.compositeObjectURL} alt="" />
@@ -161,10 +201,45 @@ function JobRow({
 	) : (
 		<Cloud size={20} aria-hidden />
 	);
+	const thumbContent = (
+		<>
+			{thumb}
+			{mediaKind ? (
+				<span className={j.mediaBadge}>
+					{mediaKind === "Video" ? (
+						<Film size={11} aria-hidden />
+					) : (
+						<ImageIcon size={11} aria-hidden />
+					)}
+					{mediaKind}
+				</span>
+			) : null}
+			{job.stitchVideoURL ? (
+				<span className={j.playBadge} aria-hidden>
+					<Play size={14} />
+				</span>
+			) : null}
+		</>
+	);
 
 	return (
 		<div className={rowMod ? `${j.row} ${rowMod}` : j.row}>
-			<div className={j.thumb}>{thumb}</div>
+			{mediaKind ? (
+				<button
+					type="button"
+					className={`${thumbClass} ${j.thumbButton}`}
+					style={previewAspect(job)}
+					aria-label={`Open ${mediaKind.toLowerCase()} preview`}
+					aria-expanded={expanded}
+					onClick={onToggleExpand}
+				>
+					{thumbContent}
+				</button>
+			) : (
+				<div className={thumbClass} style={previewAspect(job)}>
+					{thumbContent}
+				</div>
+			)}
 			<div className={j.rowMain}>
 				<div className={j.rowHead}>
 					<span className={j.rowTitle}>{job.sceneName}</span>
@@ -200,9 +275,48 @@ function JobRow({
 						{job.error}
 					</div>
 				) : null}
-				{job.lastSyncError ? (
+				{waitingForPreview ? (
+					<div className={j.rowPreviewLoading} role="status">
+						<Loader2 className={j.inlineSpin} size={11} aria-hidden />
+						Loading preview artifact…
+					</div>
+				) : job.lastSyncError ? (
 					<div className={j.rowSync} role="status">
 						Last status check failed; retrying. {job.lastSyncError}
+					</div>
+				) : null}
+				{expanded && (job.stitchVideoURL || job.compositeObjectURL) ? (
+					<div className={j.previewPanel}>
+						<div className={j.previewHead}>
+							<span className={j.previewTitle}>
+								{job.stitchVideoURL ? "Video preview" : "Image preview"}
+							</span>
+							<span className={j.previewMeta}>
+								{job.renderConfig
+									? `${job.renderConfig.width}×${job.renderConfig.height}`
+									: mediaKind}
+							</span>
+						</div>
+						<div className={j.previewStage} style={previewAspect(job)}>
+							{job.stitchVideoURL ? (
+								<video
+									className={j.previewMedia}
+									src={job.stitchVideoURL}
+									poster={job.compositeObjectURL}
+									controls
+									muted
+									preload="metadata"
+									playsInline
+									onError={() => markStitchPreviewUnavailable(job.id)}
+								/>
+							) : job.compositeObjectURL ? (
+								<img
+									className={j.previewMedia}
+									src={job.compositeObjectURL}
+									alt=""
+								/>
+							) : null}
+						</div>
 					</div>
 				) : null}
 				{expanded && job.renderConfig ? (
@@ -264,7 +378,7 @@ function JobRow({
 						onClick={onDownload}
 					>
 						<Download size={12} />
-						<span>Download</span>
+						<span>{job.stitchVideoURL ? "Download MP4" : "Download PNG"}</span>
 					</button>
 				) : null}
 				{job.status === "failed" && canRetry ? (

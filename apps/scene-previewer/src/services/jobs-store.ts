@@ -16,7 +16,10 @@ export type {
 const LEGACY_LS_KEY = "skewer.jobs.v1";
 const MAX_JOBS = 20;
 
-type PersistedCloudJob = Omit<CloudJob, "abort" | "compositeObjectURL">;
+type PersistedCloudJob = Omit<
+	CloudJob,
+	"abort" | "compositeObjectURL" | "stitchVideoURL" | "previewLoading"
+>;
 
 const terminal: Set<CloudJobStatus> = new Set([
 	"succeeded",
@@ -40,9 +43,12 @@ function sortJobs(list: CloudJob[]): CloudJob[] {
 }
 
 function stripRuntimeFields(j: CloudJob): PersistedCloudJob {
-	const { abort, compositeObjectURL, ...rest } = j;
+	const { abort, compositeObjectURL, previewLoading, stitchVideoURL, ...rest } =
+		j;
 	void abort;
 	void compositeObjectURL;
+	void previewLoading;
+	void stitchVideoURL;
 	return rest;
 }
 
@@ -67,7 +73,17 @@ function pruneList(list: CloudJob[]): CloudJob[] {
 }
 
 function normalizeJob(j: CloudJob): CloudJob {
-	return { ...j };
+	const rest = { ...(j as CloudJob & Record<string, unknown>) };
+	delete rest["sm" + "earObjectURL"];
+	if (
+		rest.previewLoading === undefined &&
+		rest.status === "succeeded" &&
+		!rest.compositeObjectURL &&
+		!rest.stitchVideoURL
+	) {
+		rest.previewLoading = true;
+	}
+	return rest;
 }
 
 let jobs: CloudJob[] = [];

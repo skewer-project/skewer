@@ -41,6 +41,8 @@ export interface CloudJob {
 	lastSyncError?: string;
 	compositeName?: string;
 	compositeObjectURL?: string;
+	stitchVideoURL?: string;
+	previewLoading?: boolean;
 	abort?: AbortController;
 	renderConfig?: CloudJobRenderConfig;
 }

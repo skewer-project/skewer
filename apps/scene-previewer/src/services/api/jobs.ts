@@ -80,17 +80,15 @@ export async function cancelJob(id: string): Promise<void> {
 }
 
 /**
- * Fetches a composite image through the API (with auth).
+ * Fetches a signed composite artifact URL through the API (with auth).
  *
- * The API returns a signed GCS URL as JSON rather than issuing a redirect.
- * We then fetch GCS directly so the browser sends the correct Origin header
- * (a cross-origin redirect would cause the browser to send Origin: null, which
- * GCS CORS would reject).
+ * The API returns a signed GCS URL as JSON rather than issuing a redirect so
+ * callers can fetch GCS directly with the browser's normal Origin header.
  */
-export async function fetchCompositeBlob(
+export async function getCompositeArtifactURL(
 	id: string,
 	name: string,
-): Promise<Blob> {
+): Promise<string> {
 	const token = await getIdToken(false);
 	const url = apiUrl(
 		`/v1/jobs/${encodeURIComponent(id)}/artifacts/composite/${encodeURIComponent(name)}`,
@@ -110,6 +108,14 @@ export async function fetchCompositeBlob(
 		);
 	}
 	const { url: signedUrl } = (await res.json()) as { url: string };
+	return signedUrl;
+}
+
+export async function fetchCompositeBlob(
+	id: string,
+	name: string,
+): Promise<Blob> {
+	const signedUrl = await getCompositeArtifactURL(id, name);
 	const gcsRes = await fetch(signedUrl);
 	if (!gcsRes.ok) {
 		throw new Error(

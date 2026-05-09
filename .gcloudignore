@@ -16,3 +16,4 @@ node_modules/
 
 # golden image tests
 tests/integration
+!tests/integration/test_golden_image.cc

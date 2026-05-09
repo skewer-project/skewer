@@ -31,6 +31,7 @@ type GCPManager struct {
 	cacheBucket             string
 	skewerImage             string
 	loomImage               string
+	stitchImage             string
 	skewerMachineType       string
 	skewerCPUMilli          int
 	skewerMemoryMiB         int
@@ -75,6 +76,7 @@ func NewGCPManager(ctx context.Context) (*GCPManager, error) {
 		cacheBucket:             mustEnv("CACHE_BUCKET"),
 		skewerImage:             mustEnv("SKEWER_IMAGE"),
 		loomImage:               mustEnv("LOOM_IMAGE"),
+		stitchImage:             mustEnv("STITCH_IMAGE"),
 		skewerMachineType:       getEnvOrDefault("SKEWER_BATCH_MACHINE_TYPE", "n2d-highcpu-8"),
 		skewerCPUMilli:          getEnvIntOrDefault("SKEWER_BATCH_CPU_MILLI", 8000),
 		skewerMemoryMiB:         getEnvIntOrDefault("SKEWER_BATCH_MEMORY_MIB", 6144),
@@ -223,6 +225,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"cache_bucket":              m.cacheBucket,
 		"skewer_image":              m.skewerImage,
 		"loom_image":                m.loomImage,
+		"stitch_image":              m.stitchImage,
 		"skewer_machine_type":       m.skewerMachineType,
 		"skewer_cpu_milli":          m.skewerCPUMilli,
 		"skewer_memory_mib":         m.skewerMemoryMiB,
@@ -241,6 +244,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"batch_sa":                  m.batchSA,
 		"batch_allowed_locations":   m.batchAllowedLocations,
 		"composite_output_prefix":   req.CompositeOutputUriPrefix,
+		"stitch_fps":                req.GetStitchFps(),
 	}
 
 	argsJSON, err := json.Marshal(args)
