@@ -188,6 +188,17 @@ export const DEFAULT_ANIMATION: Animation = {
 	shutter_angle: 180,
 };
 
+export const DEFAULT_RENDER_CONFIG: RenderConfig = {
+	integrator: "path_trace",
+	max_samples: 128,
+	min_samples: 16,
+	max_depth: 8,
+	threads: 0,
+	noise_threshold: 0.01,
+	enable_deep: false,
+	image: { width: 1920, height: 1080 },
+};
+
 // --- scene.json top-level ---
 
 export interface SceneManifest {
@@ -212,4 +223,5 @@ export interface ResolvedScene {
 	layers: ResolvedLayer[];
 	output_dir: string;
 	animation: Animation;
+	settings: RenderConfig;
 }
