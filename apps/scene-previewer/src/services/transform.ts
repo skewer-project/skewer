@@ -117,7 +117,7 @@ function solveBezierParameter(
 }
 
 /** Easing alpha in [0,1] for segment progress u in [0,1], using k1's curve (k0 → k1). */
-export function evaluateBezierEasing(
+function evaluateBezierEasing(
 	curve: InterpCurve | undefined,
 	u: number,
 ): number {

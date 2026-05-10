@@ -246,9 +246,7 @@ function serializeAnimation(a: Animation): Record<string, unknown> {
 	return o;
 }
 
-export function serializeManifest(
-	scene: ResolvedScene,
-): Record<string, unknown> {
+function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
 	return {
 		camera: serializeCamera(scene.camera),
 		animation: serializeAnimation(scene.animation),

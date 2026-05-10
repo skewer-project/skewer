@@ -18,12 +18,6 @@ import type {
 } from "./cloud-job-types";
 import * as store from "./jobs-store";
 
-export type {
-	CloudJob,
-	CloudJobRenderConfig,
-	CloudJobStatus,
-} from "./cloud-job-types";
-
 const UPLOAD_CONCURRENCY = 8;
 const INITIAL_POLL_MS = 2000;
 const MAX_POLL_MS = 10_000;

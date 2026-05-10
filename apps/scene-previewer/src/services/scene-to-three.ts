@@ -13,9 +13,6 @@ import {
 
 export { applyStaticTransformToObject3D };
 
-/** @deprecated Use applyStaticTransformToObject3D */
-export const applyTransform = applyStaticTransformToObject3D;
-
 function disposeMaterialTextures(material: THREE.Material) {
 	for (const value of Object.values(material)) {
 		if (value instanceof THREE.Texture) {

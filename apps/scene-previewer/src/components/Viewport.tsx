@@ -1,5 +1,5 @@
 import {
-	forwardRef,
+	type Ref,
 	useCallback,
 	useEffect,
 	useImperativeHandle,
@@ -198,21 +198,19 @@ function applyAnimatedNodesAtTime(
 	}
 }
 
-export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{
-		scene,
-		dirHandle,
-		sceneVersion,
-		currentTime = 0,
-		isPlaying = false,
-		selectedObjectKey,
-		onSelectObject,
-		transformMode = "translate",
-		transformSpace = "world",
-		onTransformChange,
-	},
+export function Viewport({
+	scene,
+	dirHandle,
+	sceneVersion,
+	currentTime = 0,
+	isPlaying = false,
+	selectedObjectKey,
+	onSelectObject,
+	transformMode = "translate",
+	transformSpace = "world",
+	onTransformChange,
 	ref,
-) {
+}: Props & { ref?: Ref<ViewportHandle> }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	const threeScene = useRef<THREE.Scene | null>(null);
@@ -983,4 +981,4 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			onMouseUp={handleMouseUp}
 		/>
 	);
-});
+}

@@ -1,17 +1,5 @@
-import type {
-	CloudJob,
-	CloudJobClientStatus,
-	CloudJobRenderConfig,
-	CloudJobStatus,
-} from "./cloud-job-types";
+import type { CloudJob, CloudJobStatus } from "./cloud-job-types";
 import { CLOUD_JOBS_STORE, openPreviewerDB } from "./previewer-db";
-
-export type {
-	CloudJob,
-	CloudJobClientStatus,
-	CloudJobRenderConfig,
-	CloudJobStatus,
-};
 
 const LEGACY_LS_KEY = "skewer.jobs.v1";
 const MAX_JOBS = 20;
@@ -25,13 +13,6 @@ const terminal: Set<CloudJobStatus> = new Set([
 	"succeeded",
 	"failed",
 	"cancelled",
-]);
-
-const clientOwned: Set<CloudJobStatus> = new Set([
-	"packaging",
-	"uploading-init",
-	"uploading",
-	"submitting",
 ]);
 
 function isTerminal(s: CloudJobStatus): boolean {
@@ -312,8 +293,4 @@ export function isNonTerminalStatus(s: CloudJobStatus): boolean {
 
 export function isTerminalStatus(s: CloudJobStatus): boolean {
 	return isTerminal(s);
-}
-
-export function isClientOwnedStatus(s: CloudJobStatus): boolean {
-	return clientOwned.has(s);
 }

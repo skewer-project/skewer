@@ -1,4 +1,4 @@
-import type { Material, Medium, ResolvedScene } from "../types/scene";
+import type { ResolvedScene } from "../types/scene";
 import { getFile, readTextFile } from "./fs";
 import {
 	formatJsonLine,
@@ -13,8 +13,40 @@ export interface BundleFile {
 	contentType: string;
 }
 
+const BUNDLE_READ_CONCURRENCY = 8;
+
 const MTL_TEX_LINE =
 	/^(map_(?:kd|ks|ka|ns|d|bump)|bump|norm|disp|refl)\s+(.+)$/i;
+
+async function mapWithConcurrency<T, R>(
+	items: T[],
+	limit: number,
+	fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+	const results = new Array<R>(items.length);
+	const cap = Math.max(1, Math.min(limit, items.length));
+	let next = 0;
+
+	const runNext = async (): Promise<void> => {
+		const index = next++;
+		if (index >= items.length) return;
+		results[index] = await fn(items[index] as T);
+		await runNext();
+	};
+
+	await Promise.all(Array.from({ length: cap }, () => runNext()));
+	return results;
+}
+
+function pushUniquePath(
+	paths: string[],
+	seen: Set<string>,
+	path: string,
+): void {
+	if (seen.has(path)) return;
+	seen.add(path);
+	paths.push(path);
+}
 
 function assertSafeRelativePath(p: string): void {
 	if (p.startsWith("/")) {
@@ -74,52 +106,40 @@ function objBaseDir(file: string): string {
 	return file.includes("/") ? `${file.split("/").slice(0, -1).join("/")}/` : "";
 }
 
-async function addMaterialTextures(
-	dir: FileSystemDirectoryHandle,
-	material: Material,
-	files: Map<string, BundleFile>,
-) {
-	const rels: string[] = [];
-	if (material.albedo_texture) rels.push(material.albedo_texture);
-	if (material.normal_texture) rels.push(material.normal_texture);
-	if (material.roughness_texture) rels.push(material.roughness_texture);
-	for (const p of rels) {
-		if (files.has(p)) continue;
-		assertSafeRelativePath(p);
-		try {
-			const blob = await getFile(dir, p);
-			files.set(p, {
-				path: p,
-				blob,
-				contentType: contentTypeForPath(p),
-			});
-		} catch (e) {
-			throw new Error(
-				`Missing material texture for bundle: ${p} (${e instanceof Error ? e.message : String(e)})`,
-			);
+function collectMaterialTexturePaths(
+	scene: ResolvedScene,
+	existingPaths: Set<string>,
+): string[] {
+	const paths: string[] = [];
+	for (const l of [...scene.contexts, ...scene.layers]) {
+		for (const material of Object.values(l.data.materials)) {
+			if (material.albedo_texture) {
+				pushUniquePath(paths, existingPaths, material.albedo_texture);
+			}
+			if (material.normal_texture) {
+				pushUniquePath(paths, existingPaths, material.normal_texture);
+			}
+			if (material.roughness_texture) {
+				pushUniquePath(paths, existingPaths, material.roughness_texture);
+			}
 		}
 	}
+	return paths;
 }
 
-async function addMediumFiles(
-	dir: FileSystemDirectoryHandle,
-	medium: Medium,
-	files: Map<string, BundleFile>,
-) {
-	if (!medium.file || files.has(medium.file)) return;
-	assertSafeRelativePath(medium.file);
-	try {
-		const blob = await getFile(dir, medium.file);
-		files.set(medium.file, {
-			path: medium.file,
-			blob,
-			contentType: contentTypeForPath(medium.file),
-		});
-	} catch (e) {
-		throw new Error(
-			`Missing medium file for bundle: ${medium.file} (${e instanceof Error ? e.message : String(e)})`,
-		);
+function collectMediumPaths(
+	scene: ResolvedScene,
+	existingPaths: Set<string>,
+): string[] {
+	const paths: string[] = [];
+	for (const l of [...scene.contexts, ...scene.layers]) {
+		for (const medium of Object.values(l.data.media ?? {})) {
+			if (medium.file) {
+				pushUniquePath(paths, existingPaths, medium.file);
+			}
+		}
 	}
+	return paths;
 }
 
 function uniqueObjFiles(scene: ResolvedScene): string[] {
@@ -132,63 +152,83 @@ function uniqueObjFiles(scene: ResolvedScene): string[] {
 	return [...set];
 }
 
-async function addObjMtlAndTextures(
-	dir: FileSystemDirectoryHandle,
-	objFile: string,
-	files: Map<string, BundleFile>,
-) {
-	assertSafeRelativePath(objFile);
+interface ObjText {
+	path: string;
+	text: string;
+}
 
-	let objText: string;
+interface MtlText {
+	path: string;
+	text: string;
+	textureBaseDir: string;
+}
+
+async function readRequiredBlob(
+	dir: FileSystemDirectoryHandle,
+	path: string,
+	missingLabel: string,
+): Promise<BundleFile> {
+	assertSafeRelativePath(path);
 	try {
-		objText = await readTextFile(dir, objFile);
+		const blob = await getFile(dir, path);
+		return {
+			path,
+			blob,
+			contentType: contentTypeForPath(path),
+		};
 	} catch (e) {
 		throw new Error(
-			`Failed to read OBJ for bundle: ${objFile} (${e instanceof Error ? e.message : String(e)})`,
+			`Missing ${missingLabel} for bundle: ${path} (${e instanceof Error ? e.message : String(e)})`,
 		);
 	}
+}
 
-	if (!files.has(objFile)) {
-		files.set(objFile, {
-			path: objFile,
-			blob: new Blob([objText], { type: "model/obj" }),
-			contentType: "model/obj",
-		});
+async function readObjText(
+	dir: FileSystemDirectoryHandle,
+	path: string,
+): Promise<ObjText> {
+	assertSafeRelativePath(path);
+	try {
+		return { path, text: await readTextFile(dir, path) };
+	} catch (e) {
+		throw new Error(
+			`Failed to read OBJ for bundle: ${path} (${e instanceof Error ? e.message : String(e)})`,
+		);
 	}
+}
 
-	const ob = objBaseDir(objFile);
-	for (const mtlName of parseMtllibNames(objText)) {
-		const mtlPath = ob + mtlName;
-		assertSafeRelativePath(mtlPath);
-		if (files.has(mtlPath)) continue;
-		let mtlText: string;
-		try {
-			mtlText = await readTextFile(dir, mtlPath);
-		} catch {
-			console.warn(`[collectSceneBundle] MTL not found (skipping): ${mtlPath}`);
-			continue;
-		}
-		files.set(mtlPath, {
-			path: mtlPath,
-			blob: new Blob([mtlText], { type: "text/plain" }),
-			contentType: "text/plain",
-		});
+async function readMtlText(
+	dir: FileSystemDirectoryHandle,
+	spec: { path: string; textureBaseDir: string },
+): Promise<MtlText | null> {
+	assertSafeRelativePath(spec.path);
+	try {
+		return {
+			path: spec.path,
+			text: await readTextFile(dir, spec.path),
+			textureBaseDir: spec.textureBaseDir,
+		};
+	} catch {
+		console.warn(`[collectSceneBundle] MTL not found (skipping): ${spec.path}`);
+		return null;
+	}
+}
 
-		for (const rel of parseMtlTexturePaths(mtlText)) {
-			const texPath = ob + rel;
-			assertSafeRelativePath(texPath);
-			if (files.has(texPath)) continue;
-			try {
-				const blob = await getFile(dir, texPath);
-				files.set(texPath, {
-					path: texPath,
-					blob,
-					contentType: contentTypeForPath(texPath),
-				});
-			} catch {
-				console.warn(`[collectSceneBundle] texture not found: ${texPath}`);
-			}
-		}
+async function readOptionalTexture(
+	dir: FileSystemDirectoryHandle,
+	path: string,
+): Promise<BundleFile | null> {
+	assertSafeRelativePath(path);
+	try {
+		const blob = await getFile(dir, path);
+		return {
+			path,
+			blob,
+			contentType: contentTypeForPath(path),
+		};
+	} catch {
+		console.warn(`[collectSceneBundle] texture not found: ${path}`);
+		return null;
 	}
 }
 
@@ -223,17 +263,81 @@ export async function collectSceneBundle(
 		});
 	}
 
-	for (const l of [...scene.contexts, ...scene.layers]) {
-		for (const m of Object.values(l.data.materials)) {
-			await addMaterialTextures(dir, m, files);
-		}
-		for (const med of Object.values(l.data.media ?? {})) {
-			await addMediumFiles(dir, med, files);
+	const seenPaths = new Set(files.keys());
+	const materialTexturePaths = collectMaterialTexturePaths(scene, seenPaths);
+	const materialTextures = await mapWithConcurrency(
+		materialTexturePaths,
+		BUNDLE_READ_CONCURRENCY,
+		(path) => readRequiredBlob(dir, path, "material texture"),
+	);
+	for (const file of materialTextures) {
+		files.set(file.path, file);
+	}
+
+	const mediumPaths = collectMediumPaths(scene, seenPaths);
+	const mediumFiles = await mapWithConcurrency(
+		mediumPaths,
+		BUNDLE_READ_CONCURRENCY,
+		(path) => readRequiredBlob(dir, path, "medium file"),
+	);
+	for (const file of mediumFiles) {
+		files.set(file.path, file);
+	}
+
+	const objFiles = uniqueObjFiles(scene).filter((path) => !files.has(path));
+	const objTexts = await mapWithConcurrency(
+		objFiles,
+		BUNDLE_READ_CONCURRENCY,
+		(path) => readObjText(dir, path),
+	);
+	for (const obj of objTexts) {
+		files.set(obj.path, {
+			path: obj.path,
+			blob: new Blob([obj.text], { type: "model/obj" }),
+			contentType: "model/obj",
+		});
+	}
+
+	const mtlSeen = new Set(files.keys());
+	const mtlSpecs: { path: string; textureBaseDir: string }[] = [];
+	for (const obj of objTexts) {
+		const baseDir = objBaseDir(obj.path);
+		for (const mtlName of parseMtllibNames(obj.text)) {
+			const path = baseDir + mtlName;
+			if (mtlSeen.has(path)) continue;
+			mtlSeen.add(path);
+			mtlSpecs.push({ path, textureBaseDir: baseDir });
 		}
 	}
 
-	for (const ofile of uniqueObjFiles(scene)) {
-		await addObjMtlAndTextures(dir, ofile, files);
+	const mtlTexts = (
+		await mapWithConcurrency(mtlSpecs, BUNDLE_READ_CONCURRENCY, (spec) =>
+			readMtlText(dir, spec),
+		)
+	).filter((mtl): mtl is MtlText => mtl !== null);
+	for (const mtl of mtlTexts) {
+		files.set(mtl.path, {
+			path: mtl.path,
+			blob: new Blob([mtl.text], { type: "text/plain" }),
+			contentType: "text/plain",
+		});
+	}
+
+	const textureSeen = new Set(files.keys());
+	const texturePaths: string[] = [];
+	for (const mtl of mtlTexts) {
+		for (const rel of parseMtlTexturePaths(mtl.text)) {
+			pushUniquePath(texturePaths, textureSeen, mtl.textureBaseDir + rel);
+		}
+	}
+
+	const textureFiles = (
+		await mapWithConcurrency(texturePaths, BUNDLE_READ_CONCURRENCY, (path) =>
+			readOptionalTexture(dir, path),
+		)
+	).filter((file): file is BundleFile => file !== null);
+	for (const file of textureFiles) {
+		files.set(file.path, file);
 	}
 
 	return Array.from(files.values());
