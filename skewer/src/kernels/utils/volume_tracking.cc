@@ -68,7 +68,8 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, co
                                        float dist, const SampledWavelengths& wl) {
     float t_min_box = 0.0f;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
+    BoundBox wbbox = medium.GetWorldBBox(shadow_ray.time());
+    if (!wbbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
 
     float t_min = std::max(0.0f, t_min_box);
     float t_max = std::min(dist, t_max_box);
@@ -85,13 +86,14 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, co
     float t = t_min;
     if (!medium.float_grid && !medium.fp16_grid) return Spectrum(1.0f);
     NanoVDBAccessor acc(medium);
+    Vec3 effective_translate = medium.GetEffectiveTranslate(shadow_ray.time());
 
     while (true) {
         t += -std::log(std::max(1.0f - rng.UniformFloat(), Numeric::kFloatEpsilon)) / majorant;
         if (t >= t_max) break;
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(shadow_ray.at(t), acc);
+        float density = medium.GetDensity(shadow_ray.at(t), effective_translate, acc);
         Spectrum sigma_t = density * base_sigma_t;
 
         Spectrum null_prob = Spectrum(1.0f) - (sigma_t / majorant);
