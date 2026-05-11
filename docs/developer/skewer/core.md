@@ -46,13 +46,20 @@ We use a **TRS (Translation, Rotation, Scale)** system to place objects in the w
 ### Orthonormal Basis (ONB)
 To sample directions on a surface, we construct a local coordinate system (tangent space) where the surface normal is the Z-axis. When a ray hits a surface, we use an ONB to transform a randomly sampled "hemisphere" direction back into world space.
 
-## Sampling & Randomness
+## Monte Carlo Sampling & Randomness
 
 ### PCG32 Random Number Generator
 Skewer uses the **PCG32** algorithm instead of the standard `mt19937`.
 
 - **Performance**: PCG32 is significantly faster and has a much smaller state (16 bytes), allowing it to be stored directly on the stack or in the `Ray` state.
 - **Deterministic Parallelism**: Every pixel is seeded deterministically using its $(x, y)$ coordinate and the current `sample_index`. This ensures that a render is mathematically identical regardless of thread count or task scheduling, which is critical for debugging cloud batch workers.
+
+### Multiple Importance Sampling (MIS)
+To reduce noise, we combine two sampling techniques: **Next Event Estimation (NEE)** (sampling lights directly) and **BSDF Sampling** (following the material's physical properties). We weight them using the **Power Heuristic** ($\beta=2$):
+
+$$
+w_f(p) = \frac{f(p)^\beta}{f(p)^\beta + g(p)^\beta}
+$$
 
 ### Volumetric Stack (`VolumeStack`)
 
@@ -62,7 +69,7 @@ The `VolumeStack` (`core/sampling/volume_stack.h`) is a priority-based set that 
 - **Optimization**: The stack is kept sorted by priority at insertion time. This makes `GetActiveMedium()` an $O(1)$ operation. Since this is queried thousands of times per ray during marching, we optimize for the read rather than the write.
 
 ### Wavelength Sampler
-Skewer uses a **Stratified Hero Wavelength Sampler** (`core/sampling/wavelength_sampler.h`) to sample the visible spectrum (360nm to 830nm).
+Skewer uses a **Stratified Hero Wavelength Sampler** (`core/sampling/wavelength_sampler.h`) to sample the visible spectrum (360nm to 830nm). We sample 4 wavelengths per ray. One is the "Hero," used to make discrete decisions (like reflecting vs refracting), while the others ("Companions") are evaluated at the same spatial path to minimize variance.
 
 - **Hero Wavelength:** For every ray, one wavelength is sampled uniformly at random from the visible range. This is the "Hero" wavelength.
 - **Stratification:** The remaining `kNSamples - 1` wavelengths (companions) are chosen by adding a fixed delta ($\Delta = \text{range} / kNSamples$) to the Hero's wavelength and wrapping around the visible range if necessary.
