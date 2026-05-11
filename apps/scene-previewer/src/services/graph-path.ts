@@ -63,7 +63,7 @@ export function updateMedium(
 }
 
 /** True if this is a material selection key, not an object path. */
-export function isMaterialKey(key: string): boolean {
+function isMaterialKey(key: string): boolean {
 	const parts = key.split(":");
 	return parts.length >= 3 && parts[2] === "mat";
 }

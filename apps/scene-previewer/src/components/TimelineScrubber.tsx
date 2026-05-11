@@ -1,5 +1,5 @@
 import { ChevronUp, Pause, Play } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef } from "react";
 import { KeyframeMarker } from "./KeyframeMarker";
 import s from "./TimelineScrubber.module.css";
 
@@ -54,11 +54,14 @@ export function TimelineScrubber({
 
 	const playheadFrac = hasSpan ? (currentTime - animRange.start) / span : 0;
 	const playheadPct = Math.min(100, Math.max(0, playheadFrac * 100));
+	const updateTimeFromPointer = useEffectEvent((clientX: number) => {
+		onTimeChange(timeFromClientX(clientX));
+	});
 
 	useEffect(() => {
 		function onMove(e: PointerEvent) {
 			if (!draggingRef.current) return;
-			onTimeChange(timeFromClientX(e.clientX));
+			updateTimeFromPointer(e.clientX);
 		}
 		function onUp() {
 			draggingRef.current = false;
@@ -71,7 +74,7 @@ export function TimelineScrubber({
 			window.removeEventListener("pointerup", onUp);
 			window.removeEventListener("pointercancel", onUp);
 		};
-	}, [onTimeChange, timeFromClientX]);
+	}, []);
 
 	const onTrackPointerDown = (e: React.PointerEvent) => {
 		e.currentTarget.setPointerCapture(e.pointerId);

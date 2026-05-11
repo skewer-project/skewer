@@ -29,7 +29,7 @@ import type {
 } from "../types/scene";
 import { DEFAULT_ANIMATION, DEFAULT_RENDER_CONFIG } from "../types/scene";
 import { readJsonFile } from "./fs";
-import { getNanoVDBBounds } from "./nanovdb-parser";
+import { getNanoVDBBounds, type NanoVDBBounds } from "./nanovdb-parser";
 
 // --- Primitive helpers ---
 
@@ -79,7 +79,7 @@ function stemFromPath(path: string): string {
 
 // --- Camera ---
 
-export function parseCamera(json: unknown): Camera {
+function parseCamera(json: unknown): Camera {
 	if (!isObject(json)) throw new Error("camera: expected object");
 	return {
 		look_from: parseVec3(json.look_from, "camera.look_from"),
@@ -113,7 +113,7 @@ function parseMaterialBase(json: Record<string, unknown>) {
 	};
 }
 
-export function parseMaterial(name: string, json: unknown): Material {
+function parseMaterial(name: string, json: unknown): Material {
 	if (!isObject(json)) throw new Error(`material "${name}": expected object`);
 	const type = str(json.type, `material "${name}".type`);
 	const base = parseMaterialBase(json);
@@ -141,7 +141,7 @@ export function parseMaterial(name: string, json: unknown): Material {
 
 // --- Media ---
 
-export function parseMedium(name: string, json: unknown): Medium {
+function parseMedium(name: string, json: unknown): Medium {
 	if (!isObject(json)) throw new Error(`medium "${name}": expected object`);
 	const type = str(json.type, `medium "${name}".type`);
 
@@ -230,10 +230,7 @@ function parseKeyframe(json: unknown, field: string): Keyframe {
 	return k;
 }
 
-export function parseNodeTransform(
-	json: unknown,
-	field: string,
-): NodeTransform {
+function parseNodeTransform(json: unknown, field: string): NodeTransform {
 	if (!isObject(json)) throw new Error(`${field}: expected object`);
 	if (json.keyframes !== undefined) {
 		if (!Array.isArray(json.keyframes)) {
@@ -339,7 +336,7 @@ function parseObjLeaf(
 	};
 }
 
-export function parseGraphNode(json: unknown, field: string): SceneNode {
+function parseGraphNode(json: unknown, field: string): SceneNode {
 	if (!isObject(json)) throw new Error(`${field}: expected object`);
 
 	const name = optStr(json.name);
@@ -492,7 +489,7 @@ export function parseLayerData(json: unknown): LayerData {
 
 // --- Animation block ---
 
-export function parseAnimation(json: unknown): Animation {
+function parseAnimation(json: unknown): Animation {
 	if (!isObject(json)) throw new Error("animation: expected object");
 	return {
 		start: num(json.start, "animation.start", 0),
@@ -564,40 +561,48 @@ export async function loadScene(
 
 	// --- Volumetric Bounding Sphere Synchronization ---
 	// Sync spheres with inside_medium to the physical bounds of the .nvdb file.
-	const allLayers = [...resolvedScene.contexts, ...resolvedScene.layers];
-	for (const layer of allLayers) {
-		const media = layer.data.media;
-		if (!media) continue;
-
-		const visitNode = async (node: SceneNode) => {
-			if (node.kind === "sphere" && node.inside_medium) {
-				const med = media[node.inside_medium];
-				if (med && med.type === "nanovdb") {
-					const bounds = await getNanoVDBBounds(dir, med.file);
-					if (bounds) {
-						const scale = med.scale ?? 1.0;
-						const translate = med.translate ?? [0, 0, 0];
-						node.center = [0, 0, 0];
-						node.radius = bounds.radius;
-						node.transform = {
-							translate: translate,
-							rotate: [0, 0, 0],
-							scale: scale,
-						};
-					}
-				}
-			}
-			if (node.kind === "group") {
-				for (const child of node.children) {
-					await visitNode(child);
-				}
-			}
-		};
-
-		for (const node of layer.data.graph) {
-			await visitNode(node);
+	const boundsCache = new Map<string, Promise<NanoVDBBounds | null>>();
+	const getCachedBounds = (file: string): Promise<NanoVDBBounds | null> => {
+		let bounds = boundsCache.get(file);
+		if (!bounds) {
+			bounds = getNanoVDBBounds(dir, file);
+			boundsCache.set(file, bounds);
 		}
-	}
+		return bounds;
+	};
+	const syncNode = async (
+		node: SceneNode,
+		media: NonNullable<LayerData["media"]>,
+	): Promise<void> => {
+		if (node.kind === "sphere" && node.inside_medium) {
+			const med = media[node.inside_medium];
+			if (med && med.type === "nanovdb") {
+				const bounds = await getCachedBounds(med.file);
+				if (bounds) {
+					const scale = med.scale ?? 1.0;
+					const translate = med.translate ?? [0, 0, 0];
+					node.center = [0, 0, 0];
+					node.radius = bounds.radius;
+					node.transform = {
+						translate: translate,
+						rotate: [0, 0, 0],
+						scale: scale,
+					};
+				}
+			}
+		}
+		if (node.kind === "group") {
+			await Promise.all(node.children.map((child) => syncNode(child, media)));
+		}
+	};
+	const allLayers = [...resolvedScene.contexts, ...resolvedScene.layers];
+	await Promise.all(
+		allLayers.map(async (layer) => {
+			const media = layer.data.media;
+			if (!media) return;
+			await Promise.all(layer.data.graph.map((node) => syncNode(node, media)));
+		}),
+	);
 
 	return resolvedScene;
 }

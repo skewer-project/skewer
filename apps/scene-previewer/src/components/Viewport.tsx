@@ -1,5 +1,5 @@
 import {
-	forwardRef,
+	type Ref,
 	useCallback,
 	useEffect,
 	useImperativeHandle,
@@ -198,21 +198,19 @@ function applyAnimatedNodesAtTime(
 	}
 }
 
-export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
-	{
-		scene,
-		dirHandle,
-		sceneVersion,
-		currentTime = 0,
-		isPlaying = false,
-		selectedObjectKey,
-		onSelectObject,
-		transformMode = "translate",
-		transformSpace = "world",
-		onTransformChange,
-	},
+export function Viewport({
+	scene,
+	dirHandle,
+	sceneVersion,
+	currentTime = 0,
+	isPlaying = false,
+	selectedObjectKey,
+	onSelectObject,
+	transformMode = "translate",
+	transformSpace = "world",
+	onTransformChange,
 	ref,
-) {
+}: Props & { ref?: Ref<ViewportHandle> }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	const threeScene = useRef<THREE.Scene | null>(null);
@@ -518,12 +516,13 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 		sc.add(tctrl.getHelper());
 		transformControls.current = tctrl;
 
-		tctrl.addEventListener("dragging-changed", (event) => {
+		const handleDraggingChanged = (event: { value: unknown }) => {
 			ctrl.enabled = !event.value;
 			if (gizmoProxy.current) {
 				gizmoProxy.current.userData.isDragging = event.value;
 			}
-		});
+		};
+		tctrl.addEventListener("dragging-changed", handleDraggingChanged);
 
 		// Resize
 		const ro = new ResizeObserver(() => {
@@ -553,6 +552,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 				proxy.userData.target = null;
 			}
 			ctrl.dispose();
+			tctrl.removeEventListener("dragging-changed", handleDraggingChanged);
 			tctrl.dispose();
 
 			const old = sceneGroup.current;
@@ -981,4 +981,4 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 			onMouseUp={handleMouseUp}
 		/>
 	);
-});
+}
