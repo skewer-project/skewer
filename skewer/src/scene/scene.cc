@@ -187,6 +187,14 @@ void Scene::ExtractInstancesFromGraph(const SceneNode& node, std::vector<Animate
                 asphere.transform_chain = chain;
                 animated_spheres_.push_back(std::move(asphere));
             }
+
+            {
+                uint16_t med_index = ExtractMediumIndex(sd.interior_medium);
+                MediumType med_type = ExtractMediumType(sd.interior_medium);
+                if (med_type == MediumType::NanoVDB && med_index < nanovdb_media_.size()) {
+                    nanovdb_media_[med_index].anim = chain;
+                }
+            }
             break;
         }
     }

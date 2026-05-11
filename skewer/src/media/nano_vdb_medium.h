@@ -14,6 +14,7 @@
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
 #include "geometry/boundbox.h"
+#include "scene/animation.h"
 
 namespace skwr {
 
@@ -128,6 +129,8 @@ struct NanoVDBMedium {
     Vec3 translate = {0.0f, 0.0f, 0.0f};
     Vec3 vdb_centroid = {0.0f, 0.0f, 0.0f};
 
+    std::vector<AnimatedTransform> anim;
+
     bool Load(const std::string& filepath) {
         if (scale == 0.0f || density_multiplier < 0.0f) return false;
 
@@ -235,10 +238,27 @@ struct NanoVDBMedium {
         }
     }
 
+    Vec3 GetEffectiveTranslate(float time) const {
+        if (time >= 0.0f && !anim.empty()) {
+            TRS trs = EvaluateTransformChain(anim, time);
+            return trs.translation;
+        }
+        return translate;
+    }
+
     float GetDensity(const Point3& p_world, const NanoVDBAccessor& acc) const {
+        return GetDensity(p_world, -1.0f, acc);
+    }
+
+    float GetDensity(const Point3& p_world, float time, const NanoVDBAccessor& acc) const {
+        return GetDensity(p_world, GetEffectiveTranslate(time), acc);
+    }
+
+    float GetDensity(const Point3& p_world, const Vec3& effective_translate,
+                     const NanoVDBAccessor& acc) const {
         if (!float_grid && !fp16_grid) return 0.0f;
 
-        Vec3 p_vdb = ((p_world - translate) * (1.0f / scale)) + vdb_centroid;
+        Vec3 p_vdb = ((p_world - effective_translate) * (1.0f / scale)) + vdb_centroid;
         nanovdb::Vec3f p_index;
 
         if (is_fp16) {
@@ -248,6 +268,11 @@ struct NanoVDBMedium {
         }
 
         return acc.GetValue(p_index) * density_multiplier;
+    }
+
+    BoundBox GetWorldBBox(float time) const {
+        Vec3 effective_translate = GetEffectiveTranslate(time);
+        return bbox.Translated(effective_translate - translate);
     }
 
     Vec3 Center() const { return bbox.Centroid(); }

@@ -139,6 +139,10 @@ class BoundBox {
         }
     }
 
+    BoundBox Translated(const Vec3& offset) const {
+        return BoundBox(min_ + offset, max_ + offset);
+    }
+
     // Box Operations
     void Expand(const Point3& p) {
         min_ = Point3(std::fmin(min_.x(), p.x()), std::fmin(min_.y(), p.y()),
