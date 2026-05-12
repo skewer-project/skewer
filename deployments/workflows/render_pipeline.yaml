@@ -24,12 +24,13 @@
 #   skewer_max_retry_count  - int, automatic retries for render task failures
 #   skewer_parallelism      - int, max concurrent render tasks per animated-layer Batch job
 #   render_layer_parallelism - int, max concurrent layer render Batch jobs
-#   loom_machine_type       - string, e.g. "e2-highmem-8"
+#   loom_machine_type       - string, e.g. "n2d-standard-16"
 #   loom_cpu_milli          - int, vCPU request per composite task in milliCPU
 #   loom_memory_mib         - int, memory request per composite task in MiB
 #   loom_provisioning_model - string, "SPOT" or "STANDARD"
 #   loom_max_retry_count    - int, automatic retries for composite task failures
 #   loom_frames_per_task    - int, frames composited per Batch task (default 50)
+#   loom_frame_parallelism  - int, frames composited concurrently inside one task
 #   loom_parallelism        - int, max concurrent composite tasks (caps VM usage)
 #   network                 - string, VPC self_link
 #   subnet                  - string, subnet self_link
@@ -64,6 +65,7 @@ main:
           - loom_provisioning_model: ${args.loom_provisioning_model}
           - loom_max_retry_count: ${args.loom_max_retry_count}
           - loom_frames_per_task: ${default(map.get(args, "loom_frames_per_task"), 50)}
+          - loom_frame_parallelism: ${default(map.get(args, "loom_frame_parallelism"), 4)}
           - loom_parallelism: ${args.loom_parallelism}
           - skewer_parallelism: ${default(map.get(args, "skewer_parallelism"), 24)}
           - render_layer_parallelism: ${default(map.get(args, "render_layer_parallelism"), 1)}
@@ -229,6 +231,7 @@ main:
           provisioning_model: ${loom_provisioning_model}
           max_retry_count: ${loom_max_retry_count}
           frames_per_task: ${loom_frames_per_task}
+          frame_parallelism: ${loom_frame_parallelism}
           parallelism: ${loom_parallelism}
           network: ${network}
           subnet: ${subnet}
@@ -496,7 +499,7 @@ submit_batch_composite:
   params: [project_id, region, pipeline_id, layer_output_prefixes, layer_output_modes,
            num_frames, data_bucket, cache_bucket, composite_output_prefix,
            loom_image, machine_type, cpu_milli, memory_mib,
-           provisioning_model, max_retry_count, frames_per_task, parallelism, network, subnet, batch_allowed_locations, batch_sa]
+           provisioning_model, max_retry_count, frames_per_task, frame_parallelism, parallelism, network, subnet, batch_allowed_locations, batch_sa]
   steps:
     - init_composite:
         assign:
@@ -552,6 +555,7 @@ submit_batch_composite:
                       LAYER_MODES: ${layer_modes_csv}
                       NUM_FRAMES: ${string(num_frames)}
                       LOOM_FRAMES_PER_TASK: ${string(frames_per_task)}
+                      LOOM_FRAME_PARALLELISM: ${string(frame_parallelism)}
                       OUTPUT_URI_PREFIX: ${composite_fuse}
                   volumes:
                     - gcs:

@@ -115,6 +115,10 @@ resource "google_cloud_run_v2_service" "coordinator" {
         value = tostring(var.loom_batch_frames_per_task)
       }
       env {
+        name  = "LOOM_FRAME_PARALLELISM"
+        value = tostring(var.loom_frame_parallelism)
+      }
+      env {
         name  = "LOOM_BATCH_PARALLELISM"
         value = tostring(var.loom_batch_parallelism)
       }

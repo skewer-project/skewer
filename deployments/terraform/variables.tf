@@ -85,19 +85,19 @@ variable "render_layer_parallelism" {
 variable "loom_batch_machine_type" {
   description = "Machine type for Cloud Batch Loom composite jobs"
   type        = string
-  default     = "e2-highmem-8"
+  default     = "n2d-standard-16"
 }
 
 variable "loom_batch_cpu_milli" {
   description = "vCPU request per Loom composite task in milliCPU"
   type        = number
-  default     = 8000
+  default     = 16000
 }
 
 variable "loom_batch_memory_mib" {
   description = "Memory request per Loom composite task in MiB"
   type        = number
-  default     = 32768
+  default     = 65536
 }
 
 variable "loom_batch_provisioning_model" {
@@ -125,6 +125,17 @@ variable "loom_batch_frames_per_task" {
   validation {
     condition     = var.loom_batch_frames_per_task > 0
     error_message = "loom_batch_frames_per_task must be greater than 0."
+  }
+}
+
+variable "loom_frame_parallelism" {
+  description = "Number of frames a single Loom Batch task composites concurrently."
+  type        = number
+  default     = 4
+
+  validation {
+    condition     = var.loom_frame_parallelism > 0
+    error_message = "loom_frame_parallelism must be greater than 0."
   }
 }
 
