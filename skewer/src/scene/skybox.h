@@ -89,9 +89,11 @@ class Skybox {
         sample.t = hit_t;
         const Vec3 p = ray.at(hit_t);
         sample.face = PickFace(p);
+        // Compute the UV coordinates for the hit point on the skybox face.
         FaceUV(sample.face, p, &sample.u, &sample.v);
 
         const ImageTexture& texture = faces_[FaceIndex(sample.face)];
+        // Get the color from the texture with u and v and clamped to the edge.
         sample.color = texture.IsValid()
                            ? texture.Sample(sample.u, sample.v, TextureWrapMode::Clamp)
                            : RGB(0.0f);
