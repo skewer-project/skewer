@@ -21,7 +21,7 @@ bun run dev
 
 Open http://localhost:5173 to access the previewer.
 
-## Usage
+## Reference
 
 ### Opening a Scene
 

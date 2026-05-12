@@ -39,7 +39,7 @@ The simplest way to render is with the built binary:
 | `--samples` | Override max samples per pixel |
 | `--threads` | Number of render threads (0 = auto) |
 
-For the full CLI reference, see [CLI Reference](../usage/cli.md).
+For the full CLI reference, see [CLI Reference](../reference/cli.md).
 
 ## Using the Scene Previewer
 
@@ -59,7 +59,7 @@ Open http://localhost:5173. Features include:
 - Delete objects and navigate the scene tree
 - Create new scenes from templates
 
-See the [Previewer Guide](../usage/previewer.md) for full documentation.
+See the [Previewer Guide](../reference/previewer.md) for full documentation.
 
 ## Building Loom (Deep Compositor)
 
@@ -77,7 +77,7 @@ The binary is at `build/relwithdebinfo/loom/loom-worker`. You can use it to comp
   --output composited/frame-0001
 ```
 
-See [Compositing](../usage/compositing.md) for the full compositing workflow.
+See [Compositing](../reference/compositing.md) for the full compositing workflow.
 
 ## Testing Your Setup
 
@@ -94,8 +94,8 @@ ctest --test-dir build -j$(nproc)
 
 ## Next Steps
 
-- [Scene Format](../usage/scene-format.md) — Learn how to write scene files
-- [Rendering Tips](../usage/rendering-tips.md) — Best practices for quality and performance
-- [Animation](../usage/animation.md) — Keyframe animation and motion blur
-- [Compositing](../usage/compositing.md) — Layer compositing with loom
+- [Scene Format](../reference/scene-format.md) — Learn how to write scene files
+- [Rendering Tips](../reference/rendering-tips.md) — Best practices for quality and performance
+- [Animation](../reference/animation.md) — Keyframe animation and motion blur
+- [Compositing](../reference/compositing.md) — Layer compositing with loom
 - [GCP Deployment](../deployment/gcp.md) — Set up the cloud render farm for distributed rendering

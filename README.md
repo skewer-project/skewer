@@ -52,7 +52,7 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 - **[Architecture Overview](docs/architecture/overview.md)**: How the serverless pipeline works.
 - **[GCP Deployment Guide](docs/deployment/gcp.md)**: Step-by-step setup from project creation to first render.
 - **[Local Development](docs/deployment/local.md)**: Setting up a local environment.
-- **[CLI Reference](docs/usage/cli.md)**: Submitting and managing jobs.
+- **[CLI Reference](docs/reference/cli.md)**: Submitting and managing jobs.
 
 ## Quick Start
 

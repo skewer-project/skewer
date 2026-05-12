@@ -20,14 +20,14 @@ nav:
       - getting-started/installation.md
       - getting-started/building.md
       - getting-started/quick-start.md
-  - Usage:
-      - usage/cli.md
-      - usage/scene-format.md
-      - usage/blender-tools.md
-      - usage/previewer.md
-      - usage/animation.md
-      - usage/compositing.md
-      - usage/rendering-tips.md
+  - Reference:
+      - reference/cli.md
+      - reference/scene-format.md
+      - reference/blender-tools.md
+      - reference/previewer.md
+      - reference/animation.md
+      - reference/compositing.md
+      - reference/rendering-tips.md
   - Architecture:
       - architecture/overview.md
       - architecture/math.md

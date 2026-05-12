@@ -371,7 +371,7 @@ See [Cloud Build documentation](https://cloud.google.com/build/docs/building/bui
 5. Select a scene folder containing `scene.json` and layer files
 
     !!! note "Scene Format"
-        See the [Scene Format Guide](../usage/scene-format.md) for the complete specification of scene files, including the sample template at `apps/scene-previewer/public/templates/scene.json`.
+        See the [Scene Format Guide](../reference/scene-format.md) for the complete specification of scene files, including the sample template at `apps/scene-previewer/public/templates/scene.json`.
 
 6. Click **Render** to submit the pipeline
 
@@ -457,10 +457,10 @@ If a workflow execution fails with a timeout error after ~30 minutes, this was c
 
 ## See Also
 
-- [Scene Format](../usage/scene-format.md) - Complete guide to scene.json, layer files, materials, and animation
-- [Rendering Tips](../usage/rendering-tips.md) - Best practices for quality and performance
-- [Animation](../usage/animation.md) - Keyframe animation and motion blur
-- [Compositing](../usage/compositing.md) - Layer compositing with loom
+- [Scene Format](../reference/scene-format.md) - Complete guide to scene.json, layer files, materials, and animation
+- [Rendering Tips](../reference/rendering-tips.md) - Best practices for quality and performance
+- [Animation](../reference/animation.md) - Keyframe animation and motion blur
+- [Compositing](../reference/compositing.md) - Layer compositing with loom
 - [Architecture Overview](../architecture/overview.md)
 - [Coordinator](../architecture/coordinator.md)
 - [Local Deployment](local.md)
