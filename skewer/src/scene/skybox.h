@@ -92,7 +92,9 @@ class Skybox {
         FaceUV(sample.face, p, &sample.u, &sample.v);
 
         const ImageTexture& texture = faces_[FaceIndex(sample.face)];
-        sample.color = texture.IsValid() ? texture.SampleClamp(sample.u, sample.v) : RGB(0.0f);
+        sample.color = texture.IsValid()
+                           ? texture.Sample(sample.u, sample.v, TextureWrapMode::Clamp)
+                           : RGB(0.0f);
 
         if (out != nullptr) *out = sample;
         return true;
