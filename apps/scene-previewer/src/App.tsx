@@ -2,6 +2,7 @@ import { Camera, Cloud, Maximize, Move, Rotate3d, X } from "lucide-react";
 import {
 	useCallback,
 	useEffect,
+	useEffectEvent,
 	useMemo,
 	useRef,
 	useState,
@@ -361,18 +362,22 @@ function App() {
 		[handleSceneEdit, scene, currentTime],
 	);
 
+	const deleteSelectedObjectFromKeyboard = useEffectEvent(() => {
+		if (!scene || !selectedObjectKey) return false;
+		handleDeleteObject(selectedObjectKey);
+		return true;
+	});
+
 	useEffect(() => {
-		if (!scene) return;
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key !== "Delete" && event.key !== "Backspace") return;
-			if (!selectedObjectKey) return;
 			if (isEditableTarget(event.target)) return;
+			if (!deleteSelectedObjectFromKeyboard()) return;
 			event.preventDefault();
-			handleDeleteObject(selectedObjectKey);
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [scene, selectedObjectKey, handleDeleteObject]);
+	}, []);
 
 	const handleAddGraphNode = useCallback(
 		(

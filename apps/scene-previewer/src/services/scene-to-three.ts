@@ -13,9 +13,6 @@ import {
 
 export { applyStaticTransformToObject3D };
 
-/** @deprecated Use applyStaticTransformToObject3D */
-export const applyTransform = applyStaticTransformToObject3D;
-
 function disposeMaterialTextures(material: THREE.Material) {
 	for (const value of Object.values(material)) {
 		if (value instanceof THREE.Texture) {
@@ -305,11 +302,12 @@ export async function buildSceneGraph(
 	const disposableGroups: THREE.Group[] = [];
 
 	const allLayers = [...scene.contexts, ...scene.layers];
+	const contextCount = scene.contexts.length;
 	for (let li = 0; li < allLayers.length; li++) {
 		if (signal.aborted) break;
 		const layer = allLayers[li];
-		const tag = li < scene.contexts.length ? "ctx" : "lyr";
-		const idx = li < scene.contexts.length ? li : li - scene.contexts.length;
+		const tag = li < contextCount ? "ctx" : "lyr";
+		const idx = li < contextCount ? li : li - contextCount;
 
 		const layerGroup = new THREE.Group();
 		layerGroup.name = layer.name;

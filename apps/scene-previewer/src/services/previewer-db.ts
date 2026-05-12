@@ -1,5 +1,5 @@
-export const PREVIEWER_DB_NAME = "skewer-previewer";
-export const PREVIEWER_DB_VERSION = 2;
+const PREVIEWER_DB_NAME = "skewer-previewer";
+const PREVIEWER_DB_VERSION = 2;
 
 export const RECENT_SCENES_STORE = "recent-scenes";
 export const CLOUD_JOBS_STORE = "cloud-jobs";

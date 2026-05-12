@@ -104,7 +104,7 @@ interface NodeBase {
 	transform?: NodeTransform;
 }
 
-export interface GroupNode extends NodeBase {
+interface GroupNode extends NodeBase {
 	kind: "group";
 	children: SceneNode[];
 }

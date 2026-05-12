@@ -1,4 +1,4 @@
-export interface InitFileEntry {
+interface InitFileEntry {
 	path: string;
 	content_type?: string;
 	size?: number;
@@ -28,7 +28,7 @@ export interface SubmitResponse {
 	scene_uri: string;
 }
 
-export type PipelineStatus =
+type PipelineStatus =
 	| "PIPELINE_STATUS_UNSPECIFIED"
 	| "PIPELINE_STATUS_RUNNING"
 	| "PIPELINE_STATUS_SUCCEEDED"

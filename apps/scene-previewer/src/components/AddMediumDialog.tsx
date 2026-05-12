@@ -31,7 +31,7 @@ export function AddMediumDialog({
 	onCancel: () => void;
 }) {
 	const [name, setName] = useState("");
-	const [type] = useState<Medium["type"]>("nanovdb");
+	const type: Medium["type"] = "nanovdb";
 	const [file, setFile] = useState("");
 	const [fileError, setFileError] = useState<string | null>(null);
 	const [copying, setCopying] = useState(false);
@@ -80,12 +80,13 @@ export function AddMediumDialog({
 	}
 
 	return createPortal(
-		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
-		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
-		<div
-			className={d.overlay}
-			onClick={(e) => e.target === e.currentTarget && onCancel()}
-		>
+		<div className={d.overlay}>
+			<button
+				type="button"
+				className={d.backdrop}
+				aria-label="Close dialog"
+				onClick={onCancel}
+			/>
 			<div className={d.dialog}>
 				<div className={d.header}>
 					<span className={`${u.layerTag} ${u.layerTagMed}`}>MED</span>
@@ -101,15 +102,13 @@ export function AddMediumDialog({
 								type="text"
 								placeholder="medium_name"
 								value={name}
-								// biome-ignore lint/a11y/noAutofocus: intentional — dialog just opened
-								autoFocus
 								onChange={(e) => setName(e.target.value)}
 								onKeyDown={(e) => e.key === "Enter" && handleCreate()}
 							/>
 						</div>
 						<div className={u.kvRow}>
 							<span className={u.kvKey}>type</span>
-							<select className={u.matSelect} value={type} disabled>
+							<select className={u.matSelect} defaultValue={type} disabled>
 								<option value="nanovdb">nanovdb</option>
 							</select>
 						</div>

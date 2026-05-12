@@ -32,7 +32,7 @@ function getOrInitApp() {
 	return app;
 }
 
-export function getAuthInstance() {
+function getAuthInstance() {
 	return getAuth(getOrInitApp());
 }
 

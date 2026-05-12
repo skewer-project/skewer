@@ -10,7 +10,18 @@
 	animation: hudToastIn 0.16s ease-out;
 }
 
+.backdrop {
+	position: absolute;
+	inset: 0;
+	border: 0;
+	padding: 0;
+	background: transparent;
+	cursor: default;
+}
+
 .modal {
+	position: relative;
+	z-index: 1;
 	margin: 32px;
 	flex: 1;
 	min-height: 0;

@@ -117,7 +117,7 @@ function solveBezierParameter(
 }
 
 /** Easing alpha in [0,1] for segment progress u in [0,1], using k1's curve (k0 → k1). */
-export function evaluateBezierEasing(
+function evaluateBezierEasing(
 	curve: InterpCurve | undefined,
 	u: number,
 ): number {
@@ -128,7 +128,7 @@ export function evaluateBezierEasing(
 
 function buildResolvedKeyframes(keyframes: Keyframe[]): ResolvedKeyframe[] {
 	/** Accumulate in time order (well-formed scenes); avoids odd JSON key orders. */
-	const sortedKfs = [...keyframes].sort((a, b) => a.time - b.time);
+	const sortedKfs = keyframes.toSorted((a, b) => a.time - b.time);
 	let curT: Vec3 = [0, 0, 0];
 	let curR: Vec3 = [0, 0, 0];
 	let curS: Vec3 = [1, 1, 1];
@@ -229,7 +229,7 @@ export function evaluateTransformAt(
 const KEYFRAME_TIME_MATCH_EPS = 1e-4;
 
 function sortKeyframesByTime(kfs: Keyframe[]): Keyframe[] {
-	return [...kfs].sort((a, b) => a.time - b.time);
+	return kfs.toSorted((a, b) => a.time - b.time);
 }
 
 /**
@@ -349,7 +349,7 @@ export function collectSceneKeyframeTimes(scene: ResolvedScene): number[] {
 			for (const k of tr.keyframes) times.add(k.time);
 		});
 	}
-	return [...times].sort((a, b) => a - b);
+	return Array.from(times).toSorted((a, b) => a - b);
 }
 
 /** One row in the dope-sheet: one animated scene node with its raw keyframes. */

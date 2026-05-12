@@ -23,12 +23,13 @@ export function RenderConfirmDialog({
 	const isAnimation = endFrame > startFrame;
 
 	return createPortal(
-		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
-		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
-		<div
-			className={d.overlay}
-			onClick={(e) => e.target === e.currentTarget && onCancel()}
-		>
+		<div className={d.overlay}>
+			<button
+				type="button"
+				className={d.backdrop}
+				aria-label="Close dialog"
+				onClick={onCancel}
+			/>
 			<div className={d.dialog}>
 				<div className={d.header}>
 					<span className={`${u.layerTag} ${u.layerTagCtx}`}>RENDER</span>
