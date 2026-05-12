@@ -26,6 +26,9 @@ struct ImageTexture {
     // Callers pass si.uv.x() and si.uv.y().
     RGB Sample(float u, float v) const;
 
+    // Sample at UV coordinates with bilinear filtering and clamp-to-edge wrapping.
+    RGB SampleClamp(float u, float v) const;
+
     bool IsValid() const { return !data.empty(); }
 };
 
