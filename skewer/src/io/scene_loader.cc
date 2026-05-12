@@ -506,7 +506,7 @@ static Skybox ParseSkybox(const json& j, const std::string& scene_dir) {
         }
         Vec3 half = size * 0.5f;
         skybox.SetBounds(center - half, center + half);
-    // Allows min and max loading
+        // Allows min and max loading
     } else if (j.contains("min") || j.contains("max")) {
         if (!j.contains("min") || !j.contains("max")) {
             throw std::runtime_error("skybox requires both 'min' and 'max'");

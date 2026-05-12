@@ -32,7 +32,6 @@ struct SkyboxSample {
     RGB color = RGB(0.0f);
 };
 
-
 /// A skybox is a cube that surrounds the scene and provides a background for the rendered image.
 class Skybox {
   public:
