@@ -100,9 +100,11 @@ Validates the uploaded scene bundle and submits it to the coordinator for render
 
 1. Verifies caller owns the pipeline
 2. Reads uploaded `scene.json` and all referenced layer/context files from GCS
-3. Requires explicit top-level `animation.start`, `animation.end`, and positive `animation.fps`
-4. Requires every referenced layer/context file to contain an explicit boolean `animated` field
-5. Submits the original uploaded `scene.json` URI to the coordinator via gRPC
+3. Requires explicit top-level `animation.start`, `animation.end`, positive `animation.fps`, and `animation.shutter_angle` in `(0, 360]`
+4. Requires `animation.end >= animation.start`
+5. Requires every referenced layer/context file to contain an explicit boolean `animated` field
+6. Rejects absolute, traversal, and `gs://` layer/context references
+7. Submits the original uploaded `scene.json` URI to the coordinator via gRPC
 
 **Response:** `200 OK`
 ```json
@@ -302,10 +304,11 @@ sceneURI, err := validator.Validate(ctx, uploadPrefix, scenePath)
 
 1. Downloads `scene.json` from GCS
 2. Verifies `layers` is a non-empty string array and `context`, when present, is a string array
-3. Verifies `animation.start`, `animation.end`, and `animation.fps` are numbers, and `animation.fps` is positive
-4. Verifies optional `animation.shutter_angle` is numeric
-5. Verifies each referenced layer/context JSON has an explicit boolean `animated` field
-6. Returns the original `gs://` URI for the uploaded scene
+3. Verifies `animation.start`, `animation.end`, `animation.fps`, and `animation.shutter_angle` are numbers
+4. Verifies `animation.fps` is positive, `animation.end >= animation.start`, and `animation.shutter_angle` is in `(0, 360]`
+5. Rejects absolute, traversal, and `gs://` layer/context references before reading referenced objects
+6. Verifies each referenced layer/context JSON has an explicit boolean `animated` field
+7. Returns the original `gs://` URI for the uploaded scene
 
 ---
 

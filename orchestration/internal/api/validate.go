@@ -66,7 +66,10 @@ func (v *SceneValidator) Validate(ctx context.Context, uploadPrefix, scenePath s
 	}
 
 	for _, rel := range append(append([]string{}, layerRefs...), contextRefs...) {
-		object := resolveLayerObject(sceneDir, rel)
+		object, err := resolveSceneMemberObject(sceneDir, rel)
+		if err != nil {
+			return "", err
+		}
 		if err := v.validateLayerLikeFile(ctx, object); err != nil {
 			return "", fmt.Errorf("validate scene member %s: %w", object, err)
 		}
@@ -88,10 +91,15 @@ func validateAnimationBlock(raw any) error {
 	if fps := animation["fps"].(float64); fps <= 0 {
 		return fmt.Errorf("scene animation.fps must be positive")
 	}
-	if v, present := animation["shutter_angle"]; present {
-		if _, ok := v.(float64); !ok {
-			return fmt.Errorf("scene animation.shutter_angle must be a number")
-		}
+	if end := animation["end"].(float64); end < animation["start"].(float64) {
+		return fmt.Errorf("scene animation.end must be >= animation.start")
+	}
+	shutterAngle, ok := animation["shutter_angle"].(float64)
+	if !ok {
+		return fmt.Errorf("scene animation.shutter_angle must be a number")
+	}
+	if shutterAngle <= 0 || shutterAngle > 360 {
+		return fmt.Errorf("scene animation.shutter_angle must be in (0, 360]")
 	}
 	return nil
 }
@@ -146,19 +154,24 @@ func optionalStringSlice(m map[string]any, key string) ([]string, error) {
 	return out, nil
 }
 
-// resolveLayerObject joins a relative layer path onto the scene's directory.
-// Absolute gs:// URIs in layer refs are *not* supported in the previewer
-// bundle format, so we just treat everything as relative.
-func resolveLayerObject(sceneDir, ref string) string {
-	if strings.HasPrefix(ref, "gs://") {
-		// Strip scheme+bucket; surface the object path unchanged.
-		trimmed := strings.TrimPrefix(ref, "gs://")
-		if idx := strings.IndexByte(trimmed, '/'); idx >= 0 {
-			return trimmed[idx+1:]
-		}
-		return trimmed
+// resolveSceneMemberObject joins a relative layer/context path onto the
+// scene's directory. Upload bundles only support relative member references.
+func resolveSceneMemberObject(sceneDir, ref string) (string, error) {
+	cleanRef, err := SanitizeObjectPath(ref)
+	if err != nil {
+		return "", fmt.Errorf("scene member path %q: %w", ref, err)
 	}
-	return path.Join(sceneDir, ref)
+	object := path.Join(sceneDir, cleanRef)
+	if !isPathWithin(object, sceneDir) {
+		return "", fmt.Errorf("scene member path %q escapes scene directory", ref)
+	}
+	return object, nil
+}
+
+func isPathWithin(object, dir string) bool {
+	cleanDir := path.Clean(dir)
+	cleanObject := path.Clean(object)
+	return strings.HasPrefix(cleanObject, cleanDir+"/")
 }
 
 func (v *SceneValidator) readObject(ctx context.Context, object string) ([]byte, error) {
