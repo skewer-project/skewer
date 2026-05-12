@@ -56,6 +56,7 @@ export interface NanoVDBMedium {
 	density_multiplier: number;
 	scale?: number;
 	translate?: Vec3;
+	rotate?: Vec3;
 	file: string;
 }
 
