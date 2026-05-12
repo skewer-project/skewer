@@ -41,12 +41,13 @@ export function AddMaterialDialog({
 	}
 
 	return createPortal(
-		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is intentional
-		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled by inner dialog inputs
-		<div
-			className={d.overlay}
-			onClick={(e) => e.target === e.currentTarget && onCancel()}
-		>
+		<div className={d.overlay}>
+			<button
+				type="button"
+				className={d.backdrop}
+				aria-label="Close dialog"
+				onClick={onCancel}
+			/>
 			<div className={d.dialog}>
 				<div className={d.header}>
 					<span className={`${u.layerTag} ${u.layerTagCtx}`}>MAT</span>
@@ -62,8 +63,6 @@ export function AddMaterialDialog({
 								type="text"
 								placeholder="material_name"
 								value={name}
-								// biome-ignore lint/a11y/noAutofocus: intentional — dialog just opened
-								autoFocus
 								onChange={(e) => setName(e.target.value)}
 								onKeyDown={(e) => e.key === "Enter" && handleCreate()}
 							/>

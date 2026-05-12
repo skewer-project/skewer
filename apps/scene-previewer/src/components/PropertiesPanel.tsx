@@ -88,7 +88,7 @@ function leafMaterialName(node: SceneNode): string | null {
 }
 
 function sortKeyframes(kfs: Keyframe[]): Keyframe[] {
-	return [...kfs].sort((a, b) => a.time - b.time);
+	return kfs.toSorted((a, b) => a.time - b.time);
 }
 
 type CurvePreset = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "custom";
@@ -1112,7 +1112,7 @@ function MediumEditor({
 						{med.file.split("/").pop()}
 					</span>
 					{fileStatus === "missing" && (
-						<span style={{ color: "#ff4444", fontSize: "11px" }}>
+						<span style={{ color: "#ff4444", fontSize: "12px" }}>
 							(file missing)
 						</span>
 					)}

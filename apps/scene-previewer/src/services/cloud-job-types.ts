@@ -1,14 +1,10 @@
-export type CloudJobClientStatus =
+type CloudJobClientStatus =
 	| "packaging"
 	| "uploading-init"
 	| "uploading"
 	| "submitting";
 
-export type CloudJobServerStatus =
-	| "running"
-	| "succeeded"
-	| "failed"
-	| "cancelled";
+type CloudJobServerStatus = "running" | "succeeded" | "failed" | "cancelled";
 
 export type CloudJobStatus = CloudJobClientStatus | CloudJobServerStatus;
 

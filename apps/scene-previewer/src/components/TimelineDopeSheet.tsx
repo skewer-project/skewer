@@ -40,9 +40,10 @@ export function TimelineDopeSheet({
 	const viewHasSpan = viewSpan > 1e-6;
 
 	// All group keys start expanded.
-	const groupKeys = new Set(
-		tracks.filter((t) => t.kind === "group").map((t) => t.key),
-	);
+	const groupKeys = new Set<string>();
+	for (const track of tracks) {
+		if (track.kind === "group") groupKeys.add(track.key);
+	}
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
 		() => new Set(),
 	);
