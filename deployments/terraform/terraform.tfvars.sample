@@ -11,6 +11,8 @@ loom_batch_cpu_milli            = 8000
 loom_batch_memory_mib           = 32768
 loom_batch_provisioning_model   = "STANDARD"
 loom_batch_max_retry_count      = 2
+loom_batch_frames_per_task      = 50
+loom_batch_parallelism          = 16
 data_retention_days             = 30
 cache_retention_days            = 90
 

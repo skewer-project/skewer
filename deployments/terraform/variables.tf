@@ -117,6 +117,28 @@ variable "loom_batch_max_retry_count" {
   default     = 2
 }
 
+variable "loom_batch_frames_per_task" {
+  description = "Frames composited per Loom Batch task. Higher values amortize Batch VM startup for fast composites; lower values increase parallelism."
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.loom_batch_frames_per_task > 0
+    error_message = "loom_batch_frames_per_task must be greater than 0."
+  }
+}
+
+variable "loom_batch_parallelism" {
+  description = "Max concurrent Loom composite tasks per Batch job. Caps composite worker VMs requested by one render."
+  type        = number
+  default     = 16
+
+  validation {
+    condition     = var.loom_batch_parallelism > 0
+    error_message = "loom_batch_parallelism must be greater than 0."
+  }
+}
+
 variable "data_retention_days" {
   description = "Days to retain render output in the data bucket"
   type        = number
