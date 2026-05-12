@@ -67,9 +67,19 @@ $$
 </figure>
 
 
-#### Woodcock Tracking (Delta Tracking)
-To render non-uniform volumes (VDB clouds), we use Woodcock tracking. It uses a "majorant" (maximum density) to probabilistically decide whether a photon collides with a particle or passes through as a "null collision."
+The primary challenge in volumetrics is determining where a photon scatters inside a non-solid medium. Skewer implements two distinct algorithms optimized for different parts of the pipeline (`skewer/src/kernels/sample_media.cc`).
 
+#### Woodcock Tracking (Delta Tracking)
+To render non-uniform volumes (VDB clouds), Woodcock tracking is used for **Scattering Events** (indirect bounces).
+
+- It uses a "majorant" (maximum density) to take probabilistic steps through the volume. It either "accepts" a step as a real collision or treats it as a "null collision" and keeps going.
+- This is an unbiased method for finding a single point in space to bounce from, making it perfect for the main path tracing loop.
+
+#### Ratio Tracking
+Used for **Shadow Rays** (transmittance estimation).
+
+- Instead of a binary accept/reject, Ratio Tracking treats every step as partially transparent. It accumulates transmittance by multiplying the current energy by the probability of a null collision at that point.
+- Ratio Tracking is significantly less noisy than Woodcock tracking for shadows. It produces "smooth" volumetric shadows even at low sample counts, which is critical for an offline renderer where shadow quality is highly visible.
 
 ### Volume Dispatch
 
@@ -79,10 +89,10 @@ A specialized kernel that routes the ray to the correct sampling algorithm based
 
 - **`direct_lighting.h`**: Implements Next Event Estimation (NEE). It handles light selection and shadow ray generation.
 - **`visibility.cc`**: Calculates shadow visibility, continuing rays through transparent surfaces and accumulating spectral transmittance.
-- **`volume_tracking.cc`**: Implements **Ratio Tracking** for shadow rays, ensuring smooth, noise-free volumetric shadows.
+- **`volume_tracking.cc`**: Implements **Ratio Tracking** and **Phase Functions** for shadow rays, ensuring smooth, noise-free volumetric shadows.
 
-#### Henyey-Greenstein Phase Function (Ratio Tracking)
-Unlike surfaces that use BSDFs, volumes use **Phase Functions** to describe scattering. We implement the Henyey-Greenstein function to model anisotropic scattering (light bending forward or backward).
+#### Henyey-Greenstein Phase Function
+Unlike surfaces that use BSDFs, volumes use phase functions to describe scattering. We implement the Henyey-Greenstein function to model anisotropic scattering (light bending forward or backward).
 
 <figure align="center">
   <svg width="400" height="150" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
