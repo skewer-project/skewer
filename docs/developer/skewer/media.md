@@ -1,32 +1,46 @@
-# Participating Media (Volumes)
+# Media
 
-Skewer supports rendering participating media (fog, smoke, clouds) using physically-based volumetric integration (`skewer/src/kernels/sample_media.cc` and `skewer/src/kernels/utils/volume_tracking.cc`).
+Skewer supports physically-based volumetric rendering, allowing for complex light interactions inside fog, smoke, and clouds.
 
-## Tracking Algorithms
+The volumetric system handles the complex interaction of light with participating media. Unlike solid surfaces, volumes require a **Continuum Model** where light can scatter at any point in 3D space.
 
-The core challenge in volume rendering is determining how far a ray travels before hitting a particle. Skewer uses different algorithms depending on the use case.
+A key architectural goal of Skewer is to treat volumes and surfaces as mathematically equivalent. By using **Stochastic Scattering**, the integrator sees a cloud particle exactly as it sees a triangle vertex. This allows us to use the same path tracing loop, NEE, and MIS logic for both, resulting in a cleaner and more maintainable codebase.
 
-### Woodcock Tracking (Delta Tracking)
-Used for finding discrete scattering events in heterogeneous media (VDBs).
-- **Majorant**: Skewer calculates a "majorant" (the maximum possible extinction coefficient in the volume).
-- **Probabilistic Stepping**: The ray takes steps based on the majorant. At each step, we "accept" the collision with a probability of $\frac{\sigma_t(x)}{\bar{\sigma}_t}$. If rejected, it's a "null collision," and the ray continues.
+---
 
-### Ratio Tracking (Shadow Rays)
-Used for estimating transmittance along shadow rays.
-- **Why?**: Woodcock tracking is stochastic and can be noisy for visibility checks. 
-- **Mechanism**: Instead of accepting/rejecting a collision, Ratio Tracking treats the volume as partially transparent at every step. It continuously multiplies the transmittance $T_r$ by the probability of a null collision: $T_r \cdot (1 - \sigma_t(x)/\bar{\sigma}_t)$. This provides a much smoother, unbiased estimate for shadows.
+## Directory Reference
 
-## NanoVDB Integration
+The following sections detail the implementations within the `skewer/src/media/` directory.
 
-Skewer uses **NanoVDB** for high-performance volumetric grids (`skewer/src/media/nano_vdb_medium.h`).
+### Mediums
 
-### Zero-Copy Loading
-To minimize memory overhead and startup time on Cloud Batch, Skewer uses **Memory Mapping (`mmap`)**:
-1. The `.nvdb` file is mapped directly into the process's virtual memory space as read-only.
-2. **32-Byte Alignment**: Skewer detects if the grid data in the file is 32-byte aligned. If it is, the engine wraps the raw pointer directly (zero-copy). If not, it performs a single aligned copy to prevent AVX/SIMD segmentation faults during traversal.
+This header defines the core data structures for volumetric media and the bit-packing logic used for kernel dispatch.
 
-### VDB Accessors
-NanoVDB accessors are small, stack-allocated objects that cache hierarchical nodes. Skewer uses these to perform $O(1)$ density lookups at any world-space point during the tracking loop.
+#### Bit-Packed Medium IDs
+To keep the `Ray` state small and the kernel dispatch fast, Skewer uses **Bit-Packed IDs** for media:
 
-## Phase Functions
-Unlike surfaces that use BSDFs, volumes use **Phase Functions** to describe scattering. Skewer implements the **Henyey-Greenstein** function, which uses an anisotropy parameter $g$ to model forward ($g > 0$) or backward ($g < 0$) scattering.
+- **Bits 0-13**: The index into the scene's medium array.
+- **Bits 14-15**: The `MediumType` (Vacuum, Homogeneous, Grid, NanoVDB).
+
+This allows the `SampleMedium()` dispatcher to use a single integer switch statement, which is highly efficient for modern CPU branch predictors.
+
+#### `HomogeneousMedium`
+Represents media with constant density. It stores spectral absorption ($\sigma_a$) and scattering ($\sigma_s$) coefficients, along with the anisotropy parameter ($g$) for the Henyey-Greenstein phase function.
+
+#### `GridMedium`
+A simplified voxel-based medium used for procedural clouds or testing. It calculates density dynamically based on a bounding box and a noise function.
+
+### NanoVDB Medium (Voxel Grids & Zero-Copy)
+
+Skewer uses **NanoVDB** for high-performance, industry-standard volumetric grids.
+
+#### Zero-Copy Architecture
+Skewer is designed for **Cloud Rendering**, where memory overhead translates directly to dollar cost.
+
+- **Memory Mapping (`mmap`)**: Skewer does not "load" VDB files into RAM in the traditional sense. It uses the `MappedFile` RAII wrapper to map the `.nvdb` file directly into the process's virtual address space.
+- **Multi-Worker Efficiency**: On a high-core cloud node, multiple render threads can share the same physical memory pages for a 5GB voxel grid, vastly reducing the machine's RAM requirements.
+
+#### AVX Alignment Requirements
+NanoVDB is a pointer-less, flat data structure, but it requires **32-byte alignment** for SIMD (AVX) instructions.
+
+- **Design Decision**: Skewer's loader scans the file for the grid's magic number. If the grid is 32-byte aligned in the file, we wrap it with zero-copy. If the file was exported poorly (non-aligned), we perform a single aligned copy. This ensures the renderer never segfaults regardless of the exporter used.
