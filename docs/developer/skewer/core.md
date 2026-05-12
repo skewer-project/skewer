@@ -1,6 +1,13 @@
 # Core Math & Spectral Systems
 
-The `core` directory houses the math, sampling, and spectral representations that all other systems rely on.
+The `core` directory houses the math, sampling, and spectral representations that all other systems rely on. Every other module must respect the mathematical invariants and data representations established here.
+
+Generally, these are shared by multiple different systems. Module-specific classes, math, and code implementations may be found in more specific directories.
+
+
+## Directory Reference
+
+The following sections detail the implementations within the `skewer/src/core/` directory.
 
 ## Color
 Contains the RGB struct and helper functions. 
