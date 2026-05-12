@@ -42,6 +42,7 @@ type GCPManager struct {
 	loomMemoryMiB           int
 	loomProvisioningModel   string
 	loomMaxRetryCount       int
+	loomFramesPerTask       int
 	loomParallelism         int
 	skewerParallelism       int
 	renderLayerParallelism  int
@@ -87,6 +88,7 @@ func NewGCPManager(ctx context.Context) (*GCPManager, error) {
 		loomMemoryMiB:           getEnvIntOrDefault("LOOM_BATCH_MEMORY_MIB", 32768),
 		loomProvisioningModel:   getEnvOrDefault("LOOM_BATCH_PROVISIONING_MODEL", "STANDARD"),
 		loomMaxRetryCount:       getEnvIntOrDefault("LOOM_BATCH_MAX_RETRY_COUNT", 2),
+		loomFramesPerTask:       getEnvIntOrDefault("LOOM_BATCH_FRAMES_PER_TASK", 50),
 		loomParallelism:         getEnvIntOrDefault("LOOM_BATCH_PARALLELISM", 16),
 		skewerParallelism:       getEnvIntOrDefault("SKEWER_BATCH_PARALLELISM", 24),
 		renderLayerParallelism:  getEnvIntOrDefault("RENDER_LAYER_PARALLELISM", 1),
@@ -236,6 +238,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"loom_memory_mib":           m.loomMemoryMiB,
 		"loom_provisioning_model":   m.loomProvisioningModel,
 		"loom_max_retry_count":      m.loomMaxRetryCount,
+		"loom_frames_per_task":      m.loomFramesPerTask,
 		"loom_parallelism":          m.loomParallelism,
 		"skewer_parallelism":        m.skewerParallelism,
 		"render_layer_parallelism":  m.renderLayerParallelism,
