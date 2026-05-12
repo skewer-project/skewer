@@ -404,6 +404,11 @@ bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction
     return hit_anything;
 }
 
+bool Scene::SampleSkybox(const Ray& r, float t_min, float t_max, SkyboxSample* sample) const {
+    if (!HasSkybox()) return false;
+    return skybox_->Sample(r, t_min, t_max, sample);
+}
+
 uint32_t Scene::AddSphere(const Sphere& s) {
     spheres_.push_back(s);
     return static_cast<uint32_t>(spheres_.size() - 1);

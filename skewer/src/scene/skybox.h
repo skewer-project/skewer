@@ -1,10 +1,164 @@
 #ifndef SKWR_SCENE_SKYBOX_H_
 #define SKWR_SCENE_SKYBOX_H_
 
+#include <array>
+#include <cmath>
+#include <limits>
+#include <optional>
+
+#include "core/color/color.h"
 #include "core/math/vec3.h"
+#include "core/ray.h"
+#include "core/spectral/spectral_utils.h"
 #include "core/spectral/spectrum.h"
+#include "materials/texture.h"
 
 namespace skwr {
+
+enum class SkyboxFace {
+    PosX = 0,
+    NegX = 1,
+    PosY = 2,
+    NegY = 3,
+    PosZ = 4,
+    NegZ = 5,
+};
+
+struct SkyboxSample {
+    float t = 0.0f;
+    SkyboxFace face = SkyboxFace::PosX;
+    float u = 0.0f;
+    float v = 0.0f;
+    RGB color = RGB(0.0f);
+};
+
+
+/// A skybox is a cube that surrounds the scene and provides a background for the rendered image.
+class Skybox {
+  public:
+    void SetBounds(const Vec3& min_point, const Vec3& max_point) {
+        min_ = min_point;
+        max_ = max_point;
+    }
+
+    const Vec3& Min() const { return min_; }
+    const Vec3& Max() const { return max_; }
+
+    /// Set the texture for a specific face of the skybox.
+    void SetFace(SkyboxFace face, ImageTexture&& texture) {
+        faces_[FaceIndex(face)] = std::move(texture);
+    }
+
+    bool HasFace(SkyboxFace face) const { return faces_[FaceIndex(face)].IsValid(); }
+
+    bool IsValid() const {
+        if (!(max_.x() > min_.x() && max_.y() > min_.y() && max_.z() > min_.z())) {
+            return false;
+        }
+        for (const ImageTexture& face : faces_) {
+            if (face.IsValid()) return true;
+        }
+        return false;
+    }
+
+    bool Sample(const Ray& ray, float t_min, float t_max, SkyboxSample* out) const {
+        if (!IsValid()) return false;
+
+        float near_t = -std::numeric_limits<float>::max();
+        float far_t = std::numeric_limits<float>::max();
+
+        // Find the intersection of the ray with the skybox
+        for (int axis = 0; axis < 3; ++axis) {
+            const float inv_d = ray.inv_direction()[axis];
+            float t0 = (min_[axis] - ray.origin()[axis]) * inv_d;
+            float t1 = (max_[axis] - ray.origin()[axis]) * inv_d;
+            if (inv_d < 0.0f) {
+                float tmp = t0;
+                t0 = t1;
+                t1 = tmp;
+            }
+            near_t = std::fmax(near_t, t0);
+            far_t = std::fmin(far_t, t1);
+            if (far_t < near_t) return false;
+        }
+
+        const float hit_t = near_t >= t_min ? near_t : far_t;
+        if (hit_t < t_min || hit_t > t_max) return false;
+
+        SkyboxSample sample;
+        sample.t = hit_t;
+        const Vec3 p = ray.at(hit_t);
+        sample.face = PickFace(p);
+        FaceUV(sample.face, p, &sample.u, &sample.v);
+
+        const ImageTexture& texture = faces_[FaceIndex(sample.face)];
+        sample.color = texture.IsValid() ? texture.SampleClamp(sample.u, sample.v) : RGB(0.0f);
+
+        if (out != nullptr) *out = sample;
+        return true;
+    }
+
+  private:
+    static size_t FaceIndex(SkyboxFace face) { return static_cast<size_t>(face); }
+
+    /// Pick the face of the skybox that a point is on.
+    SkyboxFace PickFace(const Vec3& p) const {
+        SkyboxFace face = SkyboxFace::PosX;
+        float best = std::fabs(p.x() - max_.x());
+
+        auto consider = [&](SkyboxFace candidate, float distance) {
+            if (distance < best) {
+                best = distance;
+                face = candidate;
+            }
+        };
+
+        consider(SkyboxFace::NegX, std::fabs(p.x() - min_.x()));
+        consider(SkyboxFace::PosY, std::fabs(p.y() - max_.y()));
+        consider(SkyboxFace::NegY, std::fabs(p.y() - min_.y()));
+        consider(SkyboxFace::PosZ, std::fabs(p.z() - max_.z()));
+        consider(SkyboxFace::NegZ, std::fabs(p.z() - min_.z()));
+        return face;
+    }
+
+    /// Compute the UV coordinates for a point on a specific face of the skybox.
+    void FaceUV(SkyboxFace face, const Vec3& p, float* u, float* v) const {
+        const float dx = max_.x() - min_.x();
+        const float dy = max_.y() - min_.y();
+        const float dz = max_.z() - min_.z();
+
+        switch (face) {
+            case SkyboxFace::PosX:
+                *u = (max_.z() - p.z()) / dz;
+                *v = (p.y() - min_.y()) / dy;
+                break;
+            case SkyboxFace::NegX:
+                *u = (p.z() - min_.z()) / dz;
+                *v = (p.y() - min_.y()) / dy;
+                break;
+            case SkyboxFace::PosY:
+                *u = (p.x() - min_.x()) / dx;
+                *v = (max_.z() - p.z()) / dz;
+                break;
+            case SkyboxFace::NegY:
+                *u = (p.x() - min_.x()) / dx;
+                *v = (p.z() - min_.z()) / dz;
+                break;
+            case SkyboxFace::PosZ:
+                *u = (p.x() - min_.x()) / dx;
+                *v = (p.y() - min_.y()) / dy;
+                break;
+            case SkyboxFace::NegZ:
+                *u = (max_.x() - p.x()) / dx;
+                *v = (p.y() - min_.y()) / dy;
+                break;
+        }
+    }
+
+    Vec3 min_ = Vec3(-1.0f, -1.0f, -1.0f);
+    Vec3 max_ = Vec3(1.0f, 1.0f, 1.0f);
+    std::array<ImageTexture, 6> faces_;
+};
 
 inline Spectrum EvaluateEnvironment(const Vec3& ray_dir, const SampledWavelengths& wl) {
     // STUB: Return a faint, constant ambient light, or pure black.
