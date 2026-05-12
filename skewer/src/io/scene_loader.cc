@@ -114,6 +114,7 @@ static MediaMap ParseMedia(const json& j, Scene& scene, const std::string& scene
             // Spatial overrides
             med.scale = GetOr(m, "scale", 1.0f);
             med.translate = GetVec3Or(m, "translate", Vec3(0.0f, 0.0f, 0.0f));
+            med.rotate = GetVec3Or(m, "rotate", Vec3(0.0f, 0.0f, 0.0f));
 
             std::string file = m.at("file").get<std::string>();
             std::string filepath = ResolvePath(file, scene_dir);
