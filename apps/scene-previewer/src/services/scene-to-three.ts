@@ -40,7 +40,9 @@ function parseMtllibNames(objText: string): string[] {
 function parseMtlTexturePaths(mtlText: string): string[] {
 	const paths: string[] = [];
 	for (const line of mtlText.split("\n")) {
-		const match = line.trim().match(/^map_Kd\s+(.+)$/i);
+		const match = line
+			.trim()
+			.match(/^(?:map_\w+|bump|disp|decal|norm)\s+(.+)$/i);
 		if (match) paths.push(match[1].trim());
 	}
 	return paths;
@@ -196,7 +198,13 @@ async function buildLeafMesh(
 
 		const objLoader = new OBJLoader();
 		if (materialCreator) objLoader.setMaterials(materialCreator);
-		const group = objLoader.parse(objText);
+		let group: THREE.Group;
+		try {
+			group = objLoader.parse(objText);
+		} catch (e) {
+			console.warn(`[scene-to-three] OBJ parse failed for ${node.file}:`, e);
+			return null;
+		}
 
 		const mat = node.material ? (materials[node.material] ?? null) : null;
 		if (mat) {

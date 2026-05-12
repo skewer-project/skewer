@@ -624,8 +624,8 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 
 		const abortController = new AbortController();
 
-		buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
-			(result) => {
+		buildSceneGraph(currentScene, dirHandle, abortController.signal)
+			.then((result) => {
 				if (abortController.signal.aborted) return;
 
 				const proxy = gizmoProxy.current;
@@ -658,8 +658,10 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(
 						currentTimeRef.current,
 					);
 				}
-			},
-		);
+			})
+			.catch((err) => {
+				console.error("[Viewport] buildSceneGraph failed:", err);
+			});
 
 		return () => {
 			abortController.abort();
