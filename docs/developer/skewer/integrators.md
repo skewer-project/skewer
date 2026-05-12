@@ -9,7 +9,7 @@ Modern CPUs are memory-bound. The integrator's use of **Tile-Based Rendering** a
 
 ---
 
-## 2. Directory Reference
+## Directory Reference
 
 The following sections detail the implementations within the `skewer/src/integrators/` directory.
 
@@ -26,6 +26,7 @@ The `PathTrace` class manages the high-level rendering loop and resource distrib
 
 #### Work Orchestration (Tile-Based Distribution)
 Skewer divides the image into $32 \times 32$ pixel tiles. 
+
 - **Cache Locality**: By focusing a thread on a small spatial region, we maximize the chances that the BVH nodes and textures required for that area stay in the CPU's L2/L3 cache.
 - **Adaptive Break**: The integrator checks `film->IsPixelConverged()` every `adaptive_step` (default 16 samples). If a pixel’s variance is below the `noise_threshold`, the loop breaks early, reallocating compute power to "difficult" regions like caustics or deep shadows.
 

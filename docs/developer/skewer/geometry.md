@@ -8,6 +8,7 @@ The performance of a path tracer is ultimately bound by how quickly it can deter
 A key design decision in Skewer is the removal of polymorphism (virtual functions) in the intersection hot-path (`skewer/src/geometry/`).
 
 #### Why Avoid Virtuals?
+
 1.  **Cache Efficiency**: Polymorphic objects (e.g., a `virtual bool Intersect()` method) require a vtable pointer in every instance. This increases the object size and forces a "pointer-chase" to find the function logic, often causing cache misses.
 2.  **Branch Prediction**: Indirect calls through vtables are difficult for CPU branch predictors to optimize, leading to pipeline stalls.
 3.  **GPU Compatibility**: Modern GPUs (CUDA/OptiX/Vulkan) do not support standard C++ virtual function tables effectively. By using flat data structures and standalone intersection functions (e.g., `IntersectTriangle`), Skewer's core logic can be ported to GPU kernels with minimal refactoring.
@@ -20,7 +21,8 @@ All geometry structs use `alignas(16)` or `alignas(32)` where appropriate. This 
 A common artifact in ray tracing is "Shadow Acne," caused by a ray intersecting its own origin due to floating-point imprecision.
 
 #### Epsilon Management
-Skewer handles this via `RenderConstants::kRayOffsetEpsilon` ($1 \cdot 10^{-3}$). 
+Skewer handles this via `RenderConstants::kRayOffsetEpsilon` ($1 \cdot 10^{-3}$).
+
 - **Offsetting**: When spawning a secondary ray (reflection, refraction, or shadow), the origin is pushed along the shading normal: $P' = P + (n \cdot \epsilon)$.
 - This value was chosen as a "best-of-both-worlds" for scenes ranging from 1.0 to 1000.0 units in size.
 
@@ -51,6 +53,7 @@ The `BoundBox` class implements the **Slab Method**, which checks the overlap of
 </figure>
 
 #### Traversal Optimizations
+
 - **Pre-computed Inverses**: The `Ray` struct caches the `1.0 / direction` for all axes. This transforms the 6 divisions required by the Slab Method into 6 fast multiplications.
 - **IEEE 754 Robustness**: By using pre-computed inverses, the algorithm naturally handles rays parallel to axes ($1.0 / 0.0 = \infty$), avoiding complex branching or "if-not-zero" checks in the inner BVH loop.
 - **Zero-Thickness Fix**: `PadToMinimums()` ensures that flat axis-aligned geometry (like a single quad) has a non-zero volume in the BVH, preventing numerical misses.
@@ -61,6 +64,7 @@ While many engines use an index-buffer approach to save memory during rendering,
 
 #### The "Baking" Strategy
 When a `Mesh` is loaded and added to the scene, Skewer immediately pre-calculates and stores the following in the `Triangle` struct:
+
 - **Edges**: $e_1 = p_1 - p_0$ and $e_2 = p_2 - p_0$.
 - **Normals**: Per-vertex normals are pre-normalized.
 - **UVs**: Explicitly stored for each vertex.

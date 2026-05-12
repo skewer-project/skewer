@@ -20,7 +20,8 @@ The following sections detail the implementations within the `skewer/src/materia
 The `Material` struct is the primary data container for surface properties.
 
 - **`visible` flag**: A unique feature in Skewer where an object can be physically present (scatters rays, casts shadows) but excluded from the camera's primary visibility pass.
-    - **Use Case**: Critical for **VFX Workflows**. It allows a developer to place "bounce cards" or "lighting geometry" that illuminates the scene but doesn't appear as a solid object in the final render or the deep alpha channel.
+    !!! note "Use Case"
+        Critical for **VFX Workflows**. It allows a developer to place "bounce cards" or "lighting geometry" that illuminates the scene but doesn't appear as a solid object in the final render or the deep alpha channel.
 
 ### BSDF
 
@@ -42,7 +43,6 @@ For metallic and rough surfaces, Skewer implements the **Cook-Torrance** model.
 </figure>
 
 - **Roughness Mapping**: Artists input a linear roughness [0,1], which we internally square ($\alpha = \text{roughness}^2$) to provide a more intuitive, perceptually linear control.
-
 
 #### Dielectrics & Spectral Dispersion
 The `Dielectric` material represents transparent surfaces like glass, water, and diamonds.

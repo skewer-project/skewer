@@ -17,14 +17,17 @@ For a given pixel, Loom gathers every `z_front` and `z_back` value from every sa
 
 ### 2. Interval Splitting (`SplitSample`)
 Every volumetric sample that spans multiple split points is cut into smaller "fragments." 
-- **Design Decision**: Loom uses the **Beer-Lambert Power Law** to calculate the alpha of these fragments, ensuring that the total transmittance of the fragments equals the transmittance of the original sample:
-  $\alpha_{fragment} = 1 - (1 - \alpha_{original})^{\frac{\text{thickness}_{fragment}}{\text{thickness}_{original}}}$
+
+!!! note "Design Decision"
+    Loom uses the **Beer-Lambert Power Law** to calculate the alpha of these fragments, ensuring that the total transmittance of the fragments equals the transmittance of the original sample:
+    $\alpha_{fragment} = 1 - (1 - \alpha_{original})^{\frac{\text{thickness}_{fragment}}{\text{thickness}_{original}}}$
 
 ### 3. Depth Sorting
 All fragments (and original hard-surface samples) are sorted by their `z_front` value.
 
 ### 4. Uniform Interspersion (`BlendCoincidentSamples`)
 Fragments that now share the exact same $[Z_{front}, Z_{back}]$ interval are merged. Loom assumes "Uniform Interspersion," meaning the particles from both layers are mixed evenly within that interval:
+
 - **Combined Alpha**: $\alpha_{c} = 1 - (1 - \alpha_a)(1 - \alpha_b)$
 - **Color Scaling**: To prevent over-brightening, the summed colors are scaled by the ratio of the new combined alpha to the sum of individual alphas.
 
@@ -36,20 +39,23 @@ $C_{out} = C_{front} + (1 - \alpha_{front}) \cdot C_{back}$
 
 Loom is designed as a **Streaming Multi-threaded Pipeline** (`loom/src/deep_compositor.cc`) to handle multi-gigabyte EXR files without exhausting system RAM.
 
-### 1. The Circular Window Buffer
+### The Circular Window Buffer
 Loom does not load entire images into memory. It uses a **48-scanline window**. 
+
 - **Loader Workers**: Read scanlines from disk into the window.
 - **Merger Workers**: Perform the Interval Merge logic on the loaded rows.
 - **Writer Workers**: Flatten the rows and write them to the final output file.
 
-### 2. Thread Orchestration
+### Thread Orchestration
 Loom uses a "1-N-1" thread model:
+
 - **1 Loader Thread**: Focused on I/O-bound disk reads.
 - **N Merger Threads**: Focused on the CPU-intensive splitting and blending math.
 - **1 Writer Thread**: Focused on I/O-bound disk writes.
 This architecture ensures that the CPU cores are always saturated with math while the disk is constantly streaming data.
 
-### 3. Merging Strategies
+### Merging Strategies
 Loom implements two different merging paths:
+
 - **`SortAndMergePixelsDirect`**: A fast path for simple scenes where samples don't overlap in depth. It skips the expensive interval splitting.
 - **`SortAndMergePixelsWithSplit`**: The full physically-correct path required for volumetric interspersion.

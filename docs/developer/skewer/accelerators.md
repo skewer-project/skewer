@@ -2,8 +2,6 @@
 
 Spatial acceleration is the most computationally expensive part of the rendering pipeline. In ray tracing, cache misses during traversal is often the real bottleneck — not arithmetic calculations. Skewer's acceleration system is designed for **maximum traversal performance** in an offline rendering context, prioritizing cache efficiency over build speed.
 
-Spatial acceleration is the most computationally expensive part of the rendering pipeline. In ray tracing, cache misses during traversal is often the real bottleneck — not arithmetic calculations. Skewer's acceleration system is designed for maximum traversal performance in an offline rendering context, prioritizing cache efficiency over build speed.
-
 Unlike games that need to rebuild acceleration structures 60 times a second, Skewer only needs to build the acceleration structures once. Thus, we are willing to spend more time during the `Build()` phase (evaluating SAH bins and reordering memory) if it results in a 5% reduction in the subsequent multi-hour rendering pass.
 
 ---
@@ -18,12 +16,14 @@ Skewer implements a **Sibling-Level Depth-First Linear BVH**. Unlike real-time e
 
 #### Implicit Sibling Layout
 Each internal `BVHNode` stores a single `left_first` index. 
+
 - The **Left Child** is located at `nodes[left_first]`.
 - The **Right Child** is implicitly at `nodes[left_first + 1]`.
 
 By ensuring siblings are always adjacent in memory, we optimize for cache locality. When visiting a parent node, you almost always test both children. Since they live at `left_first` and `left_first + 1`, they’re likely in the same cache line or at worst in the next sequential line.
 
 Furthermore:
+
 - We avoid storing an extra pointer or index because the right child is implicit (+1).
 - That leads to smaller node size → more nodes per cache line.
 - Fewer memory reads during traversal.
@@ -55,6 +55,7 @@ The **Bottom-Level Acceleration Structure (BLAS)** is a BVH built over raw `Tria
 ### Scene Instances
 
 An `Instance` acts as the bridge between a BLAS and the World. It contains:
+
 - A reference to a `BLAS`.
 - A **TRS Transform Chain** (potentially animated).
 - **Baked Metadata**: Light indices and world-space bounds.
@@ -64,6 +65,7 @@ An `Instance` acts as the bridge between a BLAS and the World. It contains:
 ## Comparative Considerations
 
 During development, we considered **KD-Trees** and **Octrees**:
+
 - **KD-Trees**: Yield slightly tighter splits but suffer from massive memory overhead due to primitive duplication (a triangle can live in multiple leaves).
 - **Linear BVH**: Chosen because it provides a predictable memory footprint and is significantly more robust for the non-uniform triangle distributions common in complex OBJ meshes.
 

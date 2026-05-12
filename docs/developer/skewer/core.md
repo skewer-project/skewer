@@ -98,6 +98,7 @@ This is based on the paper **Hero Wavelength Spectral Sampling** by A. Wilkie, S
 Skewer is a **Spectral Renderer**. It does not perform internal calculations in RGB; it simulates actual wavelengths of light.
 
 #### `SpectralCurve` & `Spectrum`
+
 - **`SpectralCurve`**: A lightweight representation of a material's reflectance or emission across the visible spectrum (380nm to 780nm), stored as coefficients.
 - **`Spectrum` (SpectralPacket)**: An `alignas(16)` packet of **4 wavelengths** (`kNSamples = 4`) that are traced simultaneously. This allows us to use SIMD instructions to perform 4x the work per ray.
 

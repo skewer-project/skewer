@@ -2,8 +2,6 @@
 
 The `RenderSession` (`skewer/src/session/render_session.cc`) is the top-level orchestrator of the Skewer engine. It manages the lifecycle of a render, from parsing the user's JSON configuration to writing the final high-bit-depth pixels to disk.
 
-In a cloud environment, compute nodes are ephemeral. Skewer's session architecture is built on the principle of **Statelessness**. By ensuring that a session can be interrupted and resumed without loss of data, we enable the use of low-cost, preemptible hardware, significantly reducing the cost of high-quality rendering.
-
 The session explicitly separates **Data Resolution** (finding and loading assets) from **Numerical Integration** (the path tracer). This allows the engine to handle complex, distributed file systems (like GCS) while keeping the core rendering kernels focused purely on the mathematics of light.
 
 ---
@@ -34,6 +32,7 @@ Skewer is built for high-core-count machines. Rather than assigning rows of pixe
 
 #### Design for Cloud Parallelism
 The execution model is uniquely optimized for **Google Cloud Batch**.
+
 - **Layer-Level Parallelism**: Skewer treats each scene layer as an independent unit of work. This allows the cloud orchestrator to spin up separate VMs for each layer, enabling complex frames to be rendered in minutes.
 - **Statelessness & GCS FUSE**: The `RenderSession` is entirely stateless. All assets are read from a virtualized filesystem (`/mnt/gcs/`) and outputs are written directly back to the cloud bucket, supporting seamless **Preemption** and restarts on cheap Spot VMs.
 

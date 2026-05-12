@@ -37,6 +37,7 @@ $$
 We use Monte Carlo integration to approximate this integral by tracing thousands of random paths.
 
 #### Reducing Variance (Noise)
+
 1. **Next Event Estimation (NEE)**: At every surface interaction, Skewer explicitly samples a light source to find bright sources faster than random bouncing.
 2. **Multiple Importance Sampling (MIS)**: Combines BSDF sampling and NEE using the **Power Heuristic** ($\beta=2$) to weight contributions based on sampling efficiency.
 3. **Russian Roulette (RR)**: Probabilistic termination after the 3rd bounce to save computation on low-energy paths while remaining unbiased. This acts as an early-exit optimization for negligible ray contributions

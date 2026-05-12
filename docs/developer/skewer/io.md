@@ -4,7 +4,7 @@ The IO system bridges the gap between high-level scene descriptions and the opti
 
 ---
 
-## 2. Directory Reference
+## Directory Reference
 
 The following sections detail the implementations within the `skewer/src/io/` directory.
 
