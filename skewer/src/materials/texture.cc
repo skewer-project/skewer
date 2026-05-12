@@ -28,14 +28,17 @@ bool ImageTexture::Load(const std::string& filepath) {
     return true;
 }
 
-RGB ImageTexture::Sample(float u, float v) const {
+RGB ImageTexture::Sample(float u, float v, TextureWrapMode wrap) const {
     if (data.empty()) return RGB(1.0f, 0.0f, 1.0f);  // Magenta = missing texture
 
-    // Repeat (tiling) wrapping
-    u = u - std::floor(u);
-    v = v - std::floor(v);
+    if (wrap == TextureWrapMode::Repeat) {
+        u = u - std::floor(u);
+        v = v - std::floor(v);
+    } else {
+        u = std::clamp(u, 0.0f, 1.0f);
+        v = std::clamp(v, 0.0f, 1.0f);
+    }
 
-    // Bilinear interpolation
     float fx = u * static_cast<float>(width - 1);
     float fy = v * static_cast<float>(height - 1);
 
@@ -58,38 +61,6 @@ RGB ImageTexture::Sample(float u, float v) const {
     RGB c11 = fetch(x1, y1);
 
     // Bilinear blend
-    RGB r0 = (1.0f - tx) * c00 + tx * c10;
-    RGB r1 = (1.0f - tx) * c01 + tx * c11;
-    return (1.0f - ty) * r0 + ty * r1;
-}
-
-RGB ImageTexture::SampleClamp(float u, float v) const {
-    if (data.empty()) return RGB(1.0f, 0.0f, 1.0f);  // Magenta = missing texture
-
-    u = std::clamp(u, 0.0f, 1.0f);
-    v = std::clamp(v, 0.0f, 1.0f);
-
-    float fx = u * static_cast<float>(width - 1);
-    float fy = v * static_cast<float>(height - 1);
-
-    int x0 = static_cast<int>(fx);
-    int y0 = static_cast<int>(fy);
-    int x1 = std::min(x0 + 1, width - 1);
-    int y1 = std::min(y0 + 1, height - 1);
-
-    float tx = fx - static_cast<float>(x0);
-    float ty = fy - static_cast<float>(y0);
-
-    auto fetch = [&](int x, int y) -> RGB {
-        int idx = (y * width + x) * 3;
-        return RGB(data[idx], data[idx + 1], data[idx + 2]);
-    };
-
-    RGB c00 = fetch(x0, y0);
-    RGB c10 = fetch(x1, y0);
-    RGB c01 = fetch(x0, y1);
-    RGB c11 = fetch(x1, y1);
-
     RGB r0 = (1.0f - tx) * c00 + tx * c10;
     RGB r1 = (1.0f - tx) * c01 + tx * c11;
     return (1.0f - ty) * r0 + ty * r1;

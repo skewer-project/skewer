@@ -11,8 +11,13 @@ namespace skwr {
 
 constexpr uint32_t kNoTexture = UINT32_MAX;
 
+enum class TextureWrapMode {
+    Repeat,
+    Clamp,
+};
+
 // Image-based texture: stores linear-light RGB float data.
-// Sample() performs bilinear interpolation with repeat (tiling) wrapping.
+// Sample() performs bilinear interpolation with configurable UV wrapping.
 struct ImageTexture {
     std::vector<float> data;  // Linear RGB, w*h*3 floats
     int width = 0;
@@ -22,12 +27,9 @@ struct ImageTexture {
     // Returns false on failure.
     bool Load(const std::string& filepath);
 
-    // Sample at UV coordinates with bilinear filtering and repeat wrapping.
+    // Sample at UV coordinates with bilinear filtering.
     // Callers pass si.uv.x() and si.uv.y().
-    RGB Sample(float u, float v) const;
-
-    // Sample at UV coordinates with bilinear filtering and clamp-to-edge wrapping.
-    RGB SampleClamp(float u, float v) const;
+    RGB Sample(float u, float v, TextureWrapMode wrap = TextureWrapMode::Repeat) const;
 
     bool IsValid() const { return !data.empty(); }
 };
