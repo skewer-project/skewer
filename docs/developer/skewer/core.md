@@ -4,43 +4,50 @@ The `core` directory houses the math, sampling, and spectral representations tha
 
 Generally, these are shared by multiple different systems. Module-specific classes, math, and code implementations may be found in more specific directories.
 
+---
 
 ## Directory Reference
 
 The following sections detail the implementations within the `skewer/src/core/` directory.
 
-## Color
+### Ray
+The `Ray` class (`core/ray.h`) represents a directed line segment used for path tracing.
+
+- **Precomputed Inverses:** Upon construction, a ray calculates the reciprocal of its direction (`inv_dir`). This allows the **Slab Method** for AABB intersections to use fast multiplications instead of expensive divisions.
+- **State Tracking:** Each ray carries a `VolumeStack` and a `time` value, enabling motion blur and nested medium transitions.
+
+### Color
 Contains the RGB struct and helper functions. 
 
 Skewer maintains a strict separation between color representations. RGB is used for loading and saving of images, while actual rendering utilizes physically-based spectral light.
 
-## Containers
+### Containers
 
 To avoid the overhead of standard library containers (which often involve heavy heap allocations and complex iterator logic), Skewer uses two specialized, cache-friendly containers for the hot-path rendering loop.
 
-### `BoundedArray<T, N>`
+#### `BoundedArray<T, N>`
 Located in `core/containers/bounded_array.h`, this is a fixed-capacity wrapper around a raw C-style array.
 
 - **Stack-Only**: It never allocates on the heap.
 - **Zero Overhead**: It stores the count as a `size_t` alongside the data, providing a `std::vector`-like API without the dynamic growth logic.
 - **Use Case**: Ideal for small, hard-capped lists where the maximum size is known at compile time, such as the `kNSamples` in a spectral packet or the `kMaxDeepSegments` (16) stored by the `SampleWriter`.
 
-### `SmallVector<T, N>`
+#### `SmallVector<T, N>`
 Located in `core/containers/small_vector.h`, this is a "hybrid" container that implements **Small Buffer Optimization (SBO)**.
 
 - **Inline Storage**: It contains an internal array of size `N`. If you add `N` or fewer elements, it stays on the stack (or inline within its parent struct).
 - **Heap Spilling**: If the count exceeds `N`, it dynamically allocates a heap buffer to hold the overflow.
 - **Design Rationale**: This is designed for "Power Law" distributions. For example, during deep image merging, 90% of pixels might only contain 1 or 2 segments (fitting in inline storage), while 10% of pixels (overlapping edges or volumes) might contain 100+ segments. `SmallVector` allows the renderer to be efficient for the common case without failing on the complex case.
 
-## Math
+### Math
 
-### Vector Operations
+#### Vector Operations
 Most of our spatial calculations rely on standard 3D vector algebra.
 
 - **Dot Product ($A \cdot B$):** Used to calculate the cosine of the angle between vectors, essential for Lambertian shading and visibility checks.
 - **Cross Product ($A \times B$):** Used to generate orthogonal vectors, such as calculating surface normals from triangle edges.
 
-### Transformations & Quaternions
+#### Transformations & Quaternions
 Skewer avoids 4x4 transformation matrices in favor of the **TRS (Translation, Rotation, Scale)** structure.
 
 In deep hierarchies (e.g., a hand on an arm on a body), 4x4 matrix multiplications accumulate floating-point error, causing "shearing" or "exploding" geometry. TRS structures separate these components:
@@ -50,32 +57,32 @@ In deep hierarchies (e.g., a hand on an arm on a body), 4x4 matrix multiplicatio
 We use a **TRS (Translation, Rotation, Scale)** system to place objects in the world.
 - **SLERP (Spherical Linear Interpolation):** Used to interpolate between two rotation keyframes along the shortest path on a 4D unit sphere.
 
-### Orthonormal Basis (ONB)
+#### Orthonormal Basis (ONB)
 To sample directions on a surface, we construct a local coordinate system (tangent space) where the surface normal is the Z-axis. When a ray hits a surface, we use an ONB to transform a randomly sampled "hemisphere" direction back into world space.
 
-## Monte Carlo Sampling & Randomness
+### Monte Carlo Sampling & Randomness
 
-### PCG32 Random Number Generator
+#### PCG32 Random Number Generator
 Skewer uses the **PCG32** algorithm instead of the standard `mt19937`.
 
 - **Performance**: PCG32 is significantly faster and has a much smaller state (16 bytes), allowing it to be stored directly on the stack or in the `Ray` state.
 - **Deterministic Parallelism**: Every pixel is seeded deterministically using its $(x, y)$ coordinate and the current `sample_index`. This ensures that a render is mathematically identical regardless of thread count or task scheduling, which is critical for debugging cloud batch workers.
 
-### Multiple Importance Sampling (MIS)
+#### Multiple Importance Sampling (MIS)
 To reduce noise, we combine two sampling techniques: **Next Event Estimation (NEE)** (sampling lights directly) and **BSDF Sampling** (following the material's physical properties). We weight them using the **Power Heuristic** ($\beta=2$):
 
 $$
 w_f(p) = \frac{f(p)^\beta}{f(p)^\beta + g(p)^\beta}
 $$
 
-### Volumetric Stack (`VolumeStack`)
+#### Volumetric Stack (`VolumeStack`)
 
 The `VolumeStack` (`core/sampling/volume_stack.h`) is a priority-based set that tracks the nested media a ray is currently inside (e.g., Camera -> Fog -> Glass -> Water).
 
 - **Priority Logic**: When geometry overlaps, the medium with the highest `priority` value is considered the "active" one.
 - **Optimization**: The stack is kept sorted by priority at insertion time. This makes `GetActiveMedium()` an $O(1)$ operation. Since this is queried thousands of times per ray during marching, we optimize for the read rather than the write.
 
-### Wavelength Sampler
+#### Wavelength Sampler
 Skewer uses a **Stratified Hero Wavelength Sampler** (`core/sampling/wavelength_sampler.h`) to sample the visible spectrum (360nm to 830nm). We sample 4 wavelengths per ray. One is the "Hero," used to make discrete decisions (like reflecting vs refracting), while the others ("Companions") are evaluated at the same spatial path to minimize variance.
 
 - **Hero Wavelength:** For every ray, one wavelength is sampled uniformly at random from the visible range. This is the "Hero" wavelength.
@@ -86,15 +93,41 @@ This ensures that each ray covers a well-distributed set of wavelengths, reducin
 
 This is based on the paper **Hero Wavelength Spectral Sampling** by A. Wilkie, S. Nawaz, M. Droske, A. Weidlich, and J. Hanika 
 
-## Spectral
+### Spectral
 
 Skewer is a **Spectral Renderer**. It does not perform internal calculations in RGB; it simulates actual wavelengths of light.
 
-### `SpectralCurve` & `Spectrum`
+#### `SpectralCurve` & `Spectrum`
 - **`SpectralCurve`**: A lightweight representation of a material's reflectance or emission across the visible spectrum (380nm to 780nm), stored as coefficients.
 - **`Spectrum` (SpectralPacket)**: An `alignas(16)` packet of **4 wavelengths** (`kNSamples = 4`) that are traced simultaneously. This allows us to use SIMD instructions to perform 4x the work per ray.
 
-### `RGB2Spec` Integration
+#### `RGB2Spec` Integration
 Since most input data (textures/colors) is in sRGB, Skewer uses a precomputed table-lookup system (`core/spectral/spectral_utils.h`) to convert linear sRGB into the most physically plausible spectral curve, minimizing color bias during integration. 
 
 This is based on the paper **A Low-Dimensional Function Space for Efficient Spectral Upsampling** by Wenzel Jakob and Johannes Hanika
+
+### Transport
+The `transport/` directory handles the exchange of data between the geometric intersection routines and the shading/integration logic.
+
+- **`SurfaceInteraction`**: A "Fat" data structure that encapsulates everything about a surface hit: the 3D point, geometric normal, shading normal, UVs, tangent frame ($dp/du, dp/dv$), and material/medium bindings.
+- **`MediumInteraction`**: Similar to surface interactions, but for volumetric scattering. It stores the scattering point, the local scattering coefficients ($\sigma_s$), and the phase function anisotropy ($g$).
+- **`DeepSegment`**: Represents a physical interval of space along a ray (`z_front` to `z_back`) with its associated radiance (`L`) and opacity (`alpha`). These are the building blocks of the deep image system.
+- **`DeepPathRecorder`**: Implements the **Deferred Backward Pass** for deep rendering. It records emission and BSDF weights at each interaction vertex during the forward trace, then resolves the Rendering Equation in reverse to calculate the final radiance for each deep segment.
+- **`PathSample`**: (Legacy) A structure used to bundle standard radiance and deep segments for a single path. This has largely been superseded by the `SampleWriter` system in the film module.
+- **Deferred Resolution:** By packaging all hit data into these structures, Skewer decouples the ray-traversal kernels from the complex shading math, allowing for cleaner code and easier optimization of the intersection loop.
+
+## Configurations
+Centralized headers define the fundamental limits and environment-aware behaviors of the engine.
+
+### CPU Configuration (`cpu_config.h`)
+Defines compile-time constants that determine the engine's memory footprint and performance characteristics:
+
+- **`kNSamples`**: Number of spectral wavelengths per packet (default: 4).
+- **`kMaxDeepSegments`**: Maximum path depth for deep data recording.
+- **`kMaxMediumStack`**: Maximum recursion depth for nested volumes (industry standard: 4).
+
+### Progress Configuration (`progress_config.h`)
+Handles the user experience during long-running cloud renders:
+
+- **TTY Detection:** Automatically switches between "Rich" progress bars for local terminals and "Blocks" for cloud logs (where ANSI escape codes would pollute the output).
+- **Adaptive Intervals:** Adjusts the frequency of log updates based on the environment to prevent logging services from becoming a bottleneck.
