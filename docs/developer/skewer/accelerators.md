@@ -6,6 +6,8 @@ Spatial acceleration is the most computationally expensive part of the rendering
 
 Unlike games that need to rebuild acceleration structures 60 times a second, Skewer only needs to build the acceleration structures once. Thus, we are willing to spend more time during the `Build()` phase (evaluating SAH bins and reordering memory) if it results in a 5% reduction in the subsequent multi-hour rendering pass.
 
+---
+
 ## Directory Reference
 
 The following sections detail the implementations within the `skewer/src/accelerators/` directory.
