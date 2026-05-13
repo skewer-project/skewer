@@ -1,12 +1,12 @@
 # CLI Reference
 
-The `skewer-cli` is the command-line interface for interacting with the Coordinator to submit jobs, check their status, and cancel them.
+Reference for the three user-facing binaries: `skewer-cli`, `skewer-render`, and `loom`.
 
-## Commands
+## skewer-cli
+
+The `skewer-cli` submits rendering jobs to the coordinator, checks their status, and cancels them.
 
 ### submit
-
-Submit a rendering job to the coordinator:
 
 ```bash
 ./orchestration/cmd/cli/skewer-cli submit [flags]
@@ -52,8 +52,6 @@ Submit a rendering job to the coordinator:
 
 ### status
 
-Check the status of a submitted job:
-
 ```bash
 ./orchestration/cmd/cli/skewer-cli status --job <JOB_ID>
 ```
@@ -71,8 +69,6 @@ Progress: 25.0%
 
 ### cancel
 
-Cancel a running job:
-
 ```bash
 ./orchestration/cmd/cli/skewer-cli cancel --job <JOB_ID>
 ```
@@ -81,23 +77,122 @@ Drops all pending tasks and prevents further processing.
 
 ---
 
-## Running Without Building
+## skewer-render
 
-If you're iterating on the CLI code, run directly without compiling:
+The `skewer-render` binary runs the C++ ray tracer locally for rendering scenes defined in JSON.
 
 ```bash
-go run ./orchestration/cmd/cli/main.go help
+./build/relwithdebinfo/skewer/skewer-render <scene.json> [num_threads] [options]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `scene.json` | Path to a JSON scene configuration file **[Required]** |
+| `num_threads` | Override the number of render threads (optional) |
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--frame N` | Render only animated layers at frame index N |
+| `--frames A..B` | Render animated layers for the inclusive frame range [A, B] |
+| `--statics-only` | Render only non-animated layers (one output per layer) |
+| `--help, -h` | Show this help message |
+
+**Examples:**
+
+```bash
+# Render all static layers
+./build/relwithdebinfo/skewer/skewer-render scenes/my_scene.json
+
+# Render with 8 threads
+./build/relwithdebinfo/skewer/skewer-render scenes/my_scene.json 8
+
+# Render only frame 42 of animated layers
+./build/relwithdebinfo/skewer/skewer-render scenes/my_scene.json --frame 42
+
+# Render frames 0 through 99
+./build/relwithdebinfo/skewer/skewer-render scenes/my_scene.json --frames 0..99
+```
+
+Output filenames are derived from each layer filename (e.g. `layer_character.json` produces `layer_character.png` and `layer_character.exr`). Configure output directory and image settings in the scene JSON.
+
+---
+
+## loom
+
+The `loom` binary composites multiple deep EXR layers into a single flattened image.
+
+```bash
+./build/relwithdebinfo/loom/loom [options] <input1.exr> [input2.exr ...] <output_prefix>
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--deep-output` | Write merged deep EXR (default: off) |
+| `--flat-output` | Write flattened EXR (default: on) |
+| `--no-flat-output` | Don't write flattened EXR |
+| `--png-output` | Write PNG preview (default: on) |
+| `--no-png-output` | Don't write PNG preview |
+| `--verbose, -v` | Detailed logging |
+| `--merge-threshold N` | Depth epsilon for merging samples (default: 0.001) |
+| `--help, -h` | Show this help message |
+
+**Outputs:**
+
+| File | Description |
+|------|-------------|
+| `<prefix>_merged.exr` | Deep EXR with all layers combined (if `--deep-output`) |
+| `<prefix>_flat.exr` | Standard single-layer EXR |
+| `<prefix>.png` | Preview image |
+
+**Example:**
+
+```bash
+./build/relwithdebinfo/loom/loom --deep-output --verbose \
+  renders/layer1/frame-0001.exr \
+  renders/layer2/frame-0001.exr \
+  composited/frame-0001
 ```
 
 ---
 
-## Auto Port-Forward
+## CMake Presets
 
-The CLI automatically handles `kubectl port-forward` if the coordinator isn't reachable on `localhost:50051`.
+The project defines these configure presets in `CMakePresets.json`. Use them with `cmake --preset <name>`:
+
+| Preset | Description |
+|--------|-------------|
+| `debug` | Debug build with symbols, no optimizations |
+| `release` | Optimized release build (`-O3`) |
+| `release-milan` | Release with native optimizations for AMD EPYC Milan (GCP N2D) |
+| `relwithdebinfo` | **Default** — Release build with debug symbols |
+| `ci` | CI-optimized build (no native optimizations) |
+| `asan` | Debug build with AddressSanitizer + UndefinedBehaviorSanitizer |
+| `releasestatic` | Fully static release binary (Linux, vcpkg toolchain) |
+
+Build with a preset:
+
+```bash
+cmake --preset relwithdebinfo
+cmake --build --preset relwithdebinfo --parallel
+```
+
+Test with a preset:
+
+```bash
+ctest --preset relwithdebinfo
+```
+
+---
 
 ## See Also
 
 - [Scene Format](scene-format.md) - Complete scene file specification
 - [Rendering Tips](rendering-tips.md) - Best practices for quality and performance
-- [GCP Deployment](../deployment/gcp.md) - Cloud rendering setup
-- [Local Deployment](../deployment/local.md) - Local cluster setup
+- [GCP Deployment](../getting-started/gcp.md) - Cloud rendering setup
+- [Local Development](../getting-started/local.md) - Local cluster setup
