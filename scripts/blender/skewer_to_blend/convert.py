@@ -1,10 +1,25 @@
+"""
+skewer_to_blend/convert.py — Skewer scene → Blender .blend converter
+====================================================================
+
+Usage:
+    <path-to-blender>/blender --background --python convert.py -- <scene.json> [output.blend]
+
+Loads a Skewer scene.json manifest (or legacy single-file scene) and
+writes a Blender .blend file with camera, materials, and geometry.
+
+Supports both:
+  - New manifest format: scene.json { camera, layers: [...], context: [...] }
+  - Legacy flat format:  scene.json { camera, materials: {...}, objects: [...] }
+"""
+
 import sys
 import json
 import math
 from pathlib import Path
 
-import bpy
-import mathutils
+import bpy  # type: ignore
+import mathutils  # type: ignore
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +106,6 @@ def create_material(name, mat_def):
         bsdf.inputs["Base Color"].default_value = albedo_rgba
         bsdf.inputs["Roughness"].default_value = 1.0
         bsdf.inputs["Metallic"].default_value = 0.0
-        # Disable specular (4.x uses 'Specular IOR Level', 3.x uses 'Specular')
         try:
             bsdf.inputs["Specular IOR Level"].default_value = 0.0
         except KeyError:
@@ -109,7 +123,6 @@ def create_material(name, mat_def):
         bsdf.inputs["Base Color"].default_value = albedo_rgba
         bsdf.inputs["IOR"].default_value = mat_def.get("ior", 1.5)
         bsdf.inputs["Roughness"].default_value = 0.0
-        # Transmission: 4.x uses 'Transmission Weight', 3.x uses 'Transmission'
         try:
             bsdf.inputs["Transmission Weight"].default_value = 1.0
         except KeyError:
@@ -128,7 +141,6 @@ def create_material(name, mat_def):
         else:
             color = emission
         color_rgba = (*color, 1.0)
-        # 4.x uses 'Emission Color' + 'Emission Strength', 3.x uses 'Emission'
         try:
             bsdf.inputs["Emission Color"].default_value = color_rgba
             bsdf.inputs["Emission Strength"].default_value = strength
@@ -157,8 +169,6 @@ def setup_camera(cam_data, render_data):
     cam_obj = bpy.context.object
     bpy.context.scene.camera = cam_obj
 
-    # Build world matrix from look-at vectors.
-    # Blender camera convention: -Z is forward, Y is up, X is right.
     forward = (mathutils.Vector(look_at) - mathutils.Vector(look_from)).normalized()
     right = forward.cross(mathutils.Vector(vup)).normalized()
     up = right.cross(forward)
@@ -173,7 +183,6 @@ def setup_camera(cam_data, render_data):
     )
     cam_obj.matrix_world = mat
 
-    # Vertical FOV
     vfov_rad = math.radians(cam_data["vfov"])
     cam_obj.data.sensor_fit = "VERTICAL"
     cam_obj.data.angle = vfov_rad
@@ -188,7 +197,8 @@ def setup_render(render_data):
     """Configure Cycles render settings from Skewer render block."""
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
-    scene.cycles.samples = render_data.get("samples_per_pixel", 128)
+    scene.cycles.samples = render_data.get("samples_per_pixel",
+                                           render_data.get("max_samples", 128))
     scene.cycles.max_bounces = render_data.get("max_depth", 8)
 
     img = render_data.get("image", {})
@@ -199,7 +209,7 @@ def setup_render(render_data):
     outfile = img.get("exrfile", img.get("outfile", "render"))
     scene.render.filepath = str(Path(outfile).stem)
 
-    # Match Skewer's convention: rays that miss all geometry return black.
+    # Black background (matches Skewer's default)
     world = scene.world or bpy.data.worlds.new("World")
     scene.world = world
     world.use_nodes = True
@@ -210,7 +220,7 @@ def setup_render(render_data):
 
 
 # ---------------------------------------------------------------------------
-# Objects
+# Graph node import
 # ---------------------------------------------------------------------------
 
 
@@ -243,10 +253,8 @@ def add_obj(obj_def, materials, scene_dir):
     """Import a Wavefront OBJ file and apply Skewer transforms + material."""
     obj_path = (scene_dir / obj_def["file"]).resolve()
 
-    # Deselect everything so we can identify newly imported objects.
     bpy.ops.object.select_all(action="DESELECT")
 
-    # Import OBJ — tell Blender the source is Y-up so it converts to Z-up.
     if bpy.app.version >= (4, 0, 0):
         bpy.ops.wm.obj_import(
             filepath=str(obj_path),
@@ -284,7 +292,6 @@ def add_obj(obj_def, materials, scene_dir):
             for o in imported_objs:
                 o.location -= centroid * norm_scale
                 o.scale *= norm_scale
-        # Apply location + scale so subsequent transforms compose cleanly.
         bpy.ops.object.select_all(action="DESELECT")
         for o in imported_objs:
             o.select_set(True)
@@ -292,23 +299,18 @@ def add_obj(obj_def, materials, scene_dir):
         bpy.ops.object.transform_apply(location=True, scale=True)
 
     # -- Scene-level transform -------------------------------------------
-    # After OBJ import with Y→Z conversion the axis mapping is:
-    #   Skewer X → Blender X,  Skewer Y → Blender Z,  Skewer Z → Blender -Y
     tf = obj_def.get("transform", {})
     scale = tf.get("scale", [1.0, 1.0, 1.0])
-    rotate = tf.get("rotate", [0.0, 0.0, 0.0])  # [rx, ry, rz] degrees
+    rotate = tf.get("rotate", [0.0, 0.0, 0.0])
     translate = tf.get("translate", [0.0, 0.0, 0.0])
 
     for o in imported_objs:
-        # Scale: swap Y/Z components to match coord-system rotation.
         o.scale = (scale[0], scale[2], scale[1])
-        # Rotation order Skewer YXZ → Blender ZXY.
-        # rx → X (same), ry → Z (same sign), rz → Y (negated).
         o.rotation_euler.order = "ZXY"
         o.rotation_euler = (
-            math.radians(rotate[0]),  # rx stays X
-            math.radians(-rotate[2]),  # -rz → Blender Y
-            math.radians(rotate[1]),  # ry  → Blender Z
+            math.radians(rotate[0]),
+            math.radians(-rotate[2]),
+            math.radians(rotate[1]),
         )
         o.location = to_blender(translate)
 
@@ -318,6 +320,38 @@ def add_obj(obj_def, materials, scene_dir):
         if o.type == "MESH":
             o.data.materials.clear()
             o.data.materials.append(mat)
+
+
+def process_graph_node(node, materials, scene_dir, idx_counter):
+    """Process a single graph node.  Groups recurse; leaf nodes create objects."""
+    if "children" in node:
+        for child in node["children"]:
+            process_graph_node(child, materials, scene_dir, idx_counter)
+        return
+
+    otype = node.get("type")
+    if otype == "sphere":
+        add_sphere(node, materials)
+    elif otype == "quad":
+        add_quad(node, materials, idx_counter[0])
+        idx_counter[0] += 1
+    elif otype == "obj":
+        add_obj(node, materials, scene_dir)
+    else:
+        print(f"Warning: unknown graph node type '{otype}', skipping.")
+
+
+def load_materials_from_data(data, materials, context, scene_dir):
+    """Collect material definitions from a layer/context data dict."""
+    for name, mdef in data.get("materials", {}).items():
+        if name not in materials:
+            materials[name] = create_material(name, mdef)
+
+
+def load_graph_from_data(data, materials, scene_dir, idx_counter):
+    """Process graph array from a layer/context data dict."""
+    for node in data.get("graph", []):
+        process_graph_node(node, materials, scene_dir, idx_counter)
 
 
 # ---------------------------------------------------------------------------
@@ -331,27 +365,47 @@ def main():
 
     clear_scene()
 
-    # Build material lookup dict
-    materials = {
-        name: create_material(name, mdef)
-        for name, mdef in data.get("materials", {}).items()
-    }
+    materials = {}
+    scene_dir = scene_path.parent
+    idx_counter = [0]
 
-    # Camera and render settings
-    setup_camera(data["camera"], data.get("render", {}))
-    setup_render(data.get("render", {}))
+    if "layers" in data:
+        # ---- New manifest format ----
+        setup_camera(data["camera"], data.get("render", {}))
 
-    # Objects
-    for i, obj_def in enumerate(data.get("objects", [])):
-        otype = obj_def.get("type")
-        if otype == "sphere":
-            add_sphere(obj_def, materials)
-        elif otype == "quad":
-            add_quad(obj_def, materials, i)
-        elif otype == "obj":
-            add_obj(obj_def, materials, scene_path.parent)
-        else:
-            print(f"Warning: unknown object type '{otype}' (object #{i}), skipping.")
+        # Load context files first (shared materials + geometry)
+        for ctx_rel in data.get("context", []):
+            ctx_path = (scene_dir / ctx_rel).resolve()
+            ctx_data = json.loads(ctx_path.read_text())
+            load_materials_from_data(ctx_data, materials, None, scene_dir)
+            load_graph_from_data(ctx_data, materials, scene_dir, idx_counter)
+
+        # Load layer files
+        for layer_rel in data.get("layers", []):
+            layer_path = (scene_dir / layer_rel).resolve()
+            layer_data = json.loads(layer_path.read_text())
+            load_materials_from_data(layer_data, materials, None, scene_dir)
+            load_graph_from_data(layer_data, materials, scene_dir, idx_counter)
+
+    else:
+        # ---- Legacy flat format ----
+        setup_camera(data["camera"], data.get("render", {}))
+        setup_render(data.get("render", {}))
+
+        for name, mdef in data.get("materials", {}).items():
+            if name not in materials:
+                materials[name] = create_material(name, mdef)
+
+        for i, obj_def in enumerate(data.get("objects", [])):
+            otype = obj_def.get("type")
+            if otype == "sphere":
+                add_sphere(obj_def, materials)
+            elif otype == "quad":
+                add_quad(obj_def, materials, i)
+            elif otype == "obj":
+                add_obj(obj_def, materials, scene_dir)
+            else:
+                print(f"Warning: unknown object type '{otype}' (object #{i}), skipping.")
 
     bpy.ops.wm.save_as_mainfile(filepath=str(output_path))
     print(f"Saved: {output_path}")
