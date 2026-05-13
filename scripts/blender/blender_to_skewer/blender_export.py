@@ -3,11 +3,11 @@ blender_export.py — Blender → skewer scene.json exporter
 =========================================================
 Run inside Blender's Scripting workspace, or from the command line:
 
-    blender my_scene.blend --background --python tools/blender_to_skewer/blender_export.py
+    blender my_scene.blend --background --python scripts/blender/blender_to_skewer/blender_export.py
 
 The script inspects every visible MESH object in the active scene and
-writes a scene.json (plus per-object OBJ files) that the skewer renderer
-can consume directly.
+writes a scene.json manifest (plus a layer.json with materials + graph
+and per-object OBJ files) that the skewer renderer can consume directly.
 
 Object type mapping
 -------------------
@@ -20,12 +20,11 @@ Coordinate conversion: Blender Z-up → renderer Y-up
   (x, y, z)  →  (x, z, -y)
 """
 
-import bpy
+import bpy  # type: ignore
 import json
 import math
 import os
-import sys
-from mathutils import Vector
+from mathutils import Vector  # type: ignore
 
 # ---------------------------------------------------------------------------
 # CONFIGURATION — edit these before running
@@ -104,12 +103,19 @@ def convert_material(mat):
     if node is None:
         return {"type": "lambertian", "albedo": [0.5, 0.5, 0.5]}
 
-    # Helper: read a socket value safely
+    # Helper: read a float socket value safely
     def sock(name, default=0.0):
         s = node.inputs.get(name)
         return s.default_value if s else default
 
-    base_color  = sock("Base Color", [0.8, 0.8, 0.8, 1.0])
+    # Helper: read a color socket value (returns RGBA list)
+    def sock_color(name, default=None):
+        s = node.inputs.get(name)
+        if s:
+            return s.default_value
+        return list(default) if default else [1.0, 1.0, 1.0, 1.0]
+
+    base_color  = sock_color("Base Color", [0.8, 0.8, 0.8, 1.0])
     albedo      = [round(float(base_color[i]), 6) for i in range(3)]
     metallic    = float(sock("Metallic"))
     roughness   = float(sock("Roughness"))
@@ -118,7 +124,7 @@ def convert_material(mat):
     ior         = float(sock("IOR", 1.45))
 
     # Emission
-    emit_color    = sock("Emission Color", [0.0, 0.0, 0.0, 1.0])
+    emit_color    = sock_color("Emission Color", [0.0, 0.0, 0.0, 1.0])
     emit_strength = float(sock("Emission Strength", 0.0))
 
     # Determine material type
@@ -268,13 +274,13 @@ def process_objects(scene, out_dir):
     """
     Walk all visible MESH objects and return:
       materials_dict  — {name: skewer_material_dict}
-      objects_list    — [skewer_object_dict, ...]
+      graph           — [skewer_graph_node_dict, ...]
     """
     objects_dir = os.path.join(out_dir, "objects")
     os.makedirs(objects_dir, exist_ok=True)
 
     materials_dict = {}
-    objects_list   = []
+    graph          = []
     obj_idx        = 0
 
     for obj in scene.objects:
@@ -304,7 +310,7 @@ def process_objects(scene, out_dir):
             else:
                 materials_dict[mat_name] = convert_material(mat)
 
-        # Build the object entry
+        # Build the graph entry
         if is_sphere(obj):
             entry = _sphere_entry(obj, mat_name)
         elif is_quad(obj):
@@ -319,11 +325,9 @@ def process_objects(scene, out_dir):
                 "auto_fit": False,
             }
 
-        # Preserve Blender object name as a comment for readability
-        entry["comment"] = obj.name
-        objects_list.append(entry)
+        graph.append(entry)
 
-    return materials_dict, objects_list
+    return materials_dict, graph
 
 
 # ---------------------------------------------------------------------------
@@ -375,11 +379,11 @@ def build_render(scene, scene_name):
     """Return a skewer render dict."""
     r = scene.render
     return {
-        "integrator"      : "path_trace",
-        "samples_per_pixel": SAMPLES_PER_PIXEL,
-        "max_depth"       : MAX_DEPTH,
-        "threads"         : NUM_THREADS,
-        "image"           : {
+        "integrator"        : "path_trace",
+        "samples_per_pixel" : SAMPLES_PER_PIXEL,
+        "max_depth"         : MAX_DEPTH,
+        "threads"           : NUM_THREADS,
+        "image"             : {
             "width"  : r.resolution_x,
             "height" : r.resolution_y,
             "outfile": f"images/{scene_name}.png",
@@ -402,7 +406,7 @@ def main():
     print(f"[skewer-export] Scene name       : {SCENE_NAME}")
 
     # --- Gather objects & materials ---
-    materials, objects = process_objects(scene, out_dir)
+    materials, graph = process_objects(scene, out_dir)
 
     # --- Camera ---
     camera = build_camera(scene)
@@ -410,25 +414,34 @@ def main():
     # --- Render ---
     render = build_render(scene, SCENE_NAME)
 
-    # --- Assemble scene.json ---
-    scene_data = {
-        "render"   : render,
-        "camera"   : camera,
+    # --- Write layer.json ---
+    layer_data = {
         "materials": materials,
-        "objects"  : objects,
+        "graph"    : graph,
+        "render"   : render,
     }
+    layer_path = os.path.join(out_dir, "layer.json")
+    with open(layer_path, "w", encoding="utf-8") as f:
+        json.dump(layer_data, f, indent=2)
 
+    # --- Write scene.json manifest ---
+    scene_data = {
+        "camera"    : camera,
+        "layers"    : ["layer.json"],
+        "output_dir": ".",
+    }
     json_path = os.path.join(out_dir, f"{SCENE_NAME}.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(scene_data, f, indent=2)
 
     # --- Summary ---
     print(f"[skewer-export] Written: {json_path}")
+    print(f"[skewer-export] Written: {layer_path}")
     print(f"[skewer-export] Materials : {len(materials)}")
-    print(f"[skewer-export] Objects   : {len(objects)}")
-    n_spheres = sum(1 for o in objects if o["type"] == "sphere")
-    n_quads   = sum(1 for o in objects if o["type"] == "quad")
-    n_objs    = sum(1 for o in objects if o["type"] == "obj")
+    print(f"[skewer-export] Graph nodes: {len(graph)}")
+    n_spheres = sum(1 for o in graph if o["type"] == "sphere")
+    n_quads   = sum(1 for o in graph if o["type"] == "quad")
+    n_objs    = sum(1 for o in graph if o["type"] == "obj")
     print(f"[skewer-export]   spheres={n_spheres}  quads={n_quads}  obj={n_objs}")
     print(
         f"[skewer-export] Render with:\n"
