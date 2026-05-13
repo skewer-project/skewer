@@ -59,7 +59,9 @@ Segments for each pixel are gathered and sorted primarily by `z_front` (and seco
 
 ### Stochastic Epsilon Merging
 Because Monte Carlo path tracing is stochastic, thousands of paths hitting the same physical object will generate segments with very slightly different depth values. Skewer compresses these by merging segments that fall within a 1.5% depth epsilon (`depth_epsilon = std::max(0.01f, std::abs(z_front) * 0.015f)`). 
-*Note: Skewer explicitly prevents merging a hard surface sample with a volumetric sample, preserving depth boundaries.*
+
+!!! note "Different Sample Types"
+    Skewer explicitly prevents merging a hard surface sample with a volumetric sample, preserving depth boundaries.
 
 ### True Opacity & Associated Alpha
 For standard pixels, alpha is just coverage. For Deep EXR, opacity represents the fraction of light paths that were blocked at that specific depth.
