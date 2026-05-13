@@ -1,66 +1,44 @@
 # Skewer & Loom
 
-This repo contains a high-performance, serverless distributed rendering system optimized for Google Cloud Platform.
+A high-performance, serverless distributed rendering system for Google Cloud Platform.
 
-- **`skewer`**: A C++ ray-tracing deep renderer.
-- **`loom`**: A C++ deep compositor for merging layers with accurate transparency.
-- **`orchestration`**: Go-based CLI and Cloud Run Coordinator.
-- **`libs/exrio`**: Shared deep EXR C++ helpers.
-
-## Scene Conversion
-
-Python helpers for working with Blender and Skewer JSON are located in [`scripts/blender/`](scripts/blender/).
-
-## Prerequisites
-
-- **CMake 3.21+**
-- **C++17 compiler** (Clang 17 recommended)
-- **OpenEXR + Imath**
-- **Zlib**
-- **libpng**
-
-### Ubuntu
-```bash
-sudo apt-get update
-sudo apt-get install -y libopenexr-dev libimath-dev zlib1g-dev libpng-dev libgrpc++-dev protobuf-compiler-grpc
-```
-
-### macOS (Homebrew)
-```bash
-brew install openexr libpng grpc
-```
-
-## Build
-
-Use CMake presets from the repo root:
-
-```bash
-# Configure
-cmake --preset release
-
-# Build everything
-cmake --build --preset release --parallel
-
-# Build specific worker
-cmake --build --preset release --target skewer-worker
-```
+- **`skewer/`** — C++ ray-tracing deep renderer
+- **`loom/`** — C++ deep compositor
+- **`orchestration/`** — Go CLI and Cloud Run Coordinator
+- **`libs/exrio/`** — Shared deep EXR helpers
 
 ## Documentation
 
-Comprehensive documentation is available in the [`docs/`](docs/) directory:
+| Guide | Description |
+|---|---|
+| [Installation](docs/getting-started/installation.md) | Dependencies and setup |
+| [Building](docs/getting-started/building.md) | Compile from source with CMake |
+| [Quick Start](docs/getting-started/quick-start.md) | Render your first scene |
+| [Local Development](docs/getting-started/local.md) | Run and test locally |
+| [GCP Deployment](docs/getting-started/gcp.md) | Serverless cloud render farm |
+| [Scene Format](docs/reference/scene-format.md) | Scene JSON specification |
+| [CLI Reference](docs/reference/cli.md) | All command-line options |
+| [Rendering Tips](docs/reference/rendering-tips.md) | Quality and performance |
+| [Animation](docs/reference/animation.md) | Keyframe animation and motion blur |
+| [Mathematical Foundations](docs/reference/math.md) | Rendering math and physics |
+| [Previewer](docs/reference/previewer.md) | Web-based scene editor |
+| [Architecture Overview](docs/developer/overview.md) | System design and data flow |
+| [Skewer Renderer](docs/developer/skewer/architecture.md) | Ray tracer internals |
+| [Loom Compositor](docs/developer/loom/index.md) | Deep compositing algorithm |
+| [API & Coordinator](docs/developer/api/coordinator.md) | HTTP and gRPC APIs |
+| [GKE Deployment (legacy)](docs/legacy/gke.md) | Deprecated Kubernetes setup |
 
-- **[Architecture Overview](docs/architecture/overview.md)**: How the serverless pipeline works.
-- **[GCP Deployment Guide](docs/deployment/gcp.md)**: Step-by-step setup from project creation to first render.
-- **[Local Development](docs/deployment/local.md)**: Setting up a local environment.
-- **[CLI Reference](docs/usage/cli.md)**: Submitting and managing jobs.
+## Scene Conversion
+
+Python helpers for Blender ↔ Skewer conversion are in [`scripts/blender/`](scripts/blender/).
 
 ## Quick Start
 
-1. Follow the [GCP Deployment Guide](docs/deployment/gcp.md) to provision infrastructure
-2. Copy `apps/scene-previewer/.env.example` → `.env` and fill in Firebase credentials
-3. Run `bun install && bun run dev` in `apps/scene-previewer/`
-4. Select a scene folder and click **Render**
+1. Set up dependencies per [Installation](docs/getting-started/installation.md)
+2. Build with CMake: `cmake --preset relwithdebinfo && cmake --build --preset relwithdebinfo --parallel`
+3. Or follow the [GCP Deployment Guide](docs/getting-started/gcp.md) for cloud rendering
+4. Open the [Scene Previewer](apps/scene-previewer/) and render your first scene
 
-## Deployment
+## Infrastructure
 
-The system is designed to run on GCP using **Cloud Run**, **Cloud Workflows**, and **Cloud Batch**. Infrastructure is managed via **Terraform** in `deployments/terraform/`. CI/CD is handled by **Cloud Build** as defined in `deployments/cloudbuild.yaml`.
+Infrastructure is managed via **Terraform** in [`deployments/terraform/`](deployments/terraform/). CI/CD is handled by **Cloud Build** via [`deployments/cloudbuild.yaml`](deployments/cloudbuild.yaml).
