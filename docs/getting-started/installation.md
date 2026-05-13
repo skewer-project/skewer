@@ -18,8 +18,8 @@ git lfs pull
 ## Prerequisites
 
 - CMake 3.21+
-- C++20 compiler (C++17 minimum supported, C++20 recommended)
-- Go 1.21+ (for CLI and coordinator)
+- C++20 compiler (Clang 17+ recommended for best C++20 support; GCC 12+ also supported)
+- Go 1.25+ (for CLI and coordinator)
 - Protocol Buffer compiler (`protoc`)
 - Go protobuf plugin: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`
 - gRPC Go plugin: `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`
