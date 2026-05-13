@@ -1,6 +1,6 @@
 # HTTP API Reference
 
-This document describes the HTTP API layer that clients interact with. The API sits between external clients (CLI, web previewer) and the internal gRPC `CoordinatorService`, providing authentication, rate limiting, ownership enforcement, scene normalization, and signed URL generation.
+This document describes the HTTP API layer that clients interact with. The API sits between external clients (CLI, web previewer) and the internal gRPC `CoordinatorService`, providing authentication, rate limiting, ownership enforcement, scene validation, and signed URL generation.
 
 Located in: `orchestration/internal/api/`
 
@@ -13,7 +13,7 @@ Client ──► HTTP API (Cloud Run) ──► gRPC CoordinatorService ──�
               ├── CORSMiddleware
               ├── EmailLimiter (rate limiting)
               ├── OwnerStore (pipeline ownership)
-              ├── Normalizer (scene/layer normalization)
+              ├── SceneValidator (scene/layer metadata validation)
               ├── URLSigner (V4-signed GCS URLs)
               └── CoordinatorClient (gRPC wrapper)
 ```
@@ -77,7 +77,7 @@ Upload URLs expire after 15 minutes. After uploading, call `/v1/jobs/{id}/submit
 
 ### `POST /v1/jobs/{id}/submit`
 
-Normalizes the uploaded scene bundle and submits it to the coordinator for rendering.
+Validates the uploaded scene bundle and submits it to the coordinator for rendering.
 
 **Requires:** Authenticated request + pipeline ownership. Rate limited (submit bucket).
 
@@ -100,10 +100,11 @@ Normalizes the uploaded scene bundle and submits it to the coordinator for rende
 
 1. Verifies caller owns the pipeline
 2. Reads uploaded `scene.json` and all referenced layer/context files from GCS
-3. Scans layer graphs for keyframe times, writes `animated` flag if missing
-4. Derives `animation` block (start/end from keyframe union, fps=24, shutter_angle=180°) if not already present
-5. Writes normalized files back to GCS
-6. Submits to the coordinator via gRPC
+3. Requires explicit top-level `animation.start`, `animation.end`, positive `animation.fps`, and `animation.shutter_angle` in `(0, 360]`
+4. Requires `animation.end >= animation.start`
+5. Requires every referenced layer/context file to contain an explicit boolean `animated` field
+6. Rejects absolute, traversal, and `gs://` layer/context references
+7. Submits the original uploaded `scene.json` URI to the coordinator via gRPC
 
 **Response:** `200 OK`
 ```json
@@ -290,30 +291,24 @@ store := NewOwnerStore(storageClient, dataBucket)
 
 ## Components
 
-### Scene Normalizer (`Normalizer`)
+### Scene Validator (`SceneValidator`)
 
-Auto-fills animation metadata that the C++ renderer expects but users may omit from their scene files.
+Validates that uploaded bundles already contain the animation metadata expected by the coordinator. It does not rewrite uploaded scene files.
 
 ```go
-normalizer := NewNormalizer(storageClient, dataBucket)
-sceneURI, err := normalizer.Normalize(ctx, uploadPrefix, scenePath)
+validator := NewSceneValidator(storageClient, dataBucket)
+sceneURI, err := validator.Validate(ctx, uploadPrefix, scenePath)
 ```
 
 **What it does:**
 
 1. Downloads `scene.json` from GCS
-2. For each referenced layer and context file:
-   - Scans the `graph` array for nodes with `transform.keyframes`
-   - Collects all `time` values from keyframes
-   - Writes `animated: true` to the layer if any keyframes exist and the field is missing
-3. If the scene has no `animation` block:
-   - Computes `start` and `end` from the union of all keyframe times across all layers
-   - Sets `fps: 24.0` and `shutter_angle: 180.0` as defaults
-   - For static scenes (no keyframes): `start: 0.0, end: 0.0`
-4. Writes the normalized `scene.json` back to GCS
-5. Returns the final `gs://` URI
-
-**Mirrors** the scene previewer's behavior (`apps/scene-previewer/src/services/transform.ts`).
+2. Verifies `layers` is a non-empty string array and `context`, when present, is a string array
+3. Verifies `animation.start`, `animation.end`, `animation.fps`, and `animation.shutter_angle` are numbers
+4. Verifies `animation.fps` is positive, `animation.end >= animation.start`, and `animation.shutter_angle` is in `(0, 360]`
+5. Rejects absolute, traversal, and `gs://` layer/context references before reading referenced objects
+6. Verifies each referenced layer/context JSON has an explicit boolean `animated` field
+7. Returns the original `gs://` URI for the uploaded scene
 
 ---
 
@@ -372,7 +367,7 @@ cfg := api.Config{
     DefaultRenderPrefix:    "renders",         // default
 }
 
-server := api.NewServer(cfg, storageClient, signer, ownerStore, normalizer, coordinatorClient, limiter)
+server := api.NewServer(cfg, storageClient, signer, ownerStore, validator, coordinatorClient, limiter)
 
 mux := http.NewServeMux()
 server.RegisterRoutes(mux)
