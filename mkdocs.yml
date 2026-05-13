@@ -28,6 +28,7 @@ nav:
       - reference/animation.md
       - reference/compositing.md
       - reference/rendering-tips.md
+      - reference/limitations.md
   - Architecture:
       - architecture/overview.md
       - architecture/math.md
