@@ -78,13 +78,13 @@ jobs:
       - name: Test
         run: ctest --preset ci --parallel -E "integration"
 
-      - name: Fetch LFS assets for regen
+      - name: Fetch LFS scene data for regen
         if: >
           github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name == github.repository &&
           contains(github.event.pull_request.labels.*.name, 'regen-goldens')
         run: |
-          git lfs fetch --include="tests/integration/fixtures/golden_images/**,tests/integration/fixtures/golden_scenes/**/*.nvdb"
+          git lfs fetch --include="tests/integration/fixtures/golden_scenes/**/*.nvdb"
           git lfs checkout
 
       - name: Configure golden regeneration
@@ -114,18 +114,17 @@ jobs:
           contains(github.event.pull_request.labels.*.name, 'regen-goldens')
         run: ctest --preset ci -R GoldenImageTest -V
 
-      - name: Upload golden images
+      - name: Upload golden hashes
         if: >
           github.event_name == 'pull_request' &&
           github.event.pull_request.head.repo.full_name == github.repository &&
           contains(github.event.pull_request.labels.*.name, 'regen-goldens')
         uses: actions/upload-artifact@v4
         with:
-          name: golden-images
+          name: golden-regen-results
           if-no-files-found: error
           path: |
-            tests/integration/fixtures/golden_images/*.exr
-            tests/integration/fixtures/golden_images/*.png
+            tests/integration/fixtures/golden_hashes.json
 
       - name: ccache stats
         if: always()
