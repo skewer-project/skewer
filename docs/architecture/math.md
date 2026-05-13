@@ -1,6 +1,9 @@
 # Mathematical and Physical Foundations
 
-This document details the mathematical principles and physics simulations that power the Skewer rendering engine and the Loom deep compositor. Each section explains the theory and points to the exact implementation in our codebase.
+This document outlines the mathematical principles and physics simulations that power the Skewer rendering engine and the Loom deep compositor. Each section explains the theory and points to the exact implementation in our codebase. 
+
+!!! note "Application"
+    The following is an abridged overview. For a more in-depth application of these concepts see [Developer Docs](../developer/index.md).
 
 ---
 
