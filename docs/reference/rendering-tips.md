@@ -253,5 +253,5 @@ Deep EXR stores multiple depth samples per pixel, enabling correct layer composi
 ## See Also
 
 - [Scene Format](scene-format.md) — Complete scene file specification
-- [Compositing](compositing.md) — Layer compositing with loom
+- [Compositing](../developer/loom/index.md) — Layer compositing with loom
 - [Animation](animation.md) — Keyframe animation and motion blur

@@ -603,8 +603,8 @@ A scene with an animated solar system:
 
 - [Rendering Tips](rendering-tips.md) - Best practices for quality and performance
 - [Animation](animation.md) - Keyframe animation and motion blur
-- [Compositing](compositing.md) - Layer compositing with loom
+- [Compositing](../developer/loom/index.md) - Layer compositing with loom
 - [Blender Tools](blender-tools.md) - Converting between Blender and Skewer formats
 - [Previewer](previewer.md) - Visualizing scenes before rendering
 - [CLI Reference](cli.md) - Command-line options
-- [GCP Deployment](../deployment/gcp.md) - Cloud rendering setup
+- [GCP Deployment](../getting-started/gcp.md) - Cloud rendering setup

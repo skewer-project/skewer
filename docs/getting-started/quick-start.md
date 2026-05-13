@@ -63,7 +63,7 @@ Open http://localhost:5173 to view the previewer.
 ## 3. Running a Distributed Render
 
 The easiest way to run a distributed render is through the **Scene Previewer**.
-If you've correctly [setup Google Cloud, Firebase, and the Scene Previewer](../deployment/gcp.md),
+If you've correctly [setup Google Cloud, Firebase, and the Scene Previewer](gcp.md),
 there should be a `Render` button in the **top left corner** of the previewer with a scene open.
 
 ### Check Status
@@ -75,9 +75,9 @@ Click on the Cloud icon on the **top right** of the Scene Previewer to track the
 - [Scene Format](../reference/scene-format.md) - Understanding scene JSON
 - [Rendering Tips](../reference/rendering-tips.md) - Best practices for quality and performance
 - [Animation](../reference/animation.md) - Keyframe animation and motion blur
-- [Compositing](../reference/compositing.md) - Layer compositing with loom
+- [Compositing](../developer/loom/index.md) - Layer compositing with loom
 - [CLI Reference](../reference/cli.md) - Complete CLI documentation
-- [Architecture](../architecture/overview.md) - How the system works
-- [Deployment](../deployment/local.md) - Local cluster setup
-- [GCP Deployment](../deployment/gcp.md) - Cloud rendering setup
+- [Architecture Overview](../developer/overview.md) - How the system works
+- [Local Development](local.md) - Local cluster setup
+- [GCP Deployment](gcp.md) - Cloud rendering setup
 - [GKE Deployment](../legacy/gke.md) - Running on Google Kubernetes Engine

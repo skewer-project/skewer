@@ -49,14 +49,14 @@ cmake --build --preset release --target skewer-worker
 
 Comprehensive documentation is available in the [`docs/`](docs/) directory:
 
-- **[Architecture Overview](docs/architecture/overview.md)**: How the serverless pipeline works.
-- **[GCP Deployment Guide](docs/deployment/gcp.md)**: Step-by-step setup from project creation to first render.
-- **[Local Development](docs/deployment/local.md)**: Setting up a local environment.
+- **[Architecture Overview](docs/developer/overview.md)**: How the serverless pipeline works.
+- **[GCP Deployment Guide](docs/getting-started/gcp.md)**: Step-by-step setup from project creation to first render.
+- **[Local Development](docs/getting-started/local.md)**: Setting up a local environment.
 - **[CLI Reference](docs/reference/cli.md)**: Submitting and managing jobs.
 
 ## Quick Start
 
-1. Follow the [GCP Deployment Guide](docs/deployment/gcp.md) to provision infrastructure
+1. Follow the [GCP Deployment Guide](docs/getting-started/gcp.md) to provision infrastructure
 2. Copy `apps/scene-previewer/.env.example` → `.env` and fill in Firebase credentials
 3. Run `bun install && bun run dev` in `apps/scene-previewer/`
 4. Select a scene folder and click **Render**
