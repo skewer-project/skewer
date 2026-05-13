@@ -9,7 +9,8 @@ This document lists the current limitations with the most recent version of the 
 The Scene Previewer uses the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) (`showDirectoryPicker`, `showOpenFilePicker`) to read and write scene files directly from the local filesystem. This API is only supported in **Chromium-based browsers** (Chrome, Edge).
 
 - **Firefox:** Not supported at all.
-- **Safari 15.4+:** Supported. No known issues.
+- **Safari:** Not supported at all.
+- **Opera 72+:** Supported. No known issues.
 
 ## Scene Camera
 
