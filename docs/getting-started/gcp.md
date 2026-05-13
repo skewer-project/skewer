@@ -331,4 +331,8 @@ If a workflow execution fails with a timeout error after ~30 minutes, this was c
 - [Animation](../reference/animation.md) - Keyframe animation and motion blur
 - [Architecture Overview](../developer/overview.md)
 - [Coordinator Architecture](../developer/api/coordinator.md)
+- [Skewer Renderer](../developer/skewer/architecture.md) — Cloud Batch execution model
+- [Loom Compositor](../developer/loom/index.md) — Compositing pipeline
+- [CLI Reference](../reference/cli.md) — Command-line options
+- [Mathematical Foundations](../reference/math.md) — Rendering math and physics
 - [Local Deployment](local.md)

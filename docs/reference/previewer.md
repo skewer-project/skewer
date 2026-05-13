@@ -118,3 +118,5 @@ Select an object and press `Delete` or `Backspace` to remove it from the scene.
 - [Animation](animation.md) - Keyframe animation and motion blur
 - [Compositing](../developer/loom/index.md) - Layer compositing with loom
 - [CLI Reference](cli.md) - Command-line options
+- [Local Development](../getting-started/local.md) - Running the previewer locally
+- [Architecture Overview](../developer/overview.md) - System design

@@ -118,3 +118,4 @@ A cache key is derived from the layer file content. If the file hasn't changed s
 - [Skewer](skewer/architecture.md) - Renderer architecture and Batch profile
 - [Loom](loom/index.md) - Compositor architecture and algorithm
 - [GCP Deployment](../getting-started/gcp.md) - Infrastructure and Terraform
+- [CLI Reference](../reference/cli.md) - User-facing binaries

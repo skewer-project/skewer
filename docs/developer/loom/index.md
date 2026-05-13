@@ -146,4 +146,6 @@ If a layer produces NaN values in its deep EXR output, the compositor will propa
 - [Architecture Overview](../overview.md) - System-level architecture
 - [Skewer Renderer](../skewer/architecture.md) - The renderer providing the deep EXR inputs
 - [CLI Reference](../../reference/cli.md) - `loom` binary usage
+- [Mathematical Foundations](../../reference/math.md) - Deep compositing math
+- [Scene Format](../../reference/scene-format.md) - Transparent background rendering
 - [GCP Deployment](../../getting-started/gcp.md) - Batch profile configurations

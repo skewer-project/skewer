@@ -89,6 +89,12 @@ If you encounter Apple Silicon build issues, ensure you're using the correct arc
 cmake --preset relwithdebinfo -DCMAKE_OSX_ARCHITECTURE=arm64
 ```
 
+## See Also
+
+- [Local Development](local.md) — Running and testing after building
+- [Quick Start](quick-start.md) — Render your first scene
+- [CLI Reference](../reference/cli.md) — Full command-line documentation
+
 ### Clean rebuild
 
 To perform a clean rebuild:

@@ -28,16 +28,7 @@ The simplest way to render a scene is to run the built binary directly:
 ./build/relwithdebinfo/skewer/skewer-render apps/scene-previewer/public/templates/scene.json
 ```
 
-### Command-Line Options
-
-| Flag        | Description                              |
-| ----------- | ---------------------------------------- |
-| `--scene`   | Path to scene JSON file **\[Required\]** |
-| `--output`  | Output image path (PNG or EXR)           |
-| `--width`   | Override image width                     |
-| `--height`  | Override image height                    |
-| `--samples` | Override max samples per pixel           |
-| `--threads` | Number of render threads (0 = auto)      |
+For all available flags (`--frame`, `--frames`, `--statics-only`), see the [CLI Reference](../reference/cli.md#skewer-render).
 
 ## 2. Using the Scene Previewer
 

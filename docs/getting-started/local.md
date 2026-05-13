@@ -83,3 +83,6 @@ ctest --test-dir build -j$(nproc)
 - [Rendering Tips](../reference/rendering-tips.md) — Best practices for quality and performance
 - [Animation](../reference/animation.md) — Keyframe animation and motion blur
 - [GCP Deployment](gcp.md) — Set up the cloud render farm for distributed rendering
+- [CLI Reference](../reference/cli.md) — Complete CLI documentation
+- [Compositing](../developer/loom/index.md) — Layer compositing with loom
+- [Architecture Overview](../developer/overview.md) — How the system works

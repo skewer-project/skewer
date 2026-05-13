@@ -196,3 +196,6 @@ ctest --preset relwithdebinfo
 - [Rendering Tips](rendering-tips.md) - Best practices for quality and performance
 - [GCP Deployment](../getting-started/gcp.md) - Cloud rendering setup
 - [Local Development](../getting-started/local.md) - Local cluster setup
+- [Architecture Overview](../developer/overview.md) - System design and data flow
+- [Skewer Renderer](../developer/skewer/architecture.md) - Ray tracer internals
+- [Loom Compositor](../developer/loom/index.md) - Deep compositing algorithm

@@ -78,3 +78,9 @@ When building, use the vcpkg toolchain:
 ```bash
 cmake --preset relwithdebinfo -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
 ```
+
+## Next Steps
+
+- [Building](building.md) — Build Skewer from source
+- [Quick Start](quick-start.md) — Render your first scene
+- [Local Development](local.md) — Run and test locally
