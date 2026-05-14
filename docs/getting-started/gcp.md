@@ -95,12 +95,18 @@ Install the following tools before beginning:
 
 ## Step 2: Configure Environment Variables
 
-1. Copy the example file:
+1. Clone the repository and change to the project root:
+   ```bash
+   git clone https://github.com/your-org/skewer.git
+   cd skewer
+   ```
+
+2. Copy the example file:
    ```bash
    cp apps/scene-previewer/.env.example apps/scene-previewer/.env
    ```
 
-2. Open `apps/scene-previewer/.env` and fill in the values from Step 2:
+3. Open `apps/scene-previewer/.env` and fill in the values from Step 2:
    ```
    VITE_API_URL=https://skewer-api-XXXXX.REGION.run.app         # filled in after Step 7
    VITE_FIREBASE_API_KEY=your_api_key                           # from Step 3.3
