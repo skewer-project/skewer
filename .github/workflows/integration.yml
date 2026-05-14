@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       regen_goldens:
-        description: 'Regenerate golden images instead of comparing'
+        description: 'Regenerate golden image hashes instead of comparing'
         type: boolean
         default: false
 
@@ -22,7 +22,9 @@ jobs:
       SKEWER_RUN_GOLDEN: "1"
       SKEWER_GENERATE_GOLDEN: ${{ inputs.regen_goldens == true && 'ON' || 'OFF' }}
       GIT_LFS_SKIP_SMUDGE: "1"
-      LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/**
+      # Only fetch LFS files that are actual render INPUTS (scene data).
+      # Golden image outputs are replaced by a hash manifest (no LFS needed).
+      LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/fixtures/golden_scenes/**/*.nvdb
 
     steps:
       - name: Checkout Repository
@@ -38,9 +40,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .git/lfs
-          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
+          key: ${{ runner.os }}-lfs-integration-${{ hashFiles('.lfs-assets-id') }}
           restore-keys: |
-            ${{ runner.os }}-lfs-
+            ${{ runner.os }}-lfs-integration-
 
       - name: Fetch required LFS assets
         run: |
@@ -92,11 +94,11 @@ jobs:
         if: always()
         run: ccache -s
 
-      - name: Commit regenerated golden images
+      - name: Commit regenerated golden hashes
         if: ${{ inputs.regen_goldens == true }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/integration/fixtures/golden_scenes/
-          git commit -m "regenerate golden images [skip ci]" || echo "no changes"
+          git add tests/integration/fixtures/golden_hashes.json
+          git commit -m "chore: regenerate golden image hashes [skip ci]" || echo "no changes"
           git push

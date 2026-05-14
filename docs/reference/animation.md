@@ -257,4 +257,7 @@ An instance is classified as animated if any node in its transform chain has mor
 
 - [Scene Format](scene-format.md) — Transform and keyframe syntax reference
 - [Rendering Tips](rendering-tips.md) — Motion blur quality and performance tips
-- [Compositing](compositing.md) — Layer compositing with loom
+- [CLI Reference](cli.md) — Command-line options
+- [Mathematical Foundations](math.md) — Interpolation and quaternion math
+- [Compositing](../developer/loom/index.md) — Layer compositing with loom
+- [Architecture Overview](../developer/overview.md) — System design

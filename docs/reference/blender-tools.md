@@ -6,7 +6,7 @@ Skewer provides tools to work with Blender for scene creation and conversion.
 
 Export Blender scenes to Skewer JSON format.
 
-### Usage
+### Reference
 
 1. Open Blender with your scene loaded
 2. Go to the **Scripting** tab
@@ -31,7 +31,7 @@ to the same directory where the .blend file is saved.
 
 Convert Skewer JSON scenes back to Blender `.blend` files.
 
-### Usage
+### Reference
 
 ```bash
 <path-to-blender>/blender --background --python scripts/blender/skewer_to_blend/convert.py -- <scene.json> [output.blend]
