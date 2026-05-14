@@ -307,7 +307,7 @@ After `terraform apply` completes, look for this line in the output:
 api_url = "https://skewer-api-XXXXX.REGION.run.app"
 ```
 
-**Copy this URL** — you'll need it for `.env` in Step 3.
+**Copy this URL** — you'll need it for `.env` in Step 2.
 
 !!! important "Identity Platform Already Enabled"
     If `terraform apply` fails with:
