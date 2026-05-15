@@ -28,7 +28,8 @@ struct IntegratorConfig {
     bool enable_deep = false;
     // When true, primary rays that miss all geometry produce alpha=0 instead of
     // opaque black. Enables clean layer compositing without a black background matte.
-    bool transparent_background = false;
+    bool 
+    transparent_background = false;
 
     // How many surface bounces are checked when deciding if a pixel is "covered"
     // by a visible object. Only meaningful when transparent_background=true.

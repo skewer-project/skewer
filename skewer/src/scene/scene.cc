@@ -42,7 +42,7 @@ void Scene::MergeGraphRoots(std::vector<SceneNode>&& roots) {
     if (roots.empty()) {
         return;
     }
-    if (!graph_root_) {
+    if (!graph_root_) { 
         SceneNode synthetic;
         synthetic.type = NodeType::Group;
         synthetic.children = std::move(roots);
