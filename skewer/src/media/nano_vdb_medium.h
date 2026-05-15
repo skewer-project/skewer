@@ -240,12 +240,11 @@ struct NanoVDBMedium {
         }
     }
 
-    Vec3 GetEffectiveTranslate(float time) const {
+    TRS GetEffectiveTRS(float time) const {
         if (time >= 0.0f && !anim.empty()) {
-            TRS trs = EvaluateTransformChain(anim, time);
-            return translate + trs.translation;
+            return EvaluateTransformChain(anim, time);
         }
-        return translate;
+        return TRS{};
     }
 
     float GetDensity(const Point3& p_world, const NanoVDBAccessor& acc) const {
@@ -253,14 +252,15 @@ struct NanoVDBMedium {
     }
 
     float GetDensity(const Point3& p_world, float time, const NanoVDBAccessor& acc) const {
-        return GetDensity(p_world, GetEffectiveTranslate(time), acc);
+        TRS trs = GetEffectiveTRS(time);
+        return GetDensity(p_world, trs, acc);
     }
 
-    float GetDensity(const Point3& p_world, const Vec3& effective_translate,
+    float GetDensity(const Point3& p_world, const TRS& trs,
                      const NanoVDBAccessor& acc) const {
         if (!float_grid && !fp16_grid) return 0.0f;
 
-        Vec3 p_vdb = ((p_world - effective_translate) * (1.0f / scale)) + vdb_centroid;
+        Vec3 p_vdb = ((TRSInverseApplyPoint(trs, p_world) - translate) * (1.0f / scale)) + vdb_centroid;
         nanovdb::Vec3f p_index;
 
         if (is_fp16) {
@@ -273,8 +273,7 @@ struct NanoVDBMedium {
     }
 
     BoundBox GetWorldBBox(float time) const {
-        Vec3 effective_translate = GetEffectiveTranslate(time);
-        return bbox.Translated(effective_translate - translate);
+        return TransformBounds(GetEffectiveTRS(time), bbox);
     }
 
     Vec3 Center() const { return bbox.Centroid(); }

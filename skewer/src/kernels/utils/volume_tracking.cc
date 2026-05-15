@@ -86,14 +86,14 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, co
     float t = t_min;
     if (!medium.float_grid && !medium.fp16_grid) return Spectrum(1.0f);
     NanoVDBAccessor acc(medium);
-    Vec3 effective_translate = medium.GetEffectiveTranslate(shadow_ray.time());
+    TRS trs = medium.GetEffectiveTRS(shadow_ray.time());
 
     while (true) {
         t += -std::log(std::max(1.0f - rng.UniformFloat(), Numeric::kFloatEpsilon)) / majorant;
         if (t >= t_max) break;
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(shadow_ray.at(t), effective_translate, acc);
+        float density = medium.GetDensity(shadow_ray.at(t), trs, acc);
         Spectrum sigma_t = density * base_sigma_t;
 
         Spectrum null_prob = Spectrum(1.0f) - (sigma_t / majorant);

@@ -177,7 +177,7 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
     int hero_idx = 0;
     float t = t_min;
     NanoVDBAccessor acc(medium);
-    Vec3 effective_translate = medium.GetEffectiveTranslate(r.time());
+    TRS trs = medium.GetEffectiveTRS(r.time());
 
     while (true) {
         float xi_1 = rng.UniformFloat();
@@ -186,7 +186,7 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
         if (t >= t_max) break;
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(r.at(t), effective_translate, acc);
+        float density = medium.GetDensity(r.at(t), trs, acc);
         Spectrum sigma_t = density * base_sigma_t;
         Spectrum sigma_s = density * base_sigma_s;
 
