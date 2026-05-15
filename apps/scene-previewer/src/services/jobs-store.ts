@@ -1,17 +1,5 @@
-import type {
-	CloudJob,
-	CloudJobClientStatus,
-	CloudJobRenderConfig,
-	CloudJobStatus,
-} from "./cloud-job-types";
+import type { CloudJob, CloudJobStatus } from "./cloud-job-types";
 import { CLOUD_JOBS_STORE, openPreviewerDB } from "./previewer-db";
-
-export type {
-	CloudJob,
-	CloudJobClientStatus,
-	CloudJobRenderConfig,
-	CloudJobStatus,
-};
 
 const LEGACY_LS_KEY = "skewer.jobs.v1";
 const MAX_JOBS = 20;
@@ -27,19 +15,12 @@ const terminal: Set<CloudJobStatus> = new Set([
 	"cancelled",
 ]);
 
-const clientOwned: Set<CloudJobStatus> = new Set([
-	"packaging",
-	"uploading-init",
-	"uploading",
-	"submitting",
-]);
-
 function isTerminal(s: CloudJobStatus): boolean {
 	return terminal.has(s);
 }
 
 function sortJobs(list: CloudJob[]): CloudJob[] {
-	return [...list].sort((a, b) => b.createdAt - a.createdAt);
+	return list.toSorted((a, b) => b.createdAt - a.createdAt);
 }
 
 function stripRuntimeFields(j: CloudJob): PersistedCloudJob {
@@ -66,7 +47,7 @@ function pruneList(list: CloudJob[]): CloudJob[] {
 		const drop = terminals.reduce((a, b) =>
 			a.createdAt < b.createdAt ? a : b,
 		);
-		revokeObjectURL(next.find((j) => j.id === drop.id));
+		revokeObjectURL(drop);
 		next = next.filter((j) => j.id !== drop.id);
 	}
 	return next;
@@ -312,8 +293,4 @@ export function isNonTerminalStatus(s: CloudJobStatus): boolean {
 
 export function isTerminalStatus(s: CloudJobStatus): boolean {
 	return isTerminal(s);
-}
-
-export function isClientOwnedStatus(s: CloudJobStatus): boolean {
-	return clientOwned.has(s);
 }

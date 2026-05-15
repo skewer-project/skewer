@@ -18,13 +18,6 @@ import type {
 } from "./cloud-job-types";
 import * as store from "./jobs-store";
 
-export type {
-	CloudJob,
-	CloudJobRenderConfig,
-	CloudJobStatus,
-} from "./cloud-job-types";
-export { isNonTerminalStatus } from "./jobs-store";
-
 const UPLOAD_CONCURRENCY = 8;
 const INITIAL_POLL_MS = 2000;
 const MAX_POLL_MS = 10_000;
@@ -32,6 +25,27 @@ const COMPOSITE_FALLBACK = "frame-0001.png";
 const STITCH_MP4 = "stitched.mp4";
 
 const activePolls = new Map<string, AbortController>();
+
+function buildRenderConfig(scene: ResolvedScene): CloudJobRenderConfig {
+	const { settings, animation } = scene;
+	const fps = animation.fps;
+	const startFrame = Math.round(animation.start * fps);
+	const endFrame = Math.round(animation.end * fps);
+	return {
+		width: settings.image.width,
+		height: settings.image.height,
+		minSamples: settings.min_samples,
+		maxSamples: settings.max_samples,
+		maxDepth: settings.max_depth,
+		integrator: settings.integrator,
+		startTime: animation.start,
+		endTime: animation.end,
+		fps,
+		startFrame,
+		endFrame,
+		isAnimation: fps > 0 && endFrame > startFrame,
+	};
+}
 
 function sleep(ms: number) {
 	return new Promise((r) => setTimeout(r, ms));
@@ -272,7 +286,8 @@ export async function startCloudRender(args: {
 	enableCache?: boolean;
 	renderConfig?: CloudJobRenderConfig;
 }): Promise<void> {
-	const { scene, dir, enableCache = true, renderConfig } = args;
+	const { scene, dir, enableCache = true } = args;
+	const renderConfig = args.renderConfig ?? buildRenderConfig(scene);
 	await ensureSignedIn();
 
 	const localId = `local-${crypto.randomUUID()}`;

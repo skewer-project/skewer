@@ -30,5 +30,5 @@ This section contains older documentation kept for reference. Some content may b
 - [Kebab Format](kebab_format.md)
 - [Changelog Refactor](CHANGELOG_REFACTOR.md)
 
-!!! note "Outdated Content"
+!!! warning "Outdated Content"
     These documents may contain outdated information. Always verify against current code.

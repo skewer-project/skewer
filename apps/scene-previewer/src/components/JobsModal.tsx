@@ -489,12 +489,13 @@ export function JobsModal({
 	const completedCount = counts.done + counts.failed;
 
 	return createPortal(
-		// biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-		// biome-ignore lint/a11y/useKeyWithClickEvents: Escape handled by document listener pattern; backdrop is decorative
-		<div
-			className={j.overlay}
-			onClick={(e) => e.target === e.currentTarget && onClose()}
-		>
+		<div className={j.overlay}>
+			<button
+				type="button"
+				className={j.backdrop}
+				aria-label="Close cloud renders"
+				onClick={onClose}
+			/>
 			<div className={j.modal} role="dialog" aria-label="Cloud renders">
 				<div className={j.header}>
 					<Cloud size={14} aria-hidden style={{ color: "var(--amber)" }} />

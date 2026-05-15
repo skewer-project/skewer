@@ -20,29 +20,26 @@ nav:
       - getting-started/installation.md
       - getting-started/building.md
       - getting-started/quick-start.md
-  - Usage:
-      - usage/cli.md
-      - usage/scene-format.md
-      - usage/blender-tools.md
-      - usage/previewer.md
-      - usage/animation.md
-      - usage/compositing.md
-      - usage/rendering-tips.md
-  - Architecture:
-      - architecture/overview.md
-      - architecture/math.md
-      - architecture/coordinator.md
-      - architecture/skewer.md
-      - architecture/loom.md
-  - API:
-      - Internal Networking (gRPC): api/grpc.md
-      - Middleware: api/http.md
-  - Deployment:
-      - deployment/local.md
-      - deployment/gcp.md
+      - getting-started/local.md
+      - getting-started/gcp.md
+  - Reference:
+      - reference/cli.md
+      - reference/scene-format.md
+      - reference/blender-tools.md
+      - reference/previewer.md
+      - reference/animation.md
+      - reference/rendering-tips.md
+      - reference/limitations.md
+      - reference/math.md
   - Developer Guide:
       - Overview & Onboarding: developer/index.md
+      - Architecture Overview: developer/overview.md
+      - API & Coordinator:
+          - developer/api/http.md
+          - developer/api/grpc.md
+          - developer/api/coordinator.md
       - Skewer (Renderer):
+          - Architecture: developer/skewer/architecture.md
           - The Deep Image System: developer/skewer/deep_data.md
           - accelerators/: developer/skewer/accelerators.md
           - core/: developer/skewer/core.md
@@ -56,7 +53,7 @@ nav:
           - scene/: developer/skewer/scene.md
           - session/: developer/skewer/session.md
       - Loom (Compositor):
-          - Interval Merge: developer/loom/interval_merge.md
+          - Architecture & Algorithm: developer/loom/index.md
   - Legacy: legacy/index.md
 
 extra_javascript:

@@ -76,12 +76,12 @@ export const NumberField = memo(function NumberField({
 	// Derive display value in render: use draft when editing, otherwise formatted prop value
 	const displayValue = isEditing ? draft : format(value);
 
-	const handleFocus = () => {
+	const startNumberEdit = () => {
 		setDraft(format(value));
 		setIsEditing(true);
 	};
 
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const editNumberDraft = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const raw = e.target.value;
 		setDraft(raw);
 		setIsEditing(true);
@@ -89,7 +89,7 @@ export const NumberField = memo(function NumberField({
 		debounceRef.current = setTimeout(() => flush(raw), 150);
 	};
 
-	const handleBlur = () => {
+	const commitNumberDraft = () => {
 		cancelDebounce();
 		flush(draft);
 	};
@@ -149,9 +149,9 @@ export const NumberField = memo(function NumberField({
 			step={step}
 			min={min}
 			max={max}
-			onFocus={handleFocus}
-			onChange={handleChange}
-			onBlur={handleBlur}
+			onFocus={startNumberEdit}
+			onChange={editNumberDraft}
+			onBlur={commitNumberDraft}
 			onKeyDown={handleKeyDown}
 			disabled={disabled}
 		/>
