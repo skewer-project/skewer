@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <memory>
 #include <optional>
 
 #include "core/math/vec3.h"
@@ -117,8 +118,8 @@ struct NanoVDBMedium {
     float max_density = 1.0f;
     float density_multiplier = 1.0f;
 
-    MappedFile mapped_file;
-    nanovdb::GridHandle<> handle;
+    std::shared_ptr<MappedFile> mapped_file;
+    std::shared_ptr<nanovdb::GridHandle<>> handle;
 
     bool is_fp16 = false;
     const nanovdb::FloatGrid* float_grid = nullptr;
@@ -135,20 +136,21 @@ struct NanoVDBMedium {
         if (scale == 0.0f || density_multiplier < 0.0f) return false;
 
         // Memory Map the file (Zero-copy virtual memory loading)
-        if (!mapped_file.Map(filepath)) {
+        mapped_file = std::make_shared<MappedFile>();
+        if (!mapped_file->Map(filepath)) {
             std::cerr << "Failed to mmap NanoVDB: " << filepath << "\n";
             return false;
         }
 
         try {
-            const uint8_t* file_data = static_cast<const uint8_t*>(mapped_file.data());
+            const uint8_t* file_data = static_cast<const uint8_t*>(mapped_file->data());
             const uint8_t* grid_data = nullptr;
 
             // .nvdb files contain a File Header and a Dictionary before the actual Grid.
             // Depending on the exporter, the grid data might not be padded to a 32-byte
             // boundary in the file stream (e.g., Header is 32B + Dict is 48B = 80B offset).
             // Scanning every 8 bytes ensures we don't vault over the magic number.
-            for (size_t offset = 0; offset + sizeof(nanovdb::GridMetaData) <= mapped_file.size();
+            for (size_t offset = 0; offset + sizeof(nanovdb::GridMetaData) <= mapped_file->size();
                  offset += 8) {
                 const uint64_t magic = *reinterpret_cast<const uint64_t*>(file_data + offset);
 
@@ -173,8 +175,8 @@ struct NanoVDBMedium {
             if (reinterpret_cast<uintptr_t>(grid_data) % 32 == 0) {
                 // Zero-copy wrapping
                 auto buffer = nanovdb::HostBuffer::createFull(meta_data->gridSize(),
-                                                              const_cast<uint8_t*>(grid_data));
-                handle = nanovdb::GridHandle<>(std::move(buffer));
+                                                               const_cast<uint8_t*>(grid_data));
+                handle = std::make_shared<nanovdb::GridHandle<>>(std::move(buffer));
             } else {
                 // Fallback Path: The file exporter didn't pad the dictionary.
                 // We MUST allocate an aligned buffer and copy the data to avoid AVX segfaults.
@@ -183,17 +185,17 @@ struct NanoVDBMedium {
 
                 auto buffer = nanovdb::HostBuffer::create(meta_data->gridSize());
                 std::memcpy(buffer.data(), grid_data, meta_data->gridSize());
-                handle = nanovdb::GridHandle<>(std::move(buffer));
+                handle = std::make_shared<nanovdb::GridHandle<>>(std::move(buffer));
             }
 
-            auto* meta = handle.gridMetaData();
+            auto* meta = handle->gridMetaData();
 
             nanovdb::math::BBox<nanovdb::math::Vec3d> vdb_bbox;
 
             // Handle both 32-bit Float and 16-bit Quantized grids
             if (meta->gridType() == nanovdb::GridType::Float) {
                 is_fp16 = false;
-                float_grid = handle.grid<float>();
+                float_grid = handle->grid<float>();
                 vdb_bbox = float_grid->worldBBox();
 
                 float min_val, max_val;
@@ -202,7 +204,7 @@ struct NanoVDBMedium {
 
             } else if (meta->gridType() == nanovdb::GridType::Fp16) {
                 is_fp16 = true;
-                fp16_grid = handle.grid<nanovdb::Fp16>();
+                fp16_grid = handle->grid<nanovdb::Fp16>();
                 vdb_bbox = fp16_grid->worldBBox();
 
                 // Fp16 grids in NanoVDB often use float as their ValueType API
@@ -241,7 +243,7 @@ struct NanoVDBMedium {
     Vec3 GetEffectiveTranslate(float time) const {
         if (time >= 0.0f && !anim.empty()) {
             TRS trs = EvaluateTransformChain(anim, time);
-            return trs.translation;
+            return translate + trs.translation;
         }
         return translate;
     }

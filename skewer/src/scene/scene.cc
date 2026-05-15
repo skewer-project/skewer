@@ -160,7 +160,23 @@ void Scene::ExtractInstancesFromGraph(const SceneNode& node, std::vector<Animate
             if (!node.sphere_data.has_value()) {
                 throw std::runtime_error("Sphere node missing sphere_data");
             }
-            const SphereData& sd = *node.sphere_data;
+            SphereData sd = *node.sphere_data;
+
+            {
+                uint16_t med_index = ExtractMediumIndex(sd.interior_medium);
+                MediumType med_type = ExtractMediumType(sd.interior_medium);
+                if (med_type == MediumType::NanoVDB && med_index < nanovdb_media_.size()) {
+                    NanoVDBMedium& med = nanovdb_media_[med_index];
+                    if (!med.anim.empty()) {
+                        NanoVDBMedium clone = med;
+                        clone.anim = chain;
+                        sd.interior_medium = AddNanoVDBMedium(std::move(clone));
+                    } else {
+                        med.anim = chain;
+                    }
+                }
+            }
+
             if (sd.center_is_world) {
                 TRS w = EvaluateTransformChain(chain, 0.0f);
                 if (!TRSIsIdentity(w)) {
@@ -186,14 +202,6 @@ void Scene::ExtractInstancesFromGraph(const SceneNode& node, std::vector<Animate
                 asphere.local_data = sd;
                 asphere.transform_chain = chain;
                 animated_spheres_.push_back(std::move(asphere));
-            }
-
-            {
-                uint16_t med_index = ExtractMediumIndex(sd.interior_medium);
-                MediumType med_type = ExtractMediumType(sd.interior_medium);
-                if (med_type == MediumType::NanoVDB && med_index < nanovdb_media_.size()) {
-                    nanovdb_media_[med_index].anim = chain;
-                }
             }
             break;
         }

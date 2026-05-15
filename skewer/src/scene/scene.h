@@ -57,7 +57,7 @@ class Scene {
     const std::vector<HomogeneousMedium>& homogeneous_media() const { return homogeneous_media_; }
     const std::vector<GridMedium>& grid_media() const { return grid_media_; }
     const std::vector<NanoVDBMedium>& nanovdb_media() const { return nanovdb_media_; }
-    std::vector<NanoVDBMedium>& nanovdb_media() { return nanovdb_media_; }
+    NanoVDBMedium& GetMutableNanoVDBMedium(uint16_t index) { return nanovdb_media_[index]; }
     const float& InvLightCount() const { return inv_light_count_; }
 
     void SetShutter(float open, float close) {
