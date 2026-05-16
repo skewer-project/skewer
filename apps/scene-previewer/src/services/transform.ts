@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type {
 	AnimatedTransform,
+	Camera,
+	CameraKeyframe,
 	InterpCurve,
 	Keyframe,
 	NodeTransform,
@@ -22,6 +24,17 @@ interface ResolvedKeyframe {
 	translate: Vec3;
 	rotate: Vec3;
 	scale: Vec3;
+	curve?: InterpCurve;
+}
+
+interface ResolvedCameraKeyframe {
+	time: number;
+	look_from: Vec3;
+	look_at: Vec3;
+	vup: Vec3;
+	vfov: number;
+	aperture_radius: number;
+	focus_distance: number;
 	curve?: InterpCurve;
 }
 
@@ -156,6 +169,58 @@ function buildResolvedKeyframes(keyframes: Keyframe[]): ResolvedKeyframe[] {
 	return out;
 }
 
+function buildResolvedCameraKeyframes(
+	camera: Camera,
+	keyframes: CameraKeyframe[],
+): ResolvedCameraKeyframe[] {
+	const sortedKfs = keyframes.toSorted((a, b) => a.time - b.time);
+	let lookFrom: Vec3 = [...camera.look_from] as Vec3;
+	let lookAt: Vec3 = [...camera.look_at] as Vec3;
+	let vup: Vec3 = [...camera.vup] as Vec3;
+	let vfov = camera.vfov;
+	let apertureRadius = camera.aperture_radius;
+	let focusDistance = camera.focus_distance;
+	const out: ResolvedCameraKeyframe[] = [];
+
+	for (const kf of sortedKfs) {
+		if (kf.look_from) lookFrom = [...kf.look_from] as Vec3;
+		if (kf.look_at) lookAt = [...kf.look_at] as Vec3;
+		if (kf.vup) vup = [...kf.vup] as Vec3;
+		if (kf.vfov !== undefined) vfov = kf.vfov;
+		if (kf.aperture_radius !== undefined) apertureRadius = kf.aperture_radius;
+		if (kf.focus_distance !== undefined) focusDistance = kf.focus_distance;
+		out.push({
+			time: kf.time,
+			look_from: [...lookFrom] as Vec3,
+			look_at: [...lookAt] as Vec3,
+			vup: [...vup] as Vec3,
+			vfov,
+			aperture_radius: apertureRadius,
+			focus_distance: focusDistance,
+			curve: kf.curve,
+		});
+	}
+
+	return out;
+}
+
+function cameraFromResolved(
+	camera: Camera,
+	resolved: ResolvedCameraKeyframe,
+	keyframes: CameraKeyframe[],
+): Camera {
+	return {
+		...camera,
+		look_from: [...resolved.look_from] as Vec3,
+		look_at: [...resolved.look_at] as Vec3,
+		vup: [...resolved.vup] as Vec3,
+		vfov: resolved.vfov,
+		aperture_radius: resolved.aperture_radius,
+		focus_distance: resolved.focus_distance,
+		keyframes,
+	};
+}
+
 function resolvedToStatic(k: ResolvedKeyframe): StaticTransform {
 	const out: StaticTransform = {
 		translate: [...k.translate] as Vec3,
@@ -224,6 +289,55 @@ export function evaluateTransformAt(
 	localU = Math.min(1, Math.max(0, localU));
 	const alpha = evaluateBezierEasing(k1.curve, localU);
 	return interpolateResolved(k0, k1, alpha);
+}
+
+export function cameraHasKeyframes(camera: Camera): boolean {
+	return (camera.keyframes?.length ?? 0) > 0;
+}
+
+export function evaluateCameraAt(camera: Camera, time: number): Camera {
+	const keyframes = camera.keyframes;
+	if (!keyframes || keyframes.length === 0) {
+		return { ...camera };
+	}
+
+	const sorted = buildResolvedCameraKeyframes(camera, keyframes);
+	if (sorted.length === 1) {
+		return cameraFromResolved(camera, sorted[0], keyframes);
+	}
+
+	const first = sorted[0];
+	const last = sorted[sorted.length - 1];
+	if (time <= first.time) {
+		return cameraFromResolved(camera, first, keyframes);
+	}
+	if (time >= last.time) {
+		return cameraFromResolved(camera, last, keyframes);
+	}
+
+	const hi = sorted.findIndex((k) => k.time > time);
+	const i = hi - 1;
+	const k0 = sorted[i];
+	const k1 = sorted[i + 1];
+	const dt = k1.time - k0.time;
+	if (dt <= 1e-20) {
+		return cameraFromResolved(camera, k1, keyframes);
+	}
+
+	const localU = Math.min(1, Math.max(0, (time - k0.time) / dt));
+	const alpha = evaluateBezierEasing(k1.curve, localU);
+	return {
+		...camera,
+		look_from: lerpVec3(k0.look_from, k1.look_from, alpha),
+		look_at: lerpVec3(k0.look_at, k1.look_at, alpha),
+		vup: lerpVec3(k0.vup, k1.vup, alpha),
+		vfov: k0.vfov + (k1.vfov - k0.vfov) * alpha,
+		aperture_radius:
+			k0.aperture_radius + (k1.aperture_radius - k0.aperture_radius) * alpha,
+		focus_distance:
+			k0.focus_distance + (k1.focus_distance - k0.focus_distance) * alpha,
+		keyframes,
+	};
 }
 
 const KEYFRAME_TIME_MATCH_EPS = 1e-4;

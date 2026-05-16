@@ -67,6 +67,10 @@ The top-level file that orchestrates a render:
   "vfov": 60,
   "aperture_radius": 0.05,
   "focus_distance": 5.0,
+  "keyframes": [
+    { "time": 0.0, "look_from": [0, 2, 5] },
+    { "time": 2.0, "look_from": [3, 2, 5], "focus_distance": 3.0, "curve": "ease-in-out" }
+  ],
   "shutter_open": 0.0,
   "shutter_close": 0.1
 }
@@ -80,6 +84,7 @@ The top-level file that orchestrates a render:
 | `vfov`            | float | `90`        | Vertical field of view in degrees                                                   |
 | `aperture_radius` | float | `0`         | Lens aperture radius. `0` = no depth of field; >0 enables DOF with `focus_distance` |
 | `focus_distance`  | float | `1.0`       | Distance from camera that is in focus (meaningful when `aperture_radius > 0`)       |
+| `keyframes`       | array | —           | Optional camera animation keyframes                                                 |
 | `shutter_open`    | float | `0`         | Time when shutter opens (animation time units). Non-zero enables motion blur        |
 | `shutter_close`   | float | `0`         | Time when shutter closes. If equal to `shutter_open`, no motion blur                |
 
@@ -89,6 +94,11 @@ The top-level file that orchestrates a render:
 
 !!!important
     **Do not** set `shutter_open` and `shutter_close` for animated scenes. Instead, define the `shutter_angle` property in the [animation configuration](#animation).
+
+Camera keyframes are patch-based. Omitted fields carry forward from the previous camera keyframe,
+seeded by the static camera fields. The animatable fields are `look_from`, `look_at`, `vup`,
+`vfov`, `aperture_radius`, and `focus_distance`. When `camera.keyframes` has more than one entry,
+all layers are frame-varying because the view changes even if the layer geometry is static.
 
 ## Layer/Context Files
 

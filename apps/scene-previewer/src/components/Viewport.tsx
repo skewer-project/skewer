@@ -23,7 +23,11 @@ import {
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
-import { evaluateTransformAt } from "../services/transform";
+import {
+	cameraHasKeyframes,
+	evaluateCameraAt,
+	evaluateTransformAt,
+} from "../services/transform";
 import type {
 	Material,
 	ResolvedScene,
@@ -47,8 +51,9 @@ function syncOrbitCameraToScene(
 	cam: THREE.PerspectiveCamera,
 	ctrl: OrbitControls,
 	sceneData: ResolvedScene,
+	time = 0,
 ) {
-	const c = sceneData.camera;
+	const c = evaluateCameraAt(sceneData.camera, time);
 	cam.fov = c.vfov;
 	cam.position.set(...c.look_from);
 	ctrl.target.set(...c.look_at);
@@ -264,7 +269,7 @@ export function Viewport({
 				const cam = camera.current;
 				const ctrl = controls.current;
 				if (!currentScene || !cam || !ctrl) return;
-				syncOrbitCameraToScene(cam, ctrl, currentScene);
+				syncOrbitCameraToScene(cam, ctrl, currentScene, currentTimeRef.current);
 			},
 			applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
 				const sc = threeScene.current;
@@ -611,7 +616,7 @@ export function Viewport({
 		const isNewScene = dirHandle !== prevDirHandle.current;
 		prevDirHandle.current = dirHandle;
 		if (isNewScene) {
-			syncOrbitCameraToScene(cam, ctrl, currentScene);
+			syncOrbitCameraToScene(cam, ctrl, currentScene, currentTimeRef.current);
 		}
 
 		if (
@@ -881,6 +886,12 @@ export function Viewport({
 		const grp = sceneGroup.current;
 		const currentScene = scene;
 		if (!grp || !currentScene) return;
+
+		const cam = camera.current;
+		const ctrl = controls.current;
+		if (cam && ctrl && cameraHasKeyframes(currentScene.camera)) {
+			syncOrbitCameraToScene(cam, ctrl, currentScene, currentTime);
+		}
 
 		const proxy = gizmoProxy.current;
 		const isDragging = isDraggingRef.current;

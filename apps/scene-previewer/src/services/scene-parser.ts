@@ -5,6 +5,7 @@ import type {
 	AnimatedTransform,
 	Animation,
 	Camera,
+	CameraKeyframe,
 	DielectricMaterial,
 	ImageConfig,
 	InterpCurve,
@@ -81,7 +82,7 @@ function stemFromPath(path: string): string {
 
 function parseCamera(json: unknown): Camera {
 	if (!isObject(json)) throw new Error("camera: expected object");
-	return {
+	const camera: Camera = {
 		look_from: parseVec3(json.look_from, "camera.look_from"),
 		look_at: parseVec3(json.look_at, "camera.look_at"),
 		vup: parseVec3OrDefault(json.vup, "camera.vup", [0, 1, 0]),
@@ -97,6 +98,38 @@ function parseCamera(json: unknown): Camera {
 				? num(json.shutter_close, "camera.shutter_close", 0)
 				: undefined,
 	};
+	if (json.keyframes !== undefined) {
+		if (!Array.isArray(json.keyframes)) {
+			throw new Error("camera.keyframes: expected array");
+		}
+		if (json.keyframes.length < 1) {
+			throw new Error("camera.keyframes: expected at least one keyframe");
+		}
+		camera.keyframes = json.keyframes.map((kf, i) =>
+			parseCameraKeyframe(kf, `camera.keyframes[${i}]`),
+		);
+	}
+	return camera;
+}
+
+function parseCameraKeyframe(json: unknown, field: string): CameraKeyframe {
+	if (!isObject(json)) throw new Error(`${field}: expected object`);
+	const kf: CameraKeyframe = {
+		time: num(json.time, `${field}.time`),
+	};
+	if (json.look_from !== undefined)
+		kf.look_from = parseVec3(json.look_from, `${field}.look_from`);
+	if (json.look_at !== undefined)
+		kf.look_at = parseVec3(json.look_at, `${field}.look_at`);
+	if (json.vup !== undefined) kf.vup = parseVec3(json.vup, `${field}.vup`);
+	if (json.vfov !== undefined) kf.vfov = num(json.vfov, `${field}.vfov`);
+	if (json.aperture_radius !== undefined)
+		kf.aperture_radius = num(json.aperture_radius, `${field}.aperture_radius`);
+	if (json.focus_distance !== undefined)
+		kf.focus_distance = num(json.focus_distance, `${field}.focus_distance`);
+	if (json.curve !== undefined)
+		kf.curve = parseInterpCurve(json.curve, `${field}.curve`);
+	return kf;
 }
 
 // --- Materials ---
