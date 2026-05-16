@@ -23,11 +23,7 @@ import {
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
-import {
-	cameraHasKeyframes,
-	evaluateCameraAt,
-	evaluateTransformAt,
-} from "../services/transform";
+import { evaluateCameraAt, evaluateTransformAt } from "../services/transform";
 import type {
 	CameraHandle,
 	Material,
@@ -438,10 +434,6 @@ export function Viewport({
 		sceneVersion: number | null;
 	}>({ dirHandle: null, sceneVersion: null });
 
-	// Track previous dirHandle to distinguish a new scene load from a sceneVersion bump
-	const prevDirHandle = useRef<FileSystemDirectoryHandle | null | undefined>(
-		undefined,
-	);
 	const latestSceneRef = useRef(scene);
 	useEffect(() => {
 		latestSceneRef.current = scene;
@@ -829,17 +821,7 @@ export function Viewport({
 		if (!currentScene || !dirHandle) return;
 
 		const sc = threeScene.current;
-		const cam = camera.current;
-		const ctrl = controls.current;
-		if (!sc || !cam || !ctrl) return;
-
-		// Only reset the camera when a new scene is loaded (dirHandle changed),
-		// not on sceneVersion bumps — otherwise edits reset the viewport angle.
-		const isNewScene = dirHandle !== prevDirHandle.current;
-		prevDirHandle.current = dirHandle;
-		if (isNewScene) {
-			syncOrbitCameraToScene(cam, ctrl, currentScene, currentTimeRef.current);
-		}
+		if (!sc) return;
 
 		if (
 			lastBuild.current.dirHandle === dirHandle &&
@@ -1157,12 +1139,6 @@ export function Viewport({
 		const grp = sceneGroup.current;
 		const currentScene = scene;
 		if (!grp || !currentScene) return;
-
-		const cam = camera.current;
-		const ctrl = controls.current;
-		if (cam && ctrl && cameraHasKeyframes(currentScene.camera)) {
-			syncOrbitCameraToScene(cam, ctrl, currentScene, currentTime);
-		}
 
 		const proxy = gizmoProxy.current;
 		const isDragging = isDraggingRef.current;
