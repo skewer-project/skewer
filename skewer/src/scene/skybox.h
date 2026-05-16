@@ -63,35 +63,47 @@ class Skybox {
     bool Sample(const Ray& ray, float t_min, float t_max, SkyboxSample* out) const {
         if (!IsValid()) return false;
 
+        // near_t and far_t represent the parametric distances along the ray 
+        // where it enters and exits the skybox.
         float near_t = -std::numeric_limits<float>::max();
         float far_t = std::numeric_limits<float>::max();
 
         // Find the intersection of the ray with the skybox
+        // Treats each dimension as its own
         for (int axis = 0; axis < 3; ++axis) {
             const float inv_d = ray.inv_direction()[axis];
+            // t0,t1 represent time hitting axis min or max based on ray dir
             float t0 = (min_[axis] - ray.origin()[axis]) * inv_d;
             float t1 = (max_[axis] - ray.origin()[axis]) * inv_d;
-            if (inv_d < 0.0f) {
+            if (inv_d < 0.0f) { //swap values if ray is going in neg direction
                 float tmp = t0;
                 t0 = t1;
                 t1 = tmp;
             }
             near_t = std::fmax(near_t, t0);
             far_t = std::fmin(far_t, t1);
-            if (far_t < near_t) return false;
+            if (far_t < near_t) return false; // No intersection with the skybox
         }
 
+        // Check if the intersection points are within the valid t range for the ray.
+        // Far_t is the general hit point. 
+        // If the ray is outside the box, then near_t will be greater than t_min and we want to use that instead.
         const float hit_t = near_t >= t_min ? near_t : far_t;
+    
         if (hit_t < t_min || hit_t > t_max) return false;
 
         SkyboxSample sample;
         sample.t = hit_t;
+
+        //actual point of itersection
         const Vec3 p = ray.at(hit_t);
         sample.face = PickFace(p);
+
         // Compute the UV coordinates for the hit point on the skybox face.
         FaceUV(sample.face, p, &sample.u, &sample.v);
 
         const ImageTexture& texture = faces_[FaceIndex(sample.face)];
+
         // Get the color from the texture with u and v and clamped to the edge.
         sample.color = texture.IsValid()
                            ? texture.Sample(sample.u, sample.v, TextureWrapMode::Clamp)
@@ -115,7 +127,8 @@ class Skybox {
                 face = candidate;
             }
         };
-
+        
+        // Checks for each face by comparing the distance of the point to the corresponding plane of the skybox.
         consider(SkyboxFace::NegX, std::fabs(p.x() - min_.x()));
         consider(SkyboxFace::PosY, std::fabs(p.y() - max_.y()));
         consider(SkyboxFace::NegY, std::fabs(p.y() - min_.y()));
@@ -132,20 +145,20 @@ class Skybox {
 
         switch (face) {
             case SkyboxFace::PosX:
-                *u = (max_.z() - p.z()) / dz;
+                *u = (p.z() - min_.z()) / dz;
                 *v = (p.y() - min_.y()) / dy;
                 break;
             case SkyboxFace::NegX:
-                *u = (p.z() - min_.z()) / dz;
+                *u = (max_.z() - p.z()) / dz;
                 *v = (p.y() - min_.y()) / dy;
                 break;
             case SkyboxFace::PosY:
                 *u = (p.x() - min_.x()) / dx;
-                *v = (max_.z() - p.z()) / dz;
+                *v = (p.z() - min_.z()) / dz;
                 break;
             case SkyboxFace::NegY:
                 *u = (p.x() - min_.x()) / dx;
-                *v = (p.z() - min_.z()) / dz;
+                *v = (max_.z() - p.z()) / dz;
                 break;
             case SkyboxFace::PosZ:
                 *u = (p.x() - min_.x()) / dx;
