@@ -60,7 +60,8 @@ class Scene {
     const std::vector<GridMedium>& grid_media() const { return grid_media_; }
     const std::vector<NanoVDBMedium>& nanovdb_media() const { return nanovdb_media_; }
     const float& InvLightCount() const { return inv_light_count_; }
-    void SetSkybox(Skybox skybox) { skybox_ = std::move(skybox); }
+    void SetSkybox(const Skybox& skybox) { skybox_ = skybox; }
+    void SetSkybox(Skybox&& skybox) { skybox_ = std::move(skybox); }
     bool HasSkybox() const { return skybox_.has_value() && skybox_->IsValid(); }
     bool SampleSkybox(const Ray& r, float t_min, float t_max, SkyboxSample* sample) const;
 
