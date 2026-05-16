@@ -186,6 +186,7 @@ function updateCameraRig(
 		.clone()
 		.sub(up.clone().multiplyScalar(halfHeight))
 		.sub(right.clone().multiplyScalar(halfWidth));
+	const cameraFrame = new THREE.Matrix4().makeBasis(right, up, forward);
 
 	const fromHandle = handleByName(rig, "look_from");
 	const atHandle = handleByName(rig, "look_at");
@@ -200,6 +201,7 @@ function updateCameraRig(
 	}
 	if (atHandle) {
 		atHandle.position.copy(lookAt);
+		atHandle.quaternion.setFromRotationMatrix(cameraFrame);
 		atHandle.scale.setScalar(selectedHandle === "look_at" ? 1.35 : 1);
 		(atHandle.material as THREE.MeshBasicMaterial).color.setHex(
 			selectedHandle === "look_at" ? CAMERA_SELECTED_COLOR : CAMERA_AT_COLOR,
@@ -1120,7 +1122,7 @@ export function Viewport({
 		if (!handle) return;
 
 		tctrl.setMode("translate");
-		tctrl.setSpace("world");
+		tctrl.setSpace(selectedCameraHandle === "look_at" ? "local" : "world");
 		tctrl.attach(handle);
 
 		const onDraggingChanged = (event: THREE.Event & { value: unknown }) => {
