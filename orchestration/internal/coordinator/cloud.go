@@ -113,8 +113,11 @@ type layerDescriptor struct {
 // minimalSceneJSON is the minimal subset of scene.json parsed by the coordinator.
 // It mirrors the keys in the C++ SceneConfig / LoadSceneFile.
 type minimalSceneJSON struct {
-	Layers    []string `json:"layers"`
-	Context   []string `json:"context"`
+	Layers  []string `json:"layers"`
+	Context []string `json:"context"`
+	Camera  *struct {
+		Keyframes []map[string]any `json:"keyframes"`
+	} `json:"camera"`
 	Animation *struct {
 		Start        float64 `json:"start"`
 		End          float64 `json:"end"`
@@ -153,6 +156,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 			numFrames = int(math.Round(dur * a.FPS))
 		}
 	}
+	cameraAnimated := sceneJSON.Camera != nil && len(sceneJSON.Camera.Keyframes) > 1
 
 	// Resolve layer URIs relative to the scene URI.
 	sceneBase := gcsURIDir(req.SceneUri)
@@ -173,7 +177,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		}
 
 		mode := "static"
-		if animated {
+		if animated || cameraAnimated {
 			mode = "animated"
 		}
 
