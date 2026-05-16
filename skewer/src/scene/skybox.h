@@ -155,11 +155,11 @@ class Skybox {
                 break;
             case SkyboxFace::PosY:
                 *u = (p.x() - min_.x()) / dx;
-                *v = (p.z() - min_.z()) / dz;
+                *v = (max_.z() - p.z()) / dz;
                 break;
             case SkyboxFace::NegY:
                 *u = (p.x() - min_.x()) / dx;
-                *v = (max_.z() - p.z()) / dz;
+                *v = (p.z() - min_.z()) / dz;
                 break;
             case SkyboxFace::PosZ:
                 *u = (max_.x() - p.x()) / dx;
