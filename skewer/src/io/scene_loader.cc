@@ -1,5 +1,6 @@
 #include "io/scene_loader.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -8,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "core/cpu_config.h"
@@ -62,6 +64,92 @@ static Vec3 GetVec3Or(const json& j, const std::string& key, const Vec3& default
         return ParseVec3(j[key]);
     }
     return default_value;
+}
+
+static void ValidateCameraState(const CameraState& state, const std::string& filepath) {
+    if (!(state.vfov > 0.0f)) {
+        throw std::runtime_error("camera.vfov must be positive in: " + filepath);
+    }
+    if (!(state.focus_distance > 0.0f)) {
+        throw std::runtime_error("camera.focus_distance must be positive in: " + filepath);
+    }
+    if (state.aperture_radius < 0.0f) {
+        throw std::runtime_error("camera.aperture_radius must be non-negative in: " + filepath);
+    }
+}
+
+static void PatchCameraFields(const json& j, CameraState& state) {
+    if (j.contains("look_from")) {
+        state.look_from = ParseVec3(j["look_from"]);
+    }
+    if (j.contains("look_at")) {
+        state.look_at = ParseVec3(j["look_at"]);
+    }
+    if (j.contains("vup")) {
+        state.vup = ParseVec3(j["vup"]);
+    }
+    if (j.contains("vfov")) {
+        state.vfov = j["vfov"].get<float>();
+    }
+    if (j.contains("aperture_radius")) {
+        state.aperture_radius = j["aperture_radius"].get<float>();
+    }
+    if (j.contains("focus_distance")) {
+        state.focus_distance = j["focus_distance"].get<float>();
+    }
+}
+
+static CameraTimeline ParseCameraTimelineJson(const json& cam, const std::string& filepath) {
+    CameraTimeline timeline;
+    timeline.base.look_from = ParseVec3(cam.at("look_from"));
+    timeline.base.look_at = ParseVec3(cam.at("look_at"));
+    timeline.base.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
+    timeline.base.vfov = GetOr(cam, "vfov", 90.0f);
+    timeline.base.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
+    timeline.base.focus_distance = GetOr(cam, "focus_distance", 1.0f);
+    ValidateCameraState(timeline.base, filepath);
+
+    if (!cam.contains("keyframes")) {
+        return timeline;
+    }
+
+    const auto& kfs = cam.at("keyframes");
+    if (!kfs.is_array() || kfs.empty()) {
+        throw std::runtime_error("camera.keyframes must be a non-empty array in: " + filepath);
+    }
+
+    std::vector<json> sorted_kfs;
+    sorted_kfs.reserve(kfs.size());
+    for (const auto& kf : kfs) {
+        if (!kf.is_object()) {
+            throw std::runtime_error("camera.keyframes entries must be objects in: " + filepath);
+        }
+        if (!kf.contains("time") || !kf["time"].is_number()) {
+            throw std::runtime_error("camera.keyframes entries must contain numeric time in: " +
+                                     filepath);
+        }
+        sorted_kfs.push_back(kf);
+    }
+    std::sort(sorted_kfs.begin(), sorted_kfs.end(), [](const json& a, const json& b) {
+        return a.at("time").get<float>() < b.at("time").get<float>();
+    });
+
+    CameraState cur = timeline.base;
+    for (const auto& kf : sorted_kfs) {
+        CameraKeyframe key;
+        key.time = kf.at("time").get<float>();
+        PatchCameraFields(kf, cur);
+        ValidateCameraState(cur, filepath);
+        key.state = cur;
+        if (kf.contains("curve")) {
+            key.curve = ParseCurveJson(kf["curve"]);
+        } else {
+            key.curve = ParseCurveJson(json("linear"));
+        }
+        timeline.keyframes.push_back(std::move(key));
+    }
+    timeline.SortKeyframes();
+    return timeline;
 }
 
 static RGB GetRGBOr(const json& j, const std::string& key, const RGB& default_value) {
@@ -516,12 +604,13 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
 
     // Parse camera
     const auto& cam = j["camera"];
-    config.look_from = ParseVec3(cam.at("look_from"));
-    config.look_at = ParseVec3(cam.at("look_at"));
-    config.vup = GetVec3Or(cam, "vup", Vec3(0.0f, 1.0f, 0.0f));
-    config.vfov = GetOr(cam, "vfov", 90.0f);
-    config.aperture_radius = GetOr(cam, "aperture_radius", 0.0f);
-    config.focus_distance = GetOr(cam, "focus_distance", 1.0f);
+    config.camera_timeline = ParseCameraTimelineJson(cam, filepath);
+    config.look_from = config.camera_timeline.base.look_from;
+    config.look_at = config.camera_timeline.base.look_at;
+    config.vup = config.camera_timeline.base.vup;
+    config.vfov = config.camera_timeline.base.vfov;
+    config.aperture_radius = config.camera_timeline.base.aperture_radius;
+    config.focus_distance = config.camera_timeline.base.focus_distance;
     config.shutter_open = GetOr(cam, "shutter_open", 0.0f);
     config.shutter_close = GetOr(cam, "shutter_close", 0.0f);
 

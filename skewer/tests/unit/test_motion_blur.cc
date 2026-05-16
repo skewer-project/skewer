@@ -36,6 +36,62 @@ TEST(MotionBlur, CameraZeroShutterAllRaysSameTime) {
     }
 }
 
+TEST(CameraAnimation, TimelineCarriesForwardAndInterpolatesOptics) {
+    CameraTimeline timeline;
+    timeline.base.look_from = Vec3(0.0f, 0.0f, 0.0f);
+    timeline.base.look_at = Vec3(0.0f, 0.0f, -1.0f);
+    timeline.base.vup = Vec3(0.0f, 1.0f, 0.0f);
+    timeline.base.vfov = 40.0f;
+    timeline.base.aperture_radius = 0.1f;
+    timeline.base.focus_distance = 2.0f;
+
+    CameraKeyframe k0;
+    k0.time = 0.0f;
+    k0.state = timeline.base;
+    CameraKeyframe k1;
+    k1.time = 2.0f;
+    k1.state = k0.state;
+    k1.state.look_from = Vec3(4.0f, 0.0f, 0.0f);
+    k1.state.aperture_radius = 0.5f;
+    k1.state.focus_distance = 6.0f;
+    timeline.keyframes = {k0, k1};
+
+    CameraState mid = timeline.Evaluate(1.0f);
+    EXPECT_NEAR(mid.look_from.x(), 2.0f, 1e-5f);
+    EXPECT_NEAR(mid.look_at.z(), -1.0f, 1e-5f);
+    EXPECT_NEAR(mid.aperture_radius, 0.3f, 1e-5f);
+    EXPECT_NEAR(mid.focus_distance, 4.0f, 1e-5f);
+}
+
+TEST(CameraAnimation, RayOriginUsesPoseAtSampledTime) {
+    CameraTimeline timeline;
+    timeline.base.look_from = Vec3(0.0f, 0.0f, 0.0f);
+    timeline.base.look_at = Vec3(0.0f, 0.0f, -1.0f);
+    timeline.base.vup = Vec3(0.0f, 1.0f, 0.0f);
+    timeline.base.vfov = 60.0f;
+    timeline.base.aperture_radius = 0.0f;
+    timeline.base.focus_distance = 1.0f;
+
+    CameraKeyframe k0;
+    k0.time = 0.0f;
+    k0.state = timeline.base;
+    CameraKeyframe k1;
+    k1.time = 1.0f;
+    k1.state = k0.state;
+    k1.state.look_from = Vec3(10.0f, 0.0f, 0.0f);
+    k1.state.look_at = Vec3(10.0f, 0.0f, -1.0f);
+    timeline.keyframes = {k0, k1};
+
+    Camera cam(timeline, 1.0f, 0.0f, 1.0f);
+    RNG rng(0, 123);
+    Vec3 cam_forward;
+    Ray r = cam.GetRay(0.5f, 0.5f, rng, &cam_forward);
+
+    EXPECT_GT(r.origin().x(), 0.0f);
+    EXPECT_LT(r.origin().x(), 10.0f);
+    EXPECT_NEAR(cam_forward.z(), -1.0f, 1e-4f);
+}
+
 TEST(MotionBlur, TRSInverseApplyRoundTripPoint) {
     TRS trs =
         TRSFromEuler(Vec3(1.0f, 2.0f, 3.0f), Vec3(10.0f, 20.0f, 30.0f), Vec3(2.0f, 2.0f, 2.0f));

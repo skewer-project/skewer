@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "core/math/vec3.h"
+#include "scene/camera.h"
 #include "session/render_options.h"
 
 namespace skwr {
@@ -63,6 +64,7 @@ struct SceneConfig {
     float focus_distance = 1.0f;
     float shutter_open = 0.0f;
     float shutter_close = 0.0f;
+    CameraTimeline camera_timeline;
 
     // Context layer paths (resolved to absolute paths)
     std::vector<std::string> context_paths;

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "film/film.h"
+#include "scene/camera.h"
 #include "session/render_options.h"
 
 /*
@@ -88,6 +89,7 @@ class RenderSession {
     float cam_focus_dist_ = 1.0f;
     float cam_shutter_open_ = 0.0f;
     float cam_shutter_close_ = 0.0f;
+    CameraTimeline cam_timeline_;
 };
 
 }  // namespace skwr

@@ -86,6 +86,62 @@ TEST(GraphJson, ParseAnimatedTransformKeyframes) {
     EXPECT_NEAR(mid.translation.x(), 0.5f, 1e-5f);
 }
 
+TEST(SceneLoader, ParseCameraKeyframes) {
+    std::filesystem::path p =
+        std::filesystem::temp_directory_path() / "skewer_ut_camera_keyframes_scene.json";
+    {
+        std::ofstream out(p);
+        out << R"({
+  "camera": {
+    "look_from": [0, 0, 4],
+    "look_at": [0, 0, 0],
+    "vup": [0, 1, 0],
+    "vfov": 50,
+    "aperture_radius": 0.1,
+    "focus_distance": 4,
+    "keyframes": [
+      { "time": 0, "look_from": [0, 0, 4] },
+      { "time": 2, "look_from": [2, 0, 4], "focus_distance": 8, "aperture_radius": 0.5 }
+    ]
+  },
+  "animation": { "start": 0, "end": 2, "fps": 24, "shutter_angle": 180 },
+  "layers": ["layer.json"]
+})";
+    }
+
+    SceneConfig config = LoadSceneFile(p.string());
+    ASSERT_EQ(config.camera_timeline.keyframes.size(), 2u);
+    EXPECT_TRUE(config.camera_timeline.IsAnimated());
+    CameraState mid = config.camera_timeline.Evaluate(1.0f);
+    EXPECT_NEAR(mid.look_from.x(), 1.0f, 1e-5f);
+    EXPECT_NEAR(mid.look_at.z(), 0.0f, 1e-5f);
+    EXPECT_NEAR(mid.focus_distance, 6.0f, 1e-5f);
+    EXPECT_NEAR(mid.aperture_radius, 0.3f, 1e-5f);
+    std::filesystem::remove(p);
+}
+
+TEST(SceneLoader, RejectInvalidCameraKeyframeOptics) {
+    std::filesystem::path p =
+        std::filesystem::temp_directory_path() / "skewer_ut_bad_camera_keyframes_scene.json";
+    {
+        std::ofstream out(p);
+        out << R"({
+  "camera": {
+    "look_from": [0, 0, 4],
+    "look_at": [0, 0, 0],
+    "keyframes": [
+      { "time": 0 },
+      { "time": 1, "aperture_radius": -1 }
+    ]
+  },
+  "layers": ["layer.json"]
+})";
+    }
+
+    EXPECT_THROW(LoadSceneFile(p.string()), std::runtime_error);
+    std::filesystem::remove(p);
+}
+
 TEST(SceneGraph, LoadLayerQuadFromFile) {
     std::filesystem::path p =
         std::filesystem::temp_directory_path() / "skewer_ut_scene_graph_layer.json";

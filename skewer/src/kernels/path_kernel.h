@@ -1,6 +1,7 @@
 #ifndef SKWR_KERNELS_PATH_KERNEL_H_
 #define SKWR_KERNELS_PATH_KERNEL_H_
 
+#include "core/math/vec3.h"
 #include "core/spectral/spectrum.h"
 #include "film/sample_writer.h"
 
@@ -12,7 +13,7 @@ class RNG;
 struct IntegratorConfig;
 
 void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
-        const SampledWavelengths& wl, SampleWriter& writer);
+        const Vec3& primary_cam_w, const SampledWavelengths& wl, SampleWriter& writer);
 
 }  // namespace skwr
 
