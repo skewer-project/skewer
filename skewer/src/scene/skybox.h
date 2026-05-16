@@ -116,24 +116,25 @@ class Skybox {
   private:
     static size_t FaceIndex(SkyboxFace face) { return static_cast<size_t>(face); }
 
+    // Helper to get closest face
+    static void ConsiderFace(SkyboxFace candidate, float distance, SkyboxFace* face, float* best) {
+        if (distance < *best) {
+            *best = distance;
+            *face = candidate;
+        }
+    }
+
     /// Pick the face of the skybox that a point is on.
     SkyboxFace PickFace(const Vec3& p) const {
         SkyboxFace face = SkyboxFace::PosX;
         float best = std::fabs(p.x() - max_.x());
-
-        auto consider = [&](SkyboxFace candidate, float distance) {
-            if (distance < best) {
-                best = distance;
-                face = candidate;
-            }
-        };
         
         // Checks for each face by comparing the distance of the point to the corresponding plane of the skybox.
-        consider(SkyboxFace::NegX, std::fabs(p.x() - min_.x()));
-        consider(SkyboxFace::PosY, std::fabs(p.y() - max_.y()));
-        consider(SkyboxFace::NegY, std::fabs(p.y() - min_.y()));
-        consider(SkyboxFace::PosZ, std::fabs(p.z() - max_.z()));
-        consider(SkyboxFace::NegZ, std::fabs(p.z() - min_.z()));
+        ConsiderFace(SkyboxFace::NegX, std::fabs(p.x() - min_.x()), &face, &best);
+        ConsiderFace(SkyboxFace::PosY, std::fabs(p.y() - max_.y()), &face, &best);
+        ConsiderFace(SkyboxFace::NegY, std::fabs(p.y() - min_.y()), &face, &best);
+        ConsiderFace(SkyboxFace::PosZ, std::fabs(p.z() - max_.z()), &face, &best);
+        ConsiderFace(SkyboxFace::NegZ, std::fabs(p.z() - min_.z()), &face, &best);
         return face;
     }
 
@@ -161,11 +162,11 @@ class Skybox {
                 *v = (max_.z() - p.z()) / dz;
                 break;
             case SkyboxFace::PosZ:
-                *u = (p.x() - min_.x()) / dx;
+                *u = (max_.x() - p.x()) / dx;
                 *v = (p.y() - min_.y()) / dy;
                 break;
             case SkyboxFace::NegZ:
-                *u = (max_.x() - p.x()) / dx;
+                *u = (p.x() - min_.x()) / dx;
                 *v = (p.y() - min_.y()) / dy;
                 break;
         }
