@@ -160,9 +160,9 @@ function updateCameraRig(
 	forward.normalize();
 	if (forward.lengthSq() < 1e-12) forward.set(0, 0, -1);
 
-	let right = new THREE.Vector3().crossVectors(forward, upHint).normalize();
+	let right = new THREE.Vector3().crossVectors(upHint, forward).normalize();
 	if (right.lengthSq() < 1e-12) right = new THREE.Vector3(1, 0, 0);
-	const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+	const up = new THREE.Vector3().crossVectors(forward, right).normalize();
 
 	const halfHeight =
 		Math.tan(THREE.MathUtils.degToRad(cam.vfov) * 0.5) * planeDistance;
