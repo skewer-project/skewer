@@ -3,6 +3,8 @@
 
 export type Vec3 = [number, number, number];
 
+export type CameraHandle = "look_from" | "look_at";
+
 export type InterpCurve =
 	| "linear"
 	| "ease-in"

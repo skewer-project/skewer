@@ -6,6 +6,30 @@
 	margin-bottom: 2px;
 }
 
+.cameraHandleRow {
+	width: 100%;
+	margin: 0;
+	padding: 1px 4px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: transparent;
+	text-align: left;
+	font: inherit;
+	cursor: pointer;
+	transition:
+		background 0.12s,
+		border-color 0.12s;
+}
+
+.cameraHandleRow:hover {
+	background: rgba(255, 255, 255, 0.055);
+}
+
+.cameraHandleRowActive {
+	background: rgba(232, 165, 60, 0.12);
+	border-color: rgba(232, 165, 60, 0.34);
+}
+
 .sceneTreeSummary {
 	display: flex;
 	align-items: center;
