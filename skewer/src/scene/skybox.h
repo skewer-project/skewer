@@ -63,7 +63,7 @@ class Skybox {
     bool Sample(const Ray& ray, float t_min, float t_max, SkyboxSample* out) const {
         if (!IsValid()) return false;
 
-        // near_t and far_t represent the parametric distances along the ray 
+        // near_t and far_t represent the parametric distances along the ray
         // where it enters and exits the skybox.
         float near_t = -std::numeric_limits<float>::max();
         float far_t = std::numeric_limits<float>::max();
@@ -75,27 +75,28 @@ class Skybox {
             // t0,t1 represent time hitting axis min or max based on ray dir
             float t0 = (min_[axis] - ray.origin()[axis]) * inv_d;
             float t1 = (max_[axis] - ray.origin()[axis]) * inv_d;
-            if (inv_d < 0.0f) { //swap values if ray is going in neg direction
+            if (inv_d < 0.0f) {  // swap values if ray is going in neg direction
                 float tmp = t0;
                 t0 = t1;
                 t1 = tmp;
             }
             near_t = std::fmax(near_t, t0);
             far_t = std::fmin(far_t, t1);
-            if (far_t < near_t) return false; // No intersection with the skybox
+            if (far_t < near_t) return false;  // No intersection with the skybox
         }
 
         // Check if the intersection points are within the valid t range for the ray.
-        // Far_t is the general hit point. 
-        // If the ray is outside the box, then near_t will be greater than t_min and we want to use that instead.
+        // Far_t is the general hit point.
+        // If the ray is outside the box, then near_t will be greater than t_min and we want to use
+        // that instead.
         const float hit_t = near_t >= t_min ? near_t : far_t;
-    
+
         if (hit_t < t_min || hit_t > t_max) return false;
 
         SkyboxSample sample;
         sample.t = hit_t;
 
-        //actual point of itersection
+        // actual point of itersection
         const Vec3 p = ray.at(hit_t);
         sample.face = PickFace(p);
 
@@ -128,8 +129,9 @@ class Skybox {
     SkyboxFace PickFace(const Vec3& p) const {
         SkyboxFace face = SkyboxFace::PosX;
         float best = std::fabs(p.x() - max_.x());
-        
-        // Checks for each face by comparing the distance of the point to the corresponding plane of the skybox.
+
+        // Checks for each face by comparing the distance of the point to the corresponding plane of
+        // the skybox.
         ConsiderFace(SkyboxFace::NegX, std::fabs(p.x() - min_.x()), &face, &best);
         ConsiderFace(SkyboxFace::PosY, std::fabs(p.y() - max_.y()), &face, &best);
         ConsiderFace(SkyboxFace::NegY, std::fabs(p.y() - min_.y()), &face, &best);

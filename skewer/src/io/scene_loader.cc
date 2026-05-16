@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-backgrssssssssssssss#include <utility>
+#include <utility>
 #include <vector>
 
 #include "core/cpu_config.h"
@@ -495,6 +495,9 @@ static SkyboxFace ParseSkyboxFaceKey(const std::string& key) {
 static Skybox ParseSkybox(const json& j, const std::string& scene_dir) {
     Skybox skybox;
 
+    // Depending on if the user sets size, it will make max and min the size
+    // User can also just set the min and max directly.
+    // (Max and min might not be needed))
     if (j.contains("center") || j.contains("size")) {
         if (!j.contains("center") || !j.contains("size")) {
             throw std::runtime_error("skybox requires both 'center' and 'size'");
