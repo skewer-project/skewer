@@ -111,6 +111,18 @@ resource "google_cloud_run_v2_service" "coordinator" {
         value = tostring(var.loom_batch_max_retry_count)
       }
       env {
+        name  = "LOOM_BATCH_FRAMES_PER_TASK"
+        value = tostring(var.loom_batch_frames_per_task)
+      }
+      env {
+        name  = "LOOM_FRAME_PARALLELISM"
+        value = tostring(var.loom_frame_parallelism)
+      }
+      env {
+        name  = "LOOM_BATCH_PARALLELISM"
+        value = tostring(var.loom_batch_parallelism)
+      }
+      env {
         name  = "VPC_NETWORK"
         value = google_compute_network.skewer.self_link
       }
