@@ -175,7 +175,7 @@ struct NanoVDBMedium {
             if (reinterpret_cast<uintptr_t>(grid_data) % 32 == 0) {
                 // Zero-copy wrapping
                 auto buffer = nanovdb::HostBuffer::createFull(meta_data->gridSize(),
-                                                               const_cast<uint8_t*>(grid_data));
+                                                              const_cast<uint8_t*>(grid_data));
                 handle = std::make_shared<nanovdb::GridHandle<>>(std::move(buffer));
             } else {
                 // Fallback Path: The file exporter didn't pad the dictionary.
@@ -256,11 +256,11 @@ struct NanoVDBMedium {
         return GetDensity(p_world, trs, acc);
     }
 
-    float GetDensity(const Point3& p_world, const TRS& trs,
-                     const NanoVDBAccessor& acc) const {
+    float GetDensity(const Point3& p_world, const TRS& trs, const NanoVDBAccessor& acc) const {
         if (!float_grid && !fp16_grid) return 0.0f;
 
-        Vec3 p_vdb = ((TRSInverseApplyPoint(trs, p_world) - translate) * (1.0f / scale)) + vdb_centroid;
+        Vec3 p_vdb =
+            ((TRSInverseApplyPoint(trs, p_world) - translate) * (1.0f / scale)) + vdb_centroid;
         nanovdb::Vec3f p_index;
 
         if (is_fp16) {
@@ -272,9 +272,7 @@ struct NanoVDBMedium {
         return acc.GetValue(p_index) * density_multiplier;
     }
 
-    BoundBox GetWorldBBox(float time) const {
-        return TransformBounds(GetEffectiveTRS(time), bbox);
-    }
+    BoundBox GetWorldBBox(float time) const { return TransformBounds(GetEffectiveTRS(time), bbox); }
 
     Vec3 Center() const { return bbox.Centroid(); }
     float BoundingRadius() const {
