@@ -7,7 +7,6 @@
 #include "core/math/quat.h"
 #include "core/math/utils.h"
 #include "core/math/vec3.h"
-#include "geometry/boundbox.h"
 
 namespace skwr {
 
@@ -72,20 +71,6 @@ inline Vec3 TRSApplyNormal(const TRS& trs, const Vec3& n) {
 inline bool TRSIsUniformScale(const TRS& trs, float eps = 1e-5f) {
     float sx = trs.scale.x(), sy = trs.scale.y(), sz = trs.scale.z();
     return std::fabs(sx - sy) <= eps && std::fabs(sy - sz) <= eps;
-}
-
-inline BoundBox TransformBounds(const TRS& trs, const BoundBox& local) {
-    BoundBox world;
-    const Point3& mn = local.min();
-    const Point3& mx = local.max();
-    for (int i = 0; i < 8; ++i) {
-        float x = (i & 1) ? mx.x() : mn.x();
-        float y = (i & 2) ? mx.y() : mn.y();
-        float z = (i & 4) ? mx.z() : mn.z();
-        world.Expand(TRSApplyPoint(trs, Point3(x, y, z)));
-    }
-    world.PadToMinimums();
-    return world;
 }
 
 inline bool TRSIsIdentity(const TRS& trs) {
