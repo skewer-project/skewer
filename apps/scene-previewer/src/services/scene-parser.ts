@@ -173,6 +173,10 @@ function parseMedium(name: string, json: unknown): Medium {
 					json.translate !== undefined
 						? parseVec3(json.translate, `medium "${name}".translate`)
 						: undefined,
+				rotate:
+					json.rotate !== undefined
+						? parseVec3(json.rotate, `medium "${name}".rotate`)
+						: undefined,
 				file: str(json.file, `medium "${name}".file`),
 			} satisfies NanoVDBMedium;
 		default:
@@ -581,11 +585,12 @@ export async function loadScene(
 				if (bounds) {
 					const scale = med.scale ?? 1.0;
 					const translate = med.translate ?? [0, 0, 0];
+					const rotate = med.rotate ?? [0, 0, 0];
 					node.center = [0, 0, 0];
 					node.radius = bounds.radius;
 					node.transform = {
 						translate: translate,
-						rotate: [0, 0, 0],
+						rotate: rotate,
 						scale: scale,
 					};
 				}
@@ -603,6 +608,5 @@ export async function loadScene(
 			await Promise.all(layer.data.graph.map((node) => syncNode(node, media)));
 		}),
 	);
-
 	return resolvedScene;
 }
