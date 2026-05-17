@@ -6,6 +6,7 @@ import {
 	serializeSceneManifest,
 } from "./scene-serializer";
 
+
 export type SceneDeltaOperation = "update" | "add" | "delete";
 
 export interface SceneDelta {
@@ -135,6 +136,7 @@ function deleteJsonPointer(root: unknown, path: string): unknown {
 	return root;
 }
 
+// Prune empty objects and arrays from serialization output to reduce noise in diffs
 function diffJson(
 	filePath: string,
 	jsonPath: string,
@@ -143,6 +145,7 @@ function diffJson(
 	out: SceneDelta[],
 ) {
 	if (isDeepEqual(oldValue, newValue)) return;
+	// Simple case for complex values that would produce noisy diffs (vectors); treat as atomic
 	if (shouldBundleValue(oldValue, newValue)) {
 		out.push({
 			operation: "update",
@@ -154,6 +157,8 @@ function diffJson(
 		return;
 	}
 
+
+	// Handle array additions and deletions in singe operations to preserve element identity in diffs
 	if (Array.isArray(oldValue) && Array.isArray(newValue)) {
 		const prefixLength = commonPrefixLength(oldValue, newValue);
 		const suffixLength = commonSuffixLength(oldValue, newValue, prefixLength);
@@ -162,6 +167,7 @@ function diffJson(
 			newValue.length === oldValue.length + 1 &&
 			prefixLength + suffixLength === oldValue.length
 		) {
+			// 
 			out.push({
 				operation: "add",
 				filePath,
@@ -183,7 +189,10 @@ function diffJson(
 			});
 			return;
 		}
+	
 
+		//? Might need to check for if there is a better way for saving array diffs
+		// Currently a bit messy, but I don't think we have array diffs
 		const length = Math.min(oldValue.length, newValue.length);
 		for (let i = 0; i < length; i++) {
 			diffJson(filePath, childPath(jsonPath, i), oldValue[i], newValue[i], out);
@@ -207,6 +216,9 @@ function diffJson(
 		return;
 	}
 
+
+	// Recurse into objects, but treat additions and deletions of entire objects 
+	// as atomic to preserve property identity in diffs
 	if (isObject(oldValue) && isObject(newValue)) {
 		const oldKeys = new Set(Object.keys(oldValue));
 		const newKeys = new Set(Object.keys(newValue));
@@ -250,6 +262,7 @@ function diffJson(
 	});
 }
 
+// Array comparison helper
 function commonPrefixLength(a: unknown[], b: unknown[]): number {
 	const length = Math.min(a.length, b.length);
 	let i = 0;
@@ -257,6 +270,7 @@ function commonPrefixLength(a: unknown[], b: unknown[]): number {
 	return i;
 }
 
+// Array comparison helper
 function commonSuffixLength(
 	a: unknown[],
 	b: unknown[],
@@ -292,6 +306,7 @@ export function serializeSceneFiles(scene: ResolvedScene): SerializedSceneFiles 
 	return files;
 }
 
+// Not currently used, but could be useful for implementing a "Save As" feature in the future
 export function diffSceneFiles(
 	before: SerializedSceneFiles,
 	after: SerializedSceneFiles,
@@ -335,6 +350,7 @@ export function buildHistoryEntry(
 	return { label, deltas, createdAt: Date.now() };
 }
 
+// Applied all deltas per undo history in reverse order to restore previous scene state
 export function applyUndoEntry(
 	scene: ResolvedScene,
 	entry: SceneHistoryEntry,
@@ -342,9 +358,11 @@ export function applyUndoEntry(
 	const files = serializeSceneFiles(scene);
 	for (let i = entry.deltas.length - 1; i >= 0; i--) {
 		const delta = entry.deltas[i];
+		// Case undefined for when file gets added
 		let root = files.has(delta.filePath)
 			? cloneJson(files.get(delta.filePath))
 			: undefined;
+
 		if (delta.operation === "update") {
 			root = setJsonPointer(root, delta.jsonPath, delta.oldValue);
 			files.set(delta.filePath, root);
@@ -360,6 +378,8 @@ export function applyUndoEntry(
 	return hydrateSceneFiles(files, scene.settings);
 }
 
+// Combining differences that are not too far apart in time\
+// Noise reduction
 export function canCoalesceHistoryEntries(
 	previous: SceneHistoryEntry,
 	next: SceneHistoryEntry,
@@ -396,6 +416,8 @@ function deltaKey(delta: SceneDelta): string {
 	return `${delta.operation}:${delta.filePath}:${delta.jsonPath}`;
 }
 
+
+// Returns either specific json 
 function hydrateSceneFiles(
 	files: SerializedSceneFiles,
 	fallbackSettings = DEFAULT_RENDER_CONFIG,
