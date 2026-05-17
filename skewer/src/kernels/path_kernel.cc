@@ -134,7 +134,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 float cos = Dot(r.direction(), si.n_geom);
                 if (cos < 0.0f) {  // Entering the interior medium
                     if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {
-                        r.vol_stack().Push(si.interior_medium, si.priority);
+                        r.vol_stack().Push(si.interior_medium, si.priority, si.nano_vdb_trs);
                     }
                 } else {  // Exiting the interior medium
                     if (si.interior_medium != kVacuumMediumId && si.interior_medium != 0) {

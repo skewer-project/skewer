@@ -157,10 +157,10 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
 }
 
 bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                   Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl) {
+                   Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl, TRS trs) {
     float t_min_box = 0.0f;
     float t_max_box = MathConstants::kFloatInfinity;
-    BoundBox wbbox = medium.GetWorldBBox(r.time());
+    BoundBox wbbox = medium.GetWorldBBox(trs);
     if (!wbbox.IntersectP(r, t_min_box, t_max_box)) return false;
 
     float t_min = std::max(0.0f, t_min_box);
@@ -177,7 +177,6 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
     int hero_idx = 0;
     float t = t_min;
     NanoVDBAccessor acc(medium);
-    TRS trs = medium.GetEffectiveTRS(r.time());
 
     while (true) {
         float xi_1 = rng.UniformFloat();
