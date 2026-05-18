@@ -37,6 +37,13 @@ import {
 	subscribe as subscribeJobs,
 } from "./services/jobs-store";
 import { addRecentScene } from "./services/recent-scenes";
+import {
+	applyUndoEntry,
+	buildHistoryEntry,
+	canCoalesceHistoryEntries,
+	coalesceHistoryEntries,
+	type SceneHistoryEntry,
+} from "./services/scene-history";
 import { saveScene } from "./services/scene-serializer";
 import {
 	applyStaticTransformToAnimatedAtTime,
@@ -169,6 +176,19 @@ function App() {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const viewportRef = useRef<ViewportHandle>(null);
 	const animRangeRef = useRef({ start: 0, end: 0 });
+	const undoStackRef = useRef<SceneHistoryEntry[]>([]);
+
+	// adds onto stack and combines similar entries to avoid noise
+	const pushUndoEntry = useCallback((entry: SceneHistoryEntry) => {
+		const stack = undoStackRef.current;
+		const previous = stack[stack.length - 1];
+		if (previous && canCoalesceHistoryEntries(previous, entry)) {
+			stack[stack.length - 1] = coalesceHistoryEntries(previous, entry);
+			return;
+		}
+		stack.push(entry);
+		if (stack.length > 100) stack.shift();
+	}, []);
 
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
 		setSceneSettings(s);
@@ -181,19 +201,24 @@ function App() {
 		setHasUnsavedChanges(false);
 		setCurrentTime(0);
 		setIsPlaying(false);
+		undoStackRef.current = [];
 		addRecentScene(dir.name, dir);
 	}
 
-	/** Update scene data without triggering a full Three.js rebuild. */
+	// Update scene data without triggering a full rebuild. 
 	const handleSceneEdit = useCallback(
 		(updater: (s: ResolvedScene) => ResolvedScene) => {
 			setScene((prev) => {
 				if (!prev) return prev;
+				const next = updater(prev);
+				const entry = buildHistoryEntry(prev, next, "Scene edit");
+				if (!entry) return prev;
+				pushUndoEntry(entry);
 				setHasUnsavedChanges(true);
-				return updater(prev);
+				return next;
 			});
 		},
-		[],
+		[pushUndoEntry],
 	);
 
 	const updateAnimation = useCallback(
@@ -232,6 +257,57 @@ function App() {
 			setSaving(false);
 		}
 	}
+
+	// pops edit stack and resolve minor inconsistencies 
+	// like selected keys that no longer exist after undo
+	const undoLastSceneEdit = useEffectEvent(() => {
+		if (!scene) return false;
+		const entry = undoStackRef.current.pop();
+		if (!entry) return false;
+		try {
+			const next = applyUndoEntry(scene, entry);
+			setScene(next);
+			setHasUnsavedChanges(true);
+			setSceneVersion((v) => v + 1);
+			setSelectedObjectKey((key) =>
+				key && resolveNodeAtPath(next, key) ? key : null,
+			);
+			setSelectedMaterialKey((key) => {
+				if (!key) return null;
+				const parts = key.split(":");
+				const tag = parts[0];
+				const layerIdx = Number(parts[1]);
+				const matName = parts.slice(3).join(":");
+				const list = tag === "ctx" ? next.contexts : next.layers;
+				return list[layerIdx]?.data.materials[matName] ? key : null;
+			});
+			setSelectedMediumKey((key) => {
+				if (!key) return null;
+				const parts = key.split(":");
+				const tag = parts[0];
+				const layerIdx = Number(parts[1]);
+				const medName = parts.slice(3).join(":");
+				const list = tag === "ctx" ? next.contexts : next.layers;
+				return list[layerIdx]?.data.media?.[medName] ? key : null;
+			});
+			return true;
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+			return false;
+		}
+	});
+
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.shiftKey || event.key.toLowerCase() !== "z") return;
+			if (!event.metaKey && !event.ctrlKey) return;
+			if (isEditableTarget(event.target)) return;
+			if (!undoLastSceneEdit()) return;
+			event.preventDefault();
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
 
 	const handleKeyframeMove = useCallback(
 		(trackKey: string, oldTime: number, newTime: number) => {
@@ -447,7 +523,9 @@ function App() {
 		setDirHandle(null);
 		setSelectedObjectKey(null);
 		setSelectedMaterialKey(null);
+		setSelectedMediumKey(null);
 		setHasUnsavedChanges(false);
+		undoStackRef.current = [];
 		setError("");
 	}
 
