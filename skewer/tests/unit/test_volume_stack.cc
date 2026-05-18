@@ -48,7 +48,9 @@ TEST(VolumeStackTRS, PopRestoresParentTRS) {
     // trs1 should be active again
     EXPECT_EQ(vs.GetActiveMedium(), 1);
     EXPECT_NEAR(vs.GetActiveTRS().translation.x(), 1.0f, 1e-6f);
-    EXPECT_TRUE(TRSIsIdentity(vs.GetActiveTRS()));  // trs2 should be gone
+    // After Pop, trs1 should be active again (NOT identity — trs1 has non-zero translation).
+    // Verify that trs2's y-translation is gone:
+    EXPECT_NEAR(vs.GetActiveTRS().translation.y(), 0.0f, 1e-6f);
 }
 
 TEST(VolumeStackTRS, PopNonExistentDoesNotCorruptStack) {
