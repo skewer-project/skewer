@@ -3,14 +3,17 @@
 cd "$(dirname "$0")/.." || exit
 
 # Try uvx first, then pipx, then fall back to manual install
-if command -v uv &> /dev/null; then
+if command -v clang-format &> /dev/null; then
+    CLANG_FMT="clang-format"
+    echo "Using system/Homebrew clang-format... ($(which clang-format))"
+elif command -v uv &> /dev/null; then
     CLANG_FMT="uvx clang-format>=21"
     echo "Using uvx for clang-format..."
 elif command -v pipx &> /dev/null; then
     CLANG_FMT="pipx run clang-format>=21"
     echo "Using pipx for clang-format..."
+# Fall back to manual local python install
 else
-    # Fall back to manual install
     CLANG_FMT_DIR="./scripts/clang-format"
     if [ ! -d "$CLANG_FMT_DIR" ]; then
         echo "Installing clang-format locally..."
