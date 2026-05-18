@@ -12,7 +12,8 @@ TEST(VolumeStackTRS, GetActiveTRSEmptyStackReturnsIdentity) {
 
 TEST(VolumeStackTRS, PushSetsActiveTRS) {
     VolumeStack vs;
-    TRS trs = TRSFromEuler(Vec3(1.0f, 2.0f, 3.0f), Vec3(10.0f, 20.0f, 30.0f), Vec3(2.0f, 2.0f, 2.0f));
+    TRS trs =
+        TRSFromEuler(Vec3(1.0f, 2.0f, 3.0f), Vec3(10.0f, 20.0f, 30.0f), Vec3(2.0f, 2.0f, 2.0f));
     vs.Push(1, 10, trs);
     EXPECT_EQ(vs.GetActiveMedium(), 1);
     EXPECT_NEAR(vs.GetActiveTRS().translation.x(), 1.0f, 1e-6f);
