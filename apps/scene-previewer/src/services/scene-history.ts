@@ -1,11 +1,7 @@
 import type { ResolvedLayer, ResolvedScene } from "../types/scene";
 import { DEFAULT_RENDER_CONFIG } from "../types/scene";
 import { parseLayerData, parseSceneManifest } from "./scene-parser";
-import {
-	serializeLayerData,
-	serializeSceneManifest,
-} from "./scene-serializer";
-
+import { serializeLayerData, serializeSceneManifest } from "./scene-serializer";
 
 export type SceneDeltaOperation = "update" | "add" | "delete";
 
@@ -58,8 +54,7 @@ function isVec3Object(value: unknown): boolean {
 
 function shouldBundleValue(a: unknown, b: unknown): boolean {
 	return (
-		(isVec3Array(a) && isVec3Array(b)) ||
-		(isVec3Object(a) && isVec3Object(b))
+		(isVec3Array(a) && isVec3Array(b)) || (isVec3Object(a) && isVec3Object(b))
 	);
 }
 
@@ -110,7 +105,11 @@ function setJsonPointer(root: unknown, path: string, value: unknown): unknown {
 	return root;
 }
 
-function insertJsonPointer(root: unknown, path: string, value: unknown): unknown {
+function insertJsonPointer(
+	root: unknown,
+	path: string,
+	value: unknown,
+): unknown {
 	if (path === "") return cloneJson(value);
 	const { parent, key } = getParentAndKey(root, path);
 	if (Array.isArray(parent)) {
@@ -157,7 +156,6 @@ function diffJson(
 		return;
 	}
 
-
 	// Handle array additions and deletions in singe operations to preserve element identity in diffs
 	if (Array.isArray(oldValue) && Array.isArray(newValue)) {
 		const prefixLength = commonPrefixLength(oldValue, newValue);
@@ -167,7 +165,7 @@ function diffJson(
 			newValue.length === oldValue.length + 1 &&
 			prefixLength + suffixLength === oldValue.length
 		) {
-			// 
+			//
 			out.push({
 				operation: "add",
 				filePath,
@@ -189,7 +187,6 @@ function diffJson(
 			});
 			return;
 		}
-	
 
 		//? Might need to check for if there is a better way for saving array diffs
 		// Currently a bit messy, but I don't think we have array diffs
@@ -216,8 +213,7 @@ function diffJson(
 		return;
 	}
 
-
-	// Recurse into objects, but treat additions and deletions of entire objects 
+	// Recurse into objects, but treat additions and deletions of entire objects
 	// as atomic to preserve property identity in diffs
 	if (isObject(oldValue) && isObject(newValue)) {
 		const oldKeys = new Set(Object.keys(oldValue));
@@ -292,7 +288,9 @@ function stemFromPath(path: string): string {
 	return filename.replace(/\.[^.]+$/, "");
 }
 
-export function serializeSceneFiles(scene: ResolvedScene): SerializedSceneFiles {
+export function serializeSceneFiles(
+	scene: ResolvedScene,
+): SerializedSceneFiles {
 	const files: SerializedSceneFiles = new Map();
 	files.set(SCENE_MANIFEST_PATH, serializeSceneManifest(scene));
 
@@ -416,8 +414,7 @@ function deltaKey(delta: SceneDelta): string {
 	return `${delta.operation}:${delta.filePath}:${delta.jsonPath}`;
 }
 
-
-// Returns either specific json 
+// Returns either specific json
 function hydrateSceneFiles(
 	files: SerializedSceneFiles,
 	fallbackSettings = DEFAULT_RENDER_CONFIG,

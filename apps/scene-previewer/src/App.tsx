@@ -205,7 +205,7 @@ function App() {
 		addRecentScene(dir.name, dir);
 	}
 
-	// Update scene data without triggering a full rebuild. 
+	// Update scene data without triggering a full rebuild.
 	const handleSceneEdit = useCallback(
 		(updater: (s: ResolvedScene) => ResolvedScene) => {
 			setScene((prev) => {
@@ -258,7 +258,7 @@ function App() {
 		}
 	}
 
-	// pops edit stack and resolve minor inconsistencies 
+	// pops edit stack and resolve minor inconsistencies
 	// like selected keys that no longer exist after undo
 	const undoLastSceneEdit = useEffectEvent(() => {
 		if (!scene) return false;
