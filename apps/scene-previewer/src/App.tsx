@@ -293,6 +293,21 @@ function App() {
 								}),
 							);
 						}
+						if (
+							node.kind === "sphere" &&
+							node.inside_medium &&
+							evaluated.rotate
+						) {
+							s2 = updateMedium(
+								s2,
+								`${ctx.tag}:${ctx.layerIdx}`,
+								node.inside_medium,
+								(m) => ({
+									...m,
+									rotate: evaluated.rotate as Vec3,
+								}),
+							);
+						}
 						return s2;
 					});
 					viewportRef.current?.applyPatch(scene, objectKey, {
@@ -318,6 +333,21 @@ function App() {
 							(m) => ({
 								...m,
 								translate: transform.translate as Vec3,
+							}),
+						);
+					}
+					if (
+						node.kind === "sphere" &&
+						node.inside_medium &&
+						transform.rotate
+					) {
+						s2 = updateMedium(
+							s2,
+							`${ctx.tag}:${ctx.layerIdx}`,
+							node.inside_medium,
+							(m) => ({
+								...m,
+								rotate: transform.rotate as Vec3,
 							}),
 						);
 					}

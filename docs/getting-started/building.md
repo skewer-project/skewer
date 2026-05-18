@@ -1,14 +1,6 @@
 # Building
 
-This guide covers building Skewer from source. For dependencies, see [Installation](installation.md).
-
-## Prerequisites
-
-Ensure you have the following installed:
-- **C++20 Compiler** (Clang 17 recommended for full C++20 feature support and best performance)
-- **CMake 3.21+**
-- **Go 1.22+** (for orchestration tools)
-- **OpenEXR, Imath, Zlib, libpng**
+This guide covers building Skewer from source. See [Installation](installation.md) for dependency setup.
 
 ## Using CMake Presets
 
@@ -33,7 +25,8 @@ cmake --build --preset relwithdebinfo --parallel
 | `debug`          | Debug build with symbols, no optimizations                   |
 | `release`        | Optimized release build (-O3)                                |
 | `ci`             | CI build with tests enabled                                  |
-| `tidy`           | Build with clang-tidy analysis                               |
+
+See the [full preset list](../reference/cli.md#cmake-presets) in the CLI Reference for all available presets, including `asan`, `release-milan`, and `releasestatic`.
 
 ## Build Outputs
 
@@ -49,45 +42,6 @@ build/relwithdebinfo/
 │   └── loom-worker     # Worker for deep compositing
 ├── libs/exrio/         # EXR library
 └── api/                # Compiled protobuf C++ files
-```
-
-## Dependencies
-
-### vcpkg
-
-The project uses vcpkg for dependency management. A `vcpkg.json` manifest is included:
-
-```bash
-# Install vcpkg if not already installed
-git clone https://github.com/microsoft/vcpkg.git /path/to/vcpkg
-cd vcpkg
-./bootstrap-vcpkg.sh
-
-# Integration (one-time)
-./vcpkg integrate install
-```
-
-CMake will automatically find dependencies via vcpkg when using the toolchain file:
-
-```bash
-cmake --preset relwithdebinfo -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
-```
-
-### System Dependencies
-
-If not using vcpkg, install dependencies manually:
-
-**Ubuntu:**
-```bash
-sudo apt-get update
-sudo apt-get install -y \
-    libopenexr-dev libimath-dev zlib1g-dev libpng-dev \
-    libgtest-dev libgmock-dev
-```
-
-**macOS (Homebrew):**
-```bash
-brew install openexr libpng googletest
 ```
 
 ## Running Tests
@@ -117,41 +71,6 @@ go build -o coordinator ./cmd/coordinator/
 
 The built binaries will be in `orchestration/`.
 
-## Protobuf Generation
-
-When modifying `.proto` files, regenerate the code for both Go and C++.
-
-### Go Protobuf Code
-
-```bash
-# From project root
-bash scripts/gen_proto.sh
-```
-
-This regenerates:
-- `api/proto/coordinator/v1/coordinator.pb.go`
-- `api/proto/coordinator/v1/coordinator_grpc.pb.go`
-
-### C++ Protobuf Code
-
-C++ protobuf files are generated automatically by CMake during the build. To regenerate manually:
-
-```bash
-# Using protoc directly
-protoc \
-    --cpp_out=api/proto/coordinator/v1/ \
-    --grpc_out=api/proto/coordinator/v1/ \
-    --plugin=protoc-gen-grpc=$(which grpc_cpp_plugin) \
-    -I api/proto \
-    api/proto/coordinator/v1/coordinator.proto
-```
-
-Or simply rebuild after modifying proto files:
-
-```bash
-cmake --build --preset relwithdebinfo --parallel
-```
-
 ## Troubleshooting
 
 ### CMake can't find dependencies
@@ -170,6 +89,12 @@ If you encounter Apple Silicon build issues, ensure you're using the correct arc
 cmake --preset relwithdebinfo -DCMAKE_OSX_ARCHITECTURE=arm64
 ```
 
+## See Also
+
+- [Local Development](local.md) — Running and testing after building
+- [Quick Start](quick-start.md) — Render your first scene
+- [CLI Reference](../reference/cli.md) — Full command-line documentation
+
 ### Clean rebuild
 
 To perform a clean rebuild:
@@ -180,12 +105,4 @@ cmake --preset relwithdebinfo
 cmake --build --preset relwithdebinfo --parallel
 ```
 
-## Code Formatting
 
-Format C++ code before committing:
-
-```bash
-./scripts/format.sh
-```
-
-This uses clang-format (installed locally via pip) to ensure consistent code style.

@@ -1,12 +1,22 @@
 # Film Architecture
 
+
 The Film system is responsible for aggregating high-frequency radiance samples into a final image. It acts as the collection point for the Monte Carlo path tracer.
 
 Importantly, the Film takes AoS (Array of Structures) output produced by the integrator and applies any necessary operations before converting into a SoA (Structure of Arrays) format for writing/export.
 
-## Pixel Data Structure
+---
 
-Skewer stores pixel data in a highly optimized `Pixel` struct (`skewer/src/film/film.h`). 
+## Directory Reference
+
+The following sections detail the implementations within the `skewer/src/film/` directory.
+
+### Film
+
+The `Film` class is the central manager for all pixel data. It maintains a large buffer of `Pixel` structs and provides thread-safe methods for adding samples.
+
+#### Pixel Data Structure
+Skewer stores pixel data in a highly optimized `Pixel` struct. 
 
 ```cpp
 struct Pixel {
@@ -15,32 +25,35 @@ struct Pixel {
     float weight_sum;
     int sample_count;
     RGB color_sq_sum;
-    std::atomic<int> deep_head;
+    SmallVector<DeepBucket, 1> deep_buckets;
 };
 ```
-### Memory Layout (Hot vs. Cold)
-To maximize cache efficiency during the intensive path tracing loop, the `Pixel` struct groups all "hot" accumulation fields (`color_sum`, `color_sq_sum`, `sample_count`) at the beginning of the struct. The `deep_head` (an atomic integer used only for deep image linked lists) is placed at the end, as it is accessed far less frequently (only when paths terminate) or accessed cold during the final image assembly.
 
-## The SampleWriter Pattern
+#### Memory Layout (Hot vs. Cold)
+To maximize cache efficiency during the intensive path tracing loop, the `Pixel` struct groups all "hot" accumulation fields (`color_sum`, `color_sq_sum`, `sample_count`) at the beginning of the struct. The `deep_buckets` (which involve complex vector logic) are placed at the end, as they are accessed far less frequently (only when paths terminate) or accessed cold during the final image assembly.
 
-To decouple the integrator from the film and reduce contention, Skewer uses a `SampleWriter` (`skewer/src/film/sample_writer.h`). 
-- When an integrator begins evaluating a ray for a specific pixel, it instantiates a local `SampleWriter`.
-- The `SampleWriter` buffers the final beauty pass values and any generated deep segments locally (`BoundedArray<DeepSegment>`).
-- Once the path is fully resolved, the writer commits the data to the global `Film` object using `WriteBeauty` or `FlushDeepSegments`, minimizing the time spent modifying shared pixel state.
+#### Adaptive Sampling & Convergence
+The film tracks luminance-weighted variance to drive adaptive sampling.
 
-## Adaptive Sampling & Convergence
+- **Luminance Clamping**: Variance is evaluated using Rec. 709 weights. Skewer implements a clamping mechanism where the minimum mean luminance is fixed to `0.5f` in the denominator. This ensures that dark pixels use an absolute noise threshold, preventing the renderer from wasting samples on visually insignificant regions.
 
-Skewer supports adaptive sampling to focus computational power on high-variance regions (noise).
+### Sample Writer
 
-### Variance Tracking
-The film tracks both the sum of colors (`color_sum`) and the sum of squared colors (`color_sq_sum`). This allows the `IsPixelConverged` method to calculate the running variance of the pixel on the fly.
+To decouple the integrator from the film and reduce contention, Skewer uses a `SampleWriter`. 
 
-### Luminance Clamping (Cycles Approach)
-Variance is evaluated based on human-perceived luminance (using Rec. 709 weights). A common issue in adaptive path tracers is that extremely dark pixels (where the mean luminance is near zero) will falsely report a massive relative variance, causing the renderer to waste samples there.
-Skewer implements the "Cycles approach" by clamping the minimum mean luminance to `0.5f` in the denominator:
-`noise = std::sqrt(var_lum / n) / std::max(mean_lum, 0.5f);`
-This ensures dark pixels use an absolute noise threshold, while bright pixels use a relative noise threshold.
+- **Local Buffering**: When an integrator evaluates a ray, it uses a local `SampleWriter` to buffer the beauty pass values and generated deep segments.
+- **Atomic Commits**: Once the path is resolved, the writer commits the data to the global `Film` object, minimizing the time spent modifying shared memory.
 
-## Image Buffers
+### Deep Buckets
 
-Once rendering is complete, the `Film` translates the raw accumulated pixel data into exportable formats using `CreateFlatBuffer`. This divides the accumulated `color_sum` by `weight_sum` to produce the final, converged premultiplied RGB values, along with an average coverage alpha. These buffers are then routed to `image_io` for saving as PNGs or flat OpenEXR files.
+Deep rendering produces millions of samples. To manage this without exploding memory, Skewer uses **Deep Buckets** for online aggregation.
+
+- **`DeepAlphaClass`**: Distinguishes between hard surfaces (alpha = 1.0) and volumes (fractional alpha). Skewer explicitly prevents merging these different classes to preserve depth-compositing correctness.
+- **Online Merging**: Instead of storing every single stochastic sample, the film attempts to merge incoming segments into existing buckets if they are within a depth epsilon. This acts as a high-performance, lossy compression pass performed during the render.
+
+### Image Buffers
+
+The `ImageBuffer` classes handle the final translation of accumulated data into formats suitable for disk I/O.
+
+- **`FlatImageBuffer`**: A standard SoA layout for RGB and Alpha channels. It handles the final division of `color_sum / weight_sum` and the application of exposure/gamma if necessary.
+- **`DeepImageBuffer`**: A high-performance container that packs all merged deep samples into a single contiguous block of memory (Compressed Row Storage style). This layout maximizes cache locality during the multi-layer merge process in Loom.

@@ -1,7 +1,7 @@
 # GKE Deployment (DEPRECATED)
 
 !!! danger "DEPRECATED"
-    **This deployment model is DEPRECATED.** The Skewer project has migrated to a serverless architecture using Cloud Run, Cloud Workflows, and Cloud Batch. Please refer to the [GCP Deployment Guide](../deployment/gcp.md) for the current production architecture.
+    **This deployment model is DEPRECATED.** The Skewer project has migrated to a serverless architecture using Cloud Run, Cloud Workflows, and Cloud Batch. Please refer to the [GCP Deployment Guide](../getting-started/gcp.md) for the current production architecture.
 
 Deploy Skewer to Google Kubernetes Engine for production workloads.
 
@@ -93,5 +93,5 @@ Workers read/write to GCS using `gs://` URIs. Ensure:
 
 ## See Also
 
-- [Local Deployment](../deployment/local.md) - Local development setup
-- [Architecture Overview](../architecture/overview.md) - System design
+- [Local Development](../getting-started/local.md) - Local development setup
+- [Architecture Overview](../developer/overview.md) - System design

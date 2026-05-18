@@ -69,5 +69,8 @@ When running in Cloud Batch, Skewer is typically invoked with specific environme
 
 ## See Also
 
-- [Architecture Overview](overview.md) - System-level architecture
-- [Loom](loom.md) - Deep compositing worker
+- [Architecture Overview](../overview.md) - System-level architecture
+- [Loom Compositor](../loom/index.md) - Deep compositing worker
+- [CLI Reference](../../reference/cli.md) - `skewer-render` flags
+- [Mathematical Foundations](../../reference/math.md) - Rendering math and physics
+- [GCP Deployment](../../getting-started/gcp.md) - Cloud infrastructure
