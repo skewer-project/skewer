@@ -9,8 +9,8 @@ Loom is a deep compositor designed to merge multiple high-resolution deep EXR la
 Loom is orchestrated by **Cloud Workflows** to run only after all required layers have been rendered by Skewer.
 
 1. **Dependency Check** - Cloud Workflow ensures all `skewer-worker` tasks for a frame have succeeded.
-2. **Job Spin-up** - Cloud Batch provisions an `e2-highmem-8` instance. High memory is critical for Loom as it must hold multiple deep EXR buffers simultaneously.
-3. **Merging** - Loom reads the deep EXR layers via **GCS FUSE** (`/mnt/data`), performs the interval merge, and writes the final output.
+2. **Job Spin-up** - Cloud Batch provisions `e2-highmem-8` instances. High memory is critical for Loom as it must hold multiple deep EXR buffers simultaneously.
+3. **Merging** - Each Loom task composites a contiguous chunk of frames, reads the deep EXR layers via **GCS FUSE** (`/mnt/data`), performs the interval merge, and writes the final outputs.
 4. **Cleanup** - The worker VM is terminated.
 
 ### Memory Management
@@ -19,32 +19,37 @@ Compositing deep EXR layers is extremely memory-intensive. Unlike standard image
 
 #### Batch Profile
 
-| Resource | Value | Rationale |
-|----------|-------|-----------|
-| **Machine Type** | `e2-highmem-8` | High RAM-to-CPU ratio for large deep images. |
-| **CPU Milli** | `8000` | Full 8-core allocation for parallel pixel merging. |
-| **Memory MiB** | `32768` | 32GB minimum to handle complex layered composites. |
-| **Provisioning** | Standard | Avoids preemption during long merge operations. |
+| Resource            | Value          | Rationale                                                           |
+| ------------------- | -------------- | ------------------------------------------------------------------- |
+| **Machine Type**    | `e2-highmem-8` | High RAM-to-CPU ratio for large deep images.                        |
+| **CPU Milli**       | `8000`         | Full 8-core allocation for parallel pixel merging.                  |
+| **Memory MiB**      | `32768`        | 32GB minimum to handle complex layered composites.                  |
+| **Provisioning**    | Standard       | Avoids preemption during long merge operations.                     |
+| **Frames Per Task** | `50`           | Amortizes Cloud Batch VM startup when each frame composite is fast. |
+| **Parallelism**     | `16`           | Caps concurrent composite chunks for one render.                    |
 
 ### Data I/O (GCS FUSE)
 
 Loom accesses inputs via environment variables provided by the workflow:
 
-| Variable | Description |
-|----------|-------------|
-| `LAYER_URI_PREFIXES` | Comma-separated GCS FUSE paths to the rendered layers. |
-| `OUTPUT_URI_PREFIX` | GCS FUSE path for the final composited frame. |
+| Variable               | Description                                             |
+| ---------------------- | ------------------------------------------------------- |
+| `LAYER_URI_PREFIXES`   | Comma-separated GCS FUSE paths to the rendered layers.  |
+| `LAYER_MODES`          | Comma-separated layer modes, `static` or `animated`.    |
+| `NUM_FRAMES`           | Total frame count for the composite job.                |
+| `LOOM_FRAMES_PER_TASK` | Number of contiguous frames assigned to each Loom task. |
+| `OUTPUT_URI_PREFIX`    | GCS FUSE path for the final composited frame.           |
 
 ## Deep EXR Format
 
 Each layer render produces a deep EXR file with 6 channels per sample:
 
-| Channel | Description |
-|---------|-------------|
-| `R`, `G`, `B` | Premultiplied color (rgb × alpha) |
-| `A` | Alpha (opacity at this depth sample) |
-| `Z` | Front depth (distance to camera) |
-| `ZBack` | Back depth (far side of this sample) |
+| Channel       | Description                          |
+| ------------- | ------------------------------------ |
+| `R`, `G`, `B` | Premultiplied color (rgb × alpha)    |
+| `A`           | Alpha (opacity at this depth sample) |
+| `Z`           | Front depth (distance to camera)     |
+| `ZBack`       | Back depth (far side of this sample) |
 
 **Premultiplied colors** mean the RGB values are already multiplied by alpha. This is essential for correct compositing: `over` operations use `C_out = C_A + C_B × (1 - alpha_A)`.
 
@@ -52,11 +57,11 @@ Deep EXR stores multiple samples per pixel at different depths, enabling accurat
 
 Three outputs are produced by the compositing pipeline:
 
-| Output | File | Description |
-|--------|------|-------------|
-| Flat EXR | `<prefix>_flat.exr` | Single-layer EXR (flattened deep data) |
-| PNG | `<prefix>.png` | Final composited image (gamma-corrected) |
-| Merged deep EXR | `<prefix>_merged.exr` | Full deep data with all layers combined |
+| Output          | File                  | Description                              |
+| --------------- | --------------------- | ---------------------------------------- |
+| Flat EXR        | `<prefix>_flat.exr`   | Single-layer EXR (flattened deep data)   |
+| PNG             | `<prefix>.png`        | Final composited image (gamma-corrected) |
+| Merged deep EXR | `<prefix>_merged.exr` | Full deep data with all layers combined  |
 
 ## Algorithm
 

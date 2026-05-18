@@ -37,7 +37,8 @@ struct CompositorOptions {
  */
 
 std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
-                                 std::vector<std::unique_ptr<DeepInfo>>& imagesInfo);
+                                 std::vector<std::unique_ptr<DeepInfo>>& imagesInfo,
+                                 int thread_count = 0);
 
 // DeepImage deepMerge(const std::vector<DeepImage>& inputs,
 //                     const CompositorOptions& options = CompositorOptions(),

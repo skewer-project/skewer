@@ -75,6 +75,7 @@ function serializeMedium(m: Medium): Record<string, unknown> {
 	};
 	if (m.scale !== undefined) o.scale = m.scale;
 	if (m.translate !== undefined) o.translate = m.translate;
+	if (m.rotate !== undefined) o.rotate = m.rotate;
 	return o;
 }
 
@@ -297,6 +298,7 @@ export async function saveScene(
 						// Sync Media properties
 						med.translate = worldCenter;
 						med.scale = worldRadius / bounds.radius;
+						med.rotate = st.rotate ?? [0, 0, 0];
 					}
 				}
 			}
