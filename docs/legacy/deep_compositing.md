@@ -15,7 +15,7 @@ ightarrow 15)$
 *   **Events:** $\{10, 15, 20\}$
 
 ### Step 2: Interval Generation
-Using the sorted "event" list from Step 1, you create a set of discrete, non-overlapping depth segments. Each pair of adjacent events forms a new interval:
+Using the sorted "event" list from [Step 1](#step-1-boundary-collection-interleaving), you create a set of discrete, non-overlapping depth segments. Each pair of adjacent events forms a new interval:
 
 -   **Segment 1:** From Z = 10 to Z = 15 (The first part of the fog).
 -   **Segment 2:** At Z = 15 (A zero-thickness interval representing the solid object).
