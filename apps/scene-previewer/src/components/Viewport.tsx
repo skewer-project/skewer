@@ -218,6 +218,7 @@ export function Viewport({
 	const controls = useRef<OrbitControls | null>(null);
 	const sceneGroup = useRef<THREE.Group | null>(null);
 	const blobUrlsRef = useRef<string[]>([]);
+	const skyboxTextureRef = useRef<THREE.CubeTexture | null>(null);
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
 	const transformControls = useRef<TransformControls | null>(null);
@@ -564,6 +565,11 @@ export function Viewport({
 			if (oldUrls.length > 0) {
 				revokeBlobUrls(oldUrls);
 			}
+			const oldSkybox = skyboxTextureRef.current;
+			if (oldSkybox) {
+				oldSkybox.dispose();
+				skyboxTextureRef.current = null;
+			}
 			const comp = composer.current;
 			if (comp) {
 				for (const pass of comp.passes) {
@@ -647,9 +653,25 @@ export function Viewport({
 					revokeBlobUrls(oldUrls);
 				}
 
+				// Dispose previous skybox texture if present
+				const oldSkybox = skyboxTextureRef.current;
+				if (oldSkybox) {
+					oldSkybox.dispose();
+					skyboxTextureRef.current = null;
+				}
+
 				sc.add(result.group);
 				sceneGroup.current = result.group;
 				blobUrlsRef.current = result.blobUrls;
+
+				// Apply skybox as background, or fall back to solid color
+				if (result.skyboxTexture) {
+					sc.background = result.skyboxTexture;
+					skyboxTextureRef.current = result.skyboxTexture;
+				} else {
+					sc.background = new THREE.Color(0x0c0d0f);
+				}
+
 				const builtScene = latestSceneRef.current;
 				if (builtScene) {
 					applyAnimatedNodesAtTime(
