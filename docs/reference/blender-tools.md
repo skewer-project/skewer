@@ -13,9 +13,15 @@ Export Blender scenes to Skewer JSON format.
 3. Open `scripts/blender/blender_to_skewer/blender_export.py`
 4. Run the script
 
-The script exports:
-- A full `scene.json` file
-- All referenced assets
+The script exports a layered scene:
+
+```
+output_dir/
+├── scene.json          # Manifest: camera + layers reference
+├── layer.json          # Materials + graph + render options
+├── objects/            # Per-mesh OBJ files
+└── images/             # Output directory for renders
+```
 
 to the same directory where the .blend file is saved.
 
@@ -46,4 +52,5 @@ This creates `panda-0001.blend` in the current directory.
 
 ## See Also
 
-- [Scene Format](scene-format.md) - Skewer JSON format
+- [Scene Format](../reference/scene-format.md) - Skewer JSON format
+- [Local Development](../getting-started/local.md) - Testing with the skewer-render binary
