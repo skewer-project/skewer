@@ -101,7 +101,7 @@ The scene previewer uses Firebase Authentication for Google sign-in. This lets u
 
 1. Open the [Firebase Console](https://console.firebase.google.com/)
 2. Click **Add project**
-3. Select your **existing GCP project** from the dropdown (the one created in Step 1)
+3. Select your **existing GCP project** from the dropdown (the one created in [Step 1](#step-1-create-a-google-cloud-project))
 4. Follow the prompts to complete setup (you can leave Analytics disabled)
 
 See [Add Firebase to your project](https://firebase.google.com/docs/projects/learn-more#add-resources-existing-gcp) for details.
@@ -111,18 +111,18 @@ You do **not** need to manually add or enable the **Google** sign-in provider in
 
 Instead, follow these steps to provide your credentials to Terraform:
 
-1. Complete **Step 4** to create an OAuth 2.0 client in the GCP Console
+1. Complete [**Step 4**](#step-4-create-an-oauth-20-client-in-gcp-console) to create an OAuth 2.0 client in the GCP Console
    and obtain a **Client ID** and **Client Secret**.
-2. Complete **Step 5** to fill in the `google_idp_client_id` and
+2. Complete [**Step 5**](#step-5-configure-terraformtfvars) to fill in the `google_idp_client_id` and
    `google_idp_client_secret` fields in `terraform.tfvars`.
-3. When you run `terraform apply` (Step 7), Terraform will automatically
+3. When you run `terraform apply` ([Step 7](#step-7-deploy-infrastructure-with-terraform)), Terraform will automatically
    create and enable the Google sign-in provider using those credentials.
 
 !!! warning "Manual Conflict"
     Enabling Google sign-in manually in the Firebase Console **before**
     `terraform apply` will cause Terraform to fail with a resource-already-exists
     error. If you've already done this, see the import instructions in
-    Step 7.3 and how to fix.
+    [Step 7.3](#73-note-the-api-url) and how to fix.
 
 See [Google Sign-In with Firebase](https://firebase.google.com/docs/auth/web/google-signin) for more information.
 
@@ -146,7 +146,7 @@ See [Google Sign-In with Firebase](https://firebase.google.com/docs/auth/web/goo
 
 1. Clone the repository and change to the project root:
    ```bash
-   git clone https://github.com/your-org/skewer.git
+   git clone https://github.com/skewer-project/skewer.git
    cd skewer
    ```
 
@@ -155,12 +155,12 @@ See [Google Sign-In with Firebase](https://firebase.google.com/docs/auth/web/goo
    cp apps/scene-previewer/.env.example apps/scene-previewer/.env
    ```
 
-3. Open `apps/scene-previewer/.env` and fill in the values from Steps 2 and 7:
+3. Open `apps/scene-previewer/.env` and fill in the values from [Step 2](#step-2-set-up-firebase-authentication) and [Step 7](#step-7-deploy-infrastructure-with-terraform):
 
    ```
-   VITE_API_URL=https://skewer-api-XXXXX.REGION.run.app         # filled in after Step 7
-   VITE_FIREBASE_API_KEY=your_api_key                           # from Step 2.3
-   VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com    # from Step 2.3
+   VITE_API_URL=https://skewer-api-XXXXX.REGION.run.app         # filled in after [Step 7](#step-7-deploy-infrastructure-with-terraform)
+   VITE_FIREBASE_API_KEY=your_api_key                           # from [Step 2.3](#23-register-a-web-application)
+   VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com    # from [Step 2.3](#23-register-a-web-application)
    ```
 
 !!! note "API URL"
@@ -197,7 +197,7 @@ Firebase needs an OAuth 2.0 Client ID to authenticate users via Google. This lin
      ```
    - Click **Create**
 
-5. After creation, copy the **Client ID** and **Client Secret** — you'll need them in Step 5.
+5. After creation, copy the **Client ID** and **Client Secret** — you'll need them in [Step 5](#step-5-configure-terraformtfvars).
 
 !!! danger "Project ID Required"
     Replace `YOUR_PROJECT_ID` with your **actual GCP project ID** (not the project number or Firebase app name). These can differ. You can find your project ID in the [GCP Console project selector](https://console.cloud.google.com/projectselector2/home/dashboard).
@@ -249,8 +249,8 @@ Terraform variables control your deployment configuration.
    
    admin_emails = ["your-email@gmail.com"]   # Emails authorized to use the previewer
    
-   google_idp_client_id     = "YOUR_CLIENT_ID"      # From Step 4
-   google_idp_client_secret = "YOUR_CLIENT_SECRET"  # From Step 4
+   google_idp_client_id     = "YOUR_CLIENT_ID"      # From [Step 4](#step-4-create-an-oauth-20-client-in-gcp-console)
+   google_idp_client_secret = "YOUR_CLIENT_SECRET"  # From [Step 4](#step-4-create-an-oauth-20-client-in-gcp-console)
    ```
 
    Other fields can be left at their defaults. They control worker machine types, CPU/memory allocation, retry counts, and data retention policies.
@@ -281,7 +281,7 @@ See [Bucket naming requirements](https://cloud.google.com/storage/docs/naming-bu
 
 ### 7.1 Update the Backend Configuration
 
-You will need update `backend` with your bucket configuration. Start by copying the backend example and edit the bucket name.
+You will need to update the `backend` with your bucket configuration. Start by copying the backend example and edit the bucket name.
 
 ```sh
 cp deployments/terraform/backend.example.hcl deployments/terraform/backend.hcl
@@ -345,7 +345,7 @@ After `terraform apply` completes, look for this line in the output:
 api_url = "https://skewer-api-XXXXX.REGION.run.app"
 ```
 
-**Copy this URL** — you'll need it for `.env` in Step 2.
+**Copy this URL** — you'll need it for `.env` in [Step 3](#step-3-configure-environment-variables).
 
 !!! important "Identity Platform Already Enabled"
     If `terraform apply` fails with:
@@ -399,7 +399,7 @@ flowchart TD
 
 - **Data Bucket**: Scene uploads, rendered layer frames (EXR), and final composited PNGs. Lifecycle rules auto-delete old renders after 30 days.
 - **Cache Bucket**: Layer cache manifests. If a layer's content hasn't changed, the workflow skips rendering and reuses cached output. Lifecycle rules auto-delete after 90 days.
-- **TFState Bucket**: Terraform remote state and locking. Created manually in Step 6.
+- **TFState Bucket**: Terraform remote state and locking. Created manually in [Step 6](#step-6-create-a-terraform-state-bucket).
 
 See [GCS lifecycle management](https://cloud.google.com/storage/docs/lifecycle) for details on automatic cleanup.
 
@@ -407,7 +407,9 @@ See [GCS lifecycle management](https://cloud.google.com/storage/docs/lifecycle) 
 
 ## Step 8: Build and Push Docker Images
 
-Sinc this is a fresh project and no images exist for it yet, you can build them manually. Assuming you are still in the terraform folder, run this command:
+Since this is a fresh project and no images exist for it yet, you can build them manually from your local checkout. This uses `cloudbuild_from_local.yaml`, which skips the LFS fetch step (`cloudbuild.yaml` is reserved for the automated trigger that does a fresh git checkout and needs it).
+
+Assuming you are still in the `deployments/terraform` directory, run:
 
 ```bash
 gcloud auth login
@@ -417,10 +419,17 @@ REGION="YOUR_TERRAFORM_REGION"
 SERVICE_ACCOUNT=$(terraform output -raw cloudbuild_service_account_email)
 
 gcloud builds submit \
-  --config ../cloudbuild.yaml \
+  --config ../cloudbuild_from_local.yaml \
   --service-account "projects/YOUR_PROJECT_ID/serviceAccounts/${SERVICE_ACCOUNT}" \
   --substitutions _REGION="$REGION",_AR_BASE="$REGION-docker.pkg.dev/YOUR_PROJECT_ID/skewer"
 ```
+
+!!! note "git LFS"
+    The C++ skewer worker build needs one LFS-tracked file: `skewer/external/srgb_spec_data.h`. The rest of the LFS files (test assets, golden images, sample volumes) are only needed for development and testing — not for deploying your own render farm. Navigate to the project root and pull just what you need:
+
+    ```bash
+    git lfs pull --include="skewer/external/srgb_spec_data.h"
+    ```
 
 ---
 
@@ -459,11 +468,12 @@ After submitting, click the cloud icon in the top-right corner of the previewer 
 *Navigating the scene previewer with a loaded scene. Layers, objects, and materials appear in the sidebar.*
 
 The cloud workflow orchestrates the process:
+
 1. All layers render in parallel on separate Cloud Batch VMs
 2. After all layers complete, a Loom compositing job merges them
 3. The final composite is written to the output directory
 
-Refresh the tracker periodically to see updated status. If a layer fails, the tracker shows the error — check the troubleshooting section below.
+Refresh the tracker periodically to see updated status. If a layer fails, the tracker shows the error — check the [troubleshooting section](#troubleshooting-common-issues) below.
 
 ### View the Result
 
@@ -535,6 +545,7 @@ Skewer render workers use **SPOT instances** by default (`provisioningModel: "SP
 #### `Firebase: Error (auth/operation-not-allowed)`
 
 The Google identity provider is not properly configured. Fix:
+
 1. Verify `google_idp_client_id` and `google_idp_client_secret` are set correctly in `terraform.tfvars`
 2. Run `terraform apply` again
 3. Alternatively, enable Google sign-in manually in [Firebase Console → Authentication → Sign-in method](https://console.firebase.google.com/project/_/authentication/providers)
@@ -542,6 +553,7 @@ The Google identity provider is not properly configured. Fix:
 #### `The request was not authenticated` (401)
 
 The previewer isn't sending a valid Firebase ID token. Fix:
+
 1. Sign out and sign back in to refresh the auth token
 2. Verify `VITE_FIREBASE_API_KEY` and `VITE_FIREBASE_AUTH_DOMAIN` are correct in `.env`
 3. Check browser DevTools Console for auth errors
