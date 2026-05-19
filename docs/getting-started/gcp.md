@@ -164,7 +164,9 @@ Firebase needs an OAuth 2.0 Client ID to authenticate users via Google. This lin
 1. Open [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) in the GCP Console
 2. Click **+ Create Credentials** → **OAuth client ID**
 3. If prompted, configure the OAuth consent screen:
-   - User Type: **Internal**
+   - **User Type**:
+     - Choose **Internal** only if your GCP project belongs to a Google Workspace or Cloud Identity organization.
+     - Choose **External** if you're using a personal Gmail account or an individual project, then add yourself as a test user if Google prompts you to do so.
    - App name: `Skewer Previewer` (or any name)
    - User support email: your email
    - Developer contact email: your email
