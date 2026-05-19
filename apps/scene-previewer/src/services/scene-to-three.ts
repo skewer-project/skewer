@@ -4,7 +4,12 @@
 import * as THREE from "three";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import type { Material, ResolvedScene, SceneNode } from "../types/scene";
+import type {
+	Material,
+	ResolvedScene,
+	SceneNode,
+	SkyboxData,
+} from "../types/scene";
 import { getFile, readTextFile } from "./fs";
 import {
 	applyStaticTransformToObject3D,
@@ -284,6 +289,37 @@ async function buildNode(
 export interface SceneGraphResult {
 	group: THREE.Group;
 	blobUrls: string[];
+	skyboxTexture?: THREE.CubeTexture;
+}
+
+async function buildSkyboxTexture(
+	skybox: SkyboxData,
+	dir: FileSystemDirectoryHandle,
+	blobUrls: string[],
+): Promise<THREE.CubeTexture | null> {
+	const faceOrder = [
+		skybox.faces["+x"],
+		skybox.faces["-x"],
+		skybox.faces["+y"],
+		skybox.faces["-y"],
+		skybox.faces["+z"],
+		skybox.faces["-z"],
+	] as const;
+
+	const faceFiles: File[] = [];
+	for (const path of faceOrder) {
+		try {
+			faceFiles.push(await getFile(dir, path));
+		} catch {
+			console.warn(`[scene-to-three] Skybox face not found: ${path}`);
+			return null;
+		}
+	}
+
+	const faceUrls = faceFiles.map((f) => URL.createObjectURL(f));
+	blobUrls.push(...faceUrls);
+
+	return new THREE.CubeTextureLoader().load(faceUrls);
 }
 
 export function revokeBlobUrls(urls: string[]) {
@@ -357,5 +393,9 @@ export async function buildSceneGraph(
 		return { group: root, blobUrls: [] };
 	}
 
-	return { group: root, blobUrls };
+	const skyboxTexture = scene.skybox
+		? await buildSkyboxTexture(scene.skybox, dir, blobUrls)
+		: undefined;
+
+	return { group: root, blobUrls, skyboxTexture: skyboxTexture ?? undefined };
 }

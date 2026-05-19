@@ -23,6 +23,7 @@ import type {
 	ResolvedScene,
 	SceneManifest,
 	SceneNode,
+	SkyboxData,
 	SphereNode,
 	StaticTransform,
 	Vec3,
@@ -506,6 +507,27 @@ function parseAnimation(json: unknown): Animation {
 	};
 }
 
+// --- Skybox ---
+
+function parseSkybox(json: unknown): SkyboxData | undefined {
+	if (!isObject(json)) return undefined;
+	const faces = json.faces;
+	if (!isObject(faces))
+		throw new Error("skybox.faces: expected object with +x/-x/+y/-y/+z/-z");
+	return {
+		min: parseVec3OrDefault(json.min, "skybox.min", [-10, -10, -10]),
+		max: parseVec3OrDefault(json.max, "skybox.max", [10, 10, 10]),
+		faces: {
+			"+x": str(faces["+x"], 'skybox.faces["+x"]'),
+			"-x": str(faces["-x"], 'skybox.faces["-x"]'),
+			"+y": str(faces["+y"], 'skybox.faces["+y"]'),
+			"-y": str(faces["-y"], 'skybox.faces["-y"]'),
+			"+z": str(faces["+z"], 'skybox.faces["+z"]'),
+			"-z": str(faces["-z"], 'skybox.faces["-z"]'),
+		},
+	};
+}
+
 // --- scene.json manifest ---
 
 export function parseSceneManifest(json: unknown): SceneManifest {
@@ -529,6 +551,7 @@ export function parseSceneManifest(json: unknown): SceneManifest {
 		output_dir: typeof json.output_dir === "string" ? json.output_dir : "",
 		animation:
 			json.animation !== undefined ? parseAnimation(json.animation) : undefined,
+		skybox: json.skybox !== undefined ? parseSkybox(json.skybox) : undefined,
 	};
 }
 
@@ -561,6 +584,7 @@ export async function loadScene(
 		output_dir: manifest.output_dir,
 		animation: manifest.animation ?? { ...DEFAULT_ANIMATION },
 		settings: DEFAULT_RENDER_CONFIG,
+		skybox: manifest.skybox,
 	};
 
 	// --- Volumetric Bounding Sphere Synchronization ---

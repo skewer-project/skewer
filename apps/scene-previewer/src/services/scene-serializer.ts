@@ -248,13 +248,21 @@ function serializeAnimation(a: Animation): Record<string, unknown> {
 }
 
 function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
-	return {
+	const o: Record<string, unknown> = {
 		camera: serializeCamera(scene.camera),
 		animation: serializeAnimation(scene.animation),
 		context: scene.contexts.map((l) => l.path),
 		layers: scene.layers.map((l) => l.path),
 		output_dir: scene.output_dir,
 	};
+	if (scene.skybox) {
+		o.skybox = {
+			min: scene.skybox.min,
+			max: scene.skybox.max,
+			faces: scene.skybox.faces,
+		};
+	}
+	return o;
 }
 
 export function serializeSceneJSON(scene: ResolvedScene): string {
