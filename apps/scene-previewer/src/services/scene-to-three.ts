@@ -292,7 +292,7 @@ export interface SceneGraphResult {
 	skyboxTexture?: THREE.CubeTexture;
 }
 
-async function buildSkyboxTexture(
+export async function buildSkyboxTexture(
 	skybox: SkyboxData,
 	dir: FileSystemDirectoryHandle,
 	blobUrls: string[],

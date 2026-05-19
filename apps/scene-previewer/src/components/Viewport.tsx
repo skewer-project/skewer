@@ -20,6 +20,7 @@ import {
 import {
 	applyStaticTransformToObject3D,
 	buildSceneGraph,
+	buildSkyboxTexture,
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
@@ -219,6 +220,7 @@ export function Viewport({
 	const sceneGroup = useRef<THREE.Group | null>(null);
 	const blobUrlsRef = useRef<string[]>([]);
 	const skyboxTextureRef = useRef<THREE.CubeTexture | null>(null);
+	const lastSkyboxJsonRef = useRef<string>("");
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
 	const transformControls = useRef<TransformControls | null>(null);
@@ -689,6 +691,53 @@ export function Viewport({
 			abortController.abort();
 		};
 	}, [dirHandle, scene, sceneVersion]);
+
+	// --- Effect 2b: live-reload skybox background when skybox data changes ---
+	// Avoids a full scene-graph rebuild for just a texture swap.
+	useEffect(() => {
+		const currentScene = scene;
+		const sc = threeScene.current;
+		if (!currentScene || !sc || !dirHandle) return;
+
+		const skyboxJson = JSON.stringify(currentScene.skybox ?? null);
+		if (skyboxJson === lastSkyboxJsonRef.current) return;
+		lastSkyboxJsonRef.current = skyboxJson;
+
+		const abortController = new AbortController();
+
+		if (currentScene.skybox) {
+			const urls: string[] = [];
+			buildSkyboxTexture(currentScene.skybox, dirHandle, urls)
+				.then((tex) => {
+					if (abortController.signal.aborted) {
+						revokeBlobUrls(urls);
+						return;
+					}
+					const old = skyboxTextureRef.current;
+					if (old) old.dispose();
+					if (tex) {
+						sc.background = tex;
+						skyboxTextureRef.current = tex;
+					}
+					blobUrlsRef.current = [...blobUrlsRef.current, ...urls];
+				})
+				.catch((err) => {
+					revokeBlobUrls(urls);
+					console.warn("[Viewport] Skybox reload failed:", err);
+				});
+		} else {
+			const old = skyboxTextureRef.current;
+			if (old) {
+				old.dispose();
+				skyboxTextureRef.current = null;
+			}
+			sc.background = new THREE.Color(0x0c0d0f);
+		}
+
+		return () => {
+			abortController.abort();
+		};
+	}, [dirHandle, scene]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {
