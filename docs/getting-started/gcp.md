@@ -71,13 +71,6 @@ Install the following tools before beginning:
 | [Bun](https://bun.sh/docs/installation)                                  | latest          | [Install guide](https://bun.sh/docs/installation)                              |
 | [Git](https://git-scm.com/)                                              | latest          | [Install guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) |
 
-!!! note "Authentication"
-    After installing `gcloud`, authenticate and set your project:
-    ```bash
-    gcloud auth login
-    gcloud config set project YOUR_PROJECT_ID
-    ```
-
 ---
 
 ## Step 1: Create a Google Cloud Project
@@ -88,41 +81,23 @@ Install the following tools before beginning:
 4. Note the **Project ID** — you'll need it throughout this guide
 5. Click **Create**
 
+!!! note "Authentication"
+    After installing `gcloud`, authenticate and set your project:
+    ```bash
+    gcloud auth login
+    gcloud config set project YOUR_PROJECT_ID
+    ```
+
 !!! important "Billing Required"
     Ensure billing is enabled on your project. Go to [Billing](https://console.cloud.google.com/billing) and link a billing account. Education accounts (Google Cloud for Education) include credits that cover typical rendering workloads.
 
 ---
 
-## Step 2: Configure Environment Variables
-
-1. Clone the repository and change to the project root:
-   ```bash
-   git clone https://github.com/your-org/skewer.git
-   cd skewer
-   ```
-
-2. Copy the example file:
-   ```bash
-   cp apps/scene-previewer/.env.example apps/scene-previewer/.env
-   ```
-
-3. Open `apps/scene-previewer/.env` and fill in the values from Step 2:
-   ```
-   VITE_API_URL=https://skewer-api-XXXXX.REGION.run.app         # filled in after Step 7
-   VITE_FIREBASE_API_KEY=your_api_key                           # from Step 3.3
-   VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com    # from Step 3.3
-   ```
-
-!!! note "API URL"
-    `VITE_API_URL` will be set after Terraform finishes deploying — the Cloud Run API URL is printed in the Terraform output as `api_url`.
-
----
-
-## Step 3: Set Up Firebase Authentication
+## Step 2: Set Up Firebase Authentication
 
 The scene previewer uses Firebase Authentication for Google sign-in. This lets users authenticate with their Google account and obtain an ID token that the Skewer API verifies.
 
-### 3.1 Create a Firebase Project
+### 2.1 Create a Firebase Project
 
 1. Open the [Firebase Console](https://console.firebase.google.com/)
 2. Click **Add project**
@@ -131,17 +106,27 @@ The scene previewer uses Firebase Authentication for Google sign-in. This lets u
 
 See [Add Firebase to your project](https://firebase.google.com/docs/projects/learn-more#add-resources-existing-gcp) for details.
 
-### 3.2 Enable Google Sign-In
+### 2.2 Google Sign-In Provider
+You do **not** need to manually add or enable the **Google** sign-in provider in the Firebase Console before running `terraform apply`. The Terraform configuration manages the Google Identity Platform provider automatically, but it needs your OAuth 2.0 credentials to do so.
 
-1. In the Firebase Console, navigate to **Authentication** → **Sign-in method** (sidebar)
-2. Click **Add new provider** → select **Google**
-3. Toggle **Enable** to ON
-4. Enter a **Project support email** (your Google account email)
-5. Click **Save**
+Instead, follow these steps to provide your credentials to Terraform:
+
+1. Complete **Step 4** to create an OAuth 2.0 client in the GCP Console
+   and obtain a **Client ID** and **Client Secret**.
+2. Complete **Step 5** to fill in the `google_idp_client_id` and
+   `google_idp_client_secret` fields in `terraform.tfvars`.
+3. When you run `terraform apply` (Step 7), Terraform will automatically
+   create and enable the Google sign-in provider using those credentials.
+
+!!! warning "Manual Conflict"
+    Enabling Google sign-in manually in the Firebase Console **before**
+    `terraform apply` will cause Terraform to fail with a resource-already-exists
+    error. If you've already done this, see the import instructions in
+    Step 7.3 and how to fix.
 
 See [Google Sign-In with Firebase](https://firebase.google.com/docs/auth/web/google-signin) for more information.
 
-### 3.3 Register a Web Application
+### 2.3 Register a Web Application
 
 1. In the Firebase Console, go to **Project settings** (gear icon) → **General** tab
 2. Scroll to **Your apps** → click the **Web** icon (`</>`)
@@ -156,6 +141,32 @@ See [Google Sign-In with Firebase](https://firebase.google.com/docs/auth/web/goo
     Use the **same Google email** for both your Firebase project and GCP Console. Mixing accounts can cause permission conflicts when Terraform provisions Identity Platform resources.
 
 ---
+
+## Step 3: Configure Environment Variables
+
+1. Clone the repository and change to the project root:
+   ```bash
+   git clone https://github.com/your-org/skewer.git
+   cd skewer
+   ```
+
+2. Copy the example file:
+   ```bash
+   cp apps/scene-previewer/.env.example apps/scene-previewer/.env
+   ```
+
+3. Open `apps/scene-previewer/.env` and fill in the values from Steps 2 and 7:
+
+   ```
+   VITE_API_URL=https://skewer-api-XXXXX.REGION.run.app         # filled in after Step 7
+   VITE_FIREBASE_API_KEY=your_api_key                           # from Step 2.3
+   VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com    # from Step 2.3
+   ```
+
+!!! note "API URL"
+    `VITE_API_URL` will be set after Terraform finishes deploying — the Cloud Run API URL is printed in the Terraform output as `api_url`.
+
+---  
 
 ## Step 4: Create an OAuth 2.0 Client in GCP Console
 
@@ -270,18 +281,43 @@ See [Bucket naming requirements](https://cloud.google.com/storage/docs/naming-bu
 
 ### 7.1 Update the Backend Configuration
 
-Open `deployments/terraform/main.tf` and update the `backend` block with your bucket name:
+You will need update `backend` with your bucket configuration. Start by copying the backend example and edit the bucket name.
 
-```hcl
-terraform {
-  backend "gcs" {
-    bucket = "YOUR_PROJECT_ID-tfstate"   # replace with your bucket name
-    prefix = "skewer"
-  }
-}
+```sh
+cp deployments/terraform/backend.example.hcl deployments/terraform/backend.hcl
 ```
 
-See the [Terraform GCS backend documentation](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) for details.
+Use a bucket tied to your project, for example:
+
+```hcl
+bucket = "YOUR_PROJECT_ID-tfstate"
+prefix = "skewer"
+```
+
+!!! note "Prefix"
+    The prefix will prepend all principals across the workflow (IAM names, VPCs, bucket items, etc.)
+
+The bucket must exist before Terraform can initialize the backend. Then run:
+
+```sh
+terraform init -backend-config=backend.hcl
+```
+
+If this checkout was already initialized against a different backend, use:
+
+```sh
+terraform init -reconfigure -backend-config=backend.hcl
+```
+
+If you intentionally want to move existing state into your new bucket, use
+`-migrate-state` instead of `-reconfigure` and review Terraform's migration
+prompt carefully.
+
+!!! note "Contributing"
+    Keep `backend.hcl` and `terraform.tfvars` uncommitted. Commit only the shared
+    Terraform modules and example files.
+
+See the [Terraform GCS backend documentation](https://developer.hashicorp.com/terraform/language/settings/backends/gcs) for more details.
 
 ### 7.2 Initialize and Apply
 
@@ -329,6 +365,7 @@ api_url = "https://skewer-api-XXXXX.REGION.run.app"
     Firebase: Error (auth/operation-not-allowed)
     ```
     The Google identity provider was not created. This happens if `google_idp_client_id` and `google_idp_client_secret` were not set in `terraform.tfvars`. Fix it by:
+
     1. Adding the correct values to `terraform.tfvars`
     2. Running `terraform apply` again
 
@@ -368,17 +405,21 @@ See [GCS lifecycle management](https://cloud.google.com/storage/docs/lifecycle) 
 
 ---
 
-## Step 8: Build and Push Docker Images (Optional)
+## Step 8: Build and Push Docker Images
 
-The CI/CD pipeline automatically builds and pushes images when you push to the `main` branch via a Cloud Build trigger. However, if this is a fresh project and no images exist yet, you can build them manually:
+Sinc this is a fresh project and no images exist for it yet, you can build them manually. Assuming you are still in the terraform folder, run this command:
 
 ```bash
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
 
+REGION="YOUR_TERRAFORM_REGION"
+SERVICE_ACCOUNT=$(terraform output -raw cloudbuild_service_account_email)
+
 gcloud builds submit \
-  --config deployments/cloudbuild.yaml \
-  --substitutions _AR_BASE="us-west2-docker.pkg.dev/YOUR_PROJECT_ID/skewer"
+  --config ../cloudbuild.yaml \
+  --service-account "projects/YOUR_PROJECT_ID/serviceAccounts/${SERVICE_ACCOUNT}" \
+  --substitutions _REGION="$REGION",_AR_BASE="$REGION-docker.pkg.dev/YOUR_PROJECT_ID/skewer"
 ```
 
 ---
@@ -387,7 +428,7 @@ gcloud builds submit \
 
 ### From the Previewer
 
-Run the previewer locally:
+Navigate to the project root. From there go to `apps/scene-previewer` and run the previewer locally using bun:
 
 ```bash
 bun install
