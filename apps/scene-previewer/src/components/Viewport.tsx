@@ -707,7 +707,12 @@ export function Viewport({
 
 		if (currentScene.skybox) {
 			const urls: string[] = [];
-			buildSkyboxTexture(currentScene.skybox, dirHandle, urls)
+			buildSkyboxTexture(
+				currentScene.skybox,
+				dirHandle,
+				urls,
+				abortController.signal,
+			)
 				.then((tex) => {
 					if (abortController.signal.aborted) {
 						revokeBlobUrls(urls);

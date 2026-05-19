@@ -256,11 +256,16 @@ function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
 		output_dir: scene.output_dir,
 	};
 	if (scene.skybox) {
-		o.skybox = {
-			min: scene.skybox.min,
-			max: scene.skybox.max,
-			faces: scene.skybox.faces,
-		};
+		const nonEmptyFaces = Object.entries(scene.skybox.faces).filter(
+			([, path]) => typeof path === "string" && path.trim() !== "",
+		);
+		if (nonEmptyFaces.length > 0) {
+			o.skybox = {
+				min: scene.skybox.min,
+				max: scene.skybox.max,
+				faces: Object.fromEntries(nonEmptyFaces),
+			};
+		}
 	}
 	return o;
 }

@@ -99,7 +99,7 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 					types: [
 						{
 							description: "Images",
-							accept: { "image/*": [".png", ".jpg", ".jpeg", ".exr", ".hdr"] },
+							accept: { "image/*": [".png", ".jpg", ".jpeg"] },
 						},
 					],
 					multiple: false,

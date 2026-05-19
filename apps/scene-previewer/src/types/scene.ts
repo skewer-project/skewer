@@ -205,14 +205,14 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
 export interface SkyboxData {
 	min: Vec3;
 	max: Vec3;
-	faces: {
+	faces: Partial<{
 		"+x": string;
 		"-x": string;
 		"+y": string;
 		"-y": string;
 		"+z": string;
 		"-z": string;
-	};
+	}>;
 }
 
 // --- scene.json top-level ---

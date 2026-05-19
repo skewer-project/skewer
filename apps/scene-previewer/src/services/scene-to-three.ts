@@ -296,18 +296,24 @@ export async function buildSkyboxTexture(
 	skybox: SkyboxData,
 	dir: FileSystemDirectoryHandle,
 	blobUrls: string[],
+	signal?: AbortSignal,
 ): Promise<THREE.CubeTexture | null> {
-	const faceOrder = [
-		skybox.faces["+x"],
-		skybox.faces["-x"],
-		skybox.faces["+y"],
-		skybox.faces["-y"],
-		skybox.faces["+z"],
-		skybox.faces["-z"],
-	] as const;
+	const faceOrder = (
+		[
+			skybox.faces["+x"],
+			skybox.faces["-x"],
+			skybox.faces["+y"],
+			skybox.faces["-y"],
+			skybox.faces["+z"],
+			skybox.faces["-z"],
+		] as const
+	).filter((p): p is string => typeof p === "string" && p.trim() !== "");
+
+	if (faceOrder.length === 0) return null;
 
 	const faceFiles: File[] = [];
 	for (const path of faceOrder) {
+		if (signal?.aborted) return null;
 		try {
 			faceFiles.push(await getFile(dir, path));
 		} catch {
@@ -315,6 +321,8 @@ export async function buildSkyboxTexture(
 			return null;
 		}
 	}
+
+	if (signal?.aborted) return null;
 
 	const faceUrls = faceFiles.map((f) => URL.createObjectURL(f));
 	blobUrls.push(...faceUrls);
@@ -394,8 +402,13 @@ export async function buildSceneGraph(
 	}
 
 	const skyboxTexture = scene.skybox
-		? await buildSkyboxTexture(scene.skybox, dir, blobUrls)
+		? await buildSkyboxTexture(scene.skybox, dir, blobUrls, signal)
 		: undefined;
+
+	if (signal.aborted && skyboxTexture) {
+		skyboxTexture.dispose();
+		return { group: root, blobUrls: [] };
+	}
 
 	return { group: root, blobUrls, skyboxTexture: skyboxTexture ?? undefined };
 }
