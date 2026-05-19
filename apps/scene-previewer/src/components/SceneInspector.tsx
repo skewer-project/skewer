@@ -16,6 +16,7 @@ import type {
 	ResolvedLayer,
 	ResolvedScene,
 	SceneNode,
+	SkyboxData,
 	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
@@ -480,6 +481,8 @@ export function SceneInspector({
 	onEndTimeChange,
 	fps,
 	onFpsChange,
+	skybox,
+	onSkyboxChange,
 }: {
 	scene: ResolvedScene;
 	selectedObjectKey: string | null;
@@ -515,6 +518,8 @@ export function SceneInspector({
 	onEndTimeChange: (n: number) => void;
 	fps: number;
 	onFpsChange: (n: number) => void;
+	skybox: SkyboxData | undefined;
+	onSkyboxChange: (sb: SkyboxData | undefined) => void;
 }) {
 	return (
 		<div className={s.inspectRoot}>
@@ -529,6 +534,9 @@ export function SceneInspector({
 				onEndTimeChange={onEndTimeChange}
 				fps={fps}
 				onFpsChange={onFpsChange}
+				skybox={skybox}
+				onSkyboxChange={onSkyboxChange}
+				dirHandle={dirHandle}
 			/>
 
 			{scene.contexts.length > 0 && (
