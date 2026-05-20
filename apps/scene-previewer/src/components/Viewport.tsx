@@ -225,6 +225,12 @@ export function Viewport({
 	const outlinePass = useRef<OutlinePass | null>(null);
 	const transformControls = useRef<TransformControls | null>(null);
 	const gizmoProxy = useRef<THREE.Group | null>(null);
+	const renderFrameRef = useRef<(() => boolean) | null>(null);
+	const pendingRenderRef = useRef<number | null>(null);
+	const renderLoopRef = useRef<number | null>(null);
+	const controlsActiveRef = useRef(false);
+	const transformDraggingRef = useRef(false);
+	const controlsSettleUntilRef = useRef(0);
 	const gizmoAnchorTmp = useRef(new THREE.Vector3());
 	const isDraggingRef = useRef(false);
 	/** Drives gizmo re-attach after scene graph rebuild; reset when the Three tree is replaced. */
@@ -257,6 +263,42 @@ export function Viewport({
 		currentTimeRef.current = currentTime;
 	}, [currentTime]);
 
+	const requestRender = useCallback(() => {
+		if (pendingRenderRef.current !== null || renderLoopRef.current !== null) {
+			return;
+		}
+		pendingRenderRef.current = requestAnimationFrame(() => {
+			pendingRenderRef.current = null;
+			renderFrameRef.current?.();
+		});
+	}, []);
+
+	const ensureRenderLoop = useCallback(() => {
+		if (renderLoopRef.current !== null) return;
+
+		const tick = () => {
+			const shouldContinue = renderFrameRef.current?.() ?? false;
+			if (shouldContinue) {
+				renderLoopRef.current = requestAnimationFrame(tick);
+			} else {
+				renderLoopRef.current = null;
+			}
+		};
+
+		renderLoopRef.current = requestAnimationFrame(tick);
+	}, []);
+
+	const stopScheduledRenders = useCallback(() => {
+		if (pendingRenderRef.current !== null) {
+			cancelAnimationFrame(pendingRenderRef.current);
+			pendingRenderRef.current = null;
+		}
+		if (renderLoopRef.current !== null) {
+			cancelAnimationFrame(renderLoopRef.current);
+			renderLoopRef.current = null;
+		}
+	}, []);
+
 	// ── Imperative handle: applyPatch ──
 	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
 	useImperativeHandle(
@@ -268,6 +310,7 @@ export function Viewport({
 				const ctrl = controls.current;
 				if (!currentScene || !cam || !ctrl) return;
 				syncOrbitCameraToScene(cam, ctrl, currentScene);
+				requestRender();
 			},
 			applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
 				const sc = threeScene.current;
@@ -435,9 +478,10 @@ export function Viewport({
 					}
 				}
 				// kind === "rebuild" is handled by incrementing sceneVersion externally
+				requestRender();
 			},
 		}),
-		[],
+		[requestRender],
 	);
 
 	// --- Effect 1: one-time renderer / camera / controls setup ---
@@ -511,6 +555,18 @@ export function Viewport({
 		composer.current = comp;
 		outlinePass.current = outline;
 
+		renderFrameRef.current = () => {
+			const controlsChanged = ctrl.update();
+			comp.render();
+			return (
+				isPlayingRef.current ||
+				controlsActiveRef.current ||
+				transformDraggingRef.current ||
+				controlsChanged ||
+				performance.now() < controlsSettleUntilRef.current
+			);
+		};
+
 		// TransformControls (gizmo)
 		const tctrl = new TransformControls(cam, renderer.domElement);
 		tctrl.setSize(0.75);
@@ -520,12 +576,35 @@ export function Viewport({
 		transformControls.current = tctrl;
 
 		const handleDraggingChanged = (event: { value: unknown }) => {
-			ctrl.enabled = !event.value;
+			const isDragging = Boolean(event.value);
+			ctrl.enabled = !isDragging;
+			transformDraggingRef.current = isDragging;
 			if (gizmoProxy.current) {
-				gizmoProxy.current.userData.isDragging = event.value;
+				gizmoProxy.current.userData.isDragging = isDragging;
+			}
+			if (isDragging) {
+				ensureRenderLoop();
+			} else {
+				requestRender();
 			}
 		};
 		tctrl.addEventListener("dragging-changed", handleDraggingChanged);
+
+		const handleControlsStart = () => {
+			controlsActiveRef.current = true;
+			ensureRenderLoop();
+		};
+		const handleControlsEnd = () => {
+			controlsActiveRef.current = false;
+			controlsSettleUntilRef.current = performance.now() + 350;
+			ensureRenderLoop();
+		};
+		const handleControlsChange = () => {
+			requestRender();
+		};
+		ctrl.addEventListener("start", handleControlsStart);
+		ctrl.addEventListener("end", handleControlsEnd);
+		ctrl.addEventListener("change", handleControlsChange);
 
 		// Resize
 		const ro = new ResizeObserver(() => {
@@ -535,25 +614,22 @@ export function Viewport({
 			cam.updateProjectionMatrix();
 			renderer.setSize(w, h);
 			comp.setSize(w, h);
+			requestRender();
 		});
 		ro.observe(container);
 
-		// Render loop
-		let animId: number;
-		function animate() {
-			animId = requestAnimationFrame(animate);
-			ctrl.update();
-			comp.render();
-		}
-		animate();
+		requestRender();
 
 		return () => {
-			cancelAnimationFrame(animId);
+			stopScheduledRenders();
 			ro.disconnect();
 			const proxy = gizmoProxy.current;
 			if (proxy?.userData.target) {
 				proxy.userData.target = null;
 			}
+			ctrl.removeEventListener("start", handleControlsStart);
+			ctrl.removeEventListener("end", handleControlsEnd);
+			ctrl.removeEventListener("change", handleControlsChange);
 			ctrl.dispose();
 			tctrl.removeEventListener("dragging-changed", handleDraggingChanged);
 			tctrl.dispose();
@@ -601,8 +677,9 @@ export function Viewport({
 			outlinePass.current = null;
 			transformControls.current = null;
 			gizmoProxy.current = null;
+			renderFrameRef.current = null;
 		};
-	}, []);
+	}, [ensureRenderLoop, requestRender, stopScheduledRenders]);
 
 	// --- Effect 2: rebuild scene objects on structural changes ---
 	useEffect(() => {
@@ -682,6 +759,7 @@ export function Viewport({
 						currentTimeRef.current,
 					);
 				}
+				requestRender();
 			})
 			.catch((err) => {
 				console.error("[Viewport] buildSceneGraph failed:", err);
@@ -690,7 +768,7 @@ export function Viewport({
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle, scene, sceneVersion]);
+	}, [dirHandle, scene, sceneVersion, requestRender]);
 
 	// --- Effect 2b: live-reload skybox background when skybox data changes ---
 	// Avoids a full scene-graph rebuild for just a texture swap.
@@ -752,11 +830,13 @@ export function Viewport({
 
 		if (!selectedObjectKey || !grp) {
 			outline.selectedObjects = [];
+			requestRender();
 			return;
 		}
 
 		outline.selectedObjects = collectMeshesForKey(grp, selectedObjectKey);
-	}, [selectedObjectKey]);
+		requestRender();
+	}, [selectedObjectKey, requestRender]);
 
 	// --- Effect 4: position proxy gizmo on selected object (NO reparenting) ---
 	useEffect(() => {
@@ -801,6 +881,7 @@ export function Viewport({
 			}
 			tctrl.detach();
 			latestTransformRef.current.objectKey = null;
+			requestRender();
 			return;
 		}
 
@@ -833,13 +914,19 @@ export function Viewport({
 
 		tctrl.attach(proxy);
 		latestTransformRef.current.objectKey = selectedObjectKey;
-	}, [selectedObjectKey, transformMode, transformSpace]);
+		requestRender();
+	}, [selectedObjectKey, transformMode, transformSpace, requestRender]);
 
 	// --- Disable transform gizmo while timeline is playing ---
 	useEffect(() => {
 		const tctrl = transformControls.current;
 		if (tctrl) tctrl.enabled = !isPlaying;
-	}, [isPlaying]);
+		if (isPlaying) {
+			ensureRenderLoop();
+		} else {
+			requestRender();
+		}
+	}, [isPlaying, ensureRenderLoop, requestRender]);
 
 	// --- Effect 5: apply gizmo delta to target (NO reparenting ever) ---
 	useEffect(() => {
@@ -943,6 +1030,7 @@ export function Viewport({
 			if (!isAnim) {
 				onTransformChange(selectedObjectKey, transform);
 			}
+			requestRender();
 		};
 
 		tctrl.addEventListener("change", onChangeDuringDrag);
@@ -952,7 +1040,7 @@ export function Viewport({
 			tctrl.removeEventListener("change", onChangeDuringDrag);
 			tctrl.removeEventListener("dragging-changed", onDraggingChanged);
 		};
-	}, [selectedObjectKey, transformMode, onTransformChange]);
+	}, [selectedObjectKey, transformMode, onTransformChange, requestRender]);
 
 	// --- Effect: apply animated transforms; keep proxy snapped to target ---
 	useEffect(() => {
@@ -965,6 +1053,7 @@ export function Viewport({
 		const excludeKey = isDragging ? selectedObjectKey : null;
 
 		applyAnimatedNodesAtTime(grp, currentScene, currentTime, excludeKey);
+		requestRender();
 
 		// Snap proxy to follow the animated target (only when not dragging)
 		if (!selectedObjectKey || !proxy?.userData.target || isDragging) return;
@@ -988,7 +1077,7 @@ export function Viewport({
 		proxy.quaternion.copy(worldQuat);
 		proxy.scale.setScalar(1);
 		proxy.updateMatrixWorld(true);
-	}, [scene, currentTime, selectedObjectKey, transformSpace]);
+	}, [scene, currentTime, selectedObjectKey, transformSpace, requestRender]);
 
 	// --- Click handler for raycasting ---
 	const handleClick = useCallback(
