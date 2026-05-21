@@ -24,9 +24,10 @@ cmake --build --preset relwithdebinfo --parallel
 | `relwithdebinfo` | **Default** - Release build with debug symbols (recommended) |
 | `debug`          | Debug build with symbols, no optimizations                   |
 | `release`        | Optimized release build (-O3)                                |
+| `release-portable` | Optimized release build for portable binary bundles        |
 | `ci`             | CI build with tests enabled                                  |
 
-See the [full preset list](../reference/cli.md#cmake-presets) in the CLI Reference for all available presets, including `asan`, `release-milan`, and `releasestatic`.
+See the [full preset list](../reference/cli.md#cmake-presets) in the CLI Reference for all available presets, including `asan` and `release-milan`.
 
 ## Build Outputs
 
@@ -104,5 +105,4 @@ rm -rf build/
 cmake --preset relwithdebinfo
 cmake --build --preset relwithdebinfo --parallel
 ```
-
 
