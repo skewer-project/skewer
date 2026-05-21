@@ -142,6 +142,8 @@ function collectMediumPaths(
 	return paths;
 }
 
+
+// Collects texture paths from the scene's skybox, excluding any already in existingPaths.
 function collectSkyboxTexturePaths(
 	scene: ResolvedScene,
 	existingPaths: Set<string>,
@@ -295,6 +297,7 @@ export async function collectSceneBundle(
 		BUNDLE_READ_CONCURRENCY,
 		(path) => readRequiredBlob(dir, path, "skybox texture"),
 	);
+	// Actual addtion of skybox to bundle
 	for (const file of skyboxTextures) {
 		files.set(file.path, file);
 	}
