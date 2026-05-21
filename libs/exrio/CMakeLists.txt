@@ -37,7 +37,9 @@ if(PNG_FOUND)
     target_link_libraries(exrio PUBLIC PNG::PNG)
 endif()
 
-target_compile_options(exrio PRIVATE -Wall -Wextra -Werror -Wpedantic)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(exrio PRIVATE -Wall -Wextra -Werror -Wpedantic)
+endif()
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -63,7 +65,9 @@ if(BUILD_TESTING)
             ${CMAKE_CURRENT_SOURCE_DIR}/include/exrio
             ${CMAKE_CURRENT_SOURCE_DIR}/tests
         )
-        target_compile_options(exrio_unit_tests PRIVATE -Wall -Wextra -Wpedantic)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_options(exrio_unit_tests PRIVATE -Wall -Wextra -Wpedantic)
+        endif()
         gtest_discover_tests(exrio_unit_tests)
     endif()
 
@@ -75,7 +79,9 @@ if(BUILD_TESTING)
             ${CMAKE_CURRENT_SOURCE_DIR}/include/exrio
             ${CMAKE_CURRENT_SOURCE_DIR}/tests
         )
-        target_compile_options(exrio_integration_tests PRIVATE -Wall -Wextra -Wpedantic)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            target_compile_options(exrio_integration_tests PRIVATE -Wall -Wextra -Wpedantic)
+        endif()
         gtest_discover_tests(exrio_integration_tests)
     endif()
 endif()

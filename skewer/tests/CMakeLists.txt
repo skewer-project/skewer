@@ -25,11 +25,13 @@ set(SKEWER_SCENE_TEST_SOURCES
     ../src/materials/bsdf.cc
 )
 
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/io/graph_from_json.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../src/io/scene_loader.cc"
-    PROPERTIES COMPILE_OPTIONS "-fno-fast-math"
-)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../src/io/graph_from_json.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../src/io/scene_loader.cc"
+        PROPERTIES COMPILE_OPTIONS "-fno-fast-math"
+    )
+endif()
 
 # Create the test executable
 add_executable(unit_tests

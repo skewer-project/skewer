@@ -46,7 +46,9 @@ add_library(loom_compositor STATIC
 target_include_directories(loom_compositor PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(loom_compositor PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../skewer/external)
 target_link_libraries(loom_compositor PUBLIC exrio::exrio)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 # Main executable
 add_executable(loom src/main.cc)
@@ -63,7 +65,9 @@ target_link_libraries(loom-worker PRIVATE loom_compositor)
 # Create output directory
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 if(BUILD_TESTING)
   include(FetchContent)

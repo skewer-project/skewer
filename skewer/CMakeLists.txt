@@ -80,12 +80,14 @@ target_include_directories(skewer-worker
         ${CMAKE_BINARY_DIR}
 )
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
     COMPILE_OPTIONS "-fno-fast-math"
 )
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
     COMPILE_OPTIONS "-fno-fast-math"
 )
+endif()
 
 # Link libraries
 target_link_libraries(skewer-render
