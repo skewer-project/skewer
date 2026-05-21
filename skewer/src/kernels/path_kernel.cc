@@ -62,6 +62,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
     float prev_scatter_pdf = 1.0f;  // pdf of previous bounce (for directional MIS)
 
     bool saw_visible = false;
+    bool hit_opaque_background = false;
     int vis_checks = 0;
 
     for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
@@ -272,6 +273,20 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 vis_checks++;
                 // Environment hit = no visible object along this path segment
             }
+
+            SkyboxSample skybox_sample;
+            if (scene.SampleSkybox(r, RenderConstants::kRayOffsetEpsilon,
+                                   MathConstants::kFloatInfinity, &skybox_sample)) {
+                if (is_camera_path) {
+                    Spectrum skybox_L = CurveToSpectrum(RGBToCurve(skybox_sample.color), wl);
+                    dpr.AppendVertex(ray_t + skybox_sample.t, ray_t + skybox_sample.t, skybox_L,
+                                     1.0f, true, false);
+                    L += skybox_L * current_beta;
+                    hit_opaque_background = true;
+                }
+                break;
+            }
+
             Spectrum env_L = EvaluateEnvironment(r.direction(), wl);
             dpr.AppendVertex(RenderConstants::kFarClip, RenderConstants::kFarClip, env_L, 1.0f,
                              is_camera_path, false);
@@ -292,7 +307,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
     }
 
     dpr.ResolveToDeep(writer, ray, primary_cam_w, wl);
-    const float out_alpha = (config.transparent_background && !saw_visible) ? 0.0f : 1.0f;
+    const float out_alpha =
+        (config.transparent_background && !saw_visible && !hit_opaque_background) ? 0.0f : 1.0f;
     writer.WriteBeauty(SpectrumToRGB(L, wl), out_alpha);
     writer.FlushDeepSegments();
 }

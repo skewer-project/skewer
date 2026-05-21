@@ -15,6 +15,7 @@
 
 #include "core/math/vec3.h"
 #include "scene/camera.h"
+#include "scene/skybox.h"
 #include "session/render_options.h"
 
 namespace skwr {
@@ -80,6 +81,9 @@ struct SceneConfig {
     // Optional animation timeline; when set, per-layer shutter uses FrameWindow / static time at
     // start.
     std::optional<AnimationConfig> animation;
+
+    // Optional finite, non-lighting background box.
+    std::optional<Skybox> skybox;
 };
 
 // Load a scene.json file. Parses camera, context refs, and layer refs.

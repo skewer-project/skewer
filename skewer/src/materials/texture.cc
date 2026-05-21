@@ -28,14 +28,17 @@ bool ImageTexture::Load(const std::string& filepath) {
     return true;
 }
 
-RGB ImageTexture::Sample(float u, float v) const {
+RGB ImageTexture::Sample(float u, float v, TextureWrapMode wrap) const {
     if (data.empty()) return RGB(1.0f, 0.0f, 1.0f);  // Magenta = missing texture
 
-    // Repeat (tiling) wrapping
-    u = u - std::floor(u);
-    v = v - std::floor(v);
+    if (wrap == TextureWrapMode::Repeat) {
+        u = u - std::floor(u);
+        v = v - std::floor(v);
+    } else {
+        u = std::clamp(u, 0.0f, 1.0f);
+        v = std::clamp(v, 0.0f, 1.0f);
+    }
 
-    // Bilinear interpolation
     float fx = u * static_cast<float>(width - 1);
     float fy = v * static_cast<float>(height - 1);
 

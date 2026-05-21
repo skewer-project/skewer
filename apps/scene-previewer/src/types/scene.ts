@@ -77,6 +77,7 @@ export interface NanoVDBMedium {
 	density_multiplier: number;
 	scale?: number;
 	translate?: Vec3;
+	rotate?: Vec3;
 	file: string;
 }
 
@@ -213,6 +214,21 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
 	image: { width: 1920, height: 1080 },
 };
 
+// --- Skybox ---
+
+export interface SkyboxData {
+	min: Vec3;
+	max: Vec3;
+	faces: Partial<{
+		"+x": string;
+		"-x": string;
+		"+y": string;
+		"-y": string;
+		"+z": string;
+		"-z": string;
+	}>;
+}
+
 // --- scene.json top-level ---
 
 export interface SceneManifest {
@@ -221,6 +237,7 @@ export interface SceneManifest {
 	layers: string[];
 	output_dir: string;
 	animation?: Animation;
+	skybox?: SkyboxData;
 }
 
 // --- Resolved scene (what the app stores after loading) ---
@@ -238,4 +255,5 @@ export interface ResolvedScene {
 	output_dir: string;
 	animation: Animation;
 	settings: RenderConfig;
+	skybox?: SkyboxData;
 }

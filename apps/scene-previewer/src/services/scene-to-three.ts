@@ -4,7 +4,12 @@
 import * as THREE from "three";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import type { Material, ResolvedScene, SceneNode } from "../types/scene";
+import type {
+	Material,
+	ResolvedScene,
+	SceneNode,
+	SkyboxData,
+} from "../types/scene";
 import { getFile, readTextFile } from "./fs";
 import {
 	applyStaticTransformToObject3D,
@@ -37,7 +42,9 @@ function parseMtllibNames(objText: string): string[] {
 function parseMtlTexturePaths(mtlText: string): string[] {
 	const paths: string[] = [];
 	for (const line of mtlText.split("\n")) {
-		const match = line.trim().match(/^map_Kd\s+(.+)$/i);
+		const match = line
+			.trim()
+			.match(/^(?:map_\w+|bump|disp|decal|norm)\s+(.+)$/i);
 		if (match) paths.push(match[1].trim());
 	}
 	return paths;
@@ -193,7 +200,13 @@ async function buildLeafMesh(
 
 		const objLoader = new OBJLoader();
 		if (materialCreator) objLoader.setMaterials(materialCreator);
-		const group = objLoader.parse(objText);
+		let group: THREE.Group;
+		try {
+			group = objLoader.parse(objText);
+		} catch (e) {
+			console.warn(`[scene-to-three] OBJ parse failed for ${node.file}:`, e);
+			return null;
+		}
 
 		const mat = node.material ? (materials[node.material] ?? null) : null;
 		if (mat) {
@@ -276,6 +289,45 @@ async function buildNode(
 export interface SceneGraphResult {
 	group: THREE.Group;
 	blobUrls: string[];
+	skyboxTexture?: THREE.CubeTexture;
+}
+
+export async function buildSkyboxTexture(
+	skybox: SkyboxData,
+	dir: FileSystemDirectoryHandle,
+	blobUrls: string[],
+	signal?: AbortSignal,
+): Promise<THREE.CubeTexture | null> {
+	const faceOrder = (
+		[
+			skybox.faces["+x"],
+			skybox.faces["-x"],
+			skybox.faces["+y"],
+			skybox.faces["-y"],
+			skybox.faces["+z"],
+			skybox.faces["-z"],
+		] as const
+	).filter((p): p is string => typeof p === "string" && p.trim() !== "");
+
+	if (faceOrder.length === 0) return null;
+
+	const faceFiles: File[] = [];
+	for (const path of faceOrder) {
+		if (signal?.aborted) return null;
+		try {
+			faceFiles.push(await getFile(dir, path));
+		} catch {
+			console.warn(`[scene-to-three] Skybox face not found: ${path}`);
+			return null;
+		}
+	}
+
+	if (signal?.aborted) return null;
+
+	const faceUrls = faceFiles.map((f) => URL.createObjectURL(f));
+	blobUrls.push(...faceUrls);
+
+	return new THREE.CubeTextureLoader().load(faceUrls);
 }
 
 export function revokeBlobUrls(urls: string[]) {
@@ -349,5 +401,14 @@ export async function buildSceneGraph(
 		return { group: root, blobUrls: [] };
 	}
 
-	return { group: root, blobUrls };
+	const skyboxTexture = scene.skybox
+		? await buildSkyboxTexture(scene.skybox, dir, blobUrls, signal)
+		: undefined;
+
+	if (signal.aborted && skyboxTexture) {
+		skyboxTexture.dispose();
+		return { group: root, blobUrls: [] };
+	}
+
+	return { group: root, blobUrls, skyboxTexture: skyboxTexture ?? undefined };
 }

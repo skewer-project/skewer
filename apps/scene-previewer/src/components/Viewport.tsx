@@ -20,6 +20,7 @@ import {
 import {
 	applyStaticTransformToObject3D,
 	buildSceneGraph,
+	buildSkyboxTexture,
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
@@ -411,6 +412,8 @@ export function Viewport({
 	const controls = useRef<OrbitControls | null>(null);
 	const sceneGroup = useRef<THREE.Group | null>(null);
 	const blobUrlsRef = useRef<string[]>([]);
+	const skyboxTextureRef = useRef<THREE.CubeTexture | null>(null);
+	const lastSkyboxJsonRef = useRef<string>("");
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
 	const transformControls = useRef<TransformControls | null>(null);
@@ -782,6 +785,11 @@ export function Viewport({
 			if (oldUrls.length > 0) {
 				revokeBlobUrls(oldUrls);
 			}
+			const oldSkybox = skyboxTextureRef.current;
+			if (oldSkybox) {
+				oldSkybox.dispose();
+				skyboxTextureRef.current = null;
+			}
 			const comp = composer.current;
 			if (comp) {
 				for (const pass of comp.passes) {
@@ -833,8 +841,8 @@ export function Viewport({
 
 		const abortController = new AbortController();
 
-		buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
-			(result) => {
+		buildSceneGraph(currentScene, dirHandle, abortController.signal)
+			.then((result) => {
 				if (abortController.signal.aborted) return;
 
 				const proxy = gizmoProxy.current;
@@ -856,9 +864,25 @@ export function Viewport({
 					revokeBlobUrls(oldUrls);
 				}
 
+				// Dispose previous skybox texture if present
+				const oldSkybox = skyboxTextureRef.current;
+				if (oldSkybox) {
+					oldSkybox.dispose();
+					skyboxTextureRef.current = null;
+				}
+
 				sc.add(result.group);
 				sceneGroup.current = result.group;
 				blobUrlsRef.current = result.blobUrls;
+
+				// Apply skybox as background, or fall back to solid color
+				if (result.skyboxTexture) {
+					sc.background = result.skyboxTexture;
+					skyboxTextureRef.current = result.skyboxTexture;
+				} else {
+					sc.background = new THREE.Color(0x0c0d0f);
+				}
+
 				const builtScene = latestSceneRef.current;
 				if (builtScene) {
 					applyAnimatedNodesAtTime(
@@ -867,13 +891,67 @@ export function Viewport({
 						currentTimeRef.current,
 					);
 				}
-			},
-		);
+			})
+			.catch((err) => {
+				console.error("[Viewport] buildSceneGraph failed:", err);
+			});
 
 		return () => {
 			abortController.abort();
 		};
 	}, [dirHandle, scene, sceneVersion]);
+
+	// --- Effect 2b: live-reload skybox background when skybox data changes ---
+	// Avoids a full scene-graph rebuild for just a texture swap.
+	useEffect(() => {
+		const currentScene = scene;
+		const sc = threeScene.current;
+		if (!currentScene || !sc || !dirHandle) return;
+
+		const skyboxJson = JSON.stringify(currentScene.skybox ?? null);
+		if (skyboxJson === lastSkyboxJsonRef.current) return;
+		lastSkyboxJsonRef.current = skyboxJson;
+
+		const abortController = new AbortController();
+
+		if (currentScene.skybox) {
+			const urls: string[] = [];
+			buildSkyboxTexture(
+				currentScene.skybox,
+				dirHandle,
+				urls,
+				abortController.signal,
+			)
+				.then((tex) => {
+					if (abortController.signal.aborted) {
+						revokeBlobUrls(urls);
+						return;
+					}
+					const old = skyboxTextureRef.current;
+					if (old) old.dispose();
+					if (tex) {
+						sc.background = tex;
+						skyboxTextureRef.current = tex;
+					}
+					blobUrlsRef.current = [...blobUrlsRef.current, ...urls];
+				})
+				.catch((err) => {
+					revokeBlobUrls(urls);
+					console.warn("[Viewport] Skybox reload failed:", err);
+				});
+		} else {
+			const old = skyboxTextureRef.current;
+			if (old) {
+				old.dispose();
+				skyboxTextureRef.current = null;
+			}
+			sc.background = new THREE.Color(0x0c0d0f);
+		}
+
+		return () => {
+			abortController.abort();
+		};
+	}, [dirHandle, scene]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {

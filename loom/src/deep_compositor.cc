@@ -201,7 +201,8 @@ void WriterWorker(int start_row, int end_row, PipelineContext& ctx) {
 }
 
 std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
-                                 std::vector<std::unique_ptr<DeepInfo>>& images_info) {
+                                 std::vector<std::unique_ptr<DeepInfo>>& images_info,
+                                 int thread_count) {
     if ((width == 0 || height == 0) && !images_info.empty()) {
         width = images_info[0]->width();
         height = images_info[0]->height();
@@ -246,7 +247,8 @@ std::vector<float> ProcessAllEXR(const Options& opts, int height, int width,
                         final_image,
                         deep_image.get()};
 
-    int n = std::max(1, (int)std::thread::hardware_concurrency());
+    int n = thread_count > 0 ? thread_count : static_cast<int>(std::thread::hardware_concurrency());
+    n = std::max(1, n);
     // Iterative loop
     if (n <= 3) {
         // printf("STARTED THIS LOOP");

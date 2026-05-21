@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       regen_goldens:
-        description: 'Regenerate golden image hashes instead of comparing'
+        description: "Regenerate golden image hashes instead of comparing"
         type: boolean
         default: false
 
@@ -85,7 +85,7 @@ jobs:
         run: ccache -z
 
       - name: Build
-        run: cmake --build --preset ci --parallel
+        run: cmake --build --preset ci --parallel 6
 
       - name: Run integration tests
         run: ./build/ci/tests/integration_tests

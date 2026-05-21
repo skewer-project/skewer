@@ -202,6 +202,7 @@ static MediaMap ParseMedia(const json& j, Scene& scene, const std::string& scene
             // Spatial overrides
             med.scale = GetOr(m, "scale", 1.0f);
             med.translate = GetVec3Or(m, "translate", Vec3(0.0f, 0.0f, 0.0f));
+            med.rotate = GetVec3Or(m, "rotate", Vec3(0.0f, 0.0f, 0.0f));
 
             std::string file = m.at("file").get<std::string>();
             std::string filepath = ResolvePath(file, scene_dir);
@@ -564,6 +565,81 @@ static RenderOptions ParseRenderOptions(const json& j) {
 
     return opts;
 }
+//------------------------------------------------------------------------------
+// Skybox Parsing
+//------------------------------------------------------------------------------
+
+static SkyboxFace ParseSkyboxFaceKey(const std::string& key) {
+    if (key == "+x") return SkyboxFace::PosX;
+    if (key == "-x") return SkyboxFace::NegX;
+    if (key == "+y") return SkyboxFace::PosY;
+    if (key == "-y") return SkyboxFace::NegY;
+    if (key == "+z") return SkyboxFace::PosZ;
+    if (key == "-z") return SkyboxFace::NegZ;
+    throw std::runtime_error("Unknown skybox face key: " + key);
+}
+
+/// Parse a skybox from a JSON object.
+static Skybox ParseSkybox(const json& j, const std::string& scene_dir) {
+    Skybox skybox;
+
+    // Depending on if the user sets size, it will make max and min the size
+    // User can also just set the min and max directly.
+    // (Max and min might not be needed))
+    if (j.contains("center") || j.contains("size")) {
+        if (!j.contains("center") || !j.contains("size")) {
+            throw std::runtime_error("skybox requires both 'center' and 'size'");
+        }
+        Vec3 center = ParseVec3(j.at("center"));
+        Vec3 size = ParseVec3(j.at("size"));
+        if (!(size.x() > 0.0f && size.y() > 0.0f && size.z() > 0.0f)) {
+            throw std::runtime_error("skybox 'size' components must be positive");
+        }
+        Vec3 half = size * 0.5f;
+        skybox.SetBounds(center - half, center + half);
+        // Allows min and max loading
+    } else if (j.contains("min") || j.contains("max")) {
+        if (!j.contains("min") || !j.contains("max")) {
+            throw std::runtime_error("skybox requires both 'min' and 'max'");
+        }
+        Vec3 min_point = ParseVec3(j.at("min"));
+        Vec3 max_point = ParseVec3(j.at("max"));
+        if (!(max_point.x() > min_point.x() && max_point.y() > min_point.y() &&
+              max_point.z() > min_point.z())) {
+            throw std::runtime_error("skybox 'max' must be greater than 'min' on every axis");
+        }
+        skybox.SetBounds(min_point, max_point);
+    } else {
+        throw std::runtime_error("skybox requires either 'center'+'size' or 'min'+'max'");
+    }
+
+    if (!j.contains("faces") || !j.at("faces").is_object()) {
+        throw std::runtime_error("skybox requires a 'faces' object");
+    }
+
+    const auto& faces = j.at("faces");
+    for (auto it = faces.begin(); it != faces.end(); ++it) {
+        if (!it.value().is_string()) {
+            throw std::runtime_error("skybox face '" + it.key() + "' must be a texture path");
+        }
+
+        std::string path = it.value().get<std::string>();
+        if (path.empty()) continue;
+
+        ImageTexture texture;
+        std::string filepath = ResolvePath(path, scene_dir);
+        if (!texture.Load(filepath)) {
+            throw std::runtime_error("Failed to load skybox texture: " + filepath);
+        }
+        skybox.SetFace(ParseSkyboxFaceKey(it.key()), std::move(texture));
+    }
+
+    if (!skybox.IsValid()) {
+        throw std::runtime_error("skybox must have valid bounds and at least one loaded face");
+    }
+
+    return skybox;
+}
 
 //------------------------------------------------------------------------------
 // Open + Parse JSON helper
@@ -643,6 +719,10 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
 
     // Output directory (local path or cloud URI — used as-is, not resolved)
     config.output_dir = GetOr<std::string>(j, "output_dir", "");
+
+    if (j.contains("skybox")) {
+        config.skybox = ParseSkybox(j.at("skybox"), scene_dir);
+    }
 
     // Resolve context paths
     if (j.contains("context")) {

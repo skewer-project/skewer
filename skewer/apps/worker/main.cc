@@ -131,7 +131,6 @@ static int RunBatchMode() {
 
             std::filesystem::create_directories(std::filesystem::path(out_path).parent_path());
 
-            film->WriteImage(out_path);
             film->WriteDeepEXRStreaming(out_path);
 
             std::cout << "[SKEWER BATCH]: Wrote " << out_path << "\n";
@@ -149,6 +148,10 @@ static int RunBatchMode() {
                 throw std::runtime_error("cache copy failed: " + src + " -> " + dst);
             }
             out << in.rdbuf();
+            out.close();
+            if (!in || !out) {
+                throw std::runtime_error("cache copy incomplete: " + src + " -> " + dst);
+            }
             std::cout << "[SKEWER BATCH]: Cached to: " << dst << "\n";
         };
 

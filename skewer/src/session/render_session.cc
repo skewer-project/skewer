@@ -105,6 +105,10 @@ static void RenderLayerPass(const SceneConfig& config, const std::string& layer_
                             const std::pair<std::string, std::string>& out_paths,
                             int thread_override, bool multi_layer) {
     auto layer_scene = std::make_unique<Scene>();
+    // Set the skybox for each of the layer scenes
+    if (config.skybox) {
+        layer_scene->SetSkybox(*config.skybox);
+    }
     LoadContextIntoScene(config.context_paths, *layer_scene);
     LayerConfig lcfg = LoadLayerFile(layer_path, *layer_scene);
     layer_scene->SetShutter(shutter_open, shutter_close);
@@ -351,6 +355,10 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
 
     // 2. Create scene, load context + first layer
     scene_ = std::make_unique<Scene>();
+    // Sets skybox for one particular scene
+    if (config.skybox) {
+        scene_->SetSkybox(*config.skybox);
+    }
     LoadContextIntoScene(config.context_paths, *scene_);
 
     if (config.layer_paths.empty()) {

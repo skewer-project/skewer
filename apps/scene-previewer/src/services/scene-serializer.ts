@@ -91,6 +91,7 @@ function serializeMedium(m: Medium): Record<string, unknown> {
 	};
 	if (m.scale !== undefined) o.scale = m.scale;
 	if (m.translate !== undefined) o.translate = m.translate;
+	if (m.rotate !== undefined) o.rotate = m.rotate;
 	return o;
 }
 
@@ -263,13 +264,26 @@ function serializeAnimation(a: Animation): Record<string, unknown> {
 }
 
 function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
-	return {
+	const o: Record<string, unknown> = {
 		camera: serializeCamera(scene.camera),
 		animation: serializeAnimation(scene.animation),
 		context: scene.contexts.map((l) => l.path),
 		layers: scene.layers.map((l) => l.path),
 		output_dir: scene.output_dir,
 	};
+	if (scene.skybox) {
+		const nonEmptyFaces = Object.entries(scene.skybox.faces).filter(
+			([, path]) => typeof path === "string" && path.trim() !== "",
+		);
+		if (nonEmptyFaces.length > 0) {
+			o.skybox = {
+				min: scene.skybox.min,
+				max: scene.skybox.max,
+				faces: Object.fromEntries(nonEmptyFaces),
+			};
+		}
+	}
+	return o;
 }
 
 export function serializeSceneJSON(scene: ResolvedScene): string {
@@ -313,6 +327,7 @@ export async function saveScene(
 						// Sync Media properties
 						med.translate = worldCenter;
 						med.scale = worldRadius / bounds.radius;
+						med.rotate = st.rotate ?? [0, 0, 0];
 					}
 				}
 			}
