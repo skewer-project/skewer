@@ -1,0 +1,137 @@
+/* Add-skybox button (shown when no skybox exists) */
+.addBtn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background: none;
+	border: 1px dashed var(--border-mid);
+	border-radius: 2px;
+	color: var(--t2);
+	font-family: var(--mono);
+	font-size: 10.5px;
+	padding: 4px 10px;
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		border-color 0.12s;
+}
+.addBtn:hover {
+	color: var(--t1);
+	border-color: var(--t2);
+}
+
+/* Remove button at the bottom of skybox section */
+.removeBtn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	margin-top: 8px;
+	background: transparent;
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	color: var(--t3);
+	font-family: var(--mono);
+	font-size: 10.5px;
+	padding: 4px 0;
+	cursor: pointer;
+	transition:
+		color 0.12s,
+		border-color 0.12s,
+		background 0.12s;
+}
+.removeBtn:hover {
+	color: var(--red);
+	border-color: rgba(224, 92, 92, 0.4);
+	background: rgba(224, 92, 92, 0.06);
+}
+
+/* ── Bounds rows ── */
+.boundsRow {
+	display: grid;
+	grid-template-columns: 18px 1fr;
+	gap: 0 6px;
+	align-items: center;
+	line-height: 1.7;
+}
+.boundsLabel {
+	color: var(--t2);
+	font-size: 10.5px;
+	letter-spacing: 0.03em;
+	font-weight: 500;
+}
+.boundsCell {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.boundsSep {
+	color: var(--t3);
+	font-size: 11px;
+	margin: 0 2px;
+	user-select: none;
+	flex-shrink: 0;
+}
+.boundsNum {
+	composes: numInput from "../styles/shared/uiPrimitives.module.css";
+	width: 68px;
+}
+
+/* ── Face rows ── */
+.faceRow {
+	display: grid;
+	grid-template-columns: 72px 1fr 52px;
+	gap: 0 6px;
+	align-items: center;
+	line-height: 1.7;
+	margin-bottom: 3px;
+}
+.faceLabel {
+	color: var(--t3);
+	font-size: 10.5px;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
+}
+.faceInput {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	color: var(--t0);
+	font-family: var(--mono);
+	font-size: 10.5px;
+	padding: 2px 5px;
+	width: 100%;
+	outline: none;
+	transition: border-color 0.12s;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.faceInput:focus {
+	border-color: var(--amber-border);
+}
+.faceInput::placeholder {
+	color: var(--t3);
+}
+
+.faceBrowseBtn {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-mid);
+	border-radius: 2px;
+	color: var(--t2);
+	font-family: var(--mono);
+	font-size: 10px;
+	letter-spacing: 0.04em;
+	padding: 2px 6px;
+	cursor: pointer;
+	white-space: nowrap;
+	flex-shrink: 0;
+	transition:
+		color 0.12s,
+		border-color 0.12s,
+		background 0.12s;
+}
+.faceBrowseBtn:hover {
+	color: var(--t1);
+	border-color: var(--t2);
+}

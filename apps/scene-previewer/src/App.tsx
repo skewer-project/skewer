@@ -205,6 +205,14 @@ function App() {
 		},
 		[handleSceneEdit],
 	);
+
+	const handleSkyboxChange = useCallback(
+		(skybox: import("./types/scene").SkyboxData | undefined) => {
+			handleSceneEdit((s) => ({ ...s, skybox }));
+		},
+		[handleSceneEdit],
+	);
+
 	const setRenderStartTime = useCallback(
 		(n: number) => updateAnimation({ start: n }),
 		[updateAnimation],
@@ -702,6 +710,8 @@ function App() {
 							onEndTimeChange={setRenderEndTime}
 							fps={renderFps}
 							onFpsChange={setRenderFps}
+							skybox={scene.skybox}
+							onSkyboxChange={handleSkyboxChange}
 						/>
 					</div>
 				)}

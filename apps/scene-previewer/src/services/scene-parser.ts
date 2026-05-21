@@ -23,6 +23,7 @@ import type {
 	ResolvedScene,
 	SceneManifest,
 	SceneNode,
+	SkyboxData,
 	SphereNode,
 	StaticTransform,
 	Vec3,
@@ -506,6 +507,59 @@ function parseAnimation(json: unknown): Animation {
 	};
 }
 
+// --- Skybox ---
+
+function parseSkybox(json: unknown): SkyboxData | undefined {
+	if (!isObject(json)) return undefined;
+
+	// Parse bounds: supports both center+size and min+max (per C++ scene loader)
+	let min: Vec3 = [-10, -10, -10];
+	let max: Vec3 = [10, 10, 10];
+
+	if (json.center !== undefined && json.size !== undefined) {
+		const center = parseVec3(json.center, "skybox.center");
+		const size = parseVec3(json.size, "skybox.size");
+		for (let i = 0; i < 3; i++) {
+			const half = size[i] * 0.5;
+			min[i] = center[i] - half;
+			max[i] = center[i] + half;
+		}
+	} else if (json.min !== undefined || json.max !== undefined) {
+		min = parseVec3OrDefault(json.min, "skybox.min", min);
+		max = parseVec3OrDefault(json.max, "skybox.max", max);
+	}
+
+	// Validate and fix inverted bounds per axis (swap if max < min)
+	for (let i = 0; i < 3; i++) {
+		if (max[i] < min[i]) {
+			const tmp = min[i];
+			min[i] = max[i];
+			max[i] = tmp;
+		} else if (max[i] === min[i]) {
+			// Degenerate bounds — give a small size rather than rejecting
+			max[i] = min[i] + 0.1;
+		}
+	}
+
+	// Parse faces — optional per the engine; collect only provided keys
+	const facesRaw = json.faces;
+	if (!isObject(facesRaw))
+		throw new Error("skybox.faces: expected object with at least one face key");
+
+	const faces: SkyboxData["faces"] = {};
+	for (const [key, val] of Object.entries(facesRaw)) {
+		if (typeof val !== "string") continue;
+		if (val.trim() === "") continue; // skip empty
+		if (!["+x", "-x", "+y", "-y", "+z", "-z"].includes(key)) continue;
+		faces[key as keyof SkyboxData["faces"]] = val;
+	}
+
+	if (Object.keys(faces).length === 0)
+		throw new Error("skybox.faces: at least one non-empty face path required");
+
+	return { min, max, faces };
+}
+
 // --- scene.json manifest ---
 
 export function parseSceneManifest(json: unknown): SceneManifest {
@@ -529,6 +583,7 @@ export function parseSceneManifest(json: unknown): SceneManifest {
 		output_dir: typeof json.output_dir === "string" ? json.output_dir : "",
 		animation:
 			json.animation !== undefined ? parseAnimation(json.animation) : undefined,
+		skybox: json.skybox !== undefined ? parseSkybox(json.skybox) : undefined,
 	};
 }
 
@@ -561,6 +616,7 @@ export async function loadScene(
 		output_dir: manifest.output_dir,
 		animation: manifest.animation ?? { ...DEFAULT_ANIMATION },
 		settings: DEFAULT_RENDER_CONFIG,
+		skybox: manifest.skybox,
 	};
 
 	// --- Volumetric Bounding Sphere Synchronization ---
