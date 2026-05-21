@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
+include(GNUInstallDirs)
 # Fixes CMake FetchContent warning
 # (https://cmake.org/cmake/help/latest/policy/CMP0135.html)
 cmake_policy(SET CMP0135 NEW)
@@ -81,12 +82,12 @@ target_include_directories(skewer-worker
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
-    COMPILE_OPTIONS "-fno-fast-math"
-)
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
-    COMPILE_OPTIONS "-fno-fast-math"
-)
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
+      COMPILE_OPTIONS "-fno-fast-math"
+  )
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
+      COMPILE_OPTIONS "-fno-fast-math"
+  )
 endif()
 
 # Link libraries
@@ -139,6 +140,11 @@ if(SKEWER_IPO_SUPPORTED)
   set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
   set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 endif()
+
+install(TARGETS skewer-render
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT Runtime
+)
 
 if(BUILD_TESTING)
   include(GoogleTest)

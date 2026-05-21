@@ -20,6 +20,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # endif()
 
 include(CTest)
+include(GNUInstallDirs)
 cmake_policy(SET CMP0135 NEW)
 
 # Needs to be changed to not pull entire skewer renderer in.
@@ -47,7 +48,7 @@ target_include_directories(loom_compositor PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(loom_compositor PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../skewer/external)
 target_link_libraries(loom_compositor PUBLIC exrio::exrio)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(loom_compositor PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # Main executable
@@ -66,7 +67,7 @@ target_link_libraries(loom-worker PRIVATE loom_compositor)
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/output)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(loom PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 if(BUILD_TESTING)
@@ -87,5 +88,6 @@ endif()
 
 # Install targets
 install(TARGETS loom
-    RUNTIME DESTINATION bin
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT Runtime
 )
