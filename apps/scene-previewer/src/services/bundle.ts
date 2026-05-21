@@ -142,7 +142,6 @@ function collectMediumPaths(
 	return paths;
 }
 
-
 // Collects texture paths from the scene's skybox, excluding any already in existingPaths.
 function collectSkyboxTexturePaths(
 	scene: ResolvedScene,
