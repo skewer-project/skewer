@@ -251,9 +251,29 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 
 				{/* Footer hint */}
 				<div className={l.landingFooter}>
-					scenes use the{" "}
-					<span className={l.landingFooterHl}>layers format</span>: a folder
-					with scene.json + layer file(s)
+					<span>
+						Scenes use the{" "}
+						<a
+							href="https://skewer-project.github.io/skewer/reference/scene-format/"
+							target="_blank"
+							rel="noreferrer"
+							className={l.landingFooterHl}
+						>
+							layers format
+						</a>
+						.
+					</span>{" "}
+					<span>
+						Find example scenes{" "}
+						<a
+							href="https://drive.google.com/drive/folders/1rdr24XMyvrBft8MjJE8zhBiQZQIvqQUB?usp=sharing"
+							target="_blank"
+							rel="noreferrer"
+							className={l.landingFooterHl}
+						>
+							here
+						</a>
+					</span>
 				</div>
 			</div>
 		</div>
