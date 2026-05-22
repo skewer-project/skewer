@@ -24,7 +24,7 @@ export type SerializedSceneFiles = Map<string, unknown>;
 const SCENE_MANIFEST_PATH = "scene.json";
 
 function cloneJson<T>(value: T): T {
-	return JSON.parse(JSON.stringify(value)) as T;
+	return structuredClone(value);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -371,6 +371,33 @@ export function applyUndoEntry(
 		} else {
 			root = insertJsonPointer(root, delta.jsonPath, delta.oldValue);
 			files.set(delta.filePath, root);
+		}
+	}
+	return hydrateSceneFiles(files, scene.settings);
+}
+
+// Apply deltas in forward order for redo — opposite of applyUndoEntry.
+export function applyRedoEntry(
+	scene: ResolvedScene,
+	entry: SceneHistoryEntry,
+): ResolvedScene {
+	const files = serializeSceneFiles(scene);
+	for (let i = 0; i < entry.deltas.length; i++) {
+		const delta = entry.deltas[i];
+		let root = files.has(delta.filePath)
+			? cloneJson(files.get(delta.filePath))
+			: undefined;
+
+		if (delta.operation === "update" && delta.newValue !== undefined) {
+			root = setJsonPointer(root, delta.jsonPath, delta.newValue);
+			files.set(delta.filePath, root);
+		} else if (delta.operation === "add" && delta.newValue !== undefined) {
+			root = insertJsonPointer(root, delta.jsonPath, delta.newValue);
+			files.set(delta.filePath, root);
+		} else {
+			root = deleteJsonPointer(root, delta.jsonPath);
+			if (root === undefined) files.delete(delta.filePath);
+			else files.set(delta.filePath, root);
 		}
 	}
 	return hydrateSceneFiles(files, scene.settings);
