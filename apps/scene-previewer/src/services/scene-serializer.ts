@@ -42,7 +42,7 @@ function serializeCamera(c: Camera): Record<string, unknown> {
 	const sc = c.shutter_close ?? 0;
 	if (so !== 0) o.shutter_open = so;
 	if (sc !== 0) o.shutter_close = sc;
-	if (c.keyframes !== undefined) {
+	if (c.keyframes !== undefined && c.keyframes.length > 0) {
 		o.keyframes = c.keyframes.map(serializeCameraKeyframe);
 	}
 	return o;

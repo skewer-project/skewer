@@ -112,6 +112,8 @@ TEST(SceneLoader, ParseCameraKeyframes) {
     SceneConfig config = LoadSceneFile(p.string());
     ASSERT_EQ(config.camera_timeline.keyframes.size(), 2u);
     EXPECT_TRUE(config.camera_timeline.IsAnimated());
+    EXPECT_EQ(config.camera_timeline.keyframes[0].curve, nullptr);
+    EXPECT_EQ(config.camera_timeline.keyframes[1].curve, nullptr);
     CameraState mid = config.camera_timeline.Evaluate(1.0f);
     EXPECT_NEAR(mid.look_from.x(), 1.0f, 1e-5f);
     EXPECT_NEAR(mid.look_at.z(), 0.0f, 1e-5f);
@@ -132,6 +134,28 @@ TEST(SceneLoader, RejectInvalidCameraKeyframeOptics) {
     "keyframes": [
       { "time": 0 },
       { "time": 1, "aperture_radius": -1 }
+    ]
+  },
+  "layers": ["layer.json"]
+})";
+    }
+
+    EXPECT_THROW(LoadSceneFile(p.string()), std::runtime_error);
+    std::filesystem::remove(p);
+}
+
+TEST(SceneLoader, RejectAnimatedCameraWithoutAnimationBlock) {
+    std::filesystem::path p = std::filesystem::temp_directory_path() /
+                              "skewer_ut_camera_keyframes_no_animation_scene.json";
+    {
+        std::ofstream out(p);
+        out << R"({
+  "camera": {
+    "look_from": [0, 0, 4],
+    "look_at": [0, 0, 0],
+    "keyframes": [
+      { "time": 0 },
+      { "time": 1, "look_from": [1, 0, 4] }
     ]
   },
   "layers": ["layer.json"]

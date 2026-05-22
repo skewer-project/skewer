@@ -143,12 +143,9 @@ static CameraTimeline ParseCameraTimelineJson(const json& cam, const std::string
         key.state = cur;
         if (kf.contains("curve")) {
             key.curve = ParseCurveJson(kf["curve"]);
-        } else {
-            key.curve = ParseCurveJson(json("linear"));
         }
         timeline.keyframes.push_back(std::move(key));
     }
-    timeline.SortKeyframes();
     return timeline;
 }
 
@@ -715,6 +712,11 @@ SceneConfig LoadSceneFile(const std::string& filepath) {
         }
 
         config.animation = anim;
+    }
+    if (config.camera_timeline.IsAnimated() && !config.animation) {
+        throw std::runtime_error(
+            "camera.keyframes with more than one entry requires an animation block in: " +
+            filepath);
     }
 
     // Output directory (local path or cloud URI — used as-is, not resolved)

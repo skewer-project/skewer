@@ -204,6 +204,22 @@ function buildResolvedCameraKeyframes(
 	return out;
 }
 
+const resolvedCameraKeyframesCache = new WeakMap<
+	CameraKeyframe[],
+	ResolvedCameraKeyframe[]
+>();
+
+function getResolvedCameraKeyframes(
+	camera: Camera,
+	keyframes: CameraKeyframe[],
+): ResolvedCameraKeyframe[] {
+	const cached = resolvedCameraKeyframesCache.get(keyframes);
+	if (cached) return cached;
+	const resolved = buildResolvedCameraKeyframes(camera, keyframes);
+	resolvedCameraKeyframesCache.set(keyframes, resolved);
+	return resolved;
+}
+
 function cameraFromResolved(
 	camera: Camera,
 	resolved: ResolvedCameraKeyframe,
@@ -301,7 +317,7 @@ export function evaluateCameraAt(camera: Camera, time: number): Camera {
 		return { ...camera };
 	}
 
-	const sorted = buildResolvedCameraKeyframes(camera, keyframes);
+	const sorted = getResolvedCameraKeyframes(camera, keyframes);
 	if (sorted.length === 1) {
 		return cameraFromResolved(camera, sorted[0], keyframes);
 	}

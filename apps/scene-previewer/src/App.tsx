@@ -398,6 +398,19 @@ function App() {
 
 	const handleCameraHandleChange = useCallback(
 		(handle: CameraHandle, value: Vec3) => {
+			const keyframes = scene?.camera.keyframes;
+			if (
+				keyframes &&
+				keyframes.length > 0 &&
+				!keyframes.some(
+					(kf) => Math.abs(kf.time - currentTime) < CAMERA_KEYFRAME_TIME_EPS,
+				)
+			) {
+				console.warn(
+					"[App] Ignoring camera handle edit away from a camera keyframe.",
+				);
+				return;
+			}
 			handleSceneEdit((s) => {
 				const keyframes = s.camera.keyframes;
 				if (keyframes && keyframes.length > 0) {
@@ -424,7 +437,7 @@ function App() {
 				};
 			});
 		},
-		[handleSceneEdit, currentTime],
+		[handleSceneEdit, scene, currentTime],
 	);
 
 	const deleteSelectedObjectFromKeyboard = useEffectEvent(() => {
