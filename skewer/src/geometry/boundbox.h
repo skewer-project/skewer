@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "core/math/constants.h"
+#include "core/math/transform.h"
 #include "core/math/vec3.h"
 #include "core/ray.h"
 
@@ -139,6 +140,8 @@ class BoundBox {
         }
     }
 
+    BoundBox Translated(const Vec3& offset) const { return BoundBox(min_ + offset, max_ + offset); }
+
     // Box Operations
     void Expand(const Point3& p) {
         min_ = Point3(std::fmin(min_.x(), p.x()), std::fmin(min_.y(), p.y()),
@@ -177,6 +180,20 @@ inline BoundBox Union(const BoundBox& a, const BoundBox& b, const BoundBox& c, c
 // inline BoundBox Union(const BoundBox& bbox, const Point3& p) {
 //     return BoundBox(min(bbox.min(), p), max(bbox.max(), p));
 // }
+
+inline BoundBox TransformBounds(const TRS& trs, const BoundBox& local) {
+    BoundBox world;
+    const Point3& mn = local.min();
+    const Point3& mx = local.max();
+    for (int i = 0; i < 8; ++i) {
+        float x = (i & 1) ? mx.x() : mn.x();
+        float y = (i & 2) ? mx.y() : mn.y();
+        float z = (i & 4) ? mx.z() : mn.z();
+        world.Expand(TRSApplyPoint(trs, Point3(x, y, z)));
+    }
+    world.PadToMinimums();
+    return world;
+}
 
 }  // namespace skwr
 

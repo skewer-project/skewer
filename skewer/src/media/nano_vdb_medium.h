@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "core/math/quat.h"
+#include "core/math/transform.h"
 #include "core/math/utils.h"
 #include "core/math/vec3.h"
 #include "core/spectral/spectral_curve.h"
@@ -260,11 +261,20 @@ struct NanoVDBMedium {
     }
 
     float GetDensity(const Point3& p_world, const NanoVDBAccessor& acc) const {
+        return GetDensity(p_world, TRS{}, acc);
+    }
+
+    float GetDensity(const Point3& p_world, const TRS& trs, const NanoVDBAccessor& acc) const {
         if (!float_grid && !fp16_grid) return 0.0f;
 
-        Vec3 p_no_translate = p_world - translate;
+        // Undo outer world-space TRS
+        Vec3 p = TRSInverseApplyPoint(trs, p_world);
+
+        // Undo the medium's own placement (scale/rotate/translate)
+        Vec3 p_no_translate = p - translate;
         Vec3 p_unrotated = QuatRotate(QuatConjugate(rotate_q), p_no_translate);
         Vec3 p_vdb = (p_unrotated * (1.0f / scale)) + vdb_centroid;
+
         nanovdb::Vec3f p_index;
 
         if (is_fp16) {
@@ -275,6 +285,10 @@ struct NanoVDBMedium {
 
         return acc.GetValue(p_index) * density_multiplier;
     }
+
+    BoundBox GetWorldBBox(const TRS& trs) const { return TransformBounds(trs, bbox); }
+
+    BoundBox GetWorldBBox() const { return TransformBounds(TRS{}, bbox); }
 
     Vec3 Center() const { return bbox.Centroid(); }
     float BoundingRadius() const {

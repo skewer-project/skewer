@@ -36,9 +36,11 @@ bool SampleMedium(const Ray& ray, const Scene& scene, float t_max, RNG& rng, Spe
             if (index >= scene.grid_media().size()) return false;
             return SampleGrid(scene.grid_media()[index], ray, t_max, rng, beta, mi);
 
-        case static_cast<int>(MediumType::NanoVDB):
+        case static_cast<int>(MediumType::NanoVDB): {
             if (index >= scene.nanovdb_media().size()) return false;
-            return SampleNanoVDB(scene.nanovdb_media()[index], ray, t_max, rng, beta, mi, wl);
+            TRS trs = ray.vol_stack().GetActiveTRS();
+            return SampleNanoVDB(scene.nanovdb_media()[index], ray, t_max, rng, beta, mi, wl, trs);
+        }
 
         default:
             return false;  // Fallback

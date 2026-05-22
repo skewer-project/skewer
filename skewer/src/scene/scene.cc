@@ -160,7 +160,8 @@ void Scene::ExtractInstancesFromGraph(const SceneNode& node, std::vector<Animate
             if (!node.sphere_data.has_value()) {
                 throw std::runtime_error("Sphere node missing sphere_data");
             }
-            const SphereData& sd = *node.sphere_data;
+            SphereData sd = *node.sphere_data;
+
             if (sd.center_is_world) {
                 TRS w = EvaluateTransformChain(chain, 0.0f);
                 if (!TRSIsIdentity(w)) {
@@ -169,7 +170,7 @@ void Scene::ExtractInstancesFromGraph(const SceneNode& node, std::vector<Animate
                         "transform");
                 }
                 AddSphere(Sphere{sd.center, sd.radius, sd.material_id, sd.light_index,
-                                 sd.interior_medium, sd.exterior_medium, sd.priority});
+                                 sd.interior_medium, sd.exterior_medium, sd.priority, TRS{}});
             } else if (TransformChainIsStatic(chain)) {
                 TRS w = EvaluateTransformChain(chain, 0.0f);
                 if (!TRSIsUniformScale(w)) {
@@ -180,7 +181,7 @@ void Scene::ExtractInstancesFromGraph(const SceneNode& node, std::vector<Animate
                 Vec3 c = TRSApplyPoint(w, sd.center);
                 float r = sd.radius * std::fabs(sc);
                 AddSphere(Sphere{c, r, sd.material_id, sd.light_index, sd.interior_medium,
-                                 sd.exterior_medium, sd.priority});
+                                 sd.exterior_medium, sd.priority, w});
             } else {
                 AnimatedSphere asphere;
                 asphere.local_data = sd;
@@ -377,10 +378,12 @@ bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction
     float closest_t = t_max;
 
     for (const AnimatedSphere& asphere : animated_spheres_) {
-        Sphere s = asphere.EvaluateAt(r.time());
+        TRS trs;
+        Sphere s = asphere.EvaluateAt(r.time(), &trs);
         if (IntersectSphere(r, s, t_min, closest_t, si)) {
             hit_anything = true;
             closest_t = si->t;
+            si->nano_vdb_trs = trs;
         }
     }
 
@@ -388,6 +391,7 @@ bool Scene::Intersect(const Ray& r, float t_min, float t_max, SurfaceInteraction
         if (IntersectSphere(r, sphere, t_min, closest_t, si)) {
             hit_anything = true;
             closest_t = si->t;
+            si->nano_vdb_trs = sphere.nano_vdb_trs;
         }
     }
 

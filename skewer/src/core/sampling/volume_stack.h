@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "core/cpu_config.h"
+#include "core/math/transform.h"
 
 namespace skwr {
 
@@ -22,7 +23,7 @@ class VolumeStack {
   public:
     VolumeStack() : count_(0) {}
 
-    inline void Push(uint16_t medium_id, uint16_t priority) {
+    inline void Push(uint16_t medium_id, uint16_t priority, TRS trs = TRS{}) {
         if (Contains(medium_id)) return;
         if (count_ >= kMaxMediumStack) return;  // Silent drop or log warning in debug
         // assert(count_ < kMaxMediumStack);
@@ -36,10 +37,12 @@ class VolumeStack {
         for (uint8_t i = count_; i > insert_idx; --i) {
             ids_[i] = ids_[i - 1];
             priorities_[i] = priorities_[i - 1];
+            trs_[i] = trs_[i - 1];
         }
 
         ids_[insert_idx] = medium_id;
         priorities_[insert_idx] = priority;
+        trs_[insert_idx] = trs;
         count_++;
     }
 
@@ -51,6 +54,7 @@ class VolumeStack {
                 for (uint8_t j = i; j < count_ - 1; ++j) {
                     ids_[j] = ids_[j + 1];
                     priorities_[j] = priorities_[j + 1];
+                    trs_[j] = trs_[j + 1];
                 }
                 count_--;
                 return;
@@ -59,6 +63,8 @@ class VolumeStack {
     }
 
     inline uint16_t GetActiveMedium() const { return (count_ > 0) ? ids_[0] : kVacuumMediumId; }
+
+    inline TRS GetActiveTRS() const { return (count_ > 0) ? trs_[0] : TRS{}; }
 
     inline bool Contains(uint16_t medium_id) const {
         for (uint8_t i = 0; i < count_; ++i)
@@ -69,6 +75,7 @@ class VolumeStack {
   private:
     uint16_t ids_[kMaxMediumStack];
     uint16_t priorities_[kMaxMediumStack];
+    TRS trs_[kMaxMediumStack];
     uint8_t count_;
 };
 
