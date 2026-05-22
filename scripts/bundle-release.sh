@@ -42,11 +42,36 @@ EOF
 
 is_macos_system_lib() {
   case "$1" in
-    @*|/usr/lib/*|/System/Library/*)
+    /usr/lib/*|/System/Library/*)
       return 0
       ;;
     *)
       return 1
+      ;;
+  esac
+}
+
+read_macos_rpaths() {
+  local file=$1
+  otool -l "${file}" | awk '
+    $1 == "cmd" && $2 == "LC_RPATH" { in_rpath = 1; next }
+    in_rpath && $1 == "path" { print $2; in_rpath = 0 }
+  '
+}
+
+expand_macos_path_token() {
+  local file=$1
+  local path=$2
+
+  case "${path}" in
+    @loader_path*)
+      printf '%s%s\n' "$(cd "$(dirname "${file}")" && pwd)" "${path#@loader_path}"
+      ;;
+    @executable_path*)
+      printf '%s%s\n' "${bin_dir}" "${path#@executable_path}"
+      ;;
+    *)
+      printf '%s\n' "${path}"
       ;;
   esac
 }
@@ -70,7 +95,7 @@ collect_macos_deps_for() {
   otool -L "${file}" | tail -n +2 | awk '{print $1}' | while IFS= read -r dep; do
     [[ -z "${dep}" ]] && continue
     is_macos_system_lib "${dep}" && continue
-    [[ -f "${dep}" ]] && printf '%s\n' "${dep}"
+    resolve_macos_dep "${file}" "${dep}" || true
   done
 }
 
@@ -94,7 +119,9 @@ collect_linux_deps_for() {
 bundle_macos() {
   local queue=()
   local seen_file
+  local search_dirs_file
   seen_file=$(mktemp)
+  search_dirs_file=$(mktemp)
 
   enqueue_dep() {
     local dep=$1
@@ -103,6 +130,63 @@ bundle_macos() {
       queue+=("${dep}")
     fi
   }
+
+  enqueue_search_dir() {
+    local dir=$1
+    [[ -d "${dir}" ]] || return 0
+    if ! grep -Fxq "${dir}" "${search_dirs_file}"; then
+      printf '%s\n' "${dir}" >> "${search_dirs_file}"
+    fi
+  }
+
+  add_macos_search_dirs_for() {
+    local file=$1
+    local rpath
+    enqueue_search_dir "$(cd "$(dirname "${file}")" && pwd)"
+
+    while IFS= read -r rpath; do
+      [[ -z "${rpath}" ]] && continue
+      enqueue_search_dir "$(expand_macos_path_token "${file}" "${rpath}")"
+    done < <(read_macos_rpaths "${file}")
+  }
+
+  resolve_macos_dep() {
+    local file=$1
+    local dep=$2
+    local suffix
+    local dir
+    local candidate
+
+    case "${dep}" in
+      /*)
+        [[ -f "${dep}" ]] && printf '%s\n' "${dep}"
+        return 0
+        ;;
+      @loader_path/*|@executable_path/*)
+        candidate=$(expand_macos_path_token "${file}" "${dep}")
+        [[ -f "${candidate}" ]] && printf '%s\n' "${candidate}"
+        return 0
+        ;;
+      @rpath/*)
+        suffix=${dep#@rpath/}
+        while IFS= read -r dir; do
+          [[ -z "${dir}" ]] && continue
+          dir=$(expand_macos_path_token "${file}" "${dir}")
+          candidate="${dir}/${suffix}"
+          [[ -f "${candidate}" ]] && printf '%s\n' "${candidate}" && return 0
+        done < <(
+          read_macos_rpaths "${file}"
+          cat "${search_dirs_file}"
+        )
+        return 0
+        ;;
+    esac
+
+    return 0
+  }
+
+  add_macos_search_dirs_for "${bin_dir}/skewer-render"
+  add_macos_search_dirs_for "${bin_dir}/loom"
 
   while IFS= read -r dep; do enqueue_dep "${dep}"; done < <(collect_macos_deps_for "${bin_dir}/skewer-render")
   while IFS= read -r dep; do enqueue_dep "${dep}"; done < <(collect_macos_deps_for "${bin_dir}/loom")
@@ -118,6 +202,7 @@ bundle_macos() {
       chmod u+w "${dst}"
     fi
 
+    add_macos_search_dirs_for "${dep}"
     while IFS= read -r child; do enqueue_dep "${child}"; done < <(collect_macos_deps_for "${dst}")
   done
 
@@ -128,6 +213,16 @@ bundle_macos() {
     while IFS= read -r dep; do
       [[ -z "${dep}" ]] && continue
       is_macos_system_lib "${dep}" && continue
+      case "${dep}" in
+        @executable_path/*|@loader_path/*)
+          [[ -f "${lib_dir}/$(basename "${dep}")" ]] || continue
+          ;;
+        *)
+          local resolved
+          resolved=$(resolve_macos_dep "${target}" "${dep}" || true)
+          [[ -n "${resolved}" && -f "${lib_dir}/$(basename "${resolved}")" ]] || continue
+          ;;
+      esac
       [[ -f "${lib_dir}/$(basename "${dep}")" ]] || continue
       install_name_tool -change "${dep}" "${prefix}/$(basename "${dep}")" "${target}"
     done < <(otool -L "${target}" | tail -n +2 | awk '{print $1}')
@@ -135,7 +230,7 @@ bundle_macos() {
 
   for dylib in "${lib_dir}"/*.dylib; do
     [[ -e "${dylib}" ]] || continue
-    install_name_tool -id "@rpath/$(basename "${dylib}")" "${dylib}"
+    install_name_tool -id "@loader_path/$(basename "${dylib}")" "${dylib}"
     patch_macos_target "${dylib}" "@loader_path"
   done
 
@@ -151,7 +246,7 @@ bundle_macos() {
 
   for target in "${bin_dir}/skewer-render" "${bin_dir}/loom" "${lib_dir}"/*.dylib; do
     [[ -e "${target}" ]] || continue
-    if otool -L "${target}" | tail -n +2 | awk '{print $1}' | grep -Ev '^(@|/usr/lib/|/System/Library/)' >/dev/null; then
+    if otool -L "${target}" | tail -n +2 | awk '{print $1}' | grep -Ev '^(@executable_path/../lib/|@loader_path/|/usr/lib/|/System/Library/)' >/dev/null; then
       echo "Found unbundled macOS dependency in ${target}:" >&2
       otool -L "${target}" >&2
       exit 1
