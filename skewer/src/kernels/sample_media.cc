@@ -157,10 +157,11 @@ bool SampleGrid(const GridMedium& medium, const Ray& r, float t_max_surface, RNG
 }
 
 bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surface, RNG& rng,
-                   Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl) {
+                   Spectrum& beta, MediumInteraction* mi, const SampledWavelengths& wl, TRS trs) {
     float t_min_box = 0.0f;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(r, t_min_box, t_max_box)) return false;
+    BoundBox wbbox = medium.GetWorldBBox(trs);
+    if (!wbbox.IntersectP(r, t_min_box, t_max_box)) return false;
 
     float t_min = std::max(0.0f, t_min_box);
     float t_max = std::min(t_max_surface, t_max_box);
@@ -184,7 +185,7 @@ bool SampleNanoVDB(const NanoVDBMedium& medium, const Ray& r, float t_max_surfac
         if (t >= t_max) break;
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(r.at(t), acc);
+        float density = medium.GetDensity(r.at(t), trs, acc);
         Spectrum sigma_t = density * base_sigma_t;
         Spectrum sigma_s = density * base_sigma_s;
 

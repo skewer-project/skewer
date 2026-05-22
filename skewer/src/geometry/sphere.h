@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include "core/math/transform.h"
 #include "core/math/vec3.h"
 
 namespace skwr {
@@ -15,6 +16,7 @@ struct Sphere {
     uint16_t interior_medium;
     uint16_t exterior_medium;
     uint16_t priority;
+    TRS nano_vdb_trs{};  // TRS for NanoVDB interior medium (identity for non-NanoVDB)
 };
 
 }  // namespace skwr

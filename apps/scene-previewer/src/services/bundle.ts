@@ -142,6 +142,22 @@ function collectMediumPaths(
 	return paths;
 }
 
+// Collects texture paths from the scene's skybox, excluding any already in existingPaths.
+function collectSkyboxTexturePaths(
+	scene: ResolvedScene,
+	existingPaths: Set<string>,
+): string[] {
+	const paths: string[] = [];
+	if (!scene.skybox) return paths;
+
+	for (const path of Object.values(scene.skybox.faces)) {
+		if (path) {
+			pushUniquePath(paths, existingPaths, path);
+		}
+	}
+	return paths;
+}
+
 function uniqueObjFiles(scene: ResolvedScene): string[] {
 	const set = new Set<string>();
 	for (const l of [...scene.contexts, ...scene.layers]) {
@@ -271,6 +287,17 @@ export async function collectSceneBundle(
 		(path) => readRequiredBlob(dir, path, "material texture"),
 	);
 	for (const file of materialTextures) {
+		files.set(file.path, file);
+	}
+
+	const skyboxTexturePaths = collectSkyboxTexturePaths(scene, seenPaths);
+	const skyboxTextures = await mapWithConcurrency(
+		skyboxTexturePaths,
+		BUNDLE_READ_CONCURRENCY,
+		(path) => readRequiredBlob(dir, path, "skybox texture"),
+	);
+	// Actual addtion of skybox to bundle
+	for (const file of skyboxTextures) {
 		files.set(file.path, file);
 	}
 

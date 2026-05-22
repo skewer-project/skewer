@@ -65,10 +65,11 @@ Spectrum CalculateGridTransmittance(const GridMedium& medium, RNG& rng, const Ra
 }
 
 Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, const Ray& shadow_ray,
-                                       float dist, const SampledWavelengths& wl) {
+                                       float dist, const SampledWavelengths& wl, TRS trs) {
     float t_min_box = 0.0f;
     float t_max_box = MathConstants::kFloatInfinity;
-    if (!medium.bbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
+    BoundBox wbbox = medium.GetWorldBBox(trs);
+    if (!wbbox.IntersectP(shadow_ray, t_min_box, t_max_box)) return Spectrum(1.0f);
 
     float t_min = std::max(0.0f, t_min_box);
     float t_max = std::min(dist, t_max_box);
@@ -91,7 +92,7 @@ Spectrum CalculateNanoVDBTransmittance(const NanoVDBMedium& medium, RNG& rng, co
         if (t >= t_max) break;
 
         // FETCH FROM VDB
-        float density = medium.GetDensity(shadow_ray.at(t), acc);
+        float density = medium.GetDensity(shadow_ray.at(t), trs, acc);
         Spectrum sigma_t = density * base_sigma_t;
 
         Spectrum null_prob = Spectrum(1.0f) - (sigma_t / majorant);
@@ -132,8 +133,9 @@ Spectrum CalculateTransmittance(const Scene& scene, RNG& rng, const Ray& shadow_
             return CalculateGridTransmittance(scene.grid_media()[index], rng, shadow_ray, dist);
         }
         case skwr::MediumType::NanoVDB: {
+            TRS trs = shadow_ray.vol_stack().GetActiveTRS();
             return CalculateNanoVDBTransmittance(scene.nanovdb_media()[index], rng, shadow_ray,
-                                                 dist, wl);
+                                                 dist, wl, trs);
         }
         default:
             return Spectrum(1.0f);

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#include "core/math/transform.h"
 #include "core/math/vec3.h"
 
 /* TODO: Implement Deferred Differential Geometry */
@@ -28,6 +29,9 @@ struct SurfaceInteraction {
 
     // Shading data
     Vec3 n_shading;  // smooth normal (interpolated)
+
+    // NanoVDB transform for medium transitions
+    TRS nano_vdb_trs{};
 };
 
 }  // namespace skwr
