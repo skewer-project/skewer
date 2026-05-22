@@ -13,10 +13,18 @@
       "installDir": "${sourceDir}/install",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "BUILD_TESTING": "ON",
+        "BUILD_TESTING": "OFF",
         "SKEWER_COMBINED_BUILD_EXRIO": "ON",
         "SKEWER_COMBINED_BUILD_LOOM": "ON",
         "SKEWER_COMBINED_BUILD_SKEWER": "ON"
+      }
+    },
+    {
+      "name": "base-tests",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON"
       }
     },
     {
@@ -76,7 +84,7 @@
     {
       "name": "ci",
       "displayName": "CI",
-      "inherits": "relwithdebinfo",
+      "inherits": ["base-tests", "relwithdebinfo"],
       "cacheVariables": {
         "SKEWER_BUILD_NATIVE_OPTIMIZATIONS": "OFF"
       }
@@ -92,16 +100,6 @@
     { "name": "ci",      "configurePreset": "ci" }
   ],
   "testPresets": [
-    {
-      "name": "debug",
-      "configurePreset": "debug",
-      "output": { "outputOnFailure": true }
-    },
-    {
-      "name": "release",
-      "configurePreset": "release",
-      "output": { "outputOnFailure": true }
-    },
     {
       "name": "ci",
       "configurePreset": "ci",
