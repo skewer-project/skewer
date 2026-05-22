@@ -112,7 +112,6 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 				{/* Branding */}
 				<div className={l.landingBrand}>
 					<div className={l.landingWordmark}>Skewer</div>
-					<div className={l.landingTagline}>Scene Previewer</div>
 				</div>
 
 				<div className={l.landingColumns}>
