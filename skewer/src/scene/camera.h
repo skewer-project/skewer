@@ -128,8 +128,7 @@ class Camera {
     // When lens_radius_ > 0, applies thin-lens DoF by sampling the aperture disk.
     Ray GetRay(float s, float t, RNG& rng, Vec3* cam_forward = nullptr) const {
         float ray_time = shutter_open_ + rng.UniformFloat() * (shutter_close_ - shutter_open_);
-        const CameraFrame frame =
-            animated_ ? InterpolateFrame(ray_time) : static_frame_;
+        const CameraFrame frame = animated_ ? InterpolateFrame(ray_time) : static_frame_;
         if (cam_forward != nullptr) {
             *cam_forward = -frame.w;
         }
@@ -189,10 +188,9 @@ class Camera {
         if (t <= first_time) return keyframe_frames_.front();
         if (t >= last_time) return keyframe_frames_.back();
 
-        auto it = std::upper_bound(kfs.begin(), kfs.end(), t,
-                                   [](float time, const CameraKeyframe& k) {
-                                       return time < k.time;
-                                   });
+        auto it =
+            std::upper_bound(kfs.begin(), kfs.end(), t,
+                             [](float time, const CameraKeyframe& k) { return time < k.time; });
         size_t i = static_cast<size_t>(std::distance(kfs.begin(), it)) - 1;
 
         const CameraKeyframe& k0 = kfs[i];
@@ -201,8 +199,8 @@ class Camera {
         if (dt <= 1e-20f) return keyframe_frames_[i + 1];
 
         float local_u = std::clamp((t - k0.time) / dt, 0.0f, 1.0f);
-        float alpha = k1.curve ? k1.curve->Evaluate(local_u)
-                               : BezierCurve::Linear().Evaluate(local_u);
+        float alpha =
+            k1.curve ? k1.curve->Evaluate(local_u) : BezierCurve::Linear().Evaluate(local_u);
 
         const CameraFrame& f0 = keyframe_frames_[i];
         const CameraFrame& f1 = keyframe_frames_[i + 1];
@@ -219,9 +217,7 @@ class Camera {
         return out;
     }
 
-    static Vec3 LerpVec3(const Vec3& a, const Vec3& b, float t) {
-        return a + (b - a) * t;
-    }
+    static Vec3 LerpVec3(const Vec3& a, const Vec3& b, float t) { return a + (b - a) * t; }
 
     CameraTimeline timeline_;
     float aspect_ratio_ = 1.0f;
