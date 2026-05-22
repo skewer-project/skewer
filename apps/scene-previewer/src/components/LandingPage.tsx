@@ -256,7 +256,7 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 						<a
 							href="https://skewer-project.github.io/skewer/reference/scene-format/"
 							target="_blank"
-							rel="noreferrer"
+							rel="noopener noreferrer"
 							className={l.landingFooterHl}
 						>
 							layers format
@@ -268,7 +268,7 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 						<a
 							href="https://drive.google.com/drive/folders/1rdr24XMyvrBft8MjJE8zhBiQZQIvqQUB?usp=sharing"
 							target="_blank"
-							rel="noreferrer"
+							rel="noopener noreferrer"
 							className={l.landingFooterHl}
 						>
 							here
