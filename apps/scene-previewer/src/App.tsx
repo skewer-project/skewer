@@ -260,10 +260,7 @@ function App() {
 				pendingUndoTimerRef.current = null;
 				if (!before || !after) return;
 
-				const deltas = diffSceneFiles(
-					before,
-					serializeSceneFiles(after),
-				);
+				const deltas = diffSceneFiles(before, serializeSceneFiles(after));
 				if (deltas.length === 0) return;
 
 				pushUndoEntry({
@@ -325,10 +322,7 @@ function App() {
 			const before = pendingUndoBeforeRef.current;
 			pendingUndoBeforeRef.current = null;
 			if (before) {
-				const deltas = diffSceneFiles(
-					before,
-					serializeSceneFiles(scene),
-				);
+				const deltas = diffSceneFiles(before, serializeSceneFiles(scene));
 				if (deltas.length > 0) {
 					pushUndoEntry({
 						label: "Scene edit",
