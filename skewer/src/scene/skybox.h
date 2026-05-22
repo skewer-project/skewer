@@ -141,6 +141,18 @@ class Skybox {
     }
 
     /// Compute the UV coordinates for a point on a specific face of the skybox.
+    ///
+    /// Convention: from the cube center, looking outward along the face normal,
+    /// using a right-handed camera frame with +Y as "up" (or the closest analog
+    /// for the top/bottom faces). This matches standard cubemap texture authoring:
+    ///
+    ///   Face   Normal   Right   Up       u = ...            v = ...
+    ///   PosX   +X       -Z      +Y       (max_z - p.z)/dz   (p.y - min_y)/dy
+    ///   NegX   -X       +Z      +Y       (p.z - min_z)/dz   (p.y - min_y)/dy
+    ///   PosY   +Y       +X      -Z       (p.x - min_x)/dx   (max_z - p.z)/dz
+    ///   NegY   -Y       +X      +Z       (p.x - min_x)/dx   (p.z - min_z)/dz
+    ///   PosZ   +Z       -X      +Y       (max_x - p.x)/dx   (p.y - min_y)/dy
+    ///   NegZ   -Z       +X      +Y       (p.x - min_x)/dx   (p.y - min_y)/dy
     void FaceUV(SkyboxFace face, const Vec3& p, float* u, float* v) const {
         const float dx = max_.x() - min_.x();
         const float dy = max_.y() - min_.y();
@@ -148,11 +160,11 @@ class Skybox {
 
         switch (face) {
             case SkyboxFace::PosX:
-                *u = (p.z() - min_.z()) / dz;
+                *u = (max_.z() - p.z()) / dz;
                 *v = (p.y() - min_.y()) / dy;
                 break;
             case SkyboxFace::NegX:
-                *u = (max_.z() - p.z()) / dz;
+                *u = (p.z() - min_.z()) / dz;
                 *v = (p.y() - min_.y()) / dy;
                 break;
             case SkyboxFace::PosY:

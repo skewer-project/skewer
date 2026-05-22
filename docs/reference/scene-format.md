@@ -38,6 +38,7 @@ The top-level file that orchestrates a render:
 | `context`    | string[] | No       | Paths to context layer files                              |
 | `layers`     | string[] | Yes      | Paths to render layer files (back-to-front order)         |
 | `output_dir` | string   | No       | Output directory (local path or `gs://` URI). Empty = cwd |
+| `skybox`     | object   | No       | Skybox background (cube with textured faces)              |
 
 ### Animation
 
@@ -67,6 +68,10 @@ The top-level file that orchestrates a render:
   "vfov": 60,
   "aperture_radius": 0.05,
   "focus_distance": 5.0,
+  "keyframes": [
+    { "time": 0.0, "look_from": [0, 2, 5] },
+    { "time": 2.0, "look_from": [3, 2, 5], "focus_distance": 3.0, "curve": "ease-in-out" }
+  ],
   "shutter_open": 0.0,
   "shutter_close": 0.1
 }
@@ -80,6 +85,7 @@ The top-level file that orchestrates a render:
 | `vfov`            | float | `90`        | Vertical field of view in degrees                                                   |
 | `aperture_radius` | float | `0`         | Lens aperture radius. `0` = no depth of field; >0 enables DOF with `focus_distance` |
 | `focus_distance`  | float | `1.0`       | Distance from camera that is in focus (meaningful when `aperture_radius > 0`)       |
+| `keyframes`       | array | —           | Optional camera animation keyframes                                                 |
 | `shutter_open`    | float | `0`         | Time when shutter opens (animation time units). Non-zero enables motion blur        |
 | `shutter_close`   | float | `0`         | Time when shutter closes. If equal to `shutter_open`, no motion blur                |
 
@@ -89,6 +95,59 @@ The top-level file that orchestrates a render:
 
 !!!important
     **Do not** set `shutter_open` and `shutter_close` for animated scenes. Instead, define the `shutter_angle` property in the [animation configuration](#animation).
+
+Camera keyframes are patch-based. Omitted fields carry forward from the previous camera keyframe,
+seeded by the static camera fields. The animatable fields are `look_from`, `look_at`, `vup`,
+`vfov`, `aperture_radius`, and `focus_distance`. When `camera.keyframes` has more than one entry,
+all layers are frame-varying because the view changes even if the layer geometry is static.
+
+### Skybox
+
+A skybox provides a textured background for the scene. When a camera ray misses all geometry, it hits the skybox instead of producing black or transparent pixels. The skybox does **not** affect reflected rays — it is a backdrop only.
+
+```json
+"skybox": {
+  "center": [0, 0, 0],
+  "size": [100, 100, 100],
+  "faces": {
+    "+x": "textures/sky_posx.png",
+    "-x": "textures/sky_negx.png",
+    "+y": "textures/sky_posy.png",
+    "-y": "textures/sky_negy.png",
+    "+z": "textures/sky_posz.png",
+    "-z": "textures/sky_negz.png"
+  }
+}
+```
+
+Either `center`+`size` or `min`+`max` defines the cube bounds. Exactly one pair is required.
+
+| Field    | Type   | Required | Description                                                   |
+| -------- | ------ | -------- | ------------------------------------------------------------- |
+| `center` | Vec3   | No*      | Center of the skybox cube                                     |
+| `size`   | Vec3   | No*      | Extents of the cube (all components must be positive)         |
+| `min`    | Vec3   | No*      | Minimum corner (alternative to `center`+`size`)               |
+| `max`    | Vec3   | No*      | Maximum corner (alternative to `center`+`size`)               |
+| `faces`  | object | Yes      | Texture paths for each face, keyed by axis direction          |
+
+**Face keys:**
+
+| Key   | Direction |
+| ----- | --------- |
+| `"+x"` | Right     |
+| `"-x"` | Left      |
+| `"+y"` | Up        |
+| `"-y"` | Down      |
+| `"+z"` | Forward   |
+| `"-z"` | Backward  |
+
+Each face value is a path to a texture image (PNG, JPG, or EXR), resolved relative to the scene file directory. At least one face must be provided.
+
+**Behavior notes:**
+
+- Only camera (primary) rays sample the skybox. Reflected rays do not — they fall back to the environment (black if no emissive background). Use `skybox` for clouds or backdrops that should appear behind the scene, not as an environment light.
+- When a skybox is present, setting `transparent_background: true` still produces alpha=1 for skybox pixels (they count as opaque).
+- Skybox pixels are written into the deep pixel buffer at their hit depth.
 
 ## Layer/Context Files
 
@@ -392,6 +451,7 @@ NanoVDB volumes add participating media (fog, smoke, clouds) to the scene:
     "g": 0.0,
     "density_multiplier": 1.0,
     "scale": 1.0,
+    "rotate": [0, 0, 0],
     "translate": [0, 0, 0]
   }
 }
@@ -406,6 +466,7 @@ NanoVDB volumes add participating media (fog, smoke, clouds) to the scene:
 | `g`                  | float  | `0`       | Henyey-Greenstein phase function parameter (-1 to 1, 0=isotropic) |
 | `density_multiplier` | float  | `1.0`     | Scales all density values from the VDB                            |
 | `scale`              | float  | `1.0`     | Spatial scale factor                                              |
+| `rotate`             | Vec3   | `[0,0,0]` | Rotation in degrees (Euler angles: X, Y, Z)                       |
 | `translate`          | Vec3   | `[0,0,0]` | Spatial offset                                                    |
 
 Use `inside_medium` / `outside_medium` on spheres to attach media to geometry:
@@ -603,8 +664,10 @@ A scene with an animated solar system:
 
 - [Rendering Tips](rendering-tips.md) - Best practices for quality and performance
 - [Animation](animation.md) - Keyframe animation and motion blur
-- [Compositing](compositing.md) - Layer compositing with loom
+- [Mathematical Foundations](math.md) - Rendering math and physics
+- [Compositing](../developer/loom/index.md) - Layer compositing with loom
 - [Blender Tools](blender-tools.md) - Converting between Blender and Skewer formats
 - [Previewer](previewer.md) - Visualizing scenes before rendering
 - [CLI Reference](cli.md) - Command-line options
-- [GCP Deployment](../deployment/gcp.md) - Cloud rendering setup
+- [Architecture Overview](../developer/overview.md) - System design
+- [GCP Deployment](../getting-started/gcp.md) - Cloud rendering setup

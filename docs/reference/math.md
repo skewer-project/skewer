@@ -1,6 +1,9 @@
 # Mathematical and Physical Foundations
 
-This document details the mathematical principles and physics simulations that power the Skewer rendering engine and the Loom deep compositor. Each section explains the theory and points to the exact implementation in our codebase.
+This document outlines the mathematical principles and physics simulations that power the Skewer rendering engine and the Loom deep compositor. Each section explains the theory and points to the exact implementation in our codebase.
+
+!!! note "Application"
+    The following is an abridged overview. For a more in-depth application of these concepts see [Architecture Overview](../developer/overview.md).
 
 ---
 
@@ -240,3 +243,12 @@ C_{out} = C_{front} + (1 - \alpha_{front}) \cdot C_{back}
 $$
 
 *   **Implementation:** `FlattenRow` in `loom/src/deep_row.h`
+
+## See Also
+
+- [Architecture Overview](../developer/overview.md) - System architecture and data flow
+- [Skewer Renderer](../developer/skewer/architecture.md) - Path tracer implementation
+- [Loom Compositor](../developer/loom/index.md) - Deep compositing algorithm
+- [Rendering Tips](rendering-tips.md) - Practical rendering best practices
+- [Animation](animation.md) - Keyframe animation and motion blur
+- [Scene Format](scene-format.md) - Scene file specification

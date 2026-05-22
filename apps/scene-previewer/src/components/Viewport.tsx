@@ -20,17 +20,23 @@ import {
 import {
 	applyStaticTransformToObject3D,
 	buildSceneGraph,
+	buildSkyboxTexture,
 	makeThreeMaterial,
 	revokeBlobUrls,
 } from "../services/scene-to-three";
-import { evaluateTransformAt } from "../services/transform";
+import { evaluateCameraAt, evaluateTransformAt } from "../services/transform";
 import type {
+	CameraHandle,
 	Material,
 	ResolvedScene,
 	StaticTransform,
 	Vec3,
 } from "../types/scene";
 import { isAnimated } from "../types/scene";
+
+const CAMERA_FROM_COLOR = 0x35d6ff;
+const CAMERA_AT_COLOR = 0xf0b34d;
+const CAMERA_SELECTED_COLOR = 0xffffff;
 
 /** Get the world-space center of an object — bbox center if it has geometry, otherwise origin. */
 function getWorldCenter(obj: THREE.Object3D, out: THREE.Vector3): void {
@@ -47,14 +53,184 @@ function syncOrbitCameraToScene(
 	cam: THREE.PerspectiveCamera,
 	ctrl: OrbitControls,
 	sceneData: ResolvedScene,
+	time = 0,
 ) {
-	const c = sceneData.camera;
+	const c = evaluateCameraAt(sceneData.camera, time);
 	cam.fov = c.vfov;
 	cam.position.set(...c.look_from);
 	ctrl.target.set(...c.look_at);
 	cam.up.set(...c.vup);
 	cam.updateProjectionMatrix();
 	ctrl.update();
+}
+
+function makeCameraHandle(
+	name: CameraHandle,
+	color: number,
+	radius: number,
+): THREE.Mesh {
+	const mesh = new THREE.Mesh(
+		new THREE.SphereGeometry(radius, 18, 12),
+		new THREE.MeshBasicMaterial({
+			color,
+			depthTest: false,
+			transparent: true,
+			opacity: 0.95,
+		}),
+	);
+	mesh.name = `Camera ${name}`;
+	mesh.renderOrder = 4;
+	mesh.userData.cameraHandle = name;
+	return mesh;
+}
+
+function makeCameraLine(
+	name: string,
+	color: number,
+	opacity: number,
+): THREE.LineSegments {
+	const line = new THREE.LineSegments(
+		new THREE.BufferGeometry(),
+		new THREE.LineBasicMaterial({
+			color,
+			depthTest: false,
+			transparent: true,
+			opacity,
+		}),
+	);
+	line.name = name;
+	line.renderOrder = 3;
+	return line;
+}
+
+function createCameraRig(): THREE.Group {
+	const rig = new THREE.Group();
+	rig.name = "SceneCameraRig";
+	rig.userData.isCameraRig = true;
+
+	rig.add(makeCameraHandle("look_from", CAMERA_FROM_COLOR, 0.12));
+	rig.add(makeCameraHandle("look_at", CAMERA_AT_COLOR, 0.1));
+	rig.add(makeCameraLine("CameraAimLine", 0xe8f6ff, 0.78));
+	rig.add(makeCameraLine("CameraFrustum", CAMERA_FROM_COLOR, 0.62));
+	return rig;
+}
+
+function disposeCameraRig(rig: THREE.Group) {
+	rig.traverse((obj) => {
+		if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
+			obj.geometry?.dispose();
+			disposeMaterial(obj.material);
+		}
+	});
+}
+
+function lineByName(rig: THREE.Group, name: string): THREE.LineSegments | null {
+	const obj = rig.getObjectByName(name);
+	return obj instanceof THREE.LineSegments ? obj : null;
+}
+
+function handleByName(rig: THREE.Group, name: CameraHandle): THREE.Mesh | null {
+	const obj = rig.children.find(
+		(child) => child.userData.cameraHandle === name,
+	);
+	return obj instanceof THREE.Mesh ? obj : null;
+}
+
+function setLinePoints(line: THREE.LineSegments, points: THREE.Vector3[]) {
+	line.geometry.setFromPoints(points);
+	line.geometry.computeBoundingSphere();
+}
+
+function updateCameraRig(
+	rig: THREE.Group,
+	sceneData: ResolvedScene,
+	time: number,
+	aspect: number,
+	selectedHandle: CameraHandle | null,
+) {
+	const cam = evaluateCameraAt(sceneData.camera, time);
+	const lookFrom = new THREE.Vector3(...cam.look_from);
+	const lookAt = new THREE.Vector3(...cam.look_at);
+	const upHint = new THREE.Vector3(...cam.vup);
+	const forward = lookAt.clone().sub(lookFrom);
+	const planeDistance = Math.max(forward.length(), 0.001);
+	forward.normalize();
+	if (forward.lengthSq() < 1e-12) forward.set(0, 0, -1);
+
+	let right = new THREE.Vector3().crossVectors(upHint, forward).normalize();
+	if (right.lengthSq() < 1e-12) right = new THREE.Vector3(1, 0, 0);
+	const up = new THREE.Vector3().crossVectors(forward, right).normalize();
+
+	const halfHeight =
+		Math.tan(THREE.MathUtils.degToRad(cam.vfov) * 0.5) * planeDistance;
+	const halfWidth = halfHeight * aspect;
+	const center = lookFrom
+		.clone()
+		.add(forward.clone().multiplyScalar(planeDistance));
+	const topLeft = center
+		.clone()
+		.add(up.clone().multiplyScalar(halfHeight))
+		.sub(right.clone().multiplyScalar(halfWidth));
+	const topRight = center
+		.clone()
+		.add(up.clone().multiplyScalar(halfHeight))
+		.add(right.clone().multiplyScalar(halfWidth));
+	const bottomRight = center
+		.clone()
+		.sub(up.clone().multiplyScalar(halfHeight))
+		.add(right.clone().multiplyScalar(halfWidth));
+	const bottomLeft = center
+		.clone()
+		.sub(up.clone().multiplyScalar(halfHeight))
+		.sub(right.clone().multiplyScalar(halfWidth));
+	const cameraFrame = new THREE.Matrix4().makeBasis(right, up, forward);
+
+	const fromHandle = handleByName(rig, "look_from");
+	const atHandle = handleByName(rig, "look_at");
+	if (fromHandle) {
+		fromHandle.position.copy(lookFrom);
+		fromHandle.scale.setScalar(selectedHandle === "look_from" ? 1.35 : 1);
+		(fromHandle.material as THREE.MeshBasicMaterial).color.setHex(
+			selectedHandle === "look_from"
+				? CAMERA_SELECTED_COLOR
+				: CAMERA_FROM_COLOR,
+		);
+	}
+	if (atHandle) {
+		atHandle.position.copy(lookAt);
+		atHandle.quaternion.setFromRotationMatrix(cameraFrame);
+		atHandle.scale.setScalar(selectedHandle === "look_at" ? 1.35 : 1);
+		(atHandle.material as THREE.MeshBasicMaterial).color.setHex(
+			selectedHandle === "look_at" ? CAMERA_SELECTED_COLOR : CAMERA_AT_COLOR,
+		);
+	}
+
+	const aimLine = lineByName(rig, "CameraAimLine");
+	if (aimLine) setLinePoints(aimLine, [lookFrom, lookAt]);
+
+	const frustum = lineByName(rig, "CameraFrustum");
+	if (frustum) {
+		setLinePoints(frustum, [
+			lookFrom,
+			topLeft,
+			lookFrom,
+			topRight,
+			lookFrom,
+			bottomRight,
+			lookFrom,
+			bottomLeft,
+			topLeft,
+			topRight,
+			topRight,
+			bottomRight,
+			bottomRight,
+			bottomLeft,
+			bottomLeft,
+			topLeft,
+		]);
+	}
+
+	rig.visible = true;
 }
 
 // ── Patch types for incremental Three.js updates ────────────
@@ -136,12 +312,16 @@ interface Props {
 	isPlaying?: boolean;
 	selectedObjectKey: string | null;
 	onSelectObject: (key: string | null) => void;
+	selectedCameraHandle?: CameraHandle | null;
+	onSelectCameraHandle?: (handle: CameraHandle | null) => void;
+	cameraHandleEditingEnabled?: boolean;
 	/** Transform gizmo mode: "translate" | "rotate" | "scale" */
 	transformMode?: "translate" | "rotate" | "scale";
 	/** Coordinate space: "world" | "local" | "object" */
 	transformSpace?: "world" | "local";
 	/** Called when gizmo transform changes */
 	onTransformChange?: (objectKey: string, transform: StaticTransform) => void;
+	onCameraHandleChange?: (handle: CameraHandle, value: Vec3) => void;
 }
 
 /** Walk up the Three.js parent chain to find the first object with an objectKey. */
@@ -149,6 +329,16 @@ function findObjectKey(obj: THREE.Object3D): string | null {
 	let cur: THREE.Object3D | null = obj;
 	while (cur) {
 		if (cur.userData.objectKey) return cur.userData.objectKey as string;
+		cur = cur.parent;
+	}
+	return null;
+}
+
+function findCameraHandle(obj: THREE.Object3D): CameraHandle | null {
+	let cur: THREE.Object3D | null = obj;
+	while (cur) {
+		const handle = cur.userData.cameraHandle;
+		if (handle === "look_from" || handle === "look_at") return handle;
 		cur = cur.parent;
 	}
 	return null;
@@ -206,9 +396,13 @@ export function Viewport({
 	isPlaying = false,
 	selectedObjectKey,
 	onSelectObject,
+	selectedCameraHandle = null,
+	onSelectCameraHandle,
+	cameraHandleEditingEnabled = true,
 	transformMode = "translate",
 	transformSpace = "world",
 	onTransformChange,
+	onCameraHandleChange,
 	ref,
 }: Props & { ref?: Ref<ViewportHandle> }) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -218,11 +412,21 @@ export function Viewport({
 	const controls = useRef<OrbitControls | null>(null);
 	const sceneGroup = useRef<THREE.Group | null>(null);
 	const blobUrlsRef = useRef<string[]>([]);
+	const skyboxTextureRef = useRef<THREE.CubeTexture | null>(null);
+	const lastSkyboxJsonRef = useRef<string>("");
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
 	const transformControls = useRef<TransformControls | null>(null);
 	const gizmoProxy = useRef<THREE.Group | null>(null);
+	const cameraRigGroup = useRef<THREE.Group | null>(null);
+	const renderFrameRef = useRef<(() => boolean) | null>(null);
+	const pendingRenderRef = useRef<number | null>(null);
+	const renderLoopRef = useRef<number | null>(null);
+	const controlsActiveRef = useRef(false);
+	const transformDraggingRef = useRef(false);
+	const controlsSettleUntilRef = useRef(0);
 	const gizmoAnchorTmp = useRef(new THREE.Vector3());
+	const cameraHandleWorldTmp = useRef(new THREE.Vector3());
 	const isDraggingRef = useRef(false);
 	/** Drives gizmo re-attach after scene graph rebuild; reset when the Three tree is replaced. */
 	const latestTransformRef = useRef<{
@@ -240,19 +444,85 @@ export function Viewport({
 		sceneVersion: number | null;
 	}>({ dirHandle: null, sceneVersion: null });
 
-	// Track previous dirHandle to distinguish a new scene load from a sceneVersion bump
 	const prevDirHandle = useRef<FileSystemDirectoryHandle | null | undefined>(
 		undefined,
 	);
 	const latestSceneRef = useRef(scene);
-	useEffect(() => {
-		latestSceneRef.current = scene;
-	}, [scene]);
 
 	const currentTimeRef = useRef(currentTime);
+
+	const selectedCameraHandleRef = useRef(selectedCameraHandle);
+
+	const requestRender = useCallback(() => {
+		if (pendingRenderRef.current !== null || renderLoopRef.current !== null) {
+			return;
+		}
+		pendingRenderRef.current = requestAnimationFrame(() => {
+			pendingRenderRef.current = null;
+			renderFrameRef.current?.();
+		});
+	}, []);
+
+	const refreshCameraRig = useCallback(() => {
+		const rig = cameraRigGroup.current;
+		const currentScene = latestSceneRef.current;
+		const cam = camera.current;
+		if (!rig) return;
+		if (!currentScene || !cam) {
+			rig.visible = false;
+			requestRender();
+			return;
+		}
+		updateCameraRig(
+			rig,
+			currentScene,
+			currentTimeRef.current,
+			cam.aspect,
+			selectedCameraHandleRef.current,
+		);
+		requestRender();
+	}, [requestRender]);
+
+	useEffect(() => {
+		latestSceneRef.current = scene;
+		refreshCameraRig();
+	}, [scene, refreshCameraRig]);
+
 	useEffect(() => {
 		currentTimeRef.current = currentTime;
-	}, [currentTime]);
+		refreshCameraRig();
+	}, [currentTime, refreshCameraRig]);
+
+	useEffect(() => {
+		selectedCameraHandleRef.current = selectedCameraHandle;
+		refreshCameraRig();
+	}, [selectedCameraHandle, refreshCameraRig]);
+
+	const ensureRenderLoop = useCallback(() => {
+		if (renderLoopRef.current !== null) return;
+
+		const tick = () => {
+			const shouldContinue = renderFrameRef.current?.() ?? false;
+			if (shouldContinue) {
+				renderLoopRef.current = requestAnimationFrame(tick);
+			} else {
+				renderLoopRef.current = null;
+			}
+		};
+
+		renderLoopRef.current = requestAnimationFrame(tick);
+	}, []);
+
+	const stopScheduledRenders = useCallback(() => {
+		if (pendingRenderRef.current !== null) {
+			cancelAnimationFrame(pendingRenderRef.current);
+			pendingRenderRef.current = null;
+		}
+		if (renderLoopRef.current !== null) {
+			cancelAnimationFrame(renderLoopRef.current);
+			renderLoopRef.current = null;
+		}
+	}, []);
 
 	// ── Imperative handle: applyPatch ──
 	// Live, incremental updates for edit controls; full rebuilds happen elsewhere.
@@ -264,7 +534,8 @@ export function Viewport({
 				const cam = camera.current;
 				const ctrl = controls.current;
 				if (!currentScene || !cam || !ctrl) return;
-				syncOrbitCameraToScene(cam, ctrl, currentScene);
+				syncOrbitCameraToScene(cam, ctrl, currentScene, currentTimeRef.current);
+				requestRender();
 			},
 			applyPatch(scene: ResolvedScene, objectKey: string, patch: ThreePatch) {
 				const sc = threeScene.current;
@@ -432,9 +703,10 @@ export function Viewport({
 					}
 				}
 				// kind === "rebuild" is handled by incrementing sceneVersion externally
+				requestRender();
 			},
 		}),
-		[],
+		[requestRender],
 	);
 
 	// --- Effect 1: one-time renderer / camera / controls setup ---
@@ -487,6 +759,11 @@ export function Viewport({
 		sc.add(proxy);
 		gizmoProxy.current = proxy;
 
+		const cameraRig = createCameraRig();
+		cameraRig.visible = false;
+		sc.add(cameraRig);
+		cameraRigGroup.current = cameraRig;
+
 		// Post-processing with OutlinePass
 		const comp = new EffectComposer(renderer);
 		comp.addPass(new RenderPass(sc, cam));
@@ -508,6 +785,18 @@ export function Viewport({
 		composer.current = comp;
 		outlinePass.current = outline;
 
+		renderFrameRef.current = () => {
+			const controlsChanged = ctrl.update();
+			comp.render();
+			return (
+				isPlayingRef.current ||
+				controlsActiveRef.current ||
+				transformDraggingRef.current ||
+				controlsChanged ||
+				performance.now() < controlsSettleUntilRef.current
+			);
+		};
+
 		// TransformControls (gizmo)
 		const tctrl = new TransformControls(cam, renderer.domElement);
 		tctrl.setSize(0.75);
@@ -517,12 +806,35 @@ export function Viewport({
 		transformControls.current = tctrl;
 
 		const handleDraggingChanged = (event: { value: unknown }) => {
-			ctrl.enabled = !event.value;
+			const isDragging = Boolean(event.value);
+			ctrl.enabled = !isDragging;
+			transformDraggingRef.current = isDragging;
 			if (gizmoProxy.current) {
-				gizmoProxy.current.userData.isDragging = event.value;
+				gizmoProxy.current.userData.isDragging = isDragging;
+			}
+			if (isDragging) {
+				ensureRenderLoop();
+			} else {
+				requestRender();
 			}
 		};
 		tctrl.addEventListener("dragging-changed", handleDraggingChanged);
+
+		const handleControlsStart = () => {
+			controlsActiveRef.current = true;
+			ensureRenderLoop();
+		};
+		const handleControlsEnd = () => {
+			controlsActiveRef.current = false;
+			controlsSettleUntilRef.current = performance.now() + 350;
+			ensureRenderLoop();
+		};
+		const handleControlsChange = () => {
+			requestRender();
+		};
+		ctrl.addEventListener("start", handleControlsStart);
+		ctrl.addEventListener("end", handleControlsEnd);
+		ctrl.addEventListener("change", handleControlsChange);
 
 		// Resize
 		const ro = new ResizeObserver(() => {
@@ -532,25 +844,28 @@ export function Viewport({
 			cam.updateProjectionMatrix();
 			renderer.setSize(w, h);
 			comp.setSize(w, h);
+			refreshCameraRig();
+			requestRender();
 		});
 		ro.observe(container);
 
-		// Render loop
-		let animId: number;
-		function animate() {
-			animId = requestAnimationFrame(animate);
-			ctrl.update();
-			comp.render();
-		}
-		animate();
+		requestRender();
 
 		return () => {
-			cancelAnimationFrame(animId);
+			stopScheduledRenders();
 			ro.disconnect();
 			const proxy = gizmoProxy.current;
 			if (proxy?.userData.target) {
 				proxy.userData.target = null;
 			}
+			const cameraRig = cameraRigGroup.current;
+			if (cameraRig) {
+				sc.remove(cameraRig);
+				disposeCameraRig(cameraRig);
+			}
+			ctrl.removeEventListener("start", handleControlsStart);
+			ctrl.removeEventListener("end", handleControlsEnd);
+			ctrl.removeEventListener("change", handleControlsChange);
 			ctrl.dispose();
 			tctrl.removeEventListener("dragging-changed", handleDraggingChanged);
 			tctrl.dispose();
@@ -563,6 +878,11 @@ export function Viewport({
 			const oldUrls = blobUrlsRef.current;
 			if (oldUrls.length > 0) {
 				revokeBlobUrls(oldUrls);
+			}
+			const oldSkybox = skyboxTextureRef.current;
+			if (oldSkybox) {
+				oldSkybox.dispose();
+				skyboxTextureRef.current = null;
 			}
 			const comp = composer.current;
 			if (comp) {
@@ -593,8 +913,10 @@ export function Viewport({
 			outlinePass.current = null;
 			transformControls.current = null;
 			gizmoProxy.current = null;
+			cameraRigGroup.current = null;
+			renderFrameRef.current = null;
 		};
-	}, []);
+	}, [ensureRenderLoop, refreshCameraRig, requestRender, stopScheduledRenders]);
 
 	// --- Effect 2: rebuild scene objects on structural changes ---
 	useEffect(() => {
@@ -606,12 +928,11 @@ export function Viewport({
 		const ctrl = controls.current;
 		if (!sc || !cam || !ctrl) return;
 
-		// Only reset the camera when a new scene is loaded (dirHandle changed),
-		// not on sceneVersion bumps — otherwise edits reset the viewport angle.
 		const isNewScene = dirHandle !== prevDirHandle.current;
 		prevDirHandle.current = dirHandle;
 		if (isNewScene) {
-			syncOrbitCameraToScene(cam, ctrl, currentScene);
+			syncOrbitCameraToScene(cam, ctrl, currentScene, currentTimeRef.current);
+			refreshCameraRig();
 		}
 
 		if (
@@ -624,8 +945,8 @@ export function Viewport({
 
 		const abortController = new AbortController();
 
-		buildSceneGraph(currentScene, dirHandle, abortController.signal).then(
-			(result) => {
+		buildSceneGraph(currentScene, dirHandle, abortController.signal)
+			.then((result) => {
 				if (abortController.signal.aborted) return;
 
 				const proxy = gizmoProxy.current;
@@ -647,9 +968,25 @@ export function Viewport({
 					revokeBlobUrls(oldUrls);
 				}
 
+				// Dispose previous skybox texture if present
+				const oldSkybox = skyboxTextureRef.current;
+				if (oldSkybox) {
+					oldSkybox.dispose();
+					skyboxTextureRef.current = null;
+				}
+
 				sc.add(result.group);
 				sceneGroup.current = result.group;
 				blobUrlsRef.current = result.blobUrls;
+
+				// Apply skybox as background, or fall back to solid color
+				if (result.skyboxTexture) {
+					sc.background = result.skyboxTexture;
+					skyboxTextureRef.current = result.skyboxTexture;
+				} else {
+					sc.background = new THREE.Color(0x0c0d0f);
+				}
+
 				const builtScene = latestSceneRef.current;
 				if (builtScene) {
 					applyAnimatedNodesAtTime(
@@ -658,13 +995,70 @@ export function Viewport({
 						currentTimeRef.current,
 					);
 				}
-			},
-		);
+				requestRender();
+			})
+			.catch((err) => {
+				console.error("[Viewport] buildSceneGraph failed:", err);
+			});
 
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle, scene, sceneVersion]);
+	}, [dirHandle, scene, sceneVersion, refreshCameraRig, requestRender]);
+
+	// --- Effect 2b: live-reload skybox background when skybox data changes ---
+	// Avoids a full scene-graph rebuild for just a texture swap.
+	useEffect(() => {
+		const currentScene = scene;
+		const sc = threeScene.current;
+		if (!currentScene || !sc || !dirHandle) return;
+
+		const skyboxJson = JSON.stringify(currentScene.skybox ?? null);
+		if (skyboxJson === lastSkyboxJsonRef.current) return;
+		lastSkyboxJsonRef.current = skyboxJson;
+
+		const abortController = new AbortController();
+
+		if (currentScene.skybox) {
+			const urls: string[] = [];
+			buildSkyboxTexture(
+				currentScene.skybox,
+				dirHandle,
+				urls,
+				abortController.signal,
+			)
+				.then((tex) => {
+					if (abortController.signal.aborted) {
+						revokeBlobUrls(urls);
+						return;
+					}
+					const old = skyboxTextureRef.current;
+					if (old) old.dispose();
+					if (tex) {
+						sc.background = tex;
+						skyboxTextureRef.current = tex;
+					}
+					blobUrlsRef.current = [...blobUrlsRef.current, ...urls];
+					requestRender();
+				})
+				.catch((err) => {
+					revokeBlobUrls(urls);
+					console.warn("[Viewport] Skybox reload failed:", err);
+				});
+		} else {
+			const old = skyboxTextureRef.current;
+			if (old) {
+				old.dispose();
+				skyboxTextureRef.current = null;
+			}
+			sc.background = new THREE.Color(0x0c0d0f);
+			requestRender();
+		}
+
+		return () => {
+			abortController.abort();
+		};
+	}, [dirHandle, scene, requestRender]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {
@@ -674,11 +1068,13 @@ export function Viewport({
 
 		if (!selectedObjectKey || !grp) {
 			outline.selectedObjects = [];
+			requestRender();
 			return;
 		}
 
 		outline.selectedObjects = collectMeshesForKey(grp, selectedObjectKey);
-	}, [selectedObjectKey]);
+		requestRender();
+	}, [selectedObjectKey, requestRender]);
 
 	// --- Effect 4: position proxy gizmo on selected object (NO reparenting) ---
 	useEffect(() => {
@@ -723,6 +1119,7 @@ export function Viewport({
 			}
 			tctrl.detach();
 			latestTransformRef.current.objectKey = null;
+			requestRender();
 			return;
 		}
 
@@ -755,13 +1152,19 @@ export function Viewport({
 
 		tctrl.attach(proxy);
 		latestTransformRef.current.objectKey = selectedObjectKey;
-	}, [selectedObjectKey, transformMode, transformSpace]);
+		requestRender();
+	}, [selectedObjectKey, transformMode, transformSpace, requestRender]);
 
 	// --- Disable transform gizmo while timeline is playing ---
 	useEffect(() => {
 		const tctrl = transformControls.current;
 		if (tctrl) tctrl.enabled = !isPlaying;
-	}, [isPlaying]);
+		if (isPlaying) {
+			ensureRenderLoop();
+		} else {
+			requestRender();
+		}
+	}, [isPlaying, ensureRenderLoop, requestRender]);
 
 	// --- Effect 5: apply gizmo delta to target (NO reparenting ever) ---
 	useEffect(() => {
@@ -865,6 +1268,7 @@ export function Viewport({
 			if (!isAnim) {
 				onTransformChange(selectedObjectKey, transform);
 			}
+			requestRender();
 		};
 
 		tctrl.addEventListener("change", onChangeDuringDrag);
@@ -874,7 +1278,59 @@ export function Viewport({
 			tctrl.removeEventListener("change", onChangeDuringDrag);
 			tctrl.removeEventListener("dragging-changed", onDraggingChanged);
 		};
-	}, [selectedObjectKey, transformMode, onTransformChange]);
+	}, [selectedObjectKey, transformMode, onTransformChange, requestRender]);
+
+	// --- Effect: attach translate gizmo to selected camera handle ---
+	useEffect(() => {
+		const tctrl = transformControls.current;
+		const rig = cameraRigGroup.current;
+		if (!tctrl || !rig) return;
+
+		if (
+			!selectedCameraHandle ||
+			selectedObjectKey ||
+			!cameraHandleEditingEnabled
+		) {
+			if (!selectedObjectKey) tctrl.detach();
+			return;
+		}
+
+		const handle = handleByName(rig, selectedCameraHandle);
+		if (!handle) return;
+
+		tctrl.setMode("translate");
+		tctrl.setSpace(selectedCameraHandle === "look_at" ? "local" : "world");
+		tctrl.attach(handle);
+
+		const onDraggingChanged = (event: THREE.Event & { value: unknown }) => {
+			handle.userData.isDragging = event.value;
+			isDraggingRef.current = Boolean(event.value);
+		};
+
+		const onChangeDuringDrag = () => {
+			if (isPlayingRef.current || !handle.userData.isDragging) return;
+			handle.updateMatrixWorld(true);
+			const p = cameraHandleWorldTmp.current;
+			handle.getWorldPosition(p);
+			onCameraHandleChange?.(selectedCameraHandle, [p.x, p.y, p.z]);
+			requestRender();
+		};
+
+		tctrl.addEventListener("change", onChangeDuringDrag);
+		tctrl.addEventListener("dragging-changed", onDraggingChanged);
+
+		return () => {
+			tctrl.removeEventListener("change", onChangeDuringDrag);
+			tctrl.removeEventListener("dragging-changed", onDraggingChanged);
+			handle.userData.isDragging = false;
+		};
+	}, [
+		selectedCameraHandle,
+		selectedObjectKey,
+		cameraHandleEditingEnabled,
+		onCameraHandleChange,
+		requestRender,
+	]);
 
 	// --- Effect: apply animated transforms; keep proxy snapped to target ---
 	useEffect(() => {
@@ -887,6 +1343,7 @@ export function Viewport({
 		const excludeKey = isDragging ? selectedObjectKey : null;
 
 		applyAnimatedNodesAtTime(grp, currentScene, currentTime, excludeKey);
+		requestRender();
 
 		// Snap proxy to follow the animated target (only when not dragging)
 		if (!selectedObjectKey || !proxy?.userData.target || isDragging) return;
@@ -910,7 +1367,7 @@ export function Viewport({
 		proxy.quaternion.copy(worldQuat);
 		proxy.scale.setScalar(1);
 		proxy.updateMatrixWorld(true);
-	}, [scene, currentTime, selectedObjectKey, transformSpace]);
+	}, [scene, currentTime, selectedObjectKey, transformSpace, requestRender]);
 
 	// --- Click handler for raycasting ---
 	const handleClick = useCallback(
@@ -932,6 +1389,23 @@ export function Viewport({
 			const raycaster = new THREE.Raycaster();
 			raycaster.setFromCamera(mouse, cam);
 
+			const rig = cameraRigGroup.current;
+			if (rig) {
+				const cameraHits = raycaster.intersectObjects(rig.children, true);
+				const handleHit = cameraHits.find((hit) =>
+					findCameraHandle(hit.object),
+				);
+				if (handleHit) {
+					const handle = findCameraHandle(handleHit.object);
+					if (handle) {
+						onSelectCameraHandle?.(
+							handle === selectedCameraHandle ? null : handle,
+						);
+						return;
+					}
+				}
+			}
+
 			const targets: THREE.Object3D[] = [grp];
 			if (gizmoProxy.current) targets.push(gizmoProxy.current);
 			const hits = raycaster.intersectObjects(targets, true);
@@ -946,8 +1420,14 @@ export function Viewport({
 			}
 			// Click on empty space — deselect
 			onSelectObject(null);
+			onSelectCameraHandle?.(null);
 		},
-		[selectedObjectKey, onSelectObject],
+		[
+			selectedCameraHandle,
+			selectedObjectKey,
+			onSelectCameraHandle,
+			onSelectObject,
+		],
 	);
 
 	// Track mouse-down position to distinguish clicks from drags

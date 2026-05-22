@@ -27,6 +27,28 @@ Animation in Skewer is defined through **keyframed transforms** on scene graph n
 
 In this example, a group node rotates 360 degrees around the Y-axis from time 0 to time 1, carrying its child (the Earth model) in an orbital path.
 
+The scene camera can also be keyframed with `camera.keyframes`. Camera keyframes use the same time
+axis and patch-style carry-forward behavior, but animate camera fields instead of TRS:
+
+```json
+"camera": {
+  "look_from": [0, 2, 5],
+  "look_at": [0, 0, 0],
+  "vup": [0, 1, 0],
+  "vfov": 50,
+  "aperture_radius": 0.02,
+  "focus_distance": 5,
+  "keyframes": [
+    { "time": 0, "look_from": [0, 2, 5] },
+    { "time": 2, "look_from": [3, 2, 5], "focus_distance": 3, "aperture_radius": 0.08 }
+  ]
+}
+```
+
+Moving cameras are evaluated at each sampled ray time, so camera motion contributes true motion blur.
+Camera animation does not expand BVH/TLAS bounds because the scene geometry has not moved, but every
+render layer becomes frame-varying when the camera has more than one keyframe.
+
 ## Keyframe Structure
 
 Each keyframe in the `keyframes` array has:
@@ -193,9 +215,12 @@ Animated objects require expanded bounding volumes for the BVH acceleration stru
 Skewer uses a two-level BVH:
 
 - **Bottom-level BVH**: Static mesh geometry, built once per layer load
-- **Top-level BVH (TLAS)**: Instance transforms, rebuilt per ray time
+- **Top-level BVH (TLAS)**: Instance bounds over the shutter window; animated instance transforms
+  are evaluated at ray time during traversal
 
 For animated instances, the TLAS evaluates transforms at the ray's time. For static instances, the transform is precomputed at `t=0`.
+Animated cameras only change primary rays and deep-output camera depth projection; they do not require
+different BLAS/TLAS bounds.
 
 ### Static vs Animated Instances
 
@@ -257,4 +282,7 @@ An instance is classified as animated if any node in its transform chain has mor
 
 - [Scene Format](scene-format.md) — Transform and keyframe syntax reference
 - [Rendering Tips](rendering-tips.md) — Motion blur quality and performance tips
-- [Compositing](compositing.md) — Layer compositing with loom
+- [CLI Reference](cli.md) — Command-line options
+- [Mathematical Foundations](math.md) — Interpolation and quaternion math
+- [Compositing](../developer/loom/index.md) — Layer compositing with loom
+- [Architecture Overview](../developer/overview.md) — System design

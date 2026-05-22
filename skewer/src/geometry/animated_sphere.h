@@ -16,11 +16,14 @@ struct AnimatedSphere {
     std::vector<AnimatedTransform> transform_chain;
     int32_t emissive_light_index = -1;
 
-    Sphere EvaluateAt(float t) const {
+    Sphere EvaluateAt(float t, TRS* out_trs = nullptr) const {
         if (local_data.center_is_world) {
             if (!transform_chain.empty()) {
                 throw std::runtime_error(
                     "AnimatedSphere: world-space center requires empty transform chain");
+            }
+            if (out_trs) {
+                *out_trs = TRS{};
             }
             return Sphere{local_data.center,
                           local_data.radius,
@@ -28,7 +31,8 @@ struct AnimatedSphere {
                           emissive_light_index >= 0 ? emissive_light_index : local_data.light_index,
                           local_data.interior_medium,
                           local_data.exterior_medium,
-                          local_data.priority};
+                          local_data.priority,
+                          TRS{}};
         }
         TRS w = EvaluateTransformChain(transform_chain, t);
         if (!TRSIsUniformScale(w)) {
@@ -36,13 +40,17 @@ struct AnimatedSphere {
         }
         Vec3 c = TRSApplyPoint(w, local_data.center);
         float r = local_data.radius * std::fabs(w.scale.x());
+        if (out_trs) {
+            *out_trs = w;
+        }
         return Sphere{c,
                       r,
                       local_data.material_id,
                       emissive_light_index >= 0 ? emissive_light_index : local_data.light_index,
                       local_data.interior_medium,
                       local_data.exterior_medium,
-                      local_data.priority};
+                      local_data.priority,
+                      w};
     }
 };
 

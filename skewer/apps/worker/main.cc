@@ -121,9 +121,7 @@ static int RunBatchMode() {
             scene->SetShutter(t0, t1);
             scene->Build();  // rebuilds BVH with correct motion bounds for this shutter
 
-            auto cam = std::make_unique<skwr::Camera>(config.look_from, config.look_at, config.vup,
-                                                      config.vfov, aspect, config.aperture_radius,
-                                                      config.focus_distance, t0, t1);
+            auto cam = std::make_unique<skwr::Camera>(config.camera_timeline, aspect, t0, t1);
             opts.integrator_config.cam_w = -cam->GetW();
 
             auto film =
@@ -133,7 +131,6 @@ static int RunBatchMode() {
 
             std::filesystem::create_directories(std::filesystem::path(out_path).parent_path());
 
-            film->WriteImage(out_path);
             film->WriteDeepEXRStreaming(out_path);
 
             std::cout << "[SKEWER BATCH]: Wrote " << out_path << "\n";
@@ -151,6 +148,10 @@ static int RunBatchMode() {
                 throw std::runtime_error("cache copy failed: " + src + " -> " + dst);
             }
             out << in.rdbuf();
+            out.close();
+            if (!in || !out) {
+                throw std::runtime_error("cache copy incomplete: " + src + " -> " + dst);
+            }
             std::cout << "[SKEWER BATCH]: Cached to: " << dst << "\n";
         };
 

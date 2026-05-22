@@ -43,7 +43,7 @@ func main() {
 	defer signer.Close()
 
 	owner := skapi.NewOwnerStore(storageClient, dataBucket)
-	normalizer := skapi.NewNormalizer(storageClient, dataBucket)
+	validator := skapi.NewSceneValidator(storageClient, dataBucket)
 
 	coordinator, err := skapi.NewCoordinatorClient(ctx, coordinatorURL)
 	if err != nil {
@@ -61,7 +61,7 @@ func main() {
 
 	server := skapi.NewServer(skapi.Config{
 		DataBucket: dataBucket,
-	}, storageClient, signer, owner, normalizer, coordinator, limiter)
+	}, storageClient, signer, owner, validator, coordinator, limiter)
 
 	mux := http.NewServeMux()
 	server.RegisterRoutes(mux)

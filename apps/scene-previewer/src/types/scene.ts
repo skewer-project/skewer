@@ -3,7 +3,27 @@
 
 export type Vec3 = [number, number, number];
 
+export type CameraHandle = "look_from" | "look_at";
+
+export type InterpCurve =
+	| "linear"
+	| "ease-in"
+	| "ease-out"
+	| "ease-in-out"
+	| { bezier: [number, number, number, number] };
+
 // --- Camera ---
+
+export interface CameraKeyframe {
+	time: number;
+	look_from?: Vec3;
+	look_at?: Vec3;
+	vup?: Vec3;
+	vfov?: number;
+	aperture_radius?: number;
+	focus_distance?: number;
+	curve?: InterpCurve;
+}
 
 export interface Camera {
 	look_from: Vec3;
@@ -15,6 +35,7 @@ export interface Camera {
 	/** Motion blur shutter (default 0). */
 	shutter_open?: number;
 	shutter_close?: number;
+	keyframes?: CameraKeyframe[];
 }
 
 // --- Materials ---
@@ -56,19 +77,13 @@ export interface NanoVDBMedium {
 	density_multiplier: number;
 	scale?: number;
 	translate?: Vec3;
+	rotate?: Vec3;
 	file: string;
 }
 
 export type Medium = NanoVDBMedium;
 
 // --- Transforms ---
-
-export type InterpCurve =
-	| "linear"
-	| "ease-in"
-	| "ease-out"
-	| "ease-in-out"
-	| { bezier: [number, number, number, number] };
 
 export interface Keyframe {
 	time: number;
@@ -199,6 +214,21 @@ export const DEFAULT_RENDER_CONFIG: RenderConfig = {
 	image: { width: 1920, height: 1080 },
 };
 
+// --- Skybox ---
+
+export interface SkyboxData {
+	min: Vec3;
+	max: Vec3;
+	faces: Partial<{
+		"+x": string;
+		"-x": string;
+		"+y": string;
+		"-y": string;
+		"+z": string;
+		"-z": string;
+	}>;
+}
+
 // --- scene.json top-level ---
 
 export interface SceneManifest {
@@ -207,6 +237,7 @@ export interface SceneManifest {
 	layers: string[];
 	output_dir: string;
 	animation?: Animation;
+	skybox?: SkyboxData;
 }
 
 // --- Resolved scene (what the app stores after loading) ---
@@ -224,4 +255,5 @@ export interface ResolvedScene {
 	output_dir: string;
 	animation: Animation;
 	settings: RenderConfig;
+	skybox?: SkyboxData;
 }

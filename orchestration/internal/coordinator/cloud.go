@@ -42,6 +42,8 @@ type GCPManager struct {
 	loomMemoryMiB           int
 	loomProvisioningModel   string
 	loomMaxRetryCount       int
+	loomFramesPerTask       int
+	loomFrameParallelism    int
 	loomParallelism         int
 	skewerParallelism       int
 	renderLayerParallelism  int
@@ -82,11 +84,13 @@ func NewGCPManager(ctx context.Context) (*GCPManager, error) {
 		skewerMemoryMiB:         getEnvIntOrDefault("SKEWER_BATCH_MEMORY_MIB", 6144),
 		skewerProvisioningModel: getEnvOrDefault("SKEWER_BATCH_PROVISIONING_MODEL", "SPOT"),
 		skewerMaxRetryCount:     getEnvIntOrDefault("SKEWER_BATCH_MAX_RETRY_COUNT", 3),
-		loomMachineType:         getEnvOrDefault("LOOM_BATCH_MACHINE_TYPE", "e2-highmem-8"),
-		loomCPUMilli:            getEnvIntOrDefault("LOOM_BATCH_CPU_MILLI", 8000),
-		loomMemoryMiB:           getEnvIntOrDefault("LOOM_BATCH_MEMORY_MIB", 32768),
+		loomMachineType:         getEnvOrDefault("LOOM_BATCH_MACHINE_TYPE", "n2d-standard-16"),
+		loomCPUMilli:            getEnvIntOrDefault("LOOM_BATCH_CPU_MILLI", 16000),
+		loomMemoryMiB:           getEnvIntOrDefault("LOOM_BATCH_MEMORY_MIB", 65536),
 		loomProvisioningModel:   getEnvOrDefault("LOOM_BATCH_PROVISIONING_MODEL", "STANDARD"),
 		loomMaxRetryCount:       getEnvIntOrDefault("LOOM_BATCH_MAX_RETRY_COUNT", 2),
+		loomFramesPerTask:       getEnvIntOrDefault("LOOM_BATCH_FRAMES_PER_TASK", 50),
+		loomFrameParallelism:    getEnvIntOrDefault("LOOM_FRAME_PARALLELISM", 4),
 		loomParallelism:         getEnvIntOrDefault("LOOM_BATCH_PARALLELISM", 16),
 		skewerParallelism:       getEnvIntOrDefault("SKEWER_BATCH_PARALLELISM", 24),
 		renderLayerParallelism:  getEnvIntOrDefault("RENDER_LAYER_PARALLELISM", 1),
@@ -113,8 +117,11 @@ type layerDescriptor struct {
 // minimalSceneJSON is the minimal subset of scene.json parsed by the coordinator.
 // It mirrors the keys in the C++ SceneConfig / LoadSceneFile.
 type minimalSceneJSON struct {
-	Layers    []string `json:"layers"`
-	Context   []string `json:"context"`
+	Layers  []string `json:"layers"`
+	Context []string `json:"context"`
+	Camera  *struct {
+		Keyframes []map[string]any `json:"keyframes"`
+	} `json:"camera"`
 	Animation *struct {
 		Start        float64 `json:"start"`
 		End          float64 `json:"end"`
@@ -153,6 +160,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 			numFrames = int(math.Round(dur * a.FPS))
 		}
 	}
+	cameraAnimated := sceneJSON.Camera != nil && len(sceneJSON.Camera.Keyframes) > 1
 
 	// Resolve layer URIs relative to the scene URI.
 	sceneBase := gcsURIDir(req.SceneUri)
@@ -173,7 +181,7 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		}
 
 		mode := "static"
-		if animated {
+		if animated || cameraAnimated {
 			mode = "animated"
 		}
 
@@ -236,6 +244,8 @@ func (m *GCPManager) ExecutePipeline(ctx context.Context, req *pb.SubmitPipeline
 		"loom_memory_mib":           m.loomMemoryMiB,
 		"loom_provisioning_model":   m.loomProvisioningModel,
 		"loom_max_retry_count":      m.loomMaxRetryCount,
+		"loom_frames_per_task":      m.loomFramesPerTask,
+		"loom_frame_parallelism":    m.loomFrameParallelism,
 		"loom_parallelism":          m.loomParallelism,
 		"skewer_parallelism":        m.skewerParallelism,
 		"render_layer_parallelism":  m.renderLayerParallelism,

@@ -38,7 +38,7 @@ type Server struct {
 	storage     *storage.Client
 	signer      *URLSigner
 	owner       *OwnerStore
-	normalizer  *Normalizer
+	validator   *SceneValidator
 	coordinator *CoordinatorClient
 	limiter     *EmailLimiter
 }
@@ -48,7 +48,7 @@ func NewServer(
 	storageClient *storage.Client,
 	signer *URLSigner,
 	owner *OwnerStore,
-	normalizer *Normalizer,
+	validator *SceneValidator,
 	coordinator *CoordinatorClient,
 	limiter *EmailLimiter,
 ) *Server {
@@ -66,7 +66,7 @@ func NewServer(
 		storage:     storageClient,
 		signer:      signer,
 		owner:       owner,
-		normalizer:  normalizer,
+		validator:   validator,
 		coordinator: coordinator,
 		limiter:     limiter,
 	}
@@ -221,10 +221,10 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 
 	uploadPrefix := path.Join(s.cfg.UploadRoot, pipelineID)
 
-	sceneURI, err := s.normalizer.Normalize(r.Context(), uploadPrefix, req.ScenePath)
+	sceneURI, err := s.validator.Validate(r.Context(), uploadPrefix, req.ScenePath)
 	if err != nil {
-		log.Printf("[API]: normalize scene: %v", err)
-		httpError(w, http.StatusBadRequest, "failed to normalize scene: "+err.Error())
+		log.Printf("[API]: validate scene: %v", err)
+		httpError(w, http.StatusBadRequest, "failed to validate scene: "+err.Error())
 		return
 	}
 

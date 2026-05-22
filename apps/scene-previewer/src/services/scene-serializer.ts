@@ -3,6 +3,7 @@
 import type {
 	Animation,
 	Camera,
+	CameraKeyframe,
 	InterpCurve,
 	Keyframe,
 	LayerData,
@@ -41,6 +42,21 @@ function serializeCamera(c: Camera): Record<string, unknown> {
 	const sc = c.shutter_close ?? 0;
 	if (so !== 0) o.shutter_open = so;
 	if (sc !== 0) o.shutter_close = sc;
+	if (c.keyframes !== undefined && c.keyframes.length > 0) {
+		o.keyframes = c.keyframes.map(serializeCameraKeyframe);
+	}
+	return o;
+}
+
+function serializeCameraKeyframe(k: CameraKeyframe): Record<string, unknown> {
+	const o: Record<string, unknown> = { time: k.time };
+	if (k.look_from !== undefined) o.look_from = k.look_from;
+	if (k.look_at !== undefined) o.look_at = k.look_at;
+	if (k.vup !== undefined) o.vup = k.vup;
+	if (k.vfov !== undefined) o.vfov = k.vfov;
+	if (k.aperture_radius !== undefined) o.aperture_radius = k.aperture_radius;
+	if (k.focus_distance !== undefined) o.focus_distance = k.focus_distance;
+	if (k.curve !== undefined) o.curve = serializeInterpCurve(k.curve);
 	return o;
 }
 
@@ -75,6 +91,7 @@ function serializeMedium(m: Medium): Record<string, unknown> {
 	};
 	if (m.scale !== undefined) o.scale = m.scale;
 	if (m.translate !== undefined) o.translate = m.translate;
+	if (m.rotate !== undefined) o.rotate = m.rotate;
 	return o;
 }
 
@@ -249,13 +266,26 @@ function serializeAnimation(a: Animation): Record<string, unknown> {
 export function serializeSceneManifest(
 	scene: ResolvedScene,
 ): Record<string, unknown> {
-	return {
+	const o: Record<string, unknown> = {
 		camera: serializeCamera(scene.camera),
 		animation: serializeAnimation(scene.animation),
 		context: scene.contexts.map((l) => l.path),
 		layers: scene.layers.map((l) => l.path),
 		output_dir: scene.output_dir,
 	};
+	if (scene.skybox) {
+		const nonEmptyFaces = Object.entries(scene.skybox.faces).filter(
+			([, path]) => typeof path === "string" && path.trim() !== "",
+		);
+		if (nonEmptyFaces.length > 0) {
+			o.skybox = {
+				min: scene.skybox.min,
+				max: scene.skybox.max,
+				faces: Object.fromEntries(nonEmptyFaces),
+			};
+		}
+	}
+	return o;
 }
 
 export function serializeSceneJSON(scene: ResolvedScene): string {
@@ -299,6 +329,7 @@ export async function saveScene(
 						// Sync Media properties
 						med.translate = worldCenter;
 						med.scale = worldRadius / bounds.radius;
+						med.rotate = st.rotate ?? [0, 0, 0];
 					}
 				}
 			}

@@ -398,6 +398,17 @@ function CommonTransformBlock({
 							}),
 						);
 					}
+					if (partial.rotate !== undefined) {
+						s2 = updateMedium(
+							s2,
+							`${layerTag}:${layerIdx}`,
+							node.inside_medium,
+							(m) => ({
+								...m,
+								rotate: partial.rotate as Vec3,
+							}),
+						);
+					}
 				}
 			}
 			return s2;

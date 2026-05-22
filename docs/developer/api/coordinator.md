@@ -62,6 +62,7 @@ The Coordinator's behavior is primarily controlled via Environment Variables in 
 
 ## See Also
 
-- [Architecture Overview](overview.md) - System-level architecture
-- [GCP Deployment](../deployment/gcp.md) - Terraform and Infrastructure details
-- [gRPC API](../api/grpc.md) - Protocol definitions
+- [Architecture Overview](../overview.md) - System-level architecture
+- [HTTP API](http.md) - External API layer
+- [gRPC API](grpc.md) - Protocol definitions
+- [GCP Deployment](../../getting-started/gcp.md) - Terraform and Infrastructure details
