@@ -426,6 +426,7 @@ export function Viewport({
 	const transformDraggingRef = useRef(false);
 	const controlsSettleUntilRef = useRef(0);
 	const gizmoAnchorTmp = useRef(new THREE.Vector3());
+	const cameraHandleWorldTmp = useRef(new THREE.Vector3());
 	const isDraggingRef = useRef(false);
 	/** Drives gizmo re-attach after scene graph rebuild; reset when the Three tree is replaced. */
 	const latestTransformRef = useRef<{
@@ -443,33 +444,14 @@ export function Viewport({
 		sceneVersion: number | null;
 	}>({ dirHandle: null, sceneVersion: null });
 
+	const prevDirHandle = useRef<FileSystemDirectoryHandle | null | undefined>(
+		undefined,
+	);
 	const latestSceneRef = useRef(scene);
-	useEffect(() => {
-		latestSceneRef.current = scene;
-	}, [scene]);
 
 	const currentTimeRef = useRef(currentTime);
-	useEffect(() => {
-		currentTimeRef.current = currentTime;
-	}, [currentTime]);
 
-	useEffect(() => {
-		const rig = cameraRigGroup.current;
-		const currentScene = scene;
-		const cam = camera.current;
-		if (!rig) return;
-		if (!currentScene || !cam) {
-			rig.visible = false;
-			return;
-		}
-		updateCameraRig(
-			rig,
-			currentScene,
-			currentTime,
-			cam.aspect,
-			selectedCameraHandle,
-		);
-	}, [scene, currentTime, selectedCameraHandle]);
+	const selectedCameraHandleRef = useRef(selectedCameraHandle);
 
 	const requestRender = useCallback(() => {
 		if (pendingRenderRef.current !== null || renderLoopRef.current !== null) {
@@ -480,6 +462,41 @@ export function Viewport({
 			renderFrameRef.current?.();
 		});
 	}, []);
+
+	const refreshCameraRig = useCallback(() => {
+		const rig = cameraRigGroup.current;
+		const currentScene = latestSceneRef.current;
+		const cam = camera.current;
+		if (!rig) return;
+		if (!currentScene || !cam) {
+			rig.visible = false;
+			requestRender();
+			return;
+		}
+		updateCameraRig(
+			rig,
+			currentScene,
+			currentTimeRef.current,
+			cam.aspect,
+			selectedCameraHandleRef.current,
+		);
+		requestRender();
+	}, [requestRender]);
+
+	useEffect(() => {
+		latestSceneRef.current = scene;
+		refreshCameraRig();
+	}, [scene, refreshCameraRig]);
+
+	useEffect(() => {
+		currentTimeRef.current = currentTime;
+		refreshCameraRig();
+	}, [currentTime, refreshCameraRig]);
+
+	useEffect(() => {
+		selectedCameraHandleRef.current = selectedCameraHandle;
+		refreshCameraRig();
+	}, [selectedCameraHandle, refreshCameraRig]);
 
 	const ensureRenderLoop = useCallback(() => {
 		if (renderLoopRef.current !== null) return;
@@ -827,6 +844,7 @@ export function Viewport({
 			cam.updateProjectionMatrix();
 			renderer.setSize(w, h);
 			comp.setSize(w, h);
+			refreshCameraRig();
 			requestRender();
 		});
 		ro.observe(container);
@@ -898,7 +916,7 @@ export function Viewport({
 			cameraRigGroup.current = null;
 			renderFrameRef.current = null;
 		};
-	}, [ensureRenderLoop, requestRender, stopScheduledRenders]);
+	}, [ensureRenderLoop, refreshCameraRig, requestRender, stopScheduledRenders]);
 
 	// --- Effect 2: rebuild scene objects on structural changes ---
 	useEffect(() => {
@@ -906,7 +924,16 @@ export function Viewport({
 		if (!currentScene || !dirHandle) return;
 
 		const sc = threeScene.current;
-		if (!sc) return;
+		const cam = camera.current;
+		const ctrl = controls.current;
+		if (!sc || !cam || !ctrl) return;
+
+		const isNewScene = dirHandle !== prevDirHandle.current;
+		prevDirHandle.current = dirHandle;
+		if (isNewScene) {
+			syncOrbitCameraToScene(cam, ctrl, currentScene, currentTimeRef.current);
+			refreshCameraRig();
+		}
 
 		if (
 			lastBuild.current.dirHandle === dirHandle &&
@@ -977,7 +1004,7 @@ export function Viewport({
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle, scene, sceneVersion, requestRender]);
+	}, [dirHandle, scene, sceneVersion, refreshCameraRig, requestRender]);
 
 	// --- Effect 2b: live-reload skybox background when skybox data changes ---
 	// Avoids a full scene-graph rebuild for just a texture swap.
@@ -1012,6 +1039,7 @@ export function Viewport({
 						skyboxTextureRef.current = tex;
 					}
 					blobUrlsRef.current = [...blobUrlsRef.current, ...urls];
+					requestRender();
 				})
 				.catch((err) => {
 					revokeBlobUrls(urls);
@@ -1024,12 +1052,13 @@ export function Viewport({
 				skyboxTextureRef.current = null;
 			}
 			sc.background = new THREE.Color(0x0c0d0f);
+			requestRender();
 		}
 
 		return () => {
 			abortController.abort();
 		};
-	}, [dirHandle, scene]);
+	}, [dirHandle, scene, requestRender]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {
@@ -1281,8 +1310,10 @@ export function Viewport({
 		const onChangeDuringDrag = () => {
 			if (isPlayingRef.current || !handle.userData.isDragging) return;
 			handle.updateMatrixWorld(true);
-			const p = handle.position;
+			const p = cameraHandleWorldTmp.current;
+			handle.getWorldPosition(p);
 			onCameraHandleChange?.(selectedCameraHandle, [p.x, p.y, p.z]);
+			requestRender();
 		};
 
 		tctrl.addEventListener("change", onChangeDuringDrag);
@@ -1298,6 +1329,7 @@ export function Viewport({
 		selectedObjectKey,
 		cameraHandleEditingEnabled,
 		onCameraHandleChange,
+		requestRender,
 	]);
 
 	// --- Effect: apply animated transforms; keep proxy snapped to target ---
