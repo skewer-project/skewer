@@ -115,14 +115,21 @@ class Camera {
           shutter_open_(shutter_open),
           shutter_close_(shutter_close),
           animated_(timeline_.IsAnimated()),
-          static_frame_(BuildFrame(timeline_.Evaluate(shutter_open_), aspect_ratio_)) {}
+          static_frame_(BuildFrame(timeline_.Evaluate(shutter_open_), aspect_ratio_)) {
+        if (animated_) {
+            keyframe_frames_.reserve(timeline_.keyframes.size());
+            for (const auto& kf : timeline_.keyframes) {
+                keyframe_frames_.push_back(BuildFrame(kf.state, aspect_ratio_));
+            }
+        }
+    }
 
     // Ray generation: takes normalized coords [0,1] and returns a world-space ray.
     // When lens_radius_ > 0, applies thin-lens DoF by sampling the aperture disk.
     Ray GetRay(float s, float t, RNG& rng, Vec3* cam_forward = nullptr) const {
         float ray_time = shutter_open_ + rng.UniformFloat() * (shutter_close_ - shutter_open_);
         const CameraFrame frame =
-            animated_ ? BuildFrame(timeline_.Evaluate(ray_time), aspect_ratio_) : static_frame_;
+            animated_ ? InterpolateFrame(ray_time) : static_frame_;
         if (cam_forward != nullptr) {
             *cam_forward = -frame.w;
         }
@@ -173,12 +180,57 @@ class Camera {
         return frame;
     }
 
+    // Interpolate between two precomputed keyframe frames, applying the easing curve.
+    // Avoids per-ray BuildFrame overhead (tan, sqrt, cross) for animated cameras.
+    CameraFrame InterpolateFrame(float t) const {
+        const auto& kfs = timeline_.keyframes;
+        const float first_time = kfs.front().time;
+        const float last_time = kfs.back().time;
+        if (t <= first_time) return keyframe_frames_.front();
+        if (t >= last_time) return keyframe_frames_.back();
+
+        auto it = std::upper_bound(kfs.begin(), kfs.end(), t,
+                                   [](float time, const CameraKeyframe& k) {
+                                       return time < k.time;
+                                   });
+        size_t i = static_cast<size_t>(std::distance(kfs.begin(), it)) - 1;
+
+        const CameraKeyframe& k0 = kfs[i];
+        const CameraKeyframe& k1 = kfs[i + 1];
+        float dt = k1.time - k0.time;
+        if (dt <= 1e-20f) return keyframe_frames_[i + 1];
+
+        float local_u = std::clamp((t - k0.time) / dt, 0.0f, 1.0f);
+        float alpha = k1.curve ? k1.curve->Evaluate(local_u)
+                               : BezierCurve::Linear().Evaluate(local_u);
+
+        const CameraFrame& f0 = keyframe_frames_[i];
+        const CameraFrame& f1 = keyframe_frames_[i + 1];
+
+        CameraFrame out;
+        out.origin = LerpVec3(f0.origin, f1.origin, alpha);
+        out.lower_left_corner = LerpVec3(f0.lower_left_corner, f1.lower_left_corner, alpha);
+        out.horizontal = LerpVec3(f0.horizontal, f1.horizontal, alpha);
+        out.vertical = LerpVec3(f0.vertical, f1.vertical, alpha);
+        out.u = Normalize(LerpVec3(f0.u, f1.u, alpha));
+        out.v = Normalize(LerpVec3(f0.v, f1.v, alpha));
+        out.w = Normalize(LerpVec3(f0.w, f1.w, alpha));
+        out.lens_radius = f0.lens_radius + (f1.lens_radius - f0.lens_radius) * alpha;
+        return out;
+    }
+
+    static Vec3 LerpVec3(const Vec3& a, const Vec3& b, float t) {
+        return a + (b - a) * t;
+    }
+
     CameraTimeline timeline_;
     float aspect_ratio_ = 1.0f;
     float shutter_open_ = 0.0f;
     float shutter_close_ = 0.0f;
     bool animated_ = false;
     CameraFrame static_frame_;
+    // Precomputed frames at each keyframe time; lerped between in InterpolateFrame().
+    std::vector<CameraFrame> keyframe_frames_;
 };
 
 }  // namespace skwr
