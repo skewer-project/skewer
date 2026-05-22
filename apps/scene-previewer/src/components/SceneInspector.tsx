@@ -10,6 +10,7 @@ import { displayLabel, kindShort } from "../services/node-labels";
 import u from "../styles/shared/uiPrimitives.module.css";
 import type {
 	Camera,
+	CameraHandle,
 	Material,
 	Medium,
 	RenderConfig,
@@ -44,22 +45,43 @@ function ancestorOpenKeys(selectedKey: string | null): string[] {
 
 const CameraSection = memo(function CameraSection({
 	camera,
+	selectedCameraHandle,
+	onSelectCameraHandle,
 }: {
 	camera: Camera;
+	selectedCameraHandle: CameraHandle | null;
+	onSelectCameraHandle: (handle: CameraHandle | null) => void;
 }) {
+	const toggleHandle = (handle: CameraHandle) => {
+		onSelectCameraHandle(selectedCameraHandle === handle ? null : handle);
+	};
 	return (
 		<>
 			<div className={u.inspectorSectionHead}>Camera</div>
 			<div className={u.cameraBlock}>
 				<div className={u.kvTable}>
-					<div className={u.kvRow}>
+					<button
+						type="button"
+						className={`${u.kvRow} ${s.cameraHandleRow} ${
+							selectedCameraHandle === "look_from"
+								? s.cameraHandleRowActive
+								: ""
+						}`}
+						onClick={() => toggleHandle("look_from")}
+					>
 						<span className={u.kvKey}>from</span>
 						<span className={u.kvVal}>{vec3(camera.look_from)}</span>
-					</div>
-					<div className={u.kvRow}>
+					</button>
+					<button
+						type="button"
+						className={`${u.kvRow} ${s.cameraHandleRow} ${
+							selectedCameraHandle === "look_at" ? s.cameraHandleRowActive : ""
+						}`}
+						onClick={() => toggleHandle("look_at")}
+					>
 						<span className={u.kvKey}>at</span>
 						<span className={u.kvVal}>{vec3(camera.look_at)}</span>
-					</div>
+					</button>
 					<div className={u.kvRow}>
 						<span className={u.kvKey}>vup</span>
 						<span className={u.kvVal}>{vec3(camera.vup)}</span>
@@ -466,9 +488,11 @@ export function SceneInspector({
 	selectedObjectKey,
 	selectedMaterialKey,
 	selectedMediumKey,
+	selectedCameraHandle,
 	onSelectObject,
 	onSelectMaterial,
 	onSelectMedium,
+	onSelectCameraHandle,
 	onAddGraphNode,
 	onAddMaterial,
 	onAddMedium,
@@ -488,9 +512,11 @@ export function SceneInspector({
 	selectedObjectKey: string | null;
 	selectedMaterialKey: string | null;
 	selectedMediumKey: string | null;
+	selectedCameraHandle: CameraHandle | null;
 	onSelectObject: (key: string | null) => void;
 	onSelectMaterial: (key: string | null) => void;
 	onSelectMedium: (key: string | null) => void;
+	onSelectCameraHandle: (handle: CameraHandle | null) => void;
 	onAddGraphNode: (
 		tag: "ctx" | "lyr",
 		layerIdx: number,
@@ -523,7 +549,11 @@ export function SceneInspector({
 }) {
 	return (
 		<div className={s.inspectRoot}>
-			<CameraSection camera={scene.camera} />
+			<CameraSection
+				camera={scene.camera}
+				selectedCameraHandle={selectedCameraHandle}
+				onSelectCameraHandle={onSelectCameraHandle}
+			/>
 
 			<RenderSettingsPanel
 				settings={renderSettings}

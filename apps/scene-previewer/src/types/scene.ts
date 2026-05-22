@@ -3,7 +3,27 @@
 
 export type Vec3 = [number, number, number];
 
+export type CameraHandle = "look_from" | "look_at";
+
+export type InterpCurve =
+	| "linear"
+	| "ease-in"
+	| "ease-out"
+	| "ease-in-out"
+	| { bezier: [number, number, number, number] };
+
 // --- Camera ---
+
+export interface CameraKeyframe {
+	time: number;
+	look_from?: Vec3;
+	look_at?: Vec3;
+	vup?: Vec3;
+	vfov?: number;
+	aperture_radius?: number;
+	focus_distance?: number;
+	curve?: InterpCurve;
+}
 
 export interface Camera {
 	look_from: Vec3;
@@ -15,6 +35,7 @@ export interface Camera {
 	/** Motion blur shutter (default 0). */
 	shutter_open?: number;
 	shutter_close?: number;
+	keyframes?: CameraKeyframe[];
 }
 
 // --- Materials ---
@@ -63,13 +84,6 @@ export interface NanoVDBMedium {
 export type Medium = NanoVDBMedium;
 
 // --- Transforms ---
-
-export type InterpCurve =
-	| "linear"
-	| "ease-in"
-	| "ease-out"
-	| "ease-in-out"
-	| { bezier: [number, number, number, number] };
 
 export interface Keyframe {
 	time: number;

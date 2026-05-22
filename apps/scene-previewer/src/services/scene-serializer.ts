@@ -3,6 +3,7 @@
 import type {
 	Animation,
 	Camera,
+	CameraKeyframe,
 	InterpCurve,
 	Keyframe,
 	LayerData,
@@ -41,6 +42,21 @@ function serializeCamera(c: Camera): Record<string, unknown> {
 	const sc = c.shutter_close ?? 0;
 	if (so !== 0) o.shutter_open = so;
 	if (sc !== 0) o.shutter_close = sc;
+	if (c.keyframes !== undefined && c.keyframes.length > 0) {
+		o.keyframes = c.keyframes.map(serializeCameraKeyframe);
+	}
+	return o;
+}
+
+function serializeCameraKeyframe(k: CameraKeyframe): Record<string, unknown> {
+	const o: Record<string, unknown> = { time: k.time };
+	if (k.look_from !== undefined) o.look_from = k.look_from;
+	if (k.look_at !== undefined) o.look_at = k.look_at;
+	if (k.vup !== undefined) o.vup = k.vup;
+	if (k.vfov !== undefined) o.vfov = k.vfov;
+	if (k.aperture_radius !== undefined) o.aperture_radius = k.aperture_radius;
+	if (k.focus_distance !== undefined) o.focus_distance = k.focus_distance;
+	if (k.curve !== undefined) o.curve = serializeInterpCurve(k.curve);
 	return o;
 }
 

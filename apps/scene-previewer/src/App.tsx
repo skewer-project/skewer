@@ -48,6 +48,7 @@ import {
 import a from "./styles/App.module.css";
 import u from "./styles/shared/uiPrimitives.module.css";
 import type {
+	CameraHandle,
 	Material,
 	Medium,
 	RenderConfig,
@@ -103,6 +104,8 @@ function JobsCloudButton({ onClick }: { onClick: () => void }) {
 	);
 }
 
+const CAMERA_KEYFRAME_TIME_EPS = 1e-4;
+
 function App() {
 	const [scene, setScene] = useState<ResolvedScene | null>(null);
 	const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(
@@ -118,6 +121,8 @@ function App() {
 	const [selectedMediumKey, setSelectedMediumKey] = useState<string | null>(
 		null,
 	);
+	const [selectedCameraHandle, setSelectedCameraHandle] =
+		useState<CameraHandle | null>(null);
 	const [transformMode, setTransformMode] = useState<
 		"translate" | "rotate" | "scale"
 	>("translate");
@@ -147,19 +152,31 @@ function App() {
 		setSelectedObjectKey(key);
 		setSelectedMaterialKey(null);
 		setSelectedMediumKey(null);
+		setSelectedCameraHandle(null);
 	}, []);
 
 	const handleSelectMaterial = useCallback((key: string | null) => {
 		setSelectedMaterialKey(key);
 		setSelectedObjectKey(null);
 		setSelectedMediumKey(null);
+		setSelectedCameraHandle(null);
 	}, []);
 
 	const handleSelectMedium = useCallback((key: string | null) => {
 		setSelectedMediumKey(key);
 		setSelectedObjectKey(null);
 		setSelectedMaterialKey(null);
+		setSelectedCameraHandle(null);
 	}, []);
+	const handleSelectCameraHandle = useCallback(
+		(handle: CameraHandle | null) => {
+			setSelectedCameraHandle(handle);
+			setSelectedObjectKey(null);
+			setSelectedMaterialKey(null);
+			setSelectedMediumKey(null);
+		},
+		[],
+	);
 	const [sceneVersion, setSceneVersion] = useState(0);
 	const [saving, setSaving] = useState(false);
 	const [showRenderDialog, setShowRenderDialog] = useState(false);
@@ -169,6 +186,14 @@ function App() {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const viewportRef = useRef<ViewportHandle>(null);
 	const animRangeRef = useRef({ start: 0, end: 0 });
+	const selectedCameraHandleEditingEnabled = useMemo(() => {
+		if (!scene || !selectedCameraHandle) return true;
+		const keyframes = scene.camera.keyframes;
+		if (!keyframes || keyframes.length === 0) return true;
+		return keyframes.some(
+			(kf) => Math.abs(kf.time - currentTime) < CAMERA_KEYFRAME_TIME_EPS,
+		);
+	}, [scene, selectedCameraHandle, currentTime]);
 
 	function handleSceneLoaded(s: ResolvedScene, dir: FileSystemDirectoryHandle) {
 		setSceneSettings(s);
@@ -177,6 +202,7 @@ function App() {
 		setSelectedObjectKey(null);
 		setSelectedMaterialKey(null);
 		setSelectedMediumKey(null);
+		setSelectedCameraHandle(null);
 		setSceneVersion((v) => v + 1);
 		setHasUnsavedChanges(false);
 		setCurrentTime(0);
@@ -370,6 +396,50 @@ function App() {
 		[handleSceneEdit, scene, currentTime],
 	);
 
+	const handleCameraHandleChange = useCallback(
+		(handle: CameraHandle, value: Vec3) => {
+			const keyframes = scene?.camera.keyframes;
+			if (
+				keyframes &&
+				keyframes.length > 0 &&
+				!keyframes.some(
+					(kf) => Math.abs(kf.time - currentTime) < CAMERA_KEYFRAME_TIME_EPS,
+				)
+			) {
+				console.warn(
+					"[App] Ignoring camera handle edit away from a camera keyframe.",
+				);
+				return;
+			}
+			handleSceneEdit((s) => {
+				const keyframes = s.camera.keyframes;
+				if (keyframes && keyframes.length > 0) {
+					const keyframeIndex = keyframes.findIndex(
+						(kf) => Math.abs(kf.time - currentTime) < CAMERA_KEYFRAME_TIME_EPS,
+					);
+					if (keyframeIndex < 0) return s;
+					return {
+						...s,
+						camera: {
+							...s.camera,
+							keyframes: keyframes.map((kf, i) =>
+								i === keyframeIndex ? { ...kf, [handle]: value } : kf,
+							),
+						},
+					};
+				}
+				return {
+					...s,
+					camera: {
+						...s.camera,
+						[handle]: value,
+					},
+				};
+			});
+		},
+		[handleSceneEdit, scene, currentTime],
+	);
+
 	const deleteSelectedObjectFromKeyboard = useEffectEvent(() => {
 		if (!scene || !selectedObjectKey) return false;
 		handleDeleteObject(selectedObjectKey);
@@ -405,6 +475,7 @@ function App() {
 				setSelectedObjectKey(childKey);
 				setSelectedMaterialKey(null);
 				setSelectedMediumKey(null);
+				setSelectedCameraHandle(null);
 			}
 		},
 		[handleSceneEdit],
@@ -428,6 +499,7 @@ function App() {
 			setSelectedMaterialKey(`${tag}:${layerIdx}:mat:${name}`);
 			setSelectedObjectKey(null);
 			setSelectedMediumKey(null);
+			setSelectedCameraHandle(null);
 		},
 		[handleSceneEdit],
 	);
@@ -450,6 +522,7 @@ function App() {
 			setSelectedMediumKey(`${tag}:${layerIdx}:med:${name}`);
 			setSelectedObjectKey(null);
 			setSelectedMaterialKey(null);
+			setSelectedCameraHandle(null);
 		},
 		[handleSceneEdit],
 	);
@@ -485,6 +558,8 @@ function App() {
 		setDirHandle(null);
 		setSelectedObjectKey(null);
 		setSelectedMaterialKey(null);
+		setSelectedMediumKey(null);
+		setSelectedCameraHandle(null);
 		setHasUnsavedChanges(false);
 		setError("");
 	}
@@ -570,9 +645,13 @@ function App() {
 					isPlaying={isPlaying}
 					selectedObjectKey={selectedObjectKey}
 					onSelectObject={handleSelectObject}
+					selectedCameraHandle={selectedCameraHandle}
+					onSelectCameraHandle={handleSelectCameraHandle}
+					cameraHandleEditingEnabled={selectedCameraHandleEditingEnabled}
 					transformMode={transformMode}
 					transformSpace={transformSpace}
 					onTransformChange={handleTransformChange}
+					onCameraHandleChange={handleCameraHandleChange}
 				/>
 			</div>
 
@@ -695,9 +774,11 @@ function App() {
 							selectedObjectKey={selectedObjectKey}
 							selectedMaterialKey={selectedMaterialKey}
 							selectedMediumKey={selectedMediumKey}
+							selectedCameraHandle={selectedCameraHandle}
 							onSelectObject={handleSelectObject}
 							onSelectMaterial={handleSelectMaterial}
 							onSelectMedium={handleSelectMedium}
+							onSelectCameraHandle={handleSelectCameraHandle}
 							onAddGraphNode={handleAddGraphNode}
 							onAddMaterial={handleAddMaterial}
 							onAddMedium={handleAddMedium}

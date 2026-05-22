@@ -99,6 +99,103 @@ func TestValidateAnimationBlockRequiresExplicitMetadata(t *testing.T) {
 	}
 }
 
+func TestValidateCameraBlock(t *testing.T) {
+	validBase := map[string]any{
+		"look_from":       []any{float64(0), float64(1), float64(4)},
+		"look_at":         []any{float64(0), float64(0), float64(0)},
+		"vup":             []any{float64(0), float64(1), float64(0)},
+		"vfov":            float64(50),
+		"focus_distance":  float64(4),
+		"aperture_radius": float64(0.1),
+	}
+
+	tests := []struct {
+		name    string
+		raw     any
+		wantErr string
+	}{
+		{
+			name:    "missing block",
+			raw:     nil,
+			wantErr: "scene camera block is required",
+		},
+		{
+			name: "missing look from",
+			raw: map[string]any{
+				"look_at": []any{float64(0), float64(0), float64(0)},
+			},
+			wantErr: "scene camera.look_from must be an array of 3 numbers",
+		},
+		{
+			name: "bad base vfov",
+			raw: map[string]any{
+				"look_from": []any{float64(0), float64(1), float64(4)},
+				"look_at":   []any{float64(0), float64(0), float64(0)},
+				"vfov":      float64(0),
+			},
+			wantErr: "scene camera.vfov must be positive",
+		},
+		{
+			name: "bad keyframe focus",
+			raw: map[string]any{
+				"look_from": []any{float64(0), float64(1), float64(4)},
+				"look_at":   []any{float64(0), float64(0), float64(0)},
+				"keyframes": []any{
+					map[string]any{"time": float64(0)},
+					map[string]any{"time": float64(1), "focus_distance": float64(0)},
+				},
+			},
+			wantErr: "scene camera.keyframes[1].focus_distance must be positive",
+		},
+		{
+			name: "bad keyframe curve",
+			raw: map[string]any{
+				"look_from": []any{float64(0), float64(1), float64(4)},
+				"look_at":   []any{float64(0), float64(0), float64(0)},
+				"keyframes": []any{
+					map[string]any{"time": float64(0), "curve": "unknown"},
+				},
+			},
+			wantErr: "scene camera.keyframes[0].curve unknown preset",
+		},
+		{
+			name: "valid",
+			raw:  validBase,
+		},
+		{
+			name: "valid keyframes",
+			raw: map[string]any{
+				"look_from": []any{float64(0), float64(1), float64(4)},
+				"look_at":   []any{float64(0), float64(0), float64(0)},
+				"keyframes": []any{
+					map[string]any{"time": float64(0)},
+					map[string]any{
+						"time":            float64(1),
+						"look_from":       []any{float64(1), float64(1), float64(4)},
+						"aperture_radius": float64(0.2),
+						"curve":           map[string]any{"bezier": []any{float64(0.2), float64(0.3), float64(0.8), float64(0.9)}},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateCameraBlock(tc.raw)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateCameraBlock() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("validateCameraBlock() error = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestSceneReferenceValidation(t *testing.T) {
 	scene := map[string]any{
 		"layers": []any{"layer_background.json", "layer_subject.json"},

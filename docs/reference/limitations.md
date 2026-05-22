@@ -14,7 +14,7 @@ The Scene Previewer uses the [File System Access API](https://developer.mozilla.
 
 ## Scene Camera
 
-The camera defined in `scene.json` is **static** — there is no camera animation path or moving camera support. The `look_from`, `look_at`, `vup`, and `vfov` values are fixed for the duration of a render.
+The camera defined in `scene.json` supports keyframed `look_from`, `look_at`, `vup`, `vfov`, `focus_distance`, and `aperture_radius` values. The previewer can load, save, and scrub animated cameras, but it does not yet provide camera keyframe authoring controls.
 
 The previewer viewport does provide interactive Three.js `OrbitControls` (orbit, pan, zoom) for inspection, but this does not affect the rendered output.
 

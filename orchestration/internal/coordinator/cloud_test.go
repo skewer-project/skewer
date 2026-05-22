@@ -35,19 +35,22 @@ func TestNumFramesFromAnimation(t *testing.T) {
 // TestLayerClassification verifies that the animated flag is correctly mapped to mode.
 func TestLayerClassification(t *testing.T) {
 	cases := []struct {
-		animated bool
-		wantMode string
+		layerAnimated  bool
+		cameraAnimated bool
+		wantMode       string
 	}{
-		{true, "animated"},
-		{false, "static"},
+		{true, false, "animated"},
+		{false, false, "static"},
+		{false, true, "animated"},
 	}
 	for _, tc := range cases {
 		mode := "static"
-		if tc.animated {
+		if tc.layerAnimated || tc.cameraAnimated {
 			mode = "animated"
 		}
 		if mode != tc.wantMode {
-			t.Errorf("animated=%v → mode=%q, want %q", tc.animated, mode, tc.wantMode)
+			t.Errorf("layerAnimated=%v cameraAnimated=%v mode=%q, want %q",
+				tc.layerAnimated, tc.cameraAnimated, mode, tc.wantMode)
 		}
 	}
 }
@@ -57,6 +60,7 @@ func TestSceneJSONParsing(t *testing.T) {
 	raw := `{
 		"layers": ["layers/smoke.json", "layers/char.json"],
 		"context": ["ctx/lights.json"],
+		"camera": {"keyframes": [{"time": 0}, {"time": 1}]},
 		"animation": {"start": 0, "end": 5, "fps": 24, "shutter_angle": 180}
 	}`
 	var sceneJSON minimalSceneJSON
@@ -74,6 +78,9 @@ func TestSceneJSONParsing(t *testing.T) {
 	}
 	if sceneJSON.Animation.FPS != 24 {
 		t.Errorf("fps: want 24, got %v", sceneJSON.Animation.FPS)
+	}
+	if sceneJSON.Camera == nil || len(sceneJSON.Camera.Keyframes) != 2 {
+		t.Fatalf("camera keyframes not parsed: %#v", sceneJSON.Camera)
 	}
 	frames := numFramesFromAnimation(sceneJSON.Animation.Start, sceneJSON.Animation.End, sceneJSON.Animation.FPS)
 	if frames != 120 {

@@ -48,7 +48,7 @@ namespace skwr {
  * |- Deferred Deep Output pass
  */
 void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& config,
-        const SampledWavelengths& wl, SampleWriter& writer) {
+        const Vec3& primary_cam_w, const SampledWavelengths& wl, SampleWriter& writer) {
     Spectrum L(0.0f);     // Accumulated Radiance (color)
     Spectrum beta(1.0f);  // Throughput (attenuation)
     Ray r = ray;
@@ -306,7 +306,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
         dpr.UpdateBSDFWeight(beta, current_beta);
     }
 
-    dpr.ResolveToDeep(writer, ray, config.cam_w, wl);
+    dpr.ResolveToDeep(writer, ray, primary_cam_w, wl);
     const float out_alpha =
         (config.transparent_background && !saw_visible && !hit_opaque_background) ? 0.0f : 1.0f;
     writer.WriteBeauty(SpectrumToRGB(L, wl), out_alpha);

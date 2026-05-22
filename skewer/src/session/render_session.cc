@@ -128,9 +128,8 @@ static void RenderLayerPass(const SceneConfig& config, const std::string& layer_
 
     float aspect =
         static_cast<float>(opts.image_config.width) / static_cast<float>(opts.image_config.height);
-    auto cam = std::make_unique<Camera>(config.look_from, config.look_at, config.vup, config.vfov,
-                                        aspect, config.aperture_radius, config.focus_distance,
-                                        shutter_open, shutter_close);
+    auto cam =
+        std::make_unique<Camera>(config.camera_timeline, aspect, shutter_open, shutter_close);
     ic.cam_w = -cam->GetW();
 
     auto film = std::make_unique<Film>(opts.image_config.width, opts.image_config.height);
@@ -173,6 +172,7 @@ void RenderSession::RenderScene(const std::string& scene_file, const RenderCliOp
     cam_vfov_ = config.vfov;
     cam_aperture_ = config.aperture_radius;
     cam_focus_dist_ = config.focus_distance;
+    cam_timeline_ = config.camera_timeline;
     if (config.animation) {
         cam_shutter_open_ = config.animation->start;
         cam_shutter_close_ = config.animation->start;
@@ -220,7 +220,10 @@ void RenderSession::RenderScene(const std::string& scene_file, const RenderCliOp
                       << "\" omits \"animated\"; defaulting to false.\n";
         }
 
-        if (anim_flags.animated) {
+        const bool layer_frame_varying =
+            anim_flags.animated || (config.animation && config.camera_timeline.IsAnimated());
+
+        if (layer_frame_varying) {
             if (cli.statics_only) {
                 continue;
             }
@@ -285,8 +288,8 @@ void RenderSession::RenderFrame(const std::string& scene_file, const std::string
     }
 
     LayerAnimationFlags anim_flags = PeekLayerAnimationFlags(matched);
-    if (!anim_flags.animated) {
-        throw std::runtime_error("RenderFrame target layer is not marked animated: " + matched);
+    if (!anim_flags.animated && !config.camera_timeline.IsAnimated()) {
+        throw std::runtime_error("RenderFrame target layer is not frame-varying: " + matched);
     }
 
     const bool multi_layer = config.layer_paths.size() > 1;
@@ -318,11 +321,17 @@ void RenderSession::LoadLayerDirect(const std::string& layer_file, Vec3 look_fro
     cam_look_at_ = look_at;
     cam_vup_ = vup;
     cam_vfov_ = vfov;
+    cam_timeline_.base.look_from = look_from;
+    cam_timeline_.base.look_at = look_at;
+    cam_timeline_.base.vup = vup;
+    cam_timeline_.base.vfov = vfov;
+    cam_timeline_.base.aperture_radius = cam_aperture_;
+    cam_timeline_.base.focus_distance = cam_focus_dist_;
+    cam_timeline_.keyframes.clear();
 
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_);
+    camera_ = std::make_unique<Camera>(cam_timeline_, aspect);
 
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
     integrator_ = CreateIntegrator(options_.integrator_type);
@@ -380,13 +389,13 @@ void RenderSession::LoadSceneFromFile(const std::string& scene_file, int thread_
     cam_focus_dist_ = config.focus_distance;
     cam_shutter_open_ = config.shutter_open;
     cam_shutter_close_ = config.shutter_close;
+    cam_timeline_ = config.camera_timeline;
 
     // 6. Create camera (aspect ratio derived from image dimensions)
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_, cam_shutter_open_,
-                                       cam_shutter_close_);
+    camera_ =
+        std::make_unique<Camera>(cam_timeline_, aspect, cam_shutter_open_, cam_shutter_close_);
 
     // 7. Create film and integrator
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
@@ -410,9 +419,8 @@ void RenderSession::RebuildFilm() {
     // the projection matches the new film dimensions.
     float aspect = static_cast<float>(options_.image_config.width) /
                    static_cast<float>(options_.image_config.height);
-    camera_ = std::make_unique<Camera>(cam_look_from_, cam_look_at_, cam_vup_, cam_vfov_, aspect,
-                                       cam_aperture_, cam_focus_dist_, cam_shutter_open_,
-                                       cam_shutter_close_);
+    camera_ =
+        std::make_unique<Camera>(cam_timeline_, aspect, cam_shutter_open_, cam_shutter_close_);
     options_.integrator_config.cam_w = -camera_->GetW();
 
     film_ = std::make_unique<Film>(options_.image_config.width, options_.image_config.height);
