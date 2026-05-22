@@ -108,9 +108,6 @@ export function LandingPage({ onSceneLoaded, onError }: Props) {
 
 	return (
 		<div className={l.landing}>
-			{/* Decorative grid background */}
-			<div className={l.landingGrid} />
-
 			<div className={l.landingContent}>
 				{/* Branding */}
 				<div className={l.landingBrand}>
