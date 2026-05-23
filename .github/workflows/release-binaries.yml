@@ -191,6 +191,7 @@ jobs:
             exit /b 1
           )
           echo Using rc.exe at "%RC_EXE%"
+          set "CMAKE_RC_EXE=%RC_EXE:\=/%"
 
           for /f "delims=" %%i in ('where mt') do if not defined MT_EXE set "MT_EXE=%%i"
           if not defined MT_EXE (
@@ -198,10 +199,12 @@ jobs:
             exit /b 1
           )
           echo Using mt.exe at "%MT_EXE%"
+          set "CMAKE_MT_EXE=%MT_EXE:\=/%"
 
           if exist build\release-portable rmdir /s /q build\release-portable
+          set "CMAKE_VCPKG_TOOLCHAIN=%VCPKG_ROOT:\=/%/scripts/buildsystems/vcpkg.cmake"
 
-          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_RC_COMPILER="%RC_EXE%" -DCMAKE_MT="%MT_EXE%"
+          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%CMAKE_VCPKG_TOOLCHAIN%" -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_RC_COMPILER="%CMAKE_RC_EXE%" -DCMAKE_MT="%CMAKE_MT_EXE%"
           if errorlevel 1 exit /b %errorlevel%
           cmake --build --preset release-portable --target skewer-render loom --parallel
           if errorlevel 1 exit /b %errorlevel%
