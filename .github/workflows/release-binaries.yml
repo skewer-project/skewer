@@ -1,0 +1,221 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Artifact version label for manual runs"
+        required: false
+        default: "dev"
+
+permissions:
+  contents: write
+
+jobs:
+  build-unix:
+    name: Build ${{ matrix.artifact_suffix }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact_suffix: linux-x86_64
+            runner: blacksmith-4vcpu-ubuntu-2204
+            platform: linux
+          - artifact_suffix: macos-arm64
+            runner: macos-14
+            platform: macos
+          - artifact_suffix: macos-x86_64
+            runner: macos-15-intel
+            platform: macos
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Resolve artifact name
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            version="${{ inputs.version }}"
+          fi
+          if [[ -z "${version}" ]]; then
+            version="dev-${GITHUB_SHA::7}"
+          fi
+          artifact_name="skewer-${version}-${{ matrix.artifact_suffix }}"
+          echo "VERSION=${version}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_NAME=${artifact_name}" >> "${GITHUB_ENV}"
+
+      - name: Fetch required LFS asset
+        shell: bash
+        run: |
+          git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
+          git lfs checkout --include="skewer/external/srgb_spec_data.h"
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            g++-12 \
+            gcc-12 \
+            libimath-dev \
+            libopenexr-dev \
+            libpng-dev \
+            ninja-build \
+            patchelf \
+            zlib1g-dev
+
+      - name: Install macOS dependencies
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          brew install cmake ninja openexr libpng
+
+      - name: Configure
+        shell: bash
+        run: |
+          args=(
+            --preset release-portable
+            -G Ninja
+          )
+
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            args+=(
+              -DCMAKE_C_COMPILER=gcc-12
+              -DCMAKE_CXX_COMPILER=g++-12
+            )
+          fi
+
+          cmake "${args[@]}"
+
+      - name: Build release binaries
+        shell: bash
+        run: cmake --build --preset release-portable --target skewer-render loom --parallel
+
+      - name: Install runtime component
+        shell: bash
+        run: cmake --install build/release-portable --prefix "dist/stage/${ARTIFACT_NAME}" --component Runtime
+
+      - name: Bundle runtime libraries
+        shell: bash
+        run: ./scripts/bundle-release.sh "dist/stage/${ARTIFACT_NAME}" "${ARTIFACT_NAME}" dist
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          if-no-files-found: error
+          path: |
+            dist/${{ env.ARTIFACT_NAME }}.tar.gz
+            dist/${{ env.ARTIFACT_NAME }}.tar.gz.sha256
+
+  build-windows:
+    name: Build windows-x86_64
+    runs-on: blacksmith-4vcpu-windows-2025
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Resolve artifact name
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $version = $env:GITHUB_REF_NAME
+          } else {
+            $version = "${{ inputs.version }}"
+          }
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = "dev-$($env:GITHUB_SHA.Substring(0, 7))"
+          }
+          $artifactName = "skewer-$version-windows-x86_64"
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "ARTIFACT_NAME=$artifactName" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Fetch required LFS asset
+        shell: pwsh
+        run: |
+          git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
+          git lfs checkout
+
+      - name: Install vcpkg dependencies
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:VCPKG_ROOT)) {
+            if (![string]::IsNullOrWhiteSpace($env:VCPKG_INSTALLATION_ROOT)) {
+              "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+              $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+            } else {
+              throw "VCPKG_ROOT is not set"
+            }
+          }
+          & "$env:VCPKG_ROOT\vcpkg.exe" install openexr libpng zlib --triplet x64-windows
+
+      - name: Configure, build, and bundle
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+          cmake --build --preset release-portable --target skewer-render loom --parallel
+          cmake --install build\release-portable --prefix "dist\stage\%ARTIFACT_NAME%" --component Runtime
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\bundle-release.ps1 -StageDir "dist\stage\%ARTIFACT_NAME%" -ArtifactName "%ARTIFACT_NAME%" -DistDir dist
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          if-no-files-found: error
+          path: |
+            dist/${{ env.ARTIFACT_NAME }}.zip
+            dist/${{ env.ARTIFACT_NAME }}.zip.sha256
+
+  publish:
+    name: Publish GitHub release assets
+    runs-on: ubuntu-22.04
+    needs:
+      - build-unix
+      - build-windows
+    if: github.ref_type == 'tag'
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-dist
+          pattern: skewer-*
+          merge-multiple: true
+
+      - name: Generate combined checksums
+        shell: bash
+        run: |
+          cd release-dist
+          find . -maxdepth 1 -type f \( -name "*.tar.gz" -o -name "*.zip" \) -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > checksums.txt
+
+      - name: Create release if needed
+        shell: bash
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
+            gh release create "${GITHUB_REF_NAME}" --verify-tag --title "${GITHUB_REF_NAME}" --notes "Skewer ${GITHUB_REF_NAME}"
+
+      - name: Upload release assets
+        shell: bash
+        run: |
+          cd release-dist
+          gh release upload "${GITHUB_REF_NAME}" *.tar.gz *.zip checksums.txt --clobber

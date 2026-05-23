@@ -6,7 +6,9 @@ if(LOOM_UNIT_TEST_SOURCES)
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/tests
     )
-    target_compile_options(loom_unit_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(loom_unit_tests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
     gtest_discover_tests(loom_unit_tests)
 endif()
 
@@ -18,8 +20,9 @@ if(LOOM_INTEGRATION_TEST_SOURCES)
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/tests
     )
-    target_compile_options(loom_integration_tests PRIVATE -Wall -Wextra -Wpedantic)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(loom_integration_tests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
     gtest_discover_tests(loom_integration_tests)
 endif()
  
-

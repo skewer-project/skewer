@@ -1,7 +1,8 @@
 # Installation
 
 > **Note:** These instructions are for building from source.
-> Eventually, pre-built binaries will be available on package managers on different platforms.
+> For normal command-line use, download the portable `skewer-render` and `loom`
+> bundle for your platform from the GitHub Releases page.
 
 ## Clone & Setup
 
