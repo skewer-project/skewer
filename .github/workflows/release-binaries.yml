@@ -57,7 +57,7 @@ jobs:
         shell: bash
         run: |
           git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
-          git lfs checkout --include="skewer/external/srgb_spec_data.h"
+          git lfs checkout
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
