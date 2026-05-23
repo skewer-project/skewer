@@ -23,7 +23,7 @@ jobs:
       matrix:
         include:
           - artifact_suffix: linux-x86_64
-            runner: blacksmith-4vcpu-ubuntu-2204
+            runner: blacksmith-4vcpu-ubuntu-2404
             platform: linux
           - artifact_suffix: macos-arm64
             runner: macos-14
