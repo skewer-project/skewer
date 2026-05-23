@@ -119,7 +119,9 @@ static void RenderLayerPass(const SceneConfig& config, const std::string& layer_
 
     if (multi_layer) {
         ic.enable_deep = true;
-        ic.transparent_background = true;
+        if (!ic.transparent_background.has_value()) {
+            ic.transparent_background = true;
+        }
     }
     if (thread_override > 0) ic.num_threads = thread_override;
 
