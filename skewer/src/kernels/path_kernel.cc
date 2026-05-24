@@ -84,7 +84,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
         // vol dispatch, sample medium with t_surface as upper bound
         if (scatter_medium) {
             ray_t += mi.t;
-            if (config.transparent_background.value_or(false) && vis_checks < config.visibility_depth) {
+            if (config.transparent_background.value_or(false) &&
+                vis_checks < config.visibility_depth) {
                 vis_checks++;
                 saw_visible = true;  // Participating media contribute layer coverage
             }
@@ -154,7 +155,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             }
 
             const Material& mat = scene.GetMaterial(si.material_id);
-            if (config.transparent_background.value_or(false) && vis_checks < config.visibility_depth) {
+            if (config.transparent_background.value_or(false) &&
+                vis_checks < config.visibility_depth) {
                 vis_checks++;
                 if (mat.visible) saw_visible = true;
             }
@@ -269,7 +271,8 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 break;
             }
         } else {
-            if (config.transparent_background.value_or(false) && vis_checks < config.visibility_depth) {
+            if (config.transparent_background.value_or(false) &&
+                vis_checks < config.visibility_depth) {
                 vis_checks++;
                 // Environment hit = no visible object along this path segment
             }
@@ -311,7 +314,9 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
 
     dpr.ResolveToDeep(writer, ray, primary_cam_w, wl);
     const float out_alpha =
-        (config.transparent_background.value_or(false) && !saw_visible && !hit_opaque_background) ? 0.0f : 1.0f;
+        (config.transparent_background.value_or(false) && !saw_visible && !hit_opaque_background)
+            ? 0.0f
+            : 1.0f;
     writer.WriteBeauty(SpectrumToRGB(L, wl), out_alpha);
     writer.FlushDeepSegments();
 }
