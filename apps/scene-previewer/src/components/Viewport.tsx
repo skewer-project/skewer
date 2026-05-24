@@ -1087,18 +1087,21 @@ export function Viewport({
 				const canvas = document.createElement("canvas");
 				canvas.width = size;
 				canvas.height = size;
-				const ctx = canvas.getContext("2d")!;
-				ctx.fillStyle = "#111";
-				ctx.fillRect(0, 0, size, size);
-				ctx.fillStyle = "#222";
-				ctx.fillRect(0, 0, size / 4, size / 4);
-				ctx.fillRect(size / 2, 0, size / 4, size / 4);
-				ctx.fillRect(size / 4, size / 4, size / 4, size / 4);
-				ctx.fillRect(size * 3 / 4, size / 4, size / 4, size / 4);
-				ctx.fillRect(0, size / 2, size / 4, size / 4);
-				ctx.fillRect(size / 2, size / 2, size / 4, size / 4);
-				ctx.fillRect(size / 4, size * 3 / 4, size / 4, size / 4);
-				ctx.fillRect(size * 3 / 4, size * 3 / 4, size / 4, size / 4);
+				const ctx = canvas.getContext("2d");
+				if (ctx != null) {
+					ctx.fillStyle = "#111";
+					ctx.fillRect(0, 0, size, size);
+					ctx.fillStyle = "#222";
+					ctx.fillRect(0, 0, size / 4, size / 4);
+					ctx.fillRect(size / 2, 0, size / 4, size / 4);
+					ctx.fillRect(size / 4, size / 4, size / 4, size / 4);
+					ctx.fillRect((size * 3) / 4, size / 4, size / 4, size / 4);
+					ctx.fillRect(0, size / 2, size / 4, size / 4);
+					ctx.fillRect(size / 2, size / 2, size / 4, size / 4);
+					ctx.fillRect(size / 4, (size * 3) / 4, size / 4, size / 4);
+					ctx.fillRect((size * 3) / 4, (size * 3) / 4, size / 4, size / 4);
+				}
+
 				const tex = new THREE.CanvasTexture(canvas);
 				tex.wrapS = THREE.RepeatWrapping;
 				tex.wrapT = THREE.RepeatWrapping;

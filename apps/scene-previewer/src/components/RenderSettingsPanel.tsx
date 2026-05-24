@@ -265,15 +265,15 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 								))}
 							</div>
 
-						<button
-							type="button"
-							className={sb.removeBtn}
-							onClick={removeSkybox}
-							title="Remove skybox"
-						>
-							<Trash2 size={12} strokeWidth={2} />
-							<span>Remove skybox</span>
-						</button>
+							<button
+								type="button"
+								className={sb.removeBtn}
+								onClick={removeSkybox}
+								title="Remove skybox"
+							>
+								<Trash2 size={12} strokeWidth={2} />
+								<span>Remove skybox</span>
+							</button>
 						</div>
 					)}
 
