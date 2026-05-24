@@ -277,19 +277,19 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 						</div>
 					)}
 
-				{/* Transparent background checkbox */}
-				<div className={sb.toggleRow}>
-					<span className={u.kvKey}>Transparent background</span>
-					<label className={sb.checkRow}>
-						<input
-							type="checkbox"
-							checked={settings.transparent_background === true}
-							onChange={(e) =>
-								patch({ transparent_background: e.target.checked || false })
-							}
-						/>
-					</label>
-				</div>
+					{/* Transparent background checkbox */}
+					<div className={sb.toggleRow}>
+						<span className={u.kvKey}>Transparent background</span>
+						<label className={sb.checkRow}>
+							<input
+								type="checkbox"
+								checked={settings.transparent_background === true}
+								onChange={(e) =>
+									patch({ transparent_background: e.target.checked || false })
+								}
+							/>
+						</label>
+					</div>
 				</div>
 			</Collapsible.Content>
 		</Collapsible.Root>
