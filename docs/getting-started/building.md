@@ -2,6 +2,10 @@
 
 This guide covers building Skewer from source. See [Installation](installation.md) for dependency setup.
 
+!!! tip "Don't want to build?"
+    Pre-built binaries are available for every release. See the
+    **[Pre-built Binaries](release-binaries.md)** guide.
+
 ## Using CMake Presets
 
 The project uses CMake presets for consistent builds:

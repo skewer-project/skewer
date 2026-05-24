@@ -4,18 +4,21 @@ This guide walks through your first render with Skewer. See [Installation](insta
 
 ## Prerequisites
 
-Make sure you've completed the installation steps:
+Choose how to get the renderer:
 
-1. Installed system dependencies
-2. Built the project with CMake
-3. Built the Go CLI
+- **[Pre-built Binaries](release-binaries.md)** — Download `skewer-render` and `loom` from the
+  [Releases page](https://github.com/skewer-project/skewer/releases). No build tools needed.
+- **[Build from Source](building.md)** — If you're developing or modifying the code.
 
 ## 1. Run a Local Render
 
-The simplest way to render a scene is to run the built binary directly:
+The simplest way to render a scene — run the renderer binary directly on a scene file:
 
 ```bash
-# Using the built binary
+# With the pre-built binary (download from Releases first)
+./skewer-render <path-to-scene.json>
+
+# Or from a local build
 ./build/relwithdebinfo/skewer/skewer-render <path-to-scene.json>
 ```
 

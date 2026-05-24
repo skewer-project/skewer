@@ -2,6 +2,8 @@
 
 This guide covers how to build, run, and test Skewer locally. Skewer no longer uses Kubernetes for local development — the production architecture is fully serverless on GCP.
 
+If you just want to render scenes without building from source, use the **[Pre-built Binaries](release-binaries.md)** instead.
+
 See [Installation](installation.md) for dependency setup and [Building](building.md) for full build instructions.
 
 Once built, the renderer binary is at `build/relwithdebinfo/skewer/skewer-render`.
