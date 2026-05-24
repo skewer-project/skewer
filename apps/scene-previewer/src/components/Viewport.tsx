@@ -1075,10 +1075,14 @@ export function Viewport({
 		const sc = threeScene.current;
 		if (!sc) return;
 
-		const hasSkybox = !!scene?.skybox;
+		const hasSkyboxFaces =
+			!!scene?.skybox &&
+			Object.values(scene.skybox.faces).some(
+				(p) => typeof p === "string" && p.trim() !== "",
+			);
 		const isTransparent = scene?.settings?.transparent_background === true;
 
-		if (hasSkybox) return; // Effect 2b handles skybox background
+		if (hasSkyboxFaces) return; // Effect 2b handles the skybox texture
 
 		if (isTransparent) {
 			// Lazily create the checkerboard canvas texture
