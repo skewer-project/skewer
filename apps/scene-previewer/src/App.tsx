@@ -778,25 +778,32 @@ function App() {
 
 				{/* Left sidebar: scene inspector */}
 				{scene && dirHandle && (
-					<div
-						className={`${a.sidebarWrapper} ${
-							sidebarCollapsed ? a.sidebarWrapperCollapsed : ""
-						}`}
+				<div
+					className={`${a.sidebarWrapper} ${
+						sidebarCollapsed ? a.sidebarWrapperCollapsed : ""
+					}`}
+				>
+					<button
+						type="button"
+						className={a.sidebarToggle}
+						onClick={() => setSidebarCollapsed((prev) => !prev)}
+						aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+						aria-expanded={!sidebarCollapsed}
+						aria-controls="scene-inspector"
 					>
-						<button
-							type="button"
-							className={a.sidebarToggle}
-							onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-							title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-						>
-							{sidebarCollapsed ? (
-								<ChevronRight size={14} />
-							) : (
-								<ChevronLeft size={14} />
-							)}
-						</button>
-						<div className={`panel ${a.hudSidebar}`} data-hud="sidebar">
-							<SceneInspector
+						{sidebarCollapsed ? (
+							<ChevronRight size={14} />
+						) : (
+							<ChevronLeft size={14} />
+						)}
+					</button>
+					<div
+						id="scene-inspector"
+						className={`panel ${a.hudSidebar}`}
+						data-hud="sidebar"
+						inert={sidebarCollapsed || undefined}
+					>
+						<SceneInspector
 								scene={scene}
 								selectedObjectKey={selectedObjectKey}
 								selectedMaterialKey={selectedMaterialKey}
