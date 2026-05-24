@@ -142,10 +142,44 @@
 	background: var(--border-mid);
 }
 
-.hudSidebar {
+.sidebarWrapper {
 	position: absolute;
 	top: 62px;
 	left: 16px;
+	z-index: 15;
+	transition: left 0.25s ease;
+}
+
+.sidebarWrapperCollapsed {
+	left: -302px;
+}
+
+.sidebarToggle {
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translate(100%, -50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 64px;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-left: none;
+	border-radius: 0 4px 4px 0;
+	background: var(--panel);
+	color: var(--t2);
+	cursor: pointer;
+	z-index: 30;
+	transition: color 0.12s;
+}
+
+.sidebarToggle:hover {
+	color: var(--amber);
+}
+
+.hudSidebar {
 	width: 318px;
 	max-height: calc(100dvh - 94px - 52px);
 	overflow-y: auto;
