@@ -265,17 +265,32 @@ export const RenderSettingsPanel = memo(function RenderSettingsPanel({
 								))}
 							</div>
 
-							<button
-								type="button"
-								className={sb.removeBtn}
-								onClick={removeSkybox}
-								title="Remove skybox"
-							>
-								<Trash2 size={12} strokeWidth={2} />
-								<span>Remove skybox</span>
-							</button>
+						<button
+							type="button"
+							className={sb.removeBtn}
+							onClick={removeSkybox}
+							title="Remove skybox"
+						>
+							<Trash2 size={12} strokeWidth={2} />
+							<span>Remove skybox</span>
+						</button>
 						</div>
 					)}
+
+					{/* Alpha / transparent background toggle */}
+					<div className={u.kvRow} style={{ marginTop: 8 }}>
+						<span className={u.kvKey}>alpha</span>
+						<label className={sb.checkRow}>
+							<input
+								type="checkbox"
+								checked={settings.transparent_background === true}
+								onChange={(e) =>
+									patch({ transparent_background: e.target.checked || false })
+								}
+							/>
+							<span>Transparent background</span>
+						</label>
+					</div>
 				</div>
 			</Collapsible.Content>
 		</Collapsible.Root>
