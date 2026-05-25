@@ -88,6 +88,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
       COMPILE_OPTIONS "-fno-fast-math"
   )
+elseif(MSVC)
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
+      COMPILE_OPTIONS "/fp:precise"
+  )
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
+      COMPILE_OPTIONS "/fp:precise"
+  )
 endif()
 
 # Link libraries
@@ -114,6 +121,9 @@ target_compile_definitions(skewer-worker PRIVATE NANOVDB_USE_INTRINSICS)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(skewer-render PRIVATE -ffast-math)
     target_compile_options(skewer-worker PRIVATE -ffast-math)
+elseif(MSVC)
+  target_compile_options(skewer-render PRIVATE /fp:fast /arch:AVX2)
+  target_compile_options(skewer-worker PRIVATE /fp:fast /arch:AVX2)
 endif()
 
 if(SKEWER_BUILD_NATIVE_OPTIMIZATIONS)
