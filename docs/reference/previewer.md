@@ -2,7 +2,7 @@
 
 The Scene Previewer is a web-based tool for visualizing and editing Skewer scenes.
 
-**[Launch the hosted previewer →](http://skewer.pages.dev)**
+**[Launch the hosted previewer →](https://skewer.pages.dev)**
 
 !!! warning "Chrome required"
     The previewer relies on the

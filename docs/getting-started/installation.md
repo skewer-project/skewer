@@ -122,7 +122,7 @@ cd /path/to/vcpkg
 export VCPKG_ROOT=/path/to/vcpkg
 ```
 
-When `VCPKG_ROOT` is set, the CMake presets automatically use it — no extra flags needed.
+When `VCPKG_ROOT` is set, the `releasestatic` CMake preset automatically uses it — see [Building](building.md) for available presets.
 
 ### Verify Installation
 

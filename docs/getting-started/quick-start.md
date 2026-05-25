@@ -23,7 +23,7 @@ Run the renderer binary directly on a scene file:
 ```
 
 !!! tip "Need a scene to render?"
-    Use the **[Scene Previewer](http://skewer.pages.dev)** to
+    Use the **[Scene Previewer](https://skewer.pages.dev)** to
     browse the template gallery and download a Cornell Box or other example scene.
 
 **Example with the Cornell Box template:**

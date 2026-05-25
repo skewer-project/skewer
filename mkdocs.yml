@@ -4,6 +4,7 @@ repo_url: https://github.com/skewer-project/skewer
 site_url: https://skewer-project.github.io/skewer/
 
 plugins:
+  - search
   - exporter:
       formats:
         pdf:

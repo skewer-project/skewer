@@ -44,7 +44,7 @@ sha256sum -c skewer-${TAG}-${PLATFORM}.tar.gz.sha256
 
 ```bash
 # Extract
-tar xzf skewer-${TAG}-linux-x86_64.tar.gz
+tar xzf skewer-${TAG}-${PLATFORM}.tar.gz
 
 # The binaries are extracted into the current directory
 ./skewer-render scene.json

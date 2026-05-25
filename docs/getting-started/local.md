@@ -32,7 +32,7 @@ For the full CLI reference, see [CLI Reference](../reference/cli.md).
 
 ## Scene Previewer
 
-The **[hosted previewer](http://skewer.pages.dev)** lets anyone edit and save scenes without
+The **[hosted previewer](https://skewer.pages.dev)** lets anyone edit and save scenes without
 any local setup. You only need the local dev server (`bun run dev`) if you're modifying the
 previewer itself or connecting to your own cloud render farm.
 See the **[Previewer Guide](../reference/previewer.md)** for details.
