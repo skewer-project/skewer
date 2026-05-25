@@ -17,10 +17,10 @@ theme:
 nav:
   - Home: index.md
   - Getting Started:
+      - getting-started/quick-start.md
       - getting-started/installation.md
       - getting-started/release-binaries.md
       - getting-started/building.md
-      - getting-started/quick-start.md
       - getting-started/local.md
       - getting-started/gcp.md
   - Reference:

@@ -54,7 +54,7 @@ build/relwithdebinfo/
 # Build and run tests
 cmake --preset ci
 cmake --build --preset ci --parallel
-ctest --preset ci
+ctest --preset ci --parallel
 ```
 
 ## Building the Go CLI

@@ -1,17 +1,23 @@
 # Scene Previewer
 
-The Scene Previewer is a web-based tool for visualizing Skewer scenes before rendering. It lets you inspect layers, objects, and materials, and make basic edits.
+The Scene Previewer is a web-based tool for visualizing and editing Skewer scenes.
 
-## Features
+**[Launch the hosted previewer →](http://skewer.pages.dev)**
 
-- **Open Scenes** - Load folders containing layer-format scenes
-- **Layer Parsing** - Parse and display contexts and layers with materials and objects
-- **Object Selection** - Click objects in the viewport or sidebar to select
-- **Property Editing** - Edit sphere center/radius, quad vertices, obj transforms, material properties
-- **Delete Objects** - Press `Delete` or `Backspace` to remove selected objects
-- **Recent Scenes** - Quick access to recently opened scenes (stored in IndexedDB)
+!!! warning "Chrome required"
+    The previewer relies on the
+    [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker)
+    (`showDirectoryPicker`) to open and save scene folders from your local drive.
+    **This API is only supported in Chromium-based browsers** (Google Chrome, Edge, Brave, etc.).
+    Firefox and Safari do not support it.
 
-## Getting Started
+The hosted version tracks the `main` branch and lets you edit and save scenes locally
+without any setup. Cloud rendering requires a GCP account connected to your own render farm.
+
+## Running Locally
+
+Only needed if you're developing the previewer or connecting to your own cloud farm.
+Requires **[Bun](https://bun.sh)** installed.
 
 ```bash
 cd apps/scene-previewer
@@ -19,7 +25,7 @@ bun install
 bun run dev
 ```
 
-Open http://localhost:5173 to access the previewer.
+Open [http://localhost:5173](http://localhost:5173).
 
 ## Reference
 

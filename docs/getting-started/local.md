@@ -30,32 +30,19 @@ Once built, the renderer binary is at `build/relwithdebinfo/skewer/skewer-render
 
 For the full CLI reference, see [CLI Reference](../reference/cli.md).
 
-## Using the Scene Previewer
+## Scene Previewer
 
-The web-based previewer lets you visualize and edit scenes before rendering:
-
-```bash
-cd apps/scene-previewer
-bun install
-bun run dev
-```
-
-Open http://localhost:5173. Features include:
-
-- Load and inspect scene files with all layers parsed
-- Select and edit objects (spheres, quads, OBJ meshes)
-- Edit material properties (albedo, roughness, IOR, emission)
-- Delete objects and navigate the scene tree
-- Create new scenes from templates
-
-See the [Previewer Guide](../reference/previewer.md) for full documentation.
+The **[hosted previewer](http://skewer.pages.dev)** lets anyone edit and save scenes without
+any local setup. You only need the local dev server (`bun run dev`) if you're modifying the
+previewer itself or connecting to your own cloud render farm.
+See the **[Previewer Guide](../reference/previewer.md)** for details.
 
 ## Building Loom (Deep Compositor)
 
 Loom is built alongside the renderer in the same CMake build:
 
 ```bash
-cmake --build build -j$(nproc) --target loom
+cmake --build --preset relwithdebinfo --target loom --parallel
 ```
 
 The binary is at `build/relwithdebinfo/loom/loom`. See the [CLI Reference](../reference/cli.md) for all flags and options.
@@ -71,10 +58,12 @@ The binary is at `build/relwithdebinfo/loom/loom`. See the [CLI Reference](../re
 ## Testing Your Setup
 
 ```bash
-# Run the test suite
-ctest --test-dir build -j$(nproc)
+# Build with tests enabled and run the test suite
+cmake --preset ci
+cmake --build --preset ci --parallel
+ctest --preset ci --parallel
 
-# Run a quick test render with the normals integrator (configure output in scene.json)
+# Run a quick test render (configure output in scene.json)
 ./build/relwithdebinfo/skewer/skewer-render \
   apps/scene-previewer/public/templates/scene.json
 ```
