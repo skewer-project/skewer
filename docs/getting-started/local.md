@@ -10,6 +10,10 @@ Once built, the renderer binary is at `build/relwithdebinfo/skewer/skewer-render
 
 ## Running a Local Render
 
+!!! warning "Thread count"
+    The renderer uses **all CPU cores** by default. Always pass a thread count or
+    set `"threads": 4` in your scene JSON. See [Rendering Tips](../reference/rendering-tips.md#thread-count).
+
 ```bash
 ./build/relwithdebinfo/skewer/skewer-render <scene.json> [num_threads]
 ```
@@ -42,7 +46,7 @@ See the **[Previewer Guide](../reference/previewer.md)** for details.
 Loom is built alongside the renderer in the same CMake build:
 
 ```bash
-cmake --build --preset relwithdebinfo --target loom --parallel
+cmake --build --preset relwithdebinfo --target loom --parallel 4
 ```
 
 The binary is at `build/relwithdebinfo/loom/loom`. See the [CLI Reference](../reference/cli.md) for all flags and options.
@@ -60,12 +64,12 @@ The binary is at `build/relwithdebinfo/loom/loom`. See the [CLI Reference](../re
 ```bash
 # Build with tests enabled and run the test suite
 cmake --preset ci
-cmake --build --preset ci --parallel
-ctest --preset ci --parallel
+cmake --build --preset ci --parallel 4
+ctest --preset ci --parallel 4
 
 # Run a quick test render (configure output in scene.json)
 ./build/relwithdebinfo/skewer/skewer-render \
-  apps/scene-previewer/public/templates/scene.json
+  apps/scene-previewer/public/templates/scene.json 4
 ```
 
 ## Next Steps

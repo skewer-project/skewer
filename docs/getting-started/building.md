@@ -8,7 +8,9 @@ This guide covers building Skewer from source. See [Installation](installation.m
 
 ## Using CMake Presets
 
-The project uses CMake presets for consistent builds:
+The project uses CMake presets for consistent builds. All build commands use
+`--parallel 4` to avoid maxing out your CPU — adjust up if you have a dedicated
+build machine.
 
 ```bash
 # List available presets
@@ -18,7 +20,7 @@ cmake --list-presets
 cmake --preset relwithdebinfo
 
 # Build with a preset
-cmake --build --preset relwithdebinfo --parallel
+cmake --build --preset relwithdebinfo --parallel 4
 ```
 
 ## Available Presets
@@ -54,8 +56,8 @@ build/relwithdebinfo/
 ```bash
 # Build and run tests
 cmake --preset ci
-cmake --build --preset ci --parallel
-ctest --preset ci --parallel
+cmake --build --preset ci --parallel 4
+ctest --preset ci --parallel 4
 ```
 
 ## Building the Go CLI
@@ -107,6 +109,6 @@ To perform a clean rebuild:
 ```bash
 rm -rf build/
 cmake --preset relwithdebinfo
-cmake --build --preset relwithdebinfo --parallel
+cmake --build --preset relwithdebinfo --parallel 4
 ```
 

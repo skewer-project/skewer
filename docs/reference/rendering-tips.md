@@ -166,12 +166,17 @@ Beyond `max_depth`, rays are terminated. Russian Roulette takes over after depth
 
 ```json
 "render": {
-  "threads": 0
+  "threads": 4
 }
 ```
 
-- `0` (default) auto-detects CPU cores
-- Set to a specific number to leave cores free for other tasks
+!!! warning "Always specify a thread count"
+    By default, the renderer uses **all available CPU cores**, which can freeze your
+    machine or starve other applications. **Set `threads` to `4`** unless you have a
+    dedicated render machine and you're sure no other processes need CPU time.
+
+- `4` (recommended) — leaves cores free for the OS, browser, or other apps
+- `0` auto-detects all CPU cores — use **only** on dedicated render nodes
 - Performance scales roughly linearly up to physical core count, then plateaus
 
 ### Tile Size

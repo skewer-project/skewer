@@ -47,7 +47,8 @@ sha256sum -c skewer-${TAG}-${PLATFORM}.tar.gz.sha256
 tar xzf skewer-${TAG}-${PLATFORM}.tar.gz
 
 # The binaries are extracted into the current directory
-./skewer-render scene.json
+# Always pass a thread count (4 recommended) to avoid maxing out your CPU
+./skewer-render scene.json 4
 ```
 
 On macOS, you may need to allow the binary to run the first time (Gatekeeper):
@@ -62,7 +63,8 @@ xattr -d com.apple.quarantine ./loom
 Extract the `.zip` archive, then open a Command Prompt or PowerShell in the extracted folder:
 
 ```cmd
-skewer-render.exe scene.json
+:: Always pass a thread count (4 recommended) to avoid maxing out your CPU
+skewer-render.exe scene.json 4
 ```
 
 ## What's Included

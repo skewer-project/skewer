@@ -81,6 +81,11 @@ Drops all pending tasks and prevents further processing.
 
 The `skewer-render` binary runs the C++ ray tracer locally for rendering scenes defined in JSON.
 
+!!! warning "Thread count"
+    By default the renderer uses **all CPU cores**. Always set `"threads": 4` in your
+    scene JSON or use the `num_threads` argument. See the [Rendering Tips](rendering-tips.md#thread-count)
+    for details.
+
 ```bash
 ./build/relwithdebinfo/skewer/skewer-render <scene.json> [num_threads] [options]
 ```
@@ -179,7 +184,7 @@ Build with a preset:
 
 ```bash
 cmake --preset relwithdebinfo
-cmake --build --preset relwithdebinfo --parallel
+cmake --build --preset relwithdebinfo --parallel 4
 ```
 
 Test with a preset:

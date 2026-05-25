@@ -18,22 +18,25 @@ Choose how to get the renderer:
 
 Run the renderer binary directly on a scene file:
 
-```bash
-# Pre-built binary
-./skewer-render <path-to-scene.json>
+!!! warning "Thread count"
+    The renderer uses **all CPU cores** by default. Set `"threads": 4` in your
+    scene JSON or pass `4` as the second argument to avoid starving other applications. See [Rendering Tips](../reference/rendering-tips.md#thread-count).
 
-# Local build
-./build/relwithdebinfo/skewer/skewer-render <path-to-scene.json>
-```
+```bash
+# Pre-built binary (with 4 threads)
+./skewer-render <path-to-scene.json> 4
+
+# Local build (with 4 threads)
+./build/relwithdebinfo/skewer/skewer-render <path-to-scene.json> 4
 
 !!! tip "Need a scene to render?"
     Use the **[Scene Previewer](https://skewer.pages.dev)** to
     browse the template gallery and download a Cornell Box or other example scene.
 
-**Example with the Cornell Box template:**
+**Example with the Cornell Box template in our repository:**
 
 ```bash
-./build/relwithdebinfo/skewer/skewer-render apps/scene-previewer/public/templates/scene.json
+./build/relwithdebinfo/skewer/skewer-render apps/scene-previewer/public/templates/scene.json 4
 ```
 
 For all available flags (`--frame`, `--frames`, `--statics-only`), see the [CLI Reference](../reference/cli.md#skewer-render).
