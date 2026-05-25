@@ -1,5 +1,6 @@
 # Build and install outputs
 /build/
+/dist/
 /install/
 /output/
 /Testing
