@@ -1,5 +1,9 @@
 # Quick Start
 
+!!! abstract "Travis and TA Quick Start: Link"
+    If you are here for interactive grading, jump to the
+    **[Travis and TA Quick Start →](travis-ta-guide.md)**
+
 This guide walks through your first render with Skewer. See [Installation](installation.md) and [Building](building.md) for detailed setup instructions.
 
 ## Prerequisites
