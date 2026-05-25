@@ -3,6 +3,22 @@ site_description: Deep rendering and compositing system
 repo_url: https://github.com/skewer-project/skewer
 site_url: https://skewer-project.github.io/skewer/
 
+plugins:
+  - exporter:
+      formats:
+        pdf:
+          enabled: true
+          aggregator:
+            enabled: true
+            output: skewer-user-guide.pdf
+
+hooks:
+  - hooks/mermaid_svg.py
+
+validation:
+  nav:
+    omitted_files: ignore
+
 theme:
   name: material
   palette:

@@ -22,14 +22,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache mermaid SVGs
+        uses: actions/cache@v4
+        with:
+          path: .cache/mermaid
+          key: mermaid-${{ hashFiles('docs/**/*.md') }}
+          restore-keys: |
+            mermaid-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Install dependencies
         run: |
-          pip install mkdocs-material
+          pip install -e .
 
       - name: Build docs
         run: mkdocs build --strict
