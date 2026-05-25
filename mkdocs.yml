@@ -5,16 +5,10 @@ site_url: https://skewer-project.github.io/skewer/
 
 plugins:
   - search
-  - exporter:
-      formats:
-        pdf:
-          enabled: true
-          aggregator:
-            enabled: true
-            output: skewer-user-guide.pdf
 
 hooks:
   - hooks/mermaid_svg.py
+  - hooks/latex_render.py
 
 validation:
   nav:
@@ -74,10 +68,11 @@ nav:
           - Architecture & Algorithm: developer/loom/index.md
   - Legacy: legacy/index.md
 
+extra_css:
+  - stylesheets/katex.css
+
 extra_javascript:
   - javascripts/mathjax.js
-  - https://polyfill.io/v3/polyfill.min.js?features=es6
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 markdown_extensions:
   - toc:

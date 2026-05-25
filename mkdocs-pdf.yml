@@ -1,0 +1,10 @@
+INHERIT: mkdocs.yml
+
+plugins:
+  - exporter:
+      formats:
+        pdf:
+          enabled: true
+          aggregator:
+            enabled: true
+            output: skewer-user-guide.pdf

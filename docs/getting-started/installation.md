@@ -122,7 +122,14 @@ cd /path/to/vcpkg
 export VCPKG_ROOT=/path/to/vcpkg
 ```
 
-When `VCPKG_ROOT` is set, the `releasestatic` CMake preset automatically uses it — see [Building](building.md) for available presets.
+When `VCPKG_ROOT` is set, pass the vcpkg toolchain to any CMake preset:
+
+```bash
+cmake --preset relwithdebinfo \
+  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+```
+
+See [Building](building.md) for all available presets.
 
 ### Verify Installation
 

@@ -93,11 +93,16 @@ def on_page_content(html: str, page, config, files) -> str:
         svg_content = _render_svg(source, cache_key)
 
         if svg_content:
-            # Parse the SVG and inline it, replacing the <pre> block
+            # Parse the SVG and wrap it in a constrained container
+            # so Paged.js doesn't choke on wide viewBox dimensions.
             svg_soup = BeautifulSoup(svg_content, "html.parser")
             svg_tag = svg_soup.find("svg")
             if svg_tag:
-                block.parent.replace_with(svg_tag)
+                wrapper = soup.new_tag("div")
+                wrapper["class"] = "mermaid-diagram"
+                svg_tag.wrap(wrapper)
+
+                block.parent.replace_with(wrapper)
         else:
             # Leave the code block as-is if rendering failed
             print(f"[mermaid_svg] Warning: leaving unrendered mermaid block on {page.url}")

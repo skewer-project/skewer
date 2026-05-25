@@ -2,24 +2,15 @@
 
 Skewer is a serverless, distributed deep rendering system with three main components orchestrated on Google Cloud Platform:
 
-```
-┌─────────────┐     ┌───────────────┐     ┌────────────────┐
-│     CLI     │────▶│  Coordinator  │────▶│ Cloud Workflow │
-│  (skewer-)  │     │  (Cloud Run)  │     │(Orchestration) │
-│   cli       │     │               │     └────────┬───────┘
-└─────────────┘     └───────────────┘              │
-       │                    │                      │
-       │              ┌─────┴─────┐        ┌───────┴───────┐
-       │              │ Validation│        │  Cloud Batch  │
-       │              │     &     │        │    Workers    │
-       │              │ Submission│        │ (C++/Skewer)  │
-       │              └───────────┘        └───────────────┘
-       │                                           │
-       ▼                                           │
-┌─────────────┐                             ┌──────┴──────┐
-│   Scene     │                             │  GCS FUSE   │
-│   Files     │                             │  Data/Cache │
-└─────────────┘                             └─────────────┘
+```mermaid
+flowchart TD
+    CLI["skewer-cli"] --> COORD["Coordinator<br/>(Cloud Run)"]
+    COORD --> VALID["Validation &amp; Submission"]
+    COORD --> WF["Cloud Workflow<br/>(Orchestration)"]
+    WF --> BATCH["Cloud Batch<br/>Workers (C++)"]
+    CLI --> SCENE["Scene Files"]
+    SCENE --> GCS["GCS FUSE<br/>Data/Cache"]
+    BATCH --> GCS
 ```
 
 ## Components
