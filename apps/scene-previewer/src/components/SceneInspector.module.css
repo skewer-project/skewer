@@ -22,12 +22,12 @@
 }
 
 .cameraHandleRow:hover {
-	background: var(--surface-hover);
+	background: var(--surface-raised);
 }
 
 .cameraHandleRowActive {
-	background: rgba(232, 165, 60, 0.12);
-	border-color: rgba(232, 165, 60, 0.34);
+	background: var(--accent-bg-strong);
+	border-color: var(--accent-border);
 }
 
 .sceneTreeSummary {
@@ -58,7 +58,7 @@
 }
 
 .sceneTreeExpand:hover {
-	background: var(--surface-hover-strong);
+	background: var(--surface-raised);
 	color: var(--t1);
 }
 
@@ -90,7 +90,7 @@
 
 .sceneTreeChildren {
 	padding-left: 4px;
-	border-left: 1px solid var(--surface-hover-strong);
+	border-left: 1px solid var(--surface-raised);
 	margin-left: 13px;
 }
 

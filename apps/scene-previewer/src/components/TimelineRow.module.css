@@ -7,15 +7,15 @@
 }
 
 .row:nth-child(even) {
-	background: var(--surface-row);
+	background: var(--surface-subtle);
 }
 
 .groupRow {
-	background: var(--surface-row-alt);
+	background: var(--surface-subtle);
 }
 
 .groupRow:nth-child(even) {
-	background: var(--surface-row-strong);
+	background: var(--surface-raised);
 }
 
 .label {
