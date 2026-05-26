@@ -1,4 +1,5 @@
 :root {
+	color-scheme: dark;
 	--bg: #0c0d0f;
 	--panel: rgba(10, 11, 14, 0.88);
 	--border: #191c22;
@@ -43,4 +44,51 @@
 
 	--mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
 	--display: "Chakra Petch", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+	:root {
+		color-scheme: light;
+		--bg: #eef1f5;
+		--panel: rgba(255, 255, 255, 0.86);
+		--border: #cfd5df;
+		--border-mid: #b9c1cf;
+
+		--t3: hsl(218, 10%, 45%);
+		--t2: hsl(218, 13%, 36%);
+		--t1: hsl(218, 22%, 20%);
+		--t0: hsl(218, 35%, 12%);
+
+		--amber: #b46c00;
+		--amber-lo: rgba(180, 108, 0, 0.09);
+		--amber-border: rgba(180, 108, 0, 0.28);
+		--blue: #2563eb;
+		--blue-lo: rgba(37, 99, 235, 0.09);
+		--green: #1f8f50;
+		--red: #c93f3f;
+
+		--surface-muted: rgba(21, 28, 42, 0.035);
+		--surface-row: rgba(21, 28, 42, 0.028);
+		--surface-row-alt: rgba(21, 28, 42, 0.044);
+		--surface-row-strong: rgba(21, 28, 42, 0.06);
+		--surface-soft: rgba(21, 28, 42, 0.04);
+		--surface-control: rgba(255, 255, 255, 0.58);
+		--surface-hover: rgba(21, 28, 42, 0.055);
+		--surface-hover-strong: rgba(21, 28, 42, 0.075);
+		--surface-track: rgba(21, 28, 42, 0.08);
+		--surface-inset: rgba(255, 255, 255, 0.7);
+		--surface-preview: rgba(255, 255, 255, 0.62);
+		--surface-detail: rgba(255, 255, 255, 0.7);
+		--modal-overlay: rgba(238, 241, 245, 0.78);
+		--dialog-overlay: rgba(238, 241, 245, 0.72);
+		--media-frame: rgba(21, 28, 42, 0.08);
+		--media-bg: #11151d;
+		--media-badge-bg: rgba(17, 21, 29, 0.76);
+		--media-badge-border: rgba(255, 255, 255, 0.32);
+		--play-badge-bg: rgba(17, 21, 29, 0.66);
+		--play-badge-border: rgba(255, 255, 255, 0.36);
+		--on-amber: #1f1608;
+		--selected-text: #6a4307;
+		--selected-text-hover: #553300;
+	}
 }
