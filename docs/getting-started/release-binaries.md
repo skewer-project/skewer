@@ -67,6 +67,11 @@ Extract the `.zip` archive, then open a Command Prompt or PowerShell in the extr
 skewer-render.exe scene.json 4
 ```
 
+!!! warning "CPU requirement"
+    The pre-built Windows binary is compiled with `/arch:AVX2`. It requires a CPU with
+    AVX2 support (Intel Haswell 2013+, AMD Excavator 2015+). If you have an older
+    processor, [build from source](building.md) instead.
+
 ## What's Included
 
 Each archive contains:
