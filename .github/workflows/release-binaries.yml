@@ -23,7 +23,7 @@ jobs:
       matrix:
         include:
           - artifact_suffix: linux-x86_64
-            runner: blacksmith-4vcpu-ubuntu-2204
+            runner: blacksmith-4vcpu-ubuntu-2404
             platform: linux
           - artifact_suffix: macos-arm64
             runner: macos-14
@@ -57,7 +57,7 @@ jobs:
         shell: bash
         run: |
           git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
-          git lfs checkout --include="skewer/external/srgb_spec_data.h"
+          git lfs checkout
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
@@ -66,9 +66,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
+            clang-17 \
             cmake \
-            g++-12 \
-            gcc-12 \
             libimath-dev \
             libopenexr-dev \
             libpng-dev \
@@ -92,8 +91,8 @@ jobs:
 
           if [[ "${{ matrix.platform }}" == "linux" ]]; then
             args+=(
-              -DCMAKE_C_COMPILER=gcc-12
-              -DCMAKE_CXX_COMPILER=g++-12
+              -DCMAKE_C_COMPILER=clang-17
+              -DCMAKE_CXX_COMPILER=clang++-17
             )
           fi
 
@@ -167,11 +166,51 @@ jobs:
       - name: Configure, build, and bundle
         shell: cmd
         run: |
-          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+          set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+          if not exist "%VSWHERE%" (
+            echo vswhere.exe was not found
+            exit /b 1
+          )
+
+          for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALLDIR=%%i"
+          if not defined VSINSTALLDIR (
+            echo Visual Studio with MSVC x64 build tools was not found
+            exit /b 1
+          )
+
+          call "%VSINSTALLDIR%\VC\Auxiliary\Build\vcvars64.bat"
+          if errorlevel 1 exit /b %errorlevel%
+
+          where cl
+          if errorlevel 1 exit /b %errorlevel%
+
+          for /f "delims=" %%i in ('where rc') do if not defined RC_EXE set "RC_EXE=%%i"
+          if not defined RC_EXE (
+            echo rc.exe was not found after vcvars64.bat
+            exit /b 1
+          )
+          echo Using rc.exe at "%RC_EXE%"
+          set "CMAKE_RC_EXE=%RC_EXE:\=/%"
+
+          for /f "delims=" %%i in ('where mt') do if not defined MT_EXE set "MT_EXE=%%i"
+          if not defined MT_EXE (
+            echo mt.exe was not found after vcvars64.bat
+            exit /b 1
+          )
+          echo Using mt.exe at "%MT_EXE%"
+          set "CMAKE_MT_EXE=%MT_EXE:\=/%"
+
+          if exist build\release-portable rmdir /s /q build\release-portable
+          set "CMAKE_VCPKG_TOOLCHAIN=%VCPKG_ROOT:\=/%/scripts/buildsystems/vcpkg.cmake"
+
+          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%CMAKE_VCPKG_TOOLCHAIN%" -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_RC_COMPILER="%CMAKE_RC_EXE%" -DCMAKE_MT="%CMAKE_MT_EXE%"
+          if errorlevel 1 exit /b %errorlevel%
           cmake --build --preset release-portable --target skewer-render loom --parallel
+          if errorlevel 1 exit /b %errorlevel%
           cmake --install build\release-portable --prefix "dist\stage\%ARTIFACT_NAME%" --component Runtime
+          if errorlevel 1 exit /b %errorlevel%
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts\bundle-release.ps1 -StageDir "dist\stage\%ARTIFACT_NAME%" -ArtifactName "%ARTIFACT_NAME%" -DistDir dist
+          if errorlevel 1 exit /b %errorlevel%
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
