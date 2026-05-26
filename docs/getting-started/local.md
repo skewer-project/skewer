@@ -10,10 +10,6 @@ Once built, the renderer binary is at `build/relwithdebinfo/skewer/skewer-render
 
 ## Running a Local Render
 
-!!! warning "Thread count"
-    The renderer uses **all CPU cores** by default. Always pass a thread count or
-    set `"threads": 4` in your scene JSON. See [Rendering Tips](../reference/rendering-tips.md#thread-count).
-
 ```bash
 ./build/relwithdebinfo/skewer/skewer-render <scene.json> [num_threads]
 ```
