@@ -17,6 +17,30 @@
 	--green: #5fba6f;
 	--red: #e05c5c;
 
+	--surface-muted: rgba(255, 255, 255, 0.015);
+	--surface-row: rgba(255, 255, 255, 0.018);
+	--surface-row-alt: rgba(255, 255, 255, 0.028);
+	--surface-row-strong: rgba(255, 255, 255, 0.038);
+	--surface-soft: rgba(255, 255, 255, 0.03);
+	--surface-control: rgba(255, 255, 255, 0.04);
+	--surface-hover: rgba(255, 255, 255, 0.04);
+	--surface-hover-strong: rgba(255, 255, 255, 0.06);
+	--surface-track: rgba(255, 255, 255, 0.05);
+	--surface-inset: rgba(0, 0, 0, 0.18);
+	--surface-preview: rgba(0, 0, 0, 0.24);
+	--surface-detail: rgba(0, 0, 0, 0.25);
+	--modal-overlay: rgba(0, 0, 0, 0.65);
+	--dialog-overlay: rgba(0, 0, 0, 0.55);
+	--media-frame: rgba(0, 0, 0, 0.4);
+	--media-bg: #000;
+	--media-badge-bg: rgba(0, 0, 0, 0.72);
+	--media-badge-border: rgba(255, 255, 255, 0.15);
+	--play-badge-bg: rgba(0, 0, 0, 0.58);
+	--play-badge-border: rgba(255, 255, 255, 0.18);
+	--on-amber: #1a1208;
+	--selected-text: #f0d9a8;
+	--selected-text-hover: #f5e6c8;
+
 	--mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
 	--display: "Chakra Petch", system-ui, sans-serif;
 }

@@ -93,7 +93,7 @@
 	white-space: nowrap;
 }
 .faceInput {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -115,7 +115,7 @@
 }
 
 .faceBrowseBtn {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t2);

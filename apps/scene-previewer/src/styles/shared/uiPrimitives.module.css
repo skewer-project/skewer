@@ -144,7 +144,7 @@
 }
 
 .layerSummary:hover {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-hover);
 }
 
 .layerChevronIcon {
@@ -305,7 +305,7 @@ button.dataRow {
 
 .dataRowSelected {
 	background: rgba(232, 165, 60, 0.2);
-	color: #f0d9a8;
+	color: var(--selected-text);
 	border-left: 3px solid var(--amber);
 	padding-left: 10px;
 	box-shadow: inset 0 0 0 1px rgba(232, 165, 60, 0.25);
@@ -313,12 +313,12 @@ button.dataRow {
 
 .dataRowSelected:hover {
 	background: rgba(232, 165, 60, 0.26);
-	color: #f5e6c8;
+	color: var(--selected-text-hover);
 }
 
 /* Editable / form controls */
 .numInput {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -383,7 +383,7 @@ button.dataRow {
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	overflow: hidden;
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 }
 
 .vec3Cell .numInput {
@@ -404,7 +404,7 @@ button.dataRow {
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	border-right: 1px solid var(--border-mid);
-	background: rgba(0, 0, 0, 0.18);
+	background: var(--surface-inset);
 	min-width: 18px;
 	line-height: 1;
 	flex-shrink: 0;
@@ -421,7 +421,7 @@ button.dataRow {
 }
 
 .matSelect {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -446,7 +446,7 @@ button.dataRow {
 }
 
 .textInput {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -467,7 +467,7 @@ button.dataRow {
 }
 
 .toggleBtn {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t3);
@@ -539,7 +539,7 @@ button.dataRow {
 }
 
 .objBrowseBtn {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-control);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t2);
@@ -589,7 +589,7 @@ button.dataRow {
 	font-size: 10.5px;
 	text-align: left;
 	color: var(--t2);
-	background: rgba(255, 255, 255, 0.03);
+	background: var(--surface-soft);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	cursor: pointer;
@@ -599,7 +599,7 @@ button.dataRow {
 }
 
 .kfRow:hover {
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-track);
 	color: var(--t1);
 }
 

@@ -1118,12 +1118,14 @@ function MediumEditor({
 				<span className={u.kvKey}>file</span>
 				<div className={u.kvVal} style={{ display: "flex", gap: "8px" }}>
 					<span
-						style={{ color: fileStatus === "missing" ? "#ff4444" : "inherit" }}
+						style={{
+							color: fileStatus === "missing" ? "var(--red)" : "inherit",
+						}}
 					>
 						{med.file.split("/").pop()}
 					</span>
 					{fileStatus === "missing" && (
-						<span style={{ color: "#ff4444", fontSize: "12px" }}>
+						<span style={{ color: "var(--red)", fontSize: "12px" }}>
 							(file missing)
 						</span>
 					)}

@@ -128,7 +128,7 @@
 
 .toolbarBtn:hover:not(:disabled) {
 	color: var(--t1);
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-hover);
 }
 
 .toolbarBtn:global(.active) {
@@ -312,7 +312,7 @@
 
 .jobsCloudBtn:hover {
 	color: var(--t0);
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-hover);
 }
 
 .jobsCloudActive {
@@ -355,7 +355,7 @@
 	padding: 0 3px;
 	border-radius: 999px;
 	background: var(--amber);
-	color: #1a1208;
+	color: var(--on-amber);
 	font-family: var(--mono);
 	font-size: 9px;
 	font-weight: 600;
