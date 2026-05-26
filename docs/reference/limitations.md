@@ -63,5 +63,6 @@ The previewer viewport does provide interactive Three.js `OrbitControls` (orbit,
 
 - **No pre-built binaries:** Source build is required. No pre-compiled releases are available.
 - **Toolchain requirements:** C++20 compiler, CMake 3.21+, Go 1.21+, protoc, and several system libraries (OpenEXR, Imath, Zlib, libpng).
-- **Platform-specific optimizations:** Native CPU optimizations (`-march=znver3a`) only apply on Linux x86_64. Other platforms use a generic build.
-- **Windows:** MSVC CRT conflict workaround required (`gtest_force_shared_crt`). Some flags (e.g., `-ffast-math`) are Clang/GCC-only.
+- **Platform-specific optimizations:** Native CPU tunings (`-march=znver3`) only apply on Linux x86_64. Other platforms use a generic build.
+- **Windows AVX2 requirement:** Pre-built Windows binaries are compiled with `/arch:AVX2` and require a CPU with AVX2 support (Intel Haswell 2013+ / AMD Excavator 2015+). If building from source on older hardware, pass `-DSKEWER_BUILD_NATIVE_OPTIMIZATIONS=OFF` to CMake. Systems without AVX2 must build from source.
+- **Windows CRT conflict:** MSVC CRT conflict workaround required (`gtest_force_shared_crt`) when building with tests.
