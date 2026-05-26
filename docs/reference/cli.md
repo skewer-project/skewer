@@ -179,7 +179,7 @@ Build with a preset:
 
 ```bash
 cmake --preset relwithdebinfo
-cmake --build --preset relwithdebinfo --parallel
+cmake --build --preset relwithdebinfo --parallel 4 # build with up to four threads
 ```
 
 Test with a preset:

@@ -1,6 +1,6 @@
-# Skewer
+# Loom
 
-A physically-based ray tracer capable of deep rendering and compositing.
+A deep compositor for merging rendered EXR layers with correct transparency handling.
 
 > **Full documentation:** [skewer-project.github.io/skewer](https://skewer-project.github.io/skewer/)
 
@@ -21,15 +21,15 @@ git lfs install && git lfs pull --include="skewer/external/srgb_spec_data.h"
 cmake --preset relwithdebinfo
 cmake --build --preset relwithdebinfo --parallel 4
 
-# 5. Render a scene
-./build/relwithdebinfo/skewer/skewer-render scene.json
+# 5. Composite rendered layers
+./build/relwithdebinfo/loom/loom layer1.exr layer2.exr --output composited
 ```
 
-The renderer outputs a `.png` file for preview and an `.exr` file for compositing.
+Loom composites deep EXR layers front-to-back by depth, producing a flattened PNG
+and an optional deep EXR output.
 
-For scene examples, CLI flags (`--frame`, `--frames`, `--statics-only`), and rendering tips,
-see the **[CLI Reference](https://skewer-project.github.io/skewer/reference/cli/)** and
-**[Rendering Tips](https://skewer-project.github.io/skewer/reference/rendering-tips/)**.
+For the full compositing algorithm, CLI flags, and layer ordering details, see the
+**[Loom Compositor docs](https://skewer-project.github.io/skewer/developer/loom/)**.
 
 ## Authors
 

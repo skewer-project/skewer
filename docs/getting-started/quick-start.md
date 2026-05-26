@@ -1,74 +1,47 @@
 # Quick Start
 
+!!! abstract "Travis and TA Quick Start: Link"
+    If you are here for interactive grading, jump to the
+    **[Travis and TA Quick Start →](travis-ta-guide.md)**
+
 This guide walks through your first render with Skewer. See [Installation](installation.md) and [Building](building.md) for detailed setup instructions.
 
 ## Prerequisites
 
-Make sure you've completed the installation steps:
+Choose how to get the renderer:
 
-1. Installed system dependencies
-2. Built the project with CMake
-3. Built the Go CLI
+- **[Pre-built Binaries](release-binaries.md)** — Download `skewer-render` and `loom` from the
+  [Releases page](https://github.com/skewer-project/skewer/releases). No build tools needed.
+- **[Build from Source](building.md)** — If you're developing or modifying the code.
 
 ## 1. Run a Local Render
 
-The simplest way to render a scene is to run the built binary directly:
+Run the renderer binary directly on a scene file:
 
 ```bash
-# Using the built binary
+# Pre-built binary
+./skewer-render <path-to-scene.json>
+
+# Local build
 ./build/relwithdebinfo/skewer/skewer-render <path-to-scene.json>
-```
-
-!!! tip "Getting a scene"
-    Use the [Scene Previewer](http://skewer.pages.dev) to quickly bootstrap and edit an example scene with the Cornell Box
-
-**Example with a sample scene:**
-
-```bash
-./build/relwithdebinfo/skewer/skewer-render apps/scene-previewer/public/templates/scene.json
 ```
 
 For all available flags (`--frame`, `--frames`, `--statics-only`), see the [CLI Reference](../reference/cli.md#skewer-render).
 
-## 2. Using the Scene Previewer
+## 2. Run a Cloud Render
 
-The web-based previewer lets you visualize scenes before rendering:
+If you've [set up the Google Cloud render farm](gcp.md), the previewer's **Render** button
+(top-left corner) dispatches renders to the cloud farm. Click the cloud icon (top-right)
+to track progress.
 
-```bash
-cd apps/scene-previewer
-bun install
-bun run dev
-```
-
-Open http://localhost:5173 to view the previewer.
-
-### Previewer Features
-
-- **Open Existing Scene** - Load folders containing layer-format scenes
-- **Layer Navigation** - Browse contexts and layers in the sidebar
-- **Object Selection** - Click objects in the viewport or sidebar to select
-- **Property Editing** - Modify sphere center/radius, quad vertices, obj transforms
-- **Material Editing** - Edit albedo, roughness, emission, IOR per material
-- **Delete Objects** - Press `Delete` or `Backspace` to remove selected objects
-
-## 3. Running a Distributed Render
-
-The easiest way to run a distributed render is through the **Scene Previewer**.
-If you've correctly [setup Google Cloud, Firebase, and the Scene Previewer](gcp.md),
-there should be a `Render` button in the **top left corner** of the previewer with a scene open.
-
-### Check Status
-
-Click on the Cloud icon on the **top right** of the Scene Previewer to track the progress of current and previous cloud renders.
+For full previewer documentation, including local development setup, see the
+**[Previewer Guide](../reference/previewer.md)**.
 
 ## Next Steps
 
-- [Scene Format](../reference/scene-format.md) - Understanding scene JSON
-- [Rendering Tips](../reference/rendering-tips.md) - Best practices for quality and performance
-- [Animation](../reference/animation.md) - Keyframe animation and motion blur
-- [Compositing](../developer/loom/index.md) - Layer compositing with loom
-- [CLI Reference](../reference/cli.md) - Complete CLI documentation
-- [Architecture Overview](../developer/overview.md) - How the system works
-- [Local Development](local.md) - Local cluster setup
-- [GCP Deployment](gcp.md) - Cloud rendering setup
-- [GKE Deployment](../legacy/gke.md) - Running on Google Kubernetes Engine
+- [Scene Format](../reference/scene-format.md) — Understanding scene JSON
+- [Rendering Tips](../reference/rendering-tips.md) — Best practices for quality and performance
+- [Animation](../reference/animation.md) — Keyframe animation and motion blur
+- [Compositing](../developer/loom/index.md) — Layer compositing with loom
+- [CLI Reference](../reference/cli.md) — Complete CLI documentation
+- [GCP Deployment](gcp.md) — Cloud rendering setup
