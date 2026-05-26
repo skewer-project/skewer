@@ -17,7 +17,7 @@ If you need to modify the source, run tests, or develop, build from source.
 ### Prerequisites (all platforms)
 
 - **CMake** 3.21+
-- **C++20 compiler** — Clang 17+ recommended; GCC 12+ also supported
+- **Clang++ 17 (or higher)**
 - **Git LFS** — pull only what's needed to build: `git lfs install && git lfs pull --include="skewer/external/srgb_spec_data.h"`
 - **Go** 1.25+ (for CLI and coordinator)
 - **Protocol Buffer compiler** (`protoc`)
@@ -156,7 +156,7 @@ protoc --version
 python3 --version
 ```
 
-## Next Steps
+## Also see
 
 - [Pre-built Binaries](release-binaries.md) — Download and run without building
 - [Building](building.md) — Build Skewer from source

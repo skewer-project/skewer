@@ -77,7 +77,7 @@ Each archive contains:
 | `loom`           | The deep compositor CLI                  |
 | Bundled shared libraries | Runtime dependencies (self-contained) |
 
-The archives are **self-contained** — all required runtime libraries (system and third-party) are bundled alongside the binaries. No additional dependencies need to be installed. Statically linked where possible; shared system libraries are included in the archive.
+The archives are **self-contained** — all required runtime libraries (system and third-party) are bundled alongside the binaries. No additional dependencies need to be installed.
 
 ## Next Steps
 
