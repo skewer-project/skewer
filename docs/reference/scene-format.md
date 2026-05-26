@@ -519,7 +519,7 @@ Each layer file can override render settings. The highest-priority render config
 | `noise_threshold`        | float  | `0`            | Adaptive sampling convergence threshold. `0` = disabled (always render to `max_samples`)                                                                                                              |
 | `adaptive_step`          | int    | `16`           | Samples between convergence checks when adaptive sampling is enabled                                                                                                                                  |
 | `enable_deep`            | bool   | `false`        | Enable deep pixel buffers (for compositing)                                                                                                                                                           |
-| `transparent_background` | bool   | `false`        | Missed primary rays produce alpha=0 instead of black. Required for clean layer compositing                                                                                                            |
+| `transparent_background` | bool   | `false` (`true` when scene has >1 layer) | Missed primary rays produce alpha=0 instead of black. Required for clean layer compositing                                                                                                            |
 | `visibility_depth`       | int    | `1`            | How many surface bounces to check for "covered" pixels when `transparent_background=true`. `1` = only direct camera visibility; higher values allow seeing visible objects through invisible surfaces |
 | `save_sample_map`        | bool   | `false`        | Write per-pixel sample count heatmap (debug)                                                                                                                                                          |
 | `image.width`            | int    | `800`          | Output image width in pixels                                                                                                                                                                          |
@@ -557,6 +557,22 @@ For multi-layer compositing, set `transparent_background: true`:
 - `visibility_depth` controls how many bounces are checked:
   - `1` (default): only objects directly visible from the camera count
   - `2-4`: allows visible objects seen through invisible surfaces (e.g., a visible sphere reflected in an invisible mirror)
+
+!!! warning "Multi-layer scenes default to `transparent_background: true`"
+    When a scene has more than one layer file, `transparent_background` defaults to `true`
+    automatically — even if not explicitly set — so layers can be composited together cleanly.
+
+    To render with an **opaque black background**, set `"transparent_background": false` in each
+    layer's `render` block:
+
+    ```json
+    "render": {
+      "transparent_background": false
+    }
+    ```
+
+    With `transparent_background: false`, the camera background (black void or skybox) becomes
+    fully opaque (alpha=1), giving you a solid background in the final render.
 
 ## Complete Example
 

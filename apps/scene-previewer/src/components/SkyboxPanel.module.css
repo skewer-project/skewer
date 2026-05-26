@@ -135,3 +135,27 @@
 	color: var(--t1);
 	border-color: var(--t2);
 }
+
+/* ── Transparent background toggle row ── */
+.toggleRow {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	padding: 2px 0;
+	margin-top: 10px;
+}
+
+.checkRow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.checkRow input[type="checkbox"] {
+	width: 13px;
+	height: 13px;
+	cursor: pointer;
+	accent-color: var(--amber);
+}

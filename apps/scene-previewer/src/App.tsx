@@ -1,4 +1,13 @@
-import { Camera, Cloud, Maximize, Move, Rotate3d, X } from "lucide-react";
+import {
+	Camera,
+	ChevronLeft,
+	ChevronRight,
+	Cloud,
+	Maximize,
+	Move,
+	Rotate3d,
+	X,
+} from "lucide-react";
 import {
 	useCallback,
 	useEffect,
@@ -129,6 +138,7 @@ function App() {
 	const [transformSpace, setTransformSpace] = useState<"world" | "local">(
 		"world",
 	);
+	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
 	const renderSettings = scene?.settings ?? DEFAULT_RENDER_CONFIG;
 
@@ -768,32 +778,57 @@ function App() {
 
 				{/* Left sidebar: scene inspector */}
 				{scene && dirHandle && (
-					<div className={`panel ${a.hudSidebar}`} data-hud="sidebar">
-						<SceneInspector
-							scene={scene}
-							selectedObjectKey={selectedObjectKey}
-							selectedMaterialKey={selectedMaterialKey}
-							selectedMediumKey={selectedMediumKey}
-							selectedCameraHandle={selectedCameraHandle}
-							onSelectObject={handleSelectObject}
-							onSelectMaterial={handleSelectMaterial}
-							onSelectMedium={handleSelectMedium}
-							onSelectCameraHandle={handleSelectCameraHandle}
-							onAddGraphNode={handleAddGraphNode}
-							onAddMaterial={handleAddMaterial}
-							onAddMedium={handleAddMedium}
-							dirHandle={dirHandle}
-							renderSettings={renderSettings}
-							onRenderSettingsChange={handleRenderSettingsChange}
-							startTime={renderStartTime}
-							onStartTimeChange={setRenderStartTime}
-							endTime={renderEndTime}
-							onEndTimeChange={setRenderEndTime}
-							fps={renderFps}
-							onFpsChange={setRenderFps}
-							skybox={scene.skybox}
-							onSkyboxChange={handleSkyboxChange}
-						/>
+					<div
+						className={`${a.sidebarWrapper} ${
+							sidebarCollapsed ? a.sidebarWrapperCollapsed : ""
+						}`}
+					>
+						<button
+							type="button"
+							className={a.sidebarToggle}
+							onClick={() => setSidebarCollapsed((prev) => !prev)}
+							aria-label={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+							aria-expanded={!sidebarCollapsed}
+							aria-controls="scene-inspector"
+						>
+							{sidebarCollapsed ? (
+								<ChevronRight size={14} />
+							) : (
+								<ChevronLeft size={14} />
+							)}
+						</button>
+						<div
+							id="scene-inspector"
+							className={`panel ${a.hudSidebar}`}
+							data-hud="sidebar"
+							inert={sidebarCollapsed || undefined}
+						>
+							<SceneInspector
+								scene={scene}
+								selectedObjectKey={selectedObjectKey}
+								selectedMaterialKey={selectedMaterialKey}
+								selectedMediumKey={selectedMediumKey}
+								selectedCameraHandle={selectedCameraHandle}
+								onSelectObject={handleSelectObject}
+								onSelectMaterial={handleSelectMaterial}
+								onSelectMedium={handleSelectMedium}
+								onSelectCameraHandle={handleSelectCameraHandle}
+								onAddGraphNode={handleAddGraphNode}
+								onAddMaterial={handleAddMaterial}
+								onAddMedium={handleAddMedium}
+								dirHandle={dirHandle}
+								renderSettings={renderSettings}
+								onRenderSettingsChange={handleRenderSettingsChange}
+								startTime={renderStartTime}
+								onStartTimeChange={setRenderStartTime}
+								endTime={renderEndTime}
+								onEndTimeChange={setRenderEndTime}
+								fps={renderFps}
+								onFpsChange={setRenderFps}
+								skybox={scene.skybox}
+								onSkyboxChange={handleSkyboxChange}
+							/>
+						</div>
 					</div>
 				)}
 

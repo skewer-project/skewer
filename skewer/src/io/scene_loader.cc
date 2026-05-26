@@ -540,7 +540,9 @@ static RenderOptions ParseRenderOptions(const json& j) {
         opts.integrator_config.max_depth = GetOr(r, "max_depth", 50);
         opts.integrator_config.num_threads = GetOr(r, "threads", 0);
         opts.integrator_config.enable_deep = GetOr(r, "enable_deep", false);
-        opts.integrator_config.transparent_background = GetOr(r, "transparent_background", false);
+        if (r.contains("transparent_background")) {
+            opts.integrator_config.transparent_background = r["transparent_background"].get<bool>();
+        }
         opts.integrator_config.visibility_depth = GetOr(r, "visibility_depth", 1);
         opts.integrator_config.tile_size = GetOr(r, "tile_size", 32);
 
