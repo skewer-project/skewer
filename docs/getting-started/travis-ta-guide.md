@@ -9,7 +9,8 @@ Sample scenes are available on Google Drive:
 
 **[Download sample scenes →](https://drive.google.com/drive/u/2/folders/1rdr24XMyvrBft8MjJE8zhBiQZQIvqQUB)**
 
-Pick any scene JSON file. Any static scene is a good starting point.
+Pick any scene and download the entire directory.
+Any static scene is a good starting point.
 
 ## Step 2: Load it in the hosted previewer
 
@@ -18,7 +19,7 @@ Pick any scene JSON file. Any static scene is a good starting point.
 2. Click **Open Scene** and select the JSON file you downloaded
 3. Use the mouse to orbit, pan, and zoom around the 3D view
 
-!!! info "Learning the previewer"
+!!! info "Using the previewer"
     For a full walkthrough of the previewer interface (layer controls, material editing,
     camera positioning) see the **[Previewer Guide](../reference/previewer.md)**.
 
@@ -26,8 +27,8 @@ Pick any scene JSON file. Any static scene is a good starting point.
 
 The previewer lets you make last-minute adjustments before rendering:
 
-- **Move objects** — select them in the sidebar or 3D view and drag/rotate
-- **Tweak materials** — change albedo, roughness, IOR, or emission
+- **Move objects** — select them in the sidebar or 3D view and drag, rotate, or scale
+- **Tweak materials** — change material type, albedo, roughness, IOR, or emission
 - **Adjust render settings** — resolution, integrator, sample count
 
 All changes are saved back to the scene JSON when you download.
@@ -38,7 +39,7 @@ Once your scene looks right, click the **Render** button in the top-left corner
 of the previewer. This dispatches your scene to the cloud render farm.
 
 Track progress by clicking the cloud icon in the top-right corner.
-When the render completes, the output files are available in your cloud storage bucket.
+When the render completes, the output files are available to view and download in the cloud dashboard.
 
 !!! tip "Cloud rendering details"
     For more on how the cloud pipeline works, see the
@@ -54,8 +55,6 @@ If you'd prefer to render locally, download the pre-built binaries:
     ```bash
     ./skewer-render path/to/scene.json
     ```
-
-3. The output EXR files appear in the current directory
 
 !!! tip "Full binary instructions"
     For download links, checksum verification, and platform-specific notes, see the
