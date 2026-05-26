@@ -203,7 +203,7 @@ jobs:
           if exist build\release-portable rmdir /s /q build\release-portable
           set "CMAKE_VCPKG_TOOLCHAIN=%VCPKG_ROOT:\=/%/scripts/buildsystems/vcpkg.cmake"
 
-          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%CMAKE_VCPKG_TOOLCHAIN%" -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_RC_COMPILER="%CMAKE_RC_EXE%" -DCMAKE_MT="%CMAKE_MT_EXE%"
+          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%CMAKE_VCPKG_TOOLCHAIN%" -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_RC_COMPILER="%CMAKE_RC_EXE%" -DCMAKE_MT="%CMAKE_MT_EXE%" -DSKEWER_BUILD_NATIVE_OPTIMIZATIONS=ON
           if errorlevel 1 exit /b %errorlevel%
           cmake --build --preset release-portable --target skewer-render loom --parallel
           if errorlevel 1 exit /b %errorlevel%
