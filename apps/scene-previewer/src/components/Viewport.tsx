@@ -414,6 +414,7 @@ export function Viewport({
 	const blobUrlsRef = useRef<string[]>([]);
 	const skyboxTextureRef = useRef<THREE.CubeTexture | null>(null);
 	const lastSkyboxJsonRef = useRef<string>("");
+	const checkerTextureRef = useRef<THREE.CanvasTexture | null>(null);
 	const composer = useRef<EffectComposer | null>(null);
 	const outlinePass = useRef<OutlinePass | null>(null);
 	const transformControls = useRef<TransformControls | null>(null);
@@ -884,6 +885,11 @@ export function Viewport({
 				oldSkybox.dispose();
 				skyboxTextureRef.current = null;
 			}
+			const oldChecker = checkerTextureRef.current;
+			if (oldChecker) {
+				oldChecker.dispose();
+				checkerTextureRef.current = null;
+			}
 			const comp = composer.current;
 			if (comp) {
 				for (const pass of comp.passes) {
@@ -1059,6 +1065,62 @@ export function Viewport({
 			abortController.abort();
 		};
 	}, [dirHandle, scene, requestRender]);
+
+	// --- Effect 2c: visual preview of transparent vs opaque background ---
+	// When transparent_background is true and no skybox is present, show a checkerboard
+	// pattern as the THREE scene background. Otherwise use dark gray.
+	// Skybox always takes precedence (handled by Effect 2b), so we return early if one
+	// is present.
+	useEffect(() => {
+		const sc = threeScene.current;
+		if (!sc) return;
+
+		const hasSkyboxFaces =
+			!!scene?.skybox &&
+			Object.values(scene.skybox.faces).some(
+				(p) => typeof p === "string" && p.trim() !== "",
+			);
+		const isTransparent = scene?.settings?.transparent_background === true;
+
+		if (hasSkyboxFaces) return; // Effect 2b handles the skybox texture
+
+		if (isTransparent) {
+			// Lazily create the checkerboard canvas texture
+			if (!checkerTextureRef.current) {
+				const size = 32;
+				const canvas = document.createElement("canvas");
+				canvas.width = size;
+				canvas.height = size;
+				const ctx = canvas.getContext("2d");
+				if (ctx != null) {
+					ctx.fillStyle = "#111";
+					ctx.fillRect(0, 0, size, size);
+					ctx.fillStyle = "#222";
+					ctx.fillRect(0, 0, size / 4, size / 4);
+					ctx.fillRect(size / 2, 0, size / 4, size / 4);
+					ctx.fillRect(size / 4, size / 4, size / 4, size / 4);
+					ctx.fillRect((size * 3) / 4, size / 4, size / 4, size / 4);
+					ctx.fillRect(0, size / 2, size / 4, size / 4);
+					ctx.fillRect(size / 2, size / 2, size / 4, size / 4);
+					ctx.fillRect(size / 4, (size * 3) / 4, size / 4, size / 4);
+					ctx.fillRect((size * 3) / 4, (size * 3) / 4, size / 4, size / 4);
+				}
+
+				const tex = new THREE.CanvasTexture(canvas);
+				tex.wrapS = THREE.RepeatWrapping;
+				tex.wrapT = THREE.RepeatWrapping;
+				tex.repeat.set(64, 64);
+				tex.magFilter = THREE.NearestFilter;
+				tex.minFilter = THREE.NearestFilter;
+				tex.colorSpace = THREE.SRGBColorSpace;
+				checkerTextureRef.current = tex;
+			}
+			sc.background = checkerTextureRef.current;
+		} else {
+			sc.background = new THREE.Color(0x0c0d0f);
+		}
+		requestRender();
+	}, [scene?.settings?.transparent_background, scene?.skybox, requestRender]);
 
 	// --- Effect 3: update outline when selection changes ---
 	useEffect(() => {

@@ -64,6 +64,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
     bool saw_visible = false;
     bool hit_opaque_background = false;
     int vis_checks = 0;
+    const bool transparent_bg = config.transparent_background.value_or(false);
 
     for (int depth = 0; depth < config.max_depth; ++depth) {  // TODO: switch to while?
         SurfaceInteraction si;
@@ -84,7 +85,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
         // vol dispatch, sample medium with t_surface as upper bound
         if (scatter_medium) {
             ray_t += mi.t;
-            if (config.transparent_background && vis_checks < config.visibility_depth) {
+            if (transparent_bg && vis_checks < config.visibility_depth) {
                 vis_checks++;
                 saw_visible = true;  // Participating media contribute layer coverage
             }
@@ -154,7 +155,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             }
 
             const Material& mat = scene.GetMaterial(si.material_id);
-            if (config.transparent_background && vis_checks < config.visibility_depth) {
+            if (transparent_bg && vis_checks < config.visibility_depth) {
                 vis_checks++;
                 if (mat.visible) saw_visible = true;
             }
@@ -269,7 +270,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
                 break;
             }
         } else {
-            if (config.transparent_background && vis_checks < config.visibility_depth) {
+            if (transparent_bg && vis_checks < config.visibility_depth) {
                 vis_checks++;
                 // Environment hit = no visible object along this path segment
             }
@@ -291,6 +292,9 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
             dpr.AppendVertex(RenderConstants::kFarClip, RenderConstants::kFarClip, env_L, 1.0f,
                              is_camera_path, false);
             L += env_L * current_beta;
+            if (!transparent_bg) {
+                hit_opaque_background = true;
+            }
             break;
         }
 
@@ -308,7 +312,7 @@ void Li(const Ray& ray, const Scene& scene, RNG& rng, const IntegratorConfig& co
 
     dpr.ResolveToDeep(writer, ray, primary_cam_w, wl);
     const float out_alpha =
-        (config.transparent_background && !saw_visible && !hit_opaque_background) ? 0.0f : 1.0f;
+        (transparent_bg && !saw_visible && !hit_opaque_background) ? 0.0f : 1.0f;
     writer.WriteBeauty(SpectrumToRGB(L, wl), out_alpha);
     writer.FlushDeepSegments();
 }
