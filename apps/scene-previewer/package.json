@@ -10,7 +10,7 @@
 		"preview": "tsc -b && vite build && vite preview",
 		"format": "biome format --write",
 		"test": "vitest",
-		"ci": "biome ci . && tsc -b && vitest --passWithNoTests && vite build"
+		"ci": "biome ci . && tsc -b && vitest run && vite build"
 	},
 	"dependencies": {
 		"firebase": "^10.14.1",
