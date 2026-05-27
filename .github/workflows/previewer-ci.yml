@@ -36,5 +36,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install browser dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: CI
         run: pnpm run ci
