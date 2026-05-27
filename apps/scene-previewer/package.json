@@ -7,9 +7,10 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"lint": "biome check",
-		"preview": "bun run build && vite preview",
+		"preview": "tsc -b && vite build && vite preview",
 		"format": "biome format --write",
-		"ci": "biome ci . && tsc -b && vite build"
+		"test": "vitest",
+		"ci": "biome ci . && tsc -b && vitest --passWithNoTests && vite build"
 	},
 	"dependencies": {
 		"firebase": "^10.14.1",
@@ -30,12 +31,10 @@
 		"@types/three": "^0.183.1",
 		"@vitejs/plugin-react": "^6.0.1",
 		"babel-plugin-react-compiler": "^1.0.0",
-		"eslint": "^9.39.4",
-		"eslint-plugin-react-hooks": "^7.1.1",
-		"eslint-plugin-react-refresh": "^0.5.2",
 		"globals": "^17.6.0",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.59.2",
-		"vite": "^8.0.11"
+		"vite": "^8.0.11",
+		"vitest": "^4.1.7"
 	}
 }
