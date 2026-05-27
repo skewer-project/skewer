@@ -7,10 +7,10 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"lint": "biome check",
-		"preview": "bun run build && vite preview",
+		"preview": "tsc -b && vite build && vite preview",
 		"format": "biome format --write",
 		"test": "vitest",
-		"ci": "biome ci . && tsc -b && && vitest && vite build"
+		"ci": "biome ci . && tsc -b && vitest --passWithNoTests && vite build"
 	},
 	"dependencies": {
 		"firebase": "^10.14.1",
