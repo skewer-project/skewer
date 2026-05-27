@@ -263,7 +263,9 @@ function serializeAnimation(a: Animation): Record<string, unknown> {
 	return o;
 }
 
-function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
+export function serializeSceneManifest(
+	scene: ResolvedScene,
+): Record<string, unknown> {
 	const o: Record<string, unknown> = {
 		camera: serializeCamera(scene.camera),
 		animation: serializeAnimation(scene.animation),
@@ -287,7 +289,7 @@ function serializeManifest(scene: ResolvedScene): Record<string, unknown> {
 }
 
 export function serializeSceneJSON(scene: ResolvedScene): string {
-	return formatJsonLine(serializeManifest(scene));
+	return formatJsonLine(serializeSceneManifest(scene));
 }
 
 export async function saveScene(
@@ -355,5 +357,9 @@ export async function saveScene(
 		await writeFile(dir, path, jsonLine(serializeLayerData(data)));
 	}
 
-	await writeFile(dir, "scene.json", jsonLine(serializeManifest(sceneToSave)));
+	await writeFile(
+		dir,
+		"scene.json",
+		jsonLine(serializeSceneManifest(sceneToSave)),
+	);
 }

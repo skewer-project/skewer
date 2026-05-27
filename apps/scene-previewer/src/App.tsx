@@ -46,6 +46,15 @@ import {
 	subscribe as subscribeJobs,
 } from "./services/jobs-store";
 import { addRecentScene } from "./services/recent-scenes";
+import {
+	applyRedoEntry,
+	applyUndoEntry,
+	canCoalesceHistoryEntries,
+	coalesceHistoryEntries,
+	diffSceneFiles,
+	type SceneHistoryEntry,
+	serializeSceneFiles,
+} from "./services/scene-history";
 import { saveScene } from "./services/scene-serializer";
 import {
 	applyStaticTransformToAnimatedAtTime,
@@ -196,6 +205,32 @@ function App() {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const viewportRef = useRef<ViewportHandle>(null);
 	const animRangeRef = useRef({ start: 0, end: 0 });
+	const undoStackRef = useRef<SceneHistoryEntry[]>([]);
+	const redoStackRef = useRef<SceneHistoryEntry[]>([]);
+	const latestSceneRef = useRef(scene);
+	const pendingUndoBeforeRef = useRef<ReturnType<
+		typeof serializeSceneFiles
+	> | null>(null);
+	const pendingUndoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
+
+	useEffect(() => {
+		latestSceneRef.current = scene;
+	}, [scene]);
+
+	// adds onto stack and combines similar entries to avoid noise
+	const pushUndoEntry = useCallback((entry: SceneHistoryEntry) => {
+		const stack = undoStackRef.current;
+		const previous = stack[stack.length - 1];
+		if (previous && canCoalesceHistoryEntries(previous, entry)) {
+			stack[stack.length - 1] = coalesceHistoryEntries(previous, entry);
+			return;
+		}
+		stack.push(entry);
+		if (stack.length > 100) stack.shift();
+	}, []);
+
 	const selectedCameraHandleEditingEnabled = useMemo(() => {
 		if (!scene || !selectedCameraHandle) return true;
 		const keyframes = scene.camera.keyframes;
@@ -217,19 +252,62 @@ function App() {
 		setHasUnsavedChanges(false);
 		setCurrentTime(0);
 		setIsPlaying(false);
+		undoStackRef.current = [];
+		redoStackRef.current = [];
+		pendingUndoBeforeRef.current = null;
+		if (pendingUndoTimerRef.current) {
+			clearTimeout(pendingUndoTimerRef.current);
+			pendingUndoTimerRef.current = null;
+		}
 		addRecentScene(dir.name, dir);
 	}
 
-	/** Update scene data without triggering a full Three.js rebuild. */
+	// Update scene data without triggering a full rebuild.
+	// Captures a serialized snapshot before the edit batch and diffs it
+	// against the final state after edits settle (debounced), so rapid
+	// edits like slider drags produce only one undo entry.
 	const handleSceneEdit = useCallback(
 		(updater: (s: ResolvedScene) => ResolvedScene) => {
+			// On the first edit in a rapid sequence, snapshot the "before" state
+			if (!pendingUndoBeforeRef.current) {
+				const current = latestSceneRef.current;
+				if (current) {
+					pendingUndoBeforeRef.current = serializeSceneFiles(current);
+				}
+			}
+
 			setScene((prev) => {
 				if (!prev) return prev;
+				const next = updater(prev);
 				setHasUnsavedChanges(true);
-				return updater(prev);
+				return next;
 			});
+
+			// Any new edit invalidates the redo stack
+			redoStackRef.current = [];
+
+			// Debounce the diff + undo-entry commit
+			if (pendingUndoTimerRef.current) {
+				clearTimeout(pendingUndoTimerRef.current);
+			}
+			pendingUndoTimerRef.current = setTimeout(() => {
+				const before = pendingUndoBeforeRef.current;
+				const after = latestSceneRef.current;
+				pendingUndoBeforeRef.current = null;
+				pendingUndoTimerRef.current = null;
+				if (!before || !after) return;
+
+				const deltas = diffSceneFiles(before, serializeSceneFiles(after));
+				if (deltas.length === 0) return;
+
+				pushUndoEntry({
+					label: "Scene edit",
+					deltas,
+					createdAt: Date.now(),
+				});
+			}, 250);
 		},
-		[],
+		[pushUndoEntry],
 	);
 
 	const updateAnimation = useCallback(
@@ -276,6 +354,106 @@ function App() {
 			setSaving(false);
 		}
 	}
+
+	// pops edit stack and resolve minor inconsistencies
+	// like selected keys that no longer exist after undo
+	const undoLastSceneEdit = useEffectEvent(() => {
+		if (!scene) return false;
+
+		// Flush any pending (debounced) undo entry so we don't lose it
+		if (pendingUndoTimerRef.current) {
+			clearTimeout(pendingUndoTimerRef.current);
+			pendingUndoTimerRef.current = null;
+			const before = pendingUndoBeforeRef.current;
+			pendingUndoBeforeRef.current = null;
+			if (before) {
+				const deltas = diffSceneFiles(before, serializeSceneFiles(scene));
+				if (deltas.length > 0) {
+					pushUndoEntry({
+						label: "Scene edit",
+						deltas,
+						createdAt: Date.now(),
+					});
+				}
+			}
+		}
+
+		const entry = undoStackRef.current.pop();
+		if (!entry) return false;
+		try {
+			const next = applyUndoEntry(scene, entry);
+			setScene(next);
+			setHasUnsavedChanges(true);
+			setSceneVersion((v) => v + 1);
+			setSelectedObjectKey((key) =>
+				key && resolveNodeAtPath(next, key) ? key : null,
+			);
+			setSelectedMaterialKey((key) => {
+				if (!key) return null;
+				const parts = key.split(":");
+				const tag = parts[0];
+				const layerIdx = Number(parts[1]);
+				const matName = parts.slice(3).join(":");
+				const list = tag === "ctx" ? next.contexts : next.layers;
+				return list[layerIdx]?.data.materials[matName] ? key : null;
+			});
+			setSelectedMediumKey((key) => {
+				if (!key) return null;
+				const parts = key.split(":");
+				const tag = parts[0];
+				const layerIdx = Number(parts[1]);
+				const medName = parts.slice(3).join(":");
+				const list = tag === "ctx" ? next.contexts : next.layers;
+				return list[layerIdx]?.data.media?.[medName] ? key : null;
+			});
+
+			// Push to redo stack so the user can redo
+			redoStackRef.current.push(entry);
+			return true;
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+			return false;
+		}
+	});
+
+	// Redo: replay the forward deltas of the most recently undone entry.
+	const redoLastUndo = useEffectEvent(() => {
+		if (!scene) return false;
+		const entry = redoStackRef.current.pop();
+		if (!entry) return false;
+		try {
+			const next = applyRedoEntry(scene, entry);
+			setScene(next);
+			setHasUnsavedChanges(true);
+			setSceneVersion((v) => v + 1);
+			// Push back to undo stack so user can undo the redo
+			pushUndoEntry(entry);
+			return true;
+		} catch (err) {
+			redoStackRef.current.push(entry); // put it back on failure
+			setError(err instanceof Error ? err.message : String(err));
+			return false;
+		}
+	});
+
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key.toLowerCase() !== "z") return;
+			if (!event.metaKey && !event.ctrlKey) return;
+			if (isEditableTarget(event.target)) return;
+
+			if (event.shiftKey) {
+				// Ctrl+Shift+Z → redo
+				if (!redoLastUndo()) return;
+			} else {
+				// Ctrl+Z → undo
+				if (!undoLastSceneEdit()) return;
+			}
+			event.preventDefault();
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
 
 	const handleKeyframeMove = useCallback(
 		(trackKey: string, oldTime: number, newTime: number) => {
@@ -571,6 +749,13 @@ function App() {
 		setSelectedMediumKey(null);
 		setSelectedCameraHandle(null);
 		setHasUnsavedChanges(false);
+		undoStackRef.current = [];
+		redoStackRef.current = [];
+		pendingUndoBeforeRef.current = null;
+		if (pendingUndoTimerRef.current) {
+			clearTimeout(pendingUndoTimerRef.current);
+			pendingUndoTimerRef.current = null;
+		}
 		setError("");
 	}
 
