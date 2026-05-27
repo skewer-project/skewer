@@ -14,26 +14,26 @@ Once built, the renderer binary is at `build/relwithdebinfo/skewer/skewer-render
 ./build/relwithdebinfo/skewer/skewer-render <scene.json> [num_threads]
 ```
 
-| Argument | Description |
-|----------|-------------|
-| `scene.json` | Path to a JSON scene configuration file |
-| `num_threads` | Override thread count (optional) |
+| Argument      | Description                             |
+| ------------- | --------------------------------------- |
+| `scene.json`  | Path to a JSON scene configuration file |
+| `num_threads` | Override thread count (optional)        |
 
 **Flags:**
 
-| Flag | Description |
-|------|-------------|
-| `--frame N` | Render only animated layers at frame index N |
-| `--frames A..B` | Render animated layers for inclusive frame range [A, B] |
-| `--statics-only` | Render only non-animated layers (one output per layer) |
-| `--help, -h` | Show help message |
+| Flag             | Description                                             |
+| ---------------- | ------------------------------------------------------- |
+| `--frame N`      | Render only animated layers at frame index N            |
+| `--frames A..B`  | Render animated layers for inclusive frame range [A, B] |
+| `--statics-only` | Render only non-animated layers (one output per layer)  |
+| `--help, -h`     | Show help message                                       |
 
 For the full CLI reference, see [CLI Reference](../reference/cli.md).
 
 ## Scene Previewer
 
 The **[hosted previewer](https://skewer.pages.dev)** lets anyone edit and save scenes without
-any local setup. You only need the local dev server (`bun run dev`) if you're modifying the
+any local setup. You only need the local dev server (`pnpm run dev`) if you're modifying the
 previewer itself or connecting to your own cloud render farm.
 See the **[Previewer Guide](../reference/previewer.md)** for details.
 

@@ -17,12 +17,12 @@ without any setup. Cloud rendering requires a GCP account connected to your own 
 ## Running Locally
 
 Only needed if you're developing the previewer or connecting to your own cloud farm.
-Requires **[Bun](https://bun.sh)** installed.
+Requires **[pnpm](https://pnpm.io)** and **[Node.js](https://nodejs.org)installed.
 
 ```bash
 cd apps/scene-previewer
-bun install
-bun run dev
+pnpm install
+pnpm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
@@ -103,17 +103,18 @@ Select an object and press `Delete` or `Backspace` to remove it from the scene.
 
 ### Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
+| Key                | Action                 |
+| ------------------ | ---------------------- |
 | Delete / Backspace | Delete selected object |
-| Escape | Deselect |
+| Escape             | Deselect               |
 
 ## Tech Stack
 
 - **React 19** - UI framework
 - **TypeScript** - Type safety
 - **Vite** - Build tool
-- **Bun** - Package manager and runtime
+- **Node** - Javascript runtime
+- **pnpm** - Package manager
 - **Three.js** - 3D rendering
 - **Biome** - Linting and formatting
 
