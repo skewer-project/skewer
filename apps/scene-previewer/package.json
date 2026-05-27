@@ -10,8 +10,8 @@
 		"preview": "tsc -b && vite build && vite preview",
 		"format": "biome format --write",
 		"test": "vitest",
-		"ci": "biome ci . && tsc -b && vitest run && vite build",
-		"test:browser": "vitest --config=vitest.browser.config.ts"
+		"ci": "biome ci . && tsc -b && vitest run && pnpm run test:browser && vite build",
+		"test:browser": "vitest run --config=vitest.browser.config.ts"
 	},
 	"dependencies": {
 		"@radix-ui/react-collapsible": "^1.1.12",
