@@ -17,7 +17,7 @@ without any setup. Cloud rendering requires a GCP account connected to your own 
 ## Running Locally
 
 Only needed if you're developing the previewer or connecting to your own cloud farm.
-Requires **[pnpm](https://pnpm.io)** and **[Node.js](https://nodejs.org)installed.
+Requires **[pnpm](https://pnpm.io)** and **[Node.js](https://nodejs.org)** installed.
 
 ```bash
 cd apps/scene-previewer

@@ -69,7 +69,7 @@ Install the following tools before beginning:
 | [Google Cloud SDK (`gcloud`)](https://cloud.google.com/sdk/docs/install) | latest          | [Install guide](https://cloud.google.com/sdk/docs/install)                     |
 | [Terraform](https://developer.hashicorp.com/terraform/install)           | >= 1.6          | [Install guide](https://developer.hashicorp.com/terraform/install)             |
 | [Node.js](https://nodejs.org/en)                                         | >= 26           | [Install guide](https://nodejs.org/en/download)                                |
-| [pnpm](https://pnpm.io)                                                  | >=11            | [Install guide](https://pnpm.io/installation)                                  |
+| [pnpm](https://pnpm.io)                                                  | >=10            | [Install guide](https://pnpm.io/installation)                                  |
 | [Git](https://git-scm.com/)                                              | latest          | [Install guide](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) |
 
 ---
