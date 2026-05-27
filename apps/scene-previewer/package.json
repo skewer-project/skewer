@@ -9,7 +9,8 @@
 		"lint": "biome check",
 		"preview": "bun run build && vite preview",
 		"format": "biome format --write",
-		"ci": "biome ci . && tsc -b && vite build"
+		"test": "vitest",
+		"ci": "biome ci . && tsc -b && && vitest && vite build"
 	},
 	"dependencies": {
 		"firebase": "^10.14.1",
@@ -36,6 +37,7 @@
 		"globals": "^17.6.0",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.59.2",
-		"vite": "^8.0.11"
+		"vite": "^8.0.11",
+		"vitest": "^4.1.7"
 	}
 }
