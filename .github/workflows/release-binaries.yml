@@ -18,6 +18,9 @@ jobs:
   build-unix:
     name: Build ${{ matrix.artifact_suffix }}
     runs-on: ${{ matrix.runner }}
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 500M
     strategy:
       fail-fast: false
       matrix:
@@ -59,6 +62,15 @@ jobs:
           git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
           git lfs checkout
 
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ matrix.artifact_suffix }}-ccache-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'skewer/CMakeLists.txt', 'skewer/tests/CMakeLists.txt', 'loom/CMakeLists.txt', 'libs/exrio/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.artifact_suffix }}-ccache-
+            ${{ runner.os }}-ccache-
+
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
         shell: bash
@@ -66,6 +78,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
+            ccache \
             clang-17 \
             cmake \
             libimath-dev \
@@ -79,7 +92,7 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          brew install cmake ninja openexr libpng
+          brew install ccache cmake ninja openexr libpng
 
       - name: Configure
         shell: bash
@@ -87,6 +100,8 @@ jobs:
           args=(
             --preset release-portable
             -G Ninja
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           )
 
           if [[ "${{ matrix.platform }}" == "linux" ]]; then
@@ -97,6 +112,10 @@ jobs:
           fi
 
           cmake "${args[@]}"
+
+      - name: Reset ccache stats
+        shell: bash
+        run: ccache -z
 
       - name: Build release binaries
         shell: bash
@@ -118,6 +137,11 @@ jobs:
           path: |
             dist/${{ env.ARTIFACT_NAME }}.tar.gz
             dist/${{ env.ARTIFACT_NAME }}.tar.gz.sha256
+
+      - name: ccache stats
+        if: always()
+        shell: bash
+        run: ccache -s
 
   build-windows:
     name: Build windows-x86_64
