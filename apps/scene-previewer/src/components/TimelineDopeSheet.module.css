@@ -18,7 +18,7 @@
 	top: 0;
 	bottom: 0;
 	width: 1px;
-	background: rgba(232, 165, 60, 0.4);
+	background: var(--accent-border);
 	pointer-events: none;
 	z-index: 2;
 	left: calc(

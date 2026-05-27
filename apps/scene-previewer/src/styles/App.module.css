@@ -61,8 +61,8 @@
 
 .hudToastError {
 	color: var(--red);
-	background: rgba(224, 92, 92, 0.1);
-	border: 1px solid rgba(224, 92, 92, 0.32);
+	background: var(--danger-bg);
+	border: 1px solid var(--danger-border);
 }
 
 .hudToastMsg {
@@ -128,12 +128,12 @@
 
 .toolbarBtn:hover:not(:disabled) {
 	color: var(--t1);
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-raised);
 }
 
 .toolbarBtn:global(.active) {
-	background: var(--amber-lo);
-	border-color: var(--amber-border);
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
 	color: var(--amber);
 }
 
@@ -255,7 +255,7 @@
 
 .hudResetCamBtn:hover {
 	color: var(--amber);
-	border-color: var(--amber-border);
+	border-color: var(--accent-border);
 }
 
 .hudStats {
@@ -312,17 +312,17 @@
 
 .jobsCloudBtn:hover {
 	color: var(--t0);
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-raised);
 }
 
 .jobsCloudActive {
 	color: var(--amber);
-	background: var(--amber-lo);
+	background: var(--accent-bg);
 }
 
 .jobsCloudActive:hover {
 	color: var(--amber);
-	background: rgba(232, 165, 60, 0.14);
+	background: var(--accent-bg-strong);
 }
 
 .jobsCloudActive :global(svg) {
@@ -342,7 +342,7 @@
 	}
 	50% {
 		opacity: 1;
-		filter: drop-shadow(0 0 4px rgba(232, 165, 60, 0.55));
+		filter: drop-shadow(0 0 4px var(--accent-border));
 	}
 }
 
@@ -355,7 +355,7 @@
 	padding: 0 3px;
 	border-radius: 999px;
 	background: var(--amber);
-	color: #1a1208;
+	color: var(--on-amber);
 	font-family: var(--mono);
 	font-size: 9px;
 	font-weight: 600;

@@ -42,8 +42,8 @@
 }
 .removeBtn:hover {
 	color: var(--red);
-	border-color: rgba(224, 92, 92, 0.4);
-	background: rgba(224, 92, 92, 0.06);
+	border-color: var(--danger-border);
+	background: var(--danger-bg);
 }
 
 /* ── Bounds rows ── */
@@ -93,7 +93,7 @@
 	white-space: nowrap;
 }
 .faceInput {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -108,14 +108,14 @@
 	white-space: nowrap;
 }
 .faceInput:focus {
-	border-color: var(--amber-border);
+	border-color: var(--accent-border);
 }
 .faceInput::placeholder {
 	color: var(--t3);
 }
 
 .faceBrowseBtn {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t2);

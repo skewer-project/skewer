@@ -28,7 +28,7 @@
 
 .wordmarkInteractive:hover {
 	color: var(--t1);
-	background: var(--amber-lo);
+	background: var(--accent-bg);
 }
 
 .openBtn {
@@ -50,7 +50,7 @@
 
 .openBtn:hover:not(:disabled) {
 	color: var(--amber);
-	background: var(--amber-lo);
+	background: var(--accent-bg);
 }
 
 .openBtn:disabled {
@@ -64,15 +64,15 @@
 
 .openBtnPrimary {
 	color: var(--amber);
-	background: var(--amber-lo);
-	box-shadow: inset 0 0 0 1px var(--amber-border);
+	background: var(--accent-bg);
+	box-shadow: inset 0 0 0 1px var(--accent-border);
 	letter-spacing: 0.06em;
 }
 
 .openBtnPrimary:hover:not(:disabled) {
 	color: var(--amber);
-	background: rgba(232, 165, 60, 0.14);
-	box-shadow: inset 0 0 0 1px rgba(232, 165, 60, 0.4);
+	background: var(--accent-bg-strong);
+	box-shadow: inset 0 0 0 1px var(--accent-border);
 }
 
 /* Inspector: generic table & sections */
@@ -144,7 +144,7 @@
 }
 
 .layerSummary:hover {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-raised);
 }
 
 .layerChevronIcon {
@@ -169,20 +169,20 @@
 
 .layerTagCtx {
 	color: var(--blue);
-	border-color: rgba(77, 128, 255, 0.3);
-	background: var(--blue-lo);
+	border-color: var(--info-border);
+	background: var(--info-bg);
 }
 
 .layerTagLyr {
 	color: var(--amber);
-	border-color: var(--amber-border);
-	background: var(--amber-lo);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
 }
 
 .layerTagMed {
 	color: var(--green);
-	border-color: rgba(95, 186, 111, 0.3);
-	background: rgba(95, 186, 111, 0.08);
+	border-color: var(--success-border);
+	background: var(--success-bg);
 }
 
 .layerName {
@@ -299,26 +299,26 @@ button.dataRow {
 }
 
 .dataRowClickable:hover {
-	background: rgba(232, 165, 60, 0.06);
+	background: var(--accent-bg);
 	color: var(--t0);
 }
 
 .dataRowSelected {
-	background: rgba(232, 165, 60, 0.2);
-	color: #f0d9a8;
+	background: var(--accent-bg-strong);
+	color: var(--t0);
 	border-left: 3px solid var(--amber);
 	padding-left: 10px;
-	box-shadow: inset 0 0 0 1px rgba(232, 165, 60, 0.25);
+	box-shadow: inset 0 0 0 1px var(--accent-border);
 }
 
 .dataRowSelected:hover {
-	background: rgba(232, 165, 60, 0.26);
-	color: #f5e6c8;
+	background: var(--accent-bg-strong);
+	color: var(--t0);
 }
 
 /* Editable / form controls */
 .numInput {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -332,7 +332,7 @@ button.dataRow {
 }
 
 .numInput:focus {
-	border-color: var(--amber-border);
+	border-color: var(--accent-border);
 }
 
 .numInput::-webkit-inner-spin-button,
@@ -383,7 +383,7 @@ button.dataRow {
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	overflow: hidden;
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 }
 
 .vec3Cell .numInput {
@@ -404,7 +404,7 @@ button.dataRow {
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	border-right: 1px solid var(--border-mid);
-	background: rgba(0, 0, 0, 0.18);
+	background: var(--surface-inset);
 	min-width: 18px;
 	line-height: 1;
 	flex-shrink: 0;
@@ -421,7 +421,7 @@ button.dataRow {
 }
 
 .matSelect {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -437,7 +437,7 @@ button.dataRow {
 }
 
 .matSelect:focus {
-	border-color: var(--amber-border);
+	border-color: var(--accent-border);
 }
 
 .matSelect option {
@@ -446,7 +446,7 @@ button.dataRow {
 }
 
 .textInput {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t0);
@@ -459,7 +459,7 @@ button.dataRow {
 }
 
 .textInput:focus {
-	border-color: var(--amber-border);
+	border-color: var(--accent-border);
 }
 
 .textInput::placeholder {
@@ -467,7 +467,7 @@ button.dataRow {
 }
 
 .toggleBtn {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t3);
@@ -488,8 +488,8 @@ button.dataRow {
 }
 
 .toggleBtn:global(.active) {
-	background: var(--amber-lo);
-	border-color: var(--amber-border);
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
 	color: var(--amber);
 }
 
@@ -513,8 +513,8 @@ button.dataRow {
 
 .deleteObjBtn:hover {
 	color: var(--red);
-	border-color: rgba(224, 92, 92, 0.4);
-	background: rgba(224, 92, 92, 0.06);
+	border-color: var(--danger-border);
+	background: var(--danger-bg);
 }
 
 .objFileRow {
@@ -539,7 +539,7 @@ button.dataRow {
 }
 
 .objBrowseBtn {
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	color: var(--t2);
@@ -558,8 +558,8 @@ button.dataRow {
 
 .objBrowseBtn:hover {
 	color: var(--amber);
-	border-color: var(--amber-border);
-	background: var(--amber-lo);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
 }
 
 .objBrowseBtn:global(.loading) {
@@ -589,7 +589,7 @@ button.dataRow {
 	font-size: 10.5px;
 	text-align: left;
 	color: var(--t2);
-	background: rgba(255, 255, 255, 0.03);
+	background: var(--surface-subtle);
 	border: 1px solid var(--border-mid);
 	border-radius: 2px;
 	cursor: pointer;
@@ -599,13 +599,13 @@ button.dataRow {
 }
 
 .kfRow:hover {
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-raised);
 	color: var(--t1);
 }
 
 .kfRowSelected {
-	background: var(--amber-lo);
-	border-color: var(--amber-border);
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
 	color: var(--t0);
 }
 
@@ -663,7 +663,7 @@ button.dataRow {
 }
 
 :global([data-hud="sidebar"]) .dataRowClickable:hover {
-	background: rgba(232, 165, 60, 0.08);
+	background: var(--accent-bg);
 }
 
 :global([data-hud="sidebar"]) .inspectorSectionHead {
@@ -696,6 +696,6 @@ button.dataRow {
 }
 
 :global([data-hud="sidebar"]) .layerAddBtn:hover {
-	background: rgba(232, 165, 60, 0.08);
+	background: var(--accent-bg);
 	color: var(--amber);
 }

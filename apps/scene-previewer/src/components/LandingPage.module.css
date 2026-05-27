@@ -90,8 +90,8 @@
 }
 
 .landingAction:hover:not(:disabled) {
-	background: var(--amber-lo);
-	border-color: var(--amber-border);
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
 }
 
 .landingAction:disabled {
@@ -106,7 +106,7 @@
 	width: 32px;
 	height: 32px;
 	border-radius: 6px;
-	background: rgba(255, 255, 255, 0.03);
+	background: var(--surface-subtle);
 	border: 1px solid var(--border-mid);
 	color: var(--amber);
 	flex-shrink: 0;
@@ -114,7 +114,7 @@
 }
 
 .landingAction:hover:not(:disabled) .landingActionIcon {
-	border-color: var(--amber-border);
+	border-color: var(--accent-border);
 }
 
 .landingActionBody {
@@ -150,7 +150,7 @@
 	font-size: 9px;
 	letter-spacing: 0.06em;
 	color: var(--t3);
-	background: rgba(255, 255, 255, 0.03);
+	background: var(--surface-subtle);
 	border: 1px solid var(--border);
 	border-radius: 3px;
 	padding: 2px 6px;
@@ -175,7 +175,7 @@
 
 .landingRecentRow:has(.landingRecent:hover:not(:disabled)),
 .landingRecentRow:has(.landingRecentRemove:hover) {
-	background: rgba(255, 255, 255, 0.025);
+	background: var(--surface-subtle);
 	border-color: var(--border-mid);
 }
 
