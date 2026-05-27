@@ -2,7 +2,7 @@
 	position: fixed;
 	inset: 0;
 	z-index: 200;
-	background: rgba(0, 0, 0, 0.65);
+	background: var(--overlay-page);
 	backdrop-filter: blur(4px);
 	-webkit-backdrop-filter: blur(4px);
 	display: flex;
@@ -77,13 +77,13 @@
 
 .chip:hover {
 	color: var(--t0);
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-raised);
 }
 
 .chipActive {
 	color: var(--amber);
-	border-color: var(--amber-border);
-	background: var(--amber-lo);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
 }
 
 .chipN {
@@ -164,19 +164,19 @@
 	gap: 16px;
 	align-items: stretch;
 	padding: 12px;
-	background: rgba(255, 255, 255, 0.015);
+	background: var(--surface-subtle);
 	border: 1px solid var(--border-mid);
 	transition: border-color 0.12s;
 }
 
 .rowActive {
-	border-color: var(--amber-border);
-	background: var(--amber-lo);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
 }
 
 .rowErr {
-	border-color: rgba(224, 92, 92, 0.32);
-	background: rgba(224, 92, 92, 0.04);
+	border-color: var(--danger-border);
+	background: var(--danger-bg);
 }
 
 .rowWarn {
@@ -191,7 +191,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(0, 0, 0, 0.4);
+	background: var(--overlay-frame);
 	border: 1px solid var(--border);
 	color: var(--t3);
 	overflow: hidden;
@@ -203,7 +203,7 @@
 	height: 100%;
 	object-fit: contain;
 	display: block;
-	background: #000;
+	background: var(--overlay-bg);
 }
 
 .thumbButton {
@@ -215,7 +215,7 @@
 }
 
 .thumbButton:hover {
-	border-color: var(--amber-border);
+	border-color: var(--accent-border);
 	filter: brightness(1.08);
 }
 
@@ -245,8 +245,8 @@
 	gap: 4px;
 	height: 18px;
 	padding: 0 6px;
-	background: rgba(0, 0, 0, 0.72);
-	border: 1px solid rgba(255, 255, 255, 0.15);
+	background: var(--overlay-badge-bg);
+	border: 1px solid var(--overlay-badge-border);
 	color: var(--t1);
 	font-family: var(--mono);
 	font-size: 9px;
@@ -267,8 +267,8 @@
 	align-items: center;
 	justify-content: center;
 	color: var(--t0);
-	background: rgba(0, 0, 0, 0.58);
-	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: var(--overlay-badge-bg);
+	border: 1px solid var(--overlay-badge-border);
 	pointer-events: none;
 }
 
@@ -393,7 +393,7 @@
 .previewPanel {
 	margin-top: 10px;
 	padding: 10px;
-	background: rgba(0, 0, 0, 0.24);
+	background: var(--surface-panel);
 	border: 1px solid var(--border);
 	display: flex;
 	flex-direction: column;
@@ -428,7 +428,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #000;
+	background: var(--overlay-bg);
 	border: 1px solid var(--border-mid);
 	overflow: hidden;
 }
@@ -443,7 +443,7 @@
 .detail {
 	margin-top: 8px;
 	padding: 10px 12px;
-	background: rgba(0, 0, 0, 0.25);
+	background: var(--surface-panel);
 	border: 1px solid var(--border);
 	display: grid;
 	grid-template-columns: 1fr 1fr;

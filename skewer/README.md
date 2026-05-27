@@ -1,65 +1,38 @@
 # Skewer
-A physically-based ray tracer capable of deep rendering and compositing
 
-## Building
+A physically-based ray tracer capable of deep rendering and compositing.
 
-### Dependencies
-Ensure you have the following installed before building:
-- **C++ Compiler** (C++17 support required)
-    * *Linux:* GCC or Clang
-    * *macOS:* Xcode Command Line Tools (`xcode-select --install`)
-    * *Windows:* MSVC (Visual Studio) or MinGW
-- **CMake** (Version 3.14 or higher)
-- **libopenexr** and **libimath**
-  - MacOS hosts can install both with `brew install openexr`
-  - Linux hosts require both `libopenexr-dev` and `libimath-dev` packages
+> **Full documentation:** [skewer-project.github.io/skewer](https://skewer-project.github.io/skewer/)
 
-The following libraries are included in the source or fetched automatically by CMake. **You do not need to install these manually.**
-* [nlohmann/json](https://github.com/nlohmann/json) (via CMake FetchContent)
-* [stb_image](https://github.com/nothings/stb) (Vendored)
-* [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) (Vendored)
-
-### Compiling
-
-This project uses CMake. To build the executable:
+## Quick Start
 
 ```bash
-# 1. Create a build directory
-mkdir build
+# 1. Clone the repository
+git clone https://github.com/skewer-project/skewer.git
+cd skewer
 
-# 2. Configure the project
-cmake -B ./build/ -S ./
+# 2. Install dependencies — see docs for your platform:
+#    https://skewer-project.github.io/skewer/getting-started/installation/
 
-# 3. Compile
-cmake --build ./build/ --parallel
+# 3. Pull Git LFS assets (only what's needed to build)
+git lfs install && git lfs pull --include="skewer/external/srgb_spec_data.h"
+
+# 4. Build with CMake presets
+cmake --preset relwithdebinfo
+cmake --build --preset relwithdebinfo --parallel 4
+
+# 5. Render a scene
+./build/relwithdebinfo/skewer/skewer-render scene.json
 ```
 
-## Usage
+The renderer outputs a `.png` file for preview and an `.exr` file for compositing.
 
-```bash
-# Linux/macOS
-./build/skewer-render <scene json file>
-
-# Windows (Command Prompt)
-./build/skewer-render.exe <scene json file>
-```
-
-### Scenes
-The renderer accepts a scene config defined a json file.
-Examples of these files can be found in the following [folder on Google Drive](https://drive.google.com/drive/folders/1qi5UjEE2lD4gkOMuiLxX3ULs95huyOQD?usp=drive_link).
-
-Copy both the `objects` and `scenes` folder into the project root and invoke `skewer-renderer` with a scene json file in the scenes folder.
-For example:
-```bash
-./build/skewer-render scenes/cornell_box.json  
-```
-
-### Help
-`./build/skewer-render --help`
-
-The renderer outputs both a `.ppm` and `.exr` file. Open either to verify the image rendered correctly.
+For scene examples, CLI flags (`--frame`, `--frames`, `--statics-only`), and rendering tips,
+see the **[CLI Reference](https://skewer-project.github.io/skewer/reference/cli/)** and
+**[Rendering Tips](https://skewer-project.github.io/skewer/reference/rendering-tips/)**.
 
 ## Authors
+
 - [AkshatAdsule](https://github.com/AkshatAdsule)
 - [yooian](https://github.com/yooian)
 - [shavolkov](https://github.com/shavolkov)

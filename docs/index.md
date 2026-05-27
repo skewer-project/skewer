@@ -4,21 +4,16 @@ Skewer is a serverless, distributed deep rendering system designed for high-thro
 
 ## Quick Links
 
-- [Installation](getting-started/installation.md)
+- 🎓 **[TA and Travis Quick Start](getting-started/travis-ta-guide.md)** — For Travis and the TAs during interactive grading
 - [Quick Start](getting-started/quick-start.md)
 - [Scene Format](reference/scene-format.md)
 - [CLI Reference](reference/cli.md)
 - [Rendering Tips](reference/rendering-tips.md)
-- [Animation](reference/animation.md)
 - [Previewer](reference/previewer.md)
 - [Architecture Overview](developer/overview.md)
-- [Mathematical Foundations](reference/math.md)
-- [GCP Deployment (Production)](getting-started/gcp.md)
-- [Local Development](getting-started/local.md)
-- [Building](getting-started/building.md)
+
 - [Loom Compositor](developer/loom/index.md)
 - [Skewer Renderer](developer/skewer/architecture.md)
-- [API & Coordinator](developer/api/coordinator.md)
 
 ## Key Features
 

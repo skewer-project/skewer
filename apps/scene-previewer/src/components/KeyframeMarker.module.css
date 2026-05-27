@@ -5,9 +5,9 @@
 	transform: translate(-50%, -50%) rotate(45deg);
 	width: 7px;
 	height: 7px;
-	background: rgba(224, 217, 200, 0.92);
-	border: 1px solid rgba(232, 165, 60, 0.65);
-	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+	background: color-mix(in srgb, var(--t0) 92%, transparent);
+	border: 1px solid var(--accent-border);
+	box-shadow: 0 0 0 1px var(--overlay-frame);
 	pointer-events: none;
 }
 
@@ -18,8 +18,8 @@
 	transform: translate(-50%, -50%) rotate(45deg);
 	width: 5px;
 	height: 5px;
-	background: rgba(224, 217, 200, 0.75);
-	border: 1px solid rgba(232, 165, 60, 0.5);
+	background: color-mix(in srgb, var(--t0) 75%, transparent);
+	border: 1px solid var(--accent-border);
 }
 
 .draggable {
@@ -31,5 +31,5 @@
 	cursor: grabbing;
 	background: var(--amber);
 	border-color: var(--amber);
-	box-shadow: 0 0 4px rgba(232, 165, 60, 0.6);
+	box-shadow: 0 0 4px var(--accent-border);
 }

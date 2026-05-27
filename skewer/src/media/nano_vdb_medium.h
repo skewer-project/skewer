@@ -1,15 +1,23 @@
 #ifndef SKWR_MEDIA_NANO_VDB_MEDIUM_H_
 #define SKWR_MEDIA_NANO_VDB_MEDIUM_H_
 
-#include <fcntl.h>
 #include <nanovdb/NanoVDB.h>
 #include <nanovdb/util/IO.h>
+
+#include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <optional>
+#include <utility>
+#include <vector>
+
+#ifndef _WIN32
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-#include <iostream>
-#include <optional>
+#endif
 
 #include "core/math/quat.h"
 #include "core/math/transform.h"
@@ -20,8 +28,8 @@
 
 namespace skwr {
 
-// RAII wrapper for zero-copy memory mapped files.
-// This allows multiple K8s pods on the same node to share physical memory pages for large VDBs.
+// RAII wrapper for NanoVDB file bytes. Unix builds use mmap for shared physical pages; Windows
+// builds keep an owned buffer because sys/mman.h is not available.
 class MappedFile {
   public:
     MappedFile() : data_(nullptr), size_(0) {}
@@ -31,7 +39,15 @@ class MappedFile {
     MappedFile& operator=(const MappedFile&) = delete;
 
     // Enable moving
-    MappedFile(MappedFile&& other) noexcept : data_(other.data_), size_(other.size_) {
+    MappedFile(MappedFile&& other) noexcept : data_(nullptr), size_(0) {
+#ifdef _WIN32
+        owned_data_ = std::move(other.owned_data_);
+        size_ = owned_data_.size();
+        data_ = owned_data_.empty() ? nullptr : owned_data_.data();
+#else
+        data_ = other.data_;
+        size_ = other.size_;
+#endif
         other.data_ = nullptr;
         other.size_ = 0;
     }
@@ -39,8 +55,14 @@ class MappedFile {
     MappedFile& operator=(MappedFile&& other) noexcept {
         if (this != &other) {
             Unmap();
+#ifdef _WIN32
+            owned_data_ = std::move(other.owned_data_);
+            size_ = owned_data_.size();
+            data_ = owned_data_.empty() ? nullptr : owned_data_.data();
+#else
             data_ = other.data_;
             size_ = other.size_;
+#endif
             other.data_ = nullptr;
             other.size_ = 0;
         }
@@ -51,6 +73,26 @@ class MappedFile {
 
     bool Map(const std::string& filepath) {
         Unmap();
+
+#ifdef _WIN32
+        std::ifstream file(filepath, std::ios::binary | std::ios::ate);
+        if (!file) return false;
+
+        const std::streamoff file_size = file.tellg();
+        if (file_size <= 0) return false;
+
+        owned_data_.resize(static_cast<size_t>(file_size));
+        file.seekg(0, std::ios::beg);
+        if (!file.read(reinterpret_cast<char*>(owned_data_.data()),
+                       static_cast<std::streamsize>(file_size))) {
+            owned_data_.clear();
+            return false;
+        }
+
+        data_ = owned_data_.data();
+        size_ = owned_data_.size();
+        return true;
+#else
         int fd = open(filepath.c_str(), O_RDONLY);
         if (fd < 0) return false;
 
@@ -69,6 +111,7 @@ class MappedFile {
             return false;
         }
         return true;
+#endif
     }
 
     void* data() const { return data_; }
@@ -76,15 +119,24 @@ class MappedFile {
 
   private:
     void Unmap() {
+#ifdef _WIN32
+        owned_data_.clear();
+        data_ = nullptr;
+        size_ = 0;
+#else
         if (data_ && data_ != MAP_FAILED) {
             munmap(data_, size_);
             data_ = nullptr;
             size_ = 0;
         }
+#endif
     }
 
     void* data_;
     size_t size_;
+#ifdef _WIN32
+    std::vector<uint8_t> owned_data_;
+#endif
 };
 
 struct NanoVDBMedium;  // Forward declaration
@@ -136,9 +188,9 @@ struct NanoVDBMedium {
     bool Load(const std::string& filepath) {
         if (scale == 0.0f || density_multiplier < 0.0f) return false;
 
-        // Memory Map the file (Zero-copy virtual memory loading)
+        // Load the file bytes. Unix uses zero-copy virtual memory; Windows uses an owned buffer.
         if (!mapped_file.Map(filepath)) {
-            std::cerr << "Failed to mmap NanoVDB: " << filepath << "\n";
+            std::cerr << "Failed to load NanoVDB: " << filepath << "\n";
             return false;
         }
 
@@ -255,7 +307,7 @@ struct NanoVDBMedium {
 
             return true;
         } catch (const std::exception& e) {
-            std::cerr << "Failed to parse mapped NanoVDB: " << e.what() << "\n";
+            std::cerr << "Failed to parse NanoVDB: " << e.what() << "\n";
             return false;
         }
     }

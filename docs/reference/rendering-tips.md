@@ -170,8 +170,9 @@ Beyond `max_depth`, rays are terminated. Russian Roulette takes over after depth
 }
 ```
 
-- `0` (default) auto-detects CPU cores
-- Set to a specific number to leave cores free for other tasks
+- `0` (default) — auto-detects all CPU cores
+- Set to a specific number in the cli (e.g., `4`) if renders are starving your system or you need
+  cores free for other applications
 - Performance scales roughly linearly up to physical core count, then plateaus
 
 ### Tile Size

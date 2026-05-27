@@ -2,9 +2,15 @@
 
 This guide covers building Skewer from source. See [Installation](installation.md) for dependency setup.
 
+!!! tip "Don't want to build Skewer?"
+    Pre-built binaries are available for every release. See the
+    **[Pre-built Binaries](release-binaries.md)** guide.
+
 ## Using CMake Presets
 
-The project uses CMake presets for consistent builds:
+The project uses CMake presets for consistent builds. All build commands use
+`--parallel 4` to avoid maxing out your CPU — adjust up if you have a dedicated
+build machine.
 
 ```bash
 # List available presets
@@ -14,7 +20,7 @@ cmake --list-presets
 cmake --preset relwithdebinfo
 
 # Build with a preset
-cmake --build --preset relwithdebinfo --parallel
+cmake --build --preset relwithdebinfo --parallel 4
 ```
 
 ## Available Presets
@@ -24,9 +30,10 @@ cmake --build --preset relwithdebinfo --parallel
 | `relwithdebinfo` | **Default** - Release build with debug symbols (recommended) |
 | `debug`          | Debug build with symbols, no optimizations                   |
 | `release`        | Optimized release build (-O3)                                |
+| `release-portable` | Optimized release build for portable binary bundles        |
 | `ci`             | CI build with tests enabled                                  |
 
-See the [full preset list](../reference/cli.md#cmake-presets) in the CLI Reference for all available presets, including `asan`, `release-milan`, and `releasestatic`.
+See the [full preset list](../reference/cli.md#cmake-presets) in the CLI Reference for all available presets, including `asan` and `release-milan`.
 
 ## Build Outputs
 
@@ -49,8 +56,8 @@ build/relwithdebinfo/
 ```bash
 # Build and run tests
 cmake --preset ci
-cmake --build --preset ci --parallel
-ctest --preset ci
+cmake --build --preset ci --parallel 4
+ctest --preset ci --parallel 4
 ```
 
 ## Building the Go CLI
@@ -102,7 +109,6 @@ To perform a clean rebuild:
 ```bash
 rm -rf build/
 cmake --preset relwithdebinfo
-cmake --build --preset relwithdebinfo --parallel
+cmake --build --preset relwithdebinfo --parallel 4
 ```
-
 

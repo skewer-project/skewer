@@ -1,0 +1,285 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Artifact version label for manual runs"
+        required: false
+        default: "dev"
+
+permissions:
+  contents: write
+
+jobs:
+  build-unix:
+    name: Build ${{ matrix.artifact_suffix }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 500M
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact_suffix: linux-x86_64
+            runner: blacksmith-4vcpu-ubuntu-2404
+            platform: linux
+          - artifact_suffix: macos-arm64
+            runner: macos-14
+            platform: macos
+          - artifact_suffix: macos-x86_64
+            runner: macos-15-intel
+            platform: macos
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Resolve artifact name
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            version="${{ inputs.version }}"
+          fi
+          if [[ -z "${version}" ]]; then
+            version="dev-${GITHUB_SHA::7}"
+          fi
+          artifact_name="skewer-${version}-${{ matrix.artifact_suffix }}"
+          echo "VERSION=${version}" >> "${GITHUB_ENV}"
+          echo "ARTIFACT_NAME=${artifact_name}" >> "${GITHUB_ENV}"
+
+      - name: Fetch required LFS asset
+        shell: bash
+        run: |
+          git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
+          git lfs checkout
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ matrix.artifact_suffix }}-ccache-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'skewer/CMakeLists.txt', 'skewer/tests/CMakeLists.txt', 'loom/CMakeLists.txt', 'libs/exrio/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.artifact_suffix }}-ccache-
+            ${{ runner.os }}-ccache-
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ccache \
+            clang-17 \
+            cmake \
+            libimath-dev \
+            libopenexr-dev \
+            libpng-dev \
+            ninja-build \
+            patchelf \
+            zlib1g-dev
+
+      - name: Install macOS dependencies
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          brew install ccache cmake ninja openexr libpng
+
+      - name: Configure
+        shell: bash
+        run: |
+          args=(
+            --preset release-portable
+            -G Ninja
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          )
+
+          if [[ "${{ matrix.platform }}" == "linux" ]]; then
+            args+=(
+              -DCMAKE_C_COMPILER=clang-17
+              -DCMAKE_CXX_COMPILER=clang++-17
+            )
+          fi
+
+          cmake "${args[@]}"
+
+      - name: Reset ccache stats
+        shell: bash
+        run: ccache -z
+
+      - name: Build release binaries
+        shell: bash
+        run: cmake --build --preset release-portable --target skewer-render loom --parallel
+
+      - name: Install runtime component
+        shell: bash
+        run: cmake --install build/release-portable --prefix "dist/stage/${ARTIFACT_NAME}" --component Runtime
+
+      - name: Bundle runtime libraries
+        shell: bash
+        run: ./scripts/bundle-release.sh "dist/stage/${ARTIFACT_NAME}" "${ARTIFACT_NAME}" dist
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          if-no-files-found: error
+          path: |
+            dist/${{ env.ARTIFACT_NAME }}.tar.gz
+            dist/${{ env.ARTIFACT_NAME }}.tar.gz.sha256
+
+      - name: ccache stats
+        if: always()
+        shell: bash
+        run: ccache -s
+
+  build-windows:
+    name: Build windows-x86_64
+    runs-on: blacksmith-4vcpu-windows-2025
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Resolve artifact name
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $version = $env:GITHUB_REF_NAME
+          } else {
+            $version = "${{ inputs.version }}"
+          }
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = "dev-$($env:GITHUB_SHA.Substring(0, 7))"
+          }
+          $artifactName = "skewer-$version-windows-x86_64"
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "ARTIFACT_NAME=$artifactName" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Fetch required LFS asset
+        shell: pwsh
+        run: |
+          git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
+          git lfs checkout
+
+      - name: Install vcpkg dependencies
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:VCPKG_ROOT)) {
+            if (![string]::IsNullOrWhiteSpace($env:VCPKG_INSTALLATION_ROOT)) {
+              "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+              $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+            } else {
+              throw "VCPKG_ROOT is not set"
+            }
+          }
+          & "$env:VCPKG_ROOT\vcpkg.exe" install openexr libpng zlib --triplet x64-windows
+
+      - name: Configure, build, and bundle
+        shell: cmd
+        run: |
+          set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+          if not exist "%VSWHERE%" (
+            echo vswhere.exe was not found
+            exit /b 1
+          )
+
+          for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALLDIR=%%i"
+          if not defined VSINSTALLDIR (
+            echo Visual Studio with MSVC x64 build tools was not found
+            exit /b 1
+          )
+
+          call "%VSINSTALLDIR%\VC\Auxiliary\Build\vcvars64.bat"
+          if errorlevel 1 exit /b %errorlevel%
+
+          where cl
+          if errorlevel 1 exit /b %errorlevel%
+
+          for /f "delims=" %%i in ('where rc') do if not defined RC_EXE set "RC_EXE=%%i"
+          if not defined RC_EXE (
+            echo rc.exe was not found after vcvars64.bat
+            exit /b 1
+          )
+          echo Using rc.exe at "%RC_EXE%"
+          set "CMAKE_RC_EXE=%RC_EXE:\=/%"
+
+          for /f "delims=" %%i in ('where mt') do if not defined MT_EXE set "MT_EXE=%%i"
+          if not defined MT_EXE (
+            echo mt.exe was not found after vcvars64.bat
+            exit /b 1
+          )
+          echo Using mt.exe at "%MT_EXE%"
+          set "CMAKE_MT_EXE=%MT_EXE:\=/%"
+
+          if exist build\release-portable rmdir /s /q build\release-portable
+          set "CMAKE_VCPKG_TOOLCHAIN=%VCPKG_ROOT:\=/%/scripts/buildsystems/vcpkg.cmake"
+
+          cmake --preset release-portable -G Ninja -DCMAKE_TOOLCHAIN_FILE="%CMAKE_VCPKG_TOOLCHAIN%" -DVCPKG_TARGET_TRIPLET=x64-windows -DCMAKE_RC_COMPILER="%CMAKE_RC_EXE%" -DCMAKE_MT="%CMAKE_MT_EXE%" -DSKEWER_BUILD_NATIVE_OPTIMIZATIONS=ON
+          if errorlevel 1 exit /b %errorlevel%
+          cmake --build --preset release-portable --target skewer-render loom --parallel
+          if errorlevel 1 exit /b %errorlevel%
+          cmake --install build\release-portable --prefix "dist\stage\%ARTIFACT_NAME%" --component Runtime
+          if errorlevel 1 exit /b %errorlevel%
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\bundle-release.ps1 -StageDir "dist\stage\%ARTIFACT_NAME%" -ArtifactName "%ARTIFACT_NAME%" -DistDir dist
+          if errorlevel 1 exit /b %errorlevel%
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          if-no-files-found: error
+          path: |
+            dist/${{ env.ARTIFACT_NAME }}.zip
+            dist/${{ env.ARTIFACT_NAME }}.zip.sha256
+
+  publish:
+    name: Publish GitHub release assets
+    runs-on: ubuntu-22.04
+    needs:
+      - build-unix
+      - build-windows
+    if: github.ref_type == 'tag'
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-dist
+          pattern: skewer-*
+          merge-multiple: true
+
+      - name: Generate combined checksums
+        shell: bash
+        run: |
+          cd release-dist
+          find . -maxdepth 1 -type f \( -name "*.tar.gz" -o -name "*.zip" \) -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > checksums.txt
+
+      - name: Create release if needed
+        shell: bash
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
+            gh release create "${GITHUB_REF_NAME}" --verify-tag --title "${GITHUB_REF_NAME}" --notes "Skewer ${GITHUB_REF_NAME}"
+
+      - name: Upload release assets
+        shell: bash
+        run: |
+          cd release-dist
+          gh release upload "${GITHUB_REF_NAME}" *.tar.gz *.zip checksums.txt --clobber

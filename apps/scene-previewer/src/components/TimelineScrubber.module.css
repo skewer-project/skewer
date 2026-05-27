@@ -38,7 +38,7 @@
 	width: 28px;
 	height: 28px;
 	padding: 0;
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--surface-field);
 	border: 1px solid var(--border-mid);
 	color: var(--amber);
 	cursor: pointer;
@@ -48,8 +48,8 @@
 }
 
 .playBtn:hover {
-	border-color: var(--amber-border);
-	background: var(--amber-lo);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
 }
 
 .time {
@@ -71,7 +71,7 @@
 	position: relative;
 	width: 100%;
 	height: 8px;
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-raised);
 	border-radius: 2px;
 	border: 1px solid var(--border-mid);
 }
@@ -84,7 +84,7 @@
 	height: 20px;
 	background: var(--amber);
 	border-radius: 1px;
-	box-shadow: 0 0 6px rgba(232, 165, 60, 0.35);
+	box-shadow: 0 0 6px var(--accent-border);
 	pointer-events: none;
 	z-index: 2;
 }

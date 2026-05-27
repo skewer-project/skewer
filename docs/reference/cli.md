@@ -170,16 +170,16 @@ The project defines these configure presets in `CMakePresets.json`. Use them wit
 | `debug` | Debug build with symbols, no optimizations |
 | `release` | Optimized release build (`-O3`) |
 | `release-milan` | Release with native optimizations for AMD EPYC Milan (GCP N2D) |
+| `release-portable` | Release build for bundled cross-platform binary archives |
 | `relwithdebinfo` | **Default** — Release build with debug symbols |
 | `ci` | CI-optimized build (no native optimizations) |
 | `asan` | Debug build with AddressSanitizer + UndefinedBehaviorSanitizer |
-| `releasestatic` | Fully static release binary (Linux, vcpkg toolchain) |
 
 Build with a preset:
 
 ```bash
 cmake --preset relwithdebinfo
-cmake --build --preset relwithdebinfo --parallel
+cmake --build --preset relwithdebinfo --parallel 4 # build with up to four threads
 ```
 
 Test with a preset:

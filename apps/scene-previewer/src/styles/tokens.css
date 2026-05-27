@@ -1,22 +1,73 @@
 :root {
+	color-scheme: dark;
 	--bg: #0c0d0f;
 	--panel: rgba(10, 11, 14, 0.88);
 	--border: #191c22;
 	--border-mid: #22262f;
 
-	--t3: #384055;
-	--t2: #6e7a94;
-	--t1: #b0b9cc;
-	--t0: #dde3ef;
+	--t3: hsl(221, 10%, 50%);
+	--t2: hsl(221, 15%, 51%);
+	--t1: hsl(221, 22%, 75%);
+	--t0: hsl(221, 36%, 90%);
 
 	--amber: #e8a53c;
-	--amber-lo: rgba(232, 165, 60, 0.07);
-	--amber-border: rgba(232, 165, 60, 0.22);
 	--blue: #4d80ff;
-	--blue-lo: rgba(77, 128, 255, 0.08);
 	--green: #5fba6f;
 	--red: #e05c5c;
 
+	--surface-subtle: rgba(255, 255, 255, 0.025);
+	--surface-raised: rgba(255, 255, 255, 0.05);
+	--surface-field: var(--surface-raised);
+	--surface-inset: rgba(0, 0, 0, 0.18);
+	--surface-panel: rgba(0, 0, 0, 0.24);
+	--overlay-page: rgba(0, 0, 0, 0.65);
+	--overlay-frame: rgba(0, 0, 0, 0.4);
+	--overlay-bg: #000;
+	--overlay-badge-bg: rgba(0, 0, 0, 0.66);
+	--overlay-badge-border: rgba(255, 255, 255, 0.18);
+	--accent-bg: color-mix(in srgb, var(--amber) 7%, transparent);
+	--accent-bg-strong: color-mix(in srgb, var(--amber) 18%, transparent);
+	--accent-border: color-mix(in srgb, var(--amber) 36%, transparent);
+	--info-bg: color-mix(in srgb, var(--blue) 8%, transparent);
+	--info-border: color-mix(in srgb, var(--blue) 30%, transparent);
+	--success-bg: color-mix(in srgb, var(--green) 8%, transparent);
+	--success-border: color-mix(in srgb, var(--green) 30%, transparent);
+	--danger-bg: color-mix(in srgb, var(--red) 8%, transparent);
+	--danger-border: color-mix(in srgb, var(--red) 38%, transparent);
+	--on-amber: #1a1208;
+
 	--mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
 	--display: "Chakra Petch", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+	:root {
+		color-scheme: light;
+		--bg: #eef1f5;
+		--panel: rgba(255, 255, 255, 0.86);
+		--border: #cfd5df;
+		--border-mid: #b9c1cf;
+
+		--t3: hsl(218, 10%, 45%);
+		--t2: hsl(218, 13%, 36%);
+		--t1: hsl(218, 22%, 20%);
+		--t0: hsl(218, 35%, 12%);
+
+		--amber: #b46c00;
+		--blue: #2563eb;
+		--green: #1f8f50;
+		--red: #c93f3f;
+
+		--surface-subtle: rgba(21, 28, 42, 0.04);
+		--surface-raised: rgba(21, 28, 42, 0.07);
+		--surface-field: rgba(255, 255, 255, 0.58);
+		--surface-inset: rgba(255, 255, 255, 0.7);
+		--surface-panel: rgba(255, 255, 255, 0.7);
+		--overlay-page: rgba(238, 241, 245, 0.76);
+		--overlay-frame: var(--surface-raised);
+		--overlay-bg: #11151d;
+		--overlay-badge-bg: rgba(17, 21, 29, 0.72);
+		--overlay-badge-border: rgba(255, 255, 255, 0.34);
+		--on-amber: #1f1608;
+	}
 }

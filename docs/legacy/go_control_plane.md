@@ -56,7 +56,7 @@ This is the unique feature of Skewer's architecture. The Coordinator manages the
 ```mermaid
 graph TD
     subgraph "User Local Machine"
-        CLI[CLI Tool (C++)]
+        CLI["CLI Tool (C++)"]
     end
 
     subgraph "Go Control Plane (The Brain)"
@@ -71,9 +71,9 @@ graph TD
     end
 
     subgraph "Data Plane (The Brawn)"
-        W1[C++ Worker 1]
-        W2[C++ Worker 2]
-        W3[C++ Worker 3]
+        W1["C++ Worker 1"]
+        W2["C++ Worker 2"]
+        W3["C++ Worker 3"]
     end
 
     subgraph "Google Cloud"

@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(CTest)
+include(GNUInstallDirs)
 # Fixes CMake FetchContent warning
 # (https://cmake.org/cmake/help/latest/policy/CMP0135.html)
 cmake_policy(SET CMP0135 NEW)
@@ -80,12 +81,21 @@ target_include_directories(skewer-worker
         ${CMAKE_BINARY_DIR}
 )
 
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
-    COMPILE_OPTIONS "-fno-fast-math"
-)
-set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
-    COMPILE_OPTIONS "-fno-fast-math"
-)
+if(MSVC)
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
+      COMPILE_OPTIONS "/fp:precise"
+  )
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
+      COMPILE_OPTIONS "/fp:precise"
+  )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/scene_loader.cc" PROPERTIES
+      COMPILE_OPTIONS "-fno-fast-math"
+  )
+  set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/io/graph_from_json.cc" PROPERTIES
+      COMPILE_OPTIONS "-fno-fast-math"
+  )
+endif()
 
 # Link libraries
 target_link_libraries(skewer-render
@@ -108,7 +118,14 @@ target_link_libraries(skewer-worker
 # Enable NanoVDB SIMD optimizations
 target_compile_definitions(skewer-worker PRIVATE NANOVDB_USE_INTRINSICS)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+if(MSVC)
+  target_compile_options(skewer-render PRIVATE /fp:fast)
+  target_compile_options(skewer-worker PRIVATE /fp:fast)
+  if(SKEWER_BUILD_NATIVE_OPTIMIZATIONS)
+    target_compile_options(skewer-render PRIVATE /arch:AVX2)
+    target_compile_options(skewer-worker PRIVATE /arch:AVX2)
+  endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(skewer-render PRIVATE -ffast-math)
     target_compile_options(skewer-worker PRIVATE -ffast-math)
 endif()
@@ -137,6 +154,11 @@ if(SKEWER_IPO_SUPPORTED)
   set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
   set_property(TARGET skewer-render PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 endif()
+
+install(TARGETS skewer-render
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT Runtime
+)
 
 if(BUILD_TESTING)
   include(GoogleTest)
