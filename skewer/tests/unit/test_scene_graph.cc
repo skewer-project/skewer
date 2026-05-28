@@ -31,6 +31,32 @@ struct SpectralInit {
     SpectralInit() { InitSpectralModel(); }
 } g_init_spectral;
 
+std::filesystem::path MakeTempTestDir(const std::string& name) {
+    const auto dir = std::filesystem::temp_directory_path() / name;
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    return dir;
+}
+
+void WriteFile(const std::filesystem::path& path, const std::string& contents) {
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream out(path);
+    if (!out.is_open()) {
+        throw std::runtime_error("Failed to open test fixture file: " + path.string());
+    }
+    out << contents;
+}
+
+void ExpectRuntimeErrorContains(const std::function<void()>& fn, const std::string& expected) {
+    try {
+        fn();
+        FAIL() << "Expected std::runtime_error containing: " << expected;
+    } catch (const std::runtime_error& e) {
+        EXPECT_NE(std::string(e.what()).find(expected), std::string::npos)
+            << "Actual error: " << e.what();
+    }
+}
+
 }  // namespace
 
 using json = nlohmann::json;
@@ -164,6 +190,150 @@ TEST(SceneLoader, RejectAnimatedCameraWithoutAnimationBlock) {
 
     EXPECT_THROW(LoadSceneFile(p.string()), std::runtime_error);
     std::filesystem::remove(p);
+}
+
+TEST(SceneLoader, RejectMissingContextFile) {
+    const auto dir = MakeTempTestDir("skewer_ut_missing_context");
+    WriteFile(dir / "scene.json", R"({
+  "camera": { "look_from": [0, 0, 4], "look_at": [0, 0, 0] },
+  "context": ["missing_ctx.json"],
+  "layers": ["layer.json"]
+})");
+    WriteFile(dir / "layer.json", R"({ "materials": {}, "graph": [] })");
+
+    const SceneConfig config = LoadSceneFile((dir / "scene.json").string());
+    Scene scene;
+    ExpectRuntimeErrorContains([&] { LoadContextIntoScene(config.context_paths, scene); },
+                               "Cannot open file:");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SceneLoader, RejectMissingLayerFile) {
+    Scene scene;
+    ExpectRuntimeErrorContains(
+        [&] { LoadLayerFile("/definitely/missing/skewer_layer.json", scene); },
+        "Cannot open file:");
+}
+
+TEST(SceneLoader, RejectUnknownMaterialReference) {
+    const auto dir = MakeTempTestDir("skewer_ut_unknown_material");
+    WriteFile(dir / "layer.json", R"({
+  "materials": {
+    "mat": { "type": "lambertian", "albedo": [0.8, 0.8, 0.8] }
+  },
+  "graph": [
+    {
+      "type": "sphere",
+      "material": "missing",
+      "center": [0, 0, 0],
+      "radius": 1
+    }
+  ]
+})");
+
+    Scene scene;
+    ExpectRuntimeErrorContains([&] { LoadLayerFile((dir / "layer.json").string(), scene); },
+                               "unknown material 'missing'");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SceneLoader, RejectUnknownMediumReference) {
+    const auto dir = MakeTempTestDir("skewer_ut_unknown_medium");
+    WriteFile(dir / "layer.json", R"({
+  "materials": {
+    "nullish": { "type": "lambertian", "albedo": [0.1, 0.1, 0.1] }
+  },
+  "graph": [
+    {
+      "type": "sphere",
+      "material": "null",
+      "inside_medium": "fog"
+    }
+  ]
+})");
+
+    Scene scene;
+    ExpectRuntimeErrorContains([&] { LoadLayerFile((dir / "layer.json").string(), scene); },
+                               "Unknown medium 'fog'");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SceneLoader, RejectInvalidRenderIntegrator) {
+    const auto dir = MakeTempTestDir("skewer_ut_invalid_integrator");
+    WriteFile(dir / "layer.json", R"({
+  "materials": {},
+  "graph": [],
+  "render": {
+    "integrator": "preview-only"
+  }
+})");
+
+    Scene scene;
+    ExpectRuntimeErrorContains([&] { LoadLayerFile((dir / "layer.json").string(), scene); },
+                               "Unknown integrator type: preview-only");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SceneLoader, RejectMissingObjFile) {
+    const auto dir = MakeTempTestDir("skewer_ut_missing_obj");
+    WriteFile(dir / "layer.json", R"({
+  "materials": {
+    "mat": { "type": "lambertian", "albedo": [0.8, 0.8, 0.8] }
+  },
+  "graph": [
+    {
+      "type": "obj",
+      "material": "mat",
+      "file": "missing.obj"
+    }
+  ]
+})");
+
+    Scene scene;
+    ExpectRuntimeErrorContains([&] { LoadLayerFile((dir / "layer.json").string(), scene); },
+                               "failed to load OBJ");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SceneLoader, RejectMissingSkyboxFaceTexture) {
+    const auto dir = MakeTempTestDir("skewer_ut_missing_skybox_face");
+    WriteFile(dir / "scene.json", R"({
+  "camera": { "look_from": [0, 0, 4], "look_at": [0, 0, 0] },
+  "layers": ["layer.json"],
+  "skybox": {
+    "min": [-1, -1, -1],
+    "max": [1, 1, 1],
+    "faces": { "+x": "missing.exr" }
+  }
+})");
+
+    ExpectRuntimeErrorContains([&] { LoadSceneFile((dir / "scene.json").string()); },
+                               "Failed to load skybox texture:");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST(SceneLoader, RejectPreviewerRepairableSkyboxBounds) {
+    const auto dir = MakeTempTestDir("skewer_ut_previewer_repairable_skybox");
+    WriteFile(dir / "scene.json", R"({
+  "camera": { "look_from": [0, 0, 4], "look_at": [0, 0, 0] },
+  "layers": ["layer.json"],
+  "skybox": {
+    "min": [2, 0, 4],
+    "max": [-2, 0, 1],
+    "faces": { "+x": "ignored.exr" }
+  }
+})");
+
+    ExpectRuntimeErrorContains([&] { LoadSceneFile((dir / "scene.json").string()); },
+                               "skybox 'max' must be greater than 'min' on every axis");
+
+    std::filesystem::remove_all(dir);
 }
 
 TEST(SceneGraph, LoadLayerQuadFromFile) {
