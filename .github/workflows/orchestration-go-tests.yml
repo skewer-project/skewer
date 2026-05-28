@@ -29,4 +29,4 @@ jobs:
           cache: true
 
       - name: Run Orchestration Tests
-        run: go test ./orchestration/internal/api ./orchestration/internal/coordinator
+        run: go test ./orchestration/...
