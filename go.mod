@@ -7,7 +7,9 @@ require (
 	cloud.google.com/go/storage v1.60.0
 	cloud.google.com/go/workflows v1.15.0
 	firebase.google.com/go/v4 v4.19.0
+	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/google/uuid v1.6.0
+	github.com/googleapis/gax-go/v2 v2.21.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/time v0.15.0
@@ -37,7 +39,6 @@ require (
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fsouza/fake-gcs-server v1.54.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -46,7 +47,6 @@ require (
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
-	github.com/googleapis/gax-go/v2 v2.21.0 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/pkg/xattr v0.4.12 // indirect
