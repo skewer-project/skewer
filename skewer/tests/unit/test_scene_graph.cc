@@ -3,6 +3,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -249,6 +250,8 @@ TEST(SceneLoader, RejectUnknownMediumReference) {
     {
       "type": "sphere",
       "material": "null",
+      "center": [0, 0, 0],
+      "radius": 1,
       "inside_medium": "fog"
     }
   ]
@@ -320,6 +323,17 @@ TEST(SceneLoader, RejectMissingSkyboxFaceTexture) {
 
 TEST(SceneLoader, RejectPreviewerRepairableSkyboxBounds) {
     const auto dir = MakeTempTestDir("skewer_ut_previewer_repairable_skybox");
+    WriteFile(dir / "layer.json", R"({
+    "materials": {
+        "mat": { "type": "lambertian", "albedo": [0.8, 0.8, 0.8] }
+    },
+    "graph": []
+    })");
+    WriteFile(dir / "ignored.ppm", R"(P3
+    1 1
+    255
+    0 0 0
+    )");
     WriteFile(dir / "scene.json", R"({
   "camera": { "look_from": [0, 0, 4], "look_at": [0, 0, 0] },
   "layers": ["layer.json"],
