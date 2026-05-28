@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "../test_helpers.h"
 #include "deep_volume.h"
+#include "test_helpers.h"
 
 using namespace exrio;
 
