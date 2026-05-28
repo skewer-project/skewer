@@ -36,20 +36,31 @@ type Config struct {
 type Server struct {
 	cfg         Config
 	storage     *storage.Client
-	signer      *URLSigner
+	signer      urlSigner
 	owner       *OwnerStore
 	validator   *SceneValidator
-	coordinator *CoordinatorClient
+	coordinator coordinatorClient
 	limiter     *EmailLimiter
+}
+
+type urlSigner interface {
+	SignPut(bucket, object, contentType string, ttl time.Duration) (string, error)
+	SignGet(bucket, object string, ttl time.Duration) (string, error)
+}
+
+type coordinatorClient interface {
+	Submit(ctx context.Context, req *pb.SubmitPipelineRequest) (*pb.SubmitPipelineResponse, error)
+	Status(ctx context.Context, pipelineID string) (*pb.GetPipelineStatusResponse, error)
+	Cancel(ctx context.Context, pipelineID string) (*pb.CancelPipelineResponse, error)
 }
 
 func NewServer(
 	cfg Config,
 	storageClient *storage.Client,
-	signer *URLSigner,
+	signer urlSigner,
 	owner *OwnerStore,
 	validator *SceneValidator,
-	coordinator *CoordinatorClient,
+	coordinator coordinatorClient,
 	limiter *EmailLimiter,
 ) *Server {
 	if cfg.UploadRoot == "" {
