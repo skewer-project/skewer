@@ -19,6 +19,7 @@ set(SKEWER_CORE_SOURCES
     "${_SKEWER_CORE_SOURCE_ROOT}/src/materials/bsdf.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/materials/texture.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/core/spectral/rgb2spec.cc"
+    "${_SKEWER_CORE_SOURCE_ROOT}/src/core/spectral/srgb_spec_data.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/kernels/path_kernel.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/kernels/sample_media.cc"
     "${_SKEWER_CORE_SOURCE_ROOT}/src/kernels/volume_dispatch.cc"
