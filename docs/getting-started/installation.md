@@ -18,7 +18,7 @@ If you need to modify the source, run tests, or develop, build from source.
 
 - **CMake** 3.21+
 - **Clang++ 17 (or higher)**
-- **Git LFS** — pull only what's needed to build: `git lfs install && git lfs pull --include="skewer/external/srgb_spec_data.h"`
+- **Git LFS** — pull only what's needed to build: `git lfs install && git lfs pull --include="skewer/src/core/spectral/srgb_spec_data.cc"`
 - **Go** 1.25+ (for CLI and coordinator)
 - **Protocol Buffer compiler** (`protoc`)
 - **Go protobuf plugins:**
@@ -36,7 +36,7 @@ cd skewer
 
 # Pull large files tracked by Git LFS (required for sRGB spectral data)
 git lfs install                    # only needed once
-git lfs pull --include="skewer/external/srgb_spec_data.h"
+git lfs pull --include="skewer/src/core/spectral/srgb_spec_data.cc"
 ```
 
 If you plan to run tests, also pull the test fixtures:

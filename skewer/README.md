@@ -15,7 +15,7 @@ cd skewer
 #    https://skewer-project.github.io/skewer/getting-started/installation/
 
 # 3. Pull Git LFS assets (only what's needed to build)
-git lfs install && git lfs pull --include="skewer/external/srgb_spec_data.h"
+git lfs install && git lfs pull --include="skewer/src/core/spectral/srgb_spec_data.cc"
 
 # 4. Build with CMake presets
 cmake --preset relwithdebinfo

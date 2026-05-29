@@ -426,10 +426,10 @@ gcloud builds submit \
 ```
 
 !!! note "git LFS"
-    The C++ skewer worker build needs one LFS-tracked file: `skewer/external/srgb_spec_data.h`. The rest of the LFS files (test assets, golden images, sample volumes) are only needed for development and testing — not for deploying your own render farm. Navigate to the project root and pull just what you need:
+    The C++ skewer worker build needs one LFS-tracked file: `skewer/src/core/spectral/srgb_spec_data.cc`. The rest of the LFS files (test assets, golden images, sample volumes) are only needed for development and testing — not for deploying your own render farm. Navigate to the project root and pull just what you need:
 
     ```bash
-    git lfs pull --include="skewer/external/srgb_spec_data.h"
+    git lfs pull --include="skewer/src/core/spectral/srgb_spec_data.cc"
     ```
 
 ---
