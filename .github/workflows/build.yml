@@ -14,7 +14,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_MAXSIZE: 500M
       GIT_LFS_SKIP_SMUDGE: "1"
-      LFS_TARGETS: "skewer/external/srgb_spec_data.h,loom/tests/assets/layer_fog.exr,loom/tests/assets/layer_objects.exr"
+      LFS_TARGETS: "skewer/src/core/spectral/srgb_spec_data.cc,loom/tests/assets/layer_fog.exr,loom/tests/assets/layer_objects.exr"
 
     steps:
       - name: Checkout Repository
