@@ -99,6 +99,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/integration/fixtures/golden_hashes.json
+          git add tests/integration/fixtures/skewer/golden_hashes.json
           git commit -m "chore: regenerate golden image hashes [skip ci]" || echo "no changes"
           git push
