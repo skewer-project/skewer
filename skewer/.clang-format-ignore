@@ -1,1 +1,2 @@
 external/*
+core/spectral/srgb_spec_data.cc
