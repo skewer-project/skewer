@@ -24,7 +24,7 @@ jobs:
       GIT_LFS_SKIP_SMUDGE: "1"
       # Only fetch LFS files that are actual render INPUTS (scene data).
       # Golden image outputs are replaced by a hash manifest (no LFS needed).
-      LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/fixtures/golden_scenes/**/*.nvdb
+      LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/fixtures/skewer/golden_scenes/**/*.nvdb
 
     steps:
       - name: Checkout Repository

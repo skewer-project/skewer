@@ -74,7 +74,7 @@ static std::string computeDeepImageHash(const exrio::DeepImage& img) {
 
 static fs::path hashManifestPath() {
     fs::path projectRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
-    return projectRoot / "tests" / "integration" / "fixtures" / "golden_hashes.json";
+    return projectRoot / "tests" / "integration" / "fixtures" / "skewer" / "golden_hashes.json";
 }
 
 /**
@@ -159,7 +159,7 @@ class GoldenImageTest : public ::testing::TestWithParam<TestCase> {
         sceneFolder_ = param.scene_folder;
 
         fs::path projectRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
-        fixturesDir_ = projectRoot / "tests" / "integration" / "fixtures";
+        fixturesDir_ = projectRoot / "tests" / "integration" / "fixtures" / "skewer";
 
         tempDir_ = fs::temp_directory_path() / "skewer_tests" / testName_;
         fs::create_directories(tempDir_);
