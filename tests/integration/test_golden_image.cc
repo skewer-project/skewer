@@ -255,6 +255,7 @@ struct LoomTestCase {
 
 static const std::vector<LoomTestCase> kLoomTestCases = {
     {"BallFog", "ball_fog", 0.001f},
+    {"CollidingObjects", "colliding_balls", 0.001f},
 };
 
 class LoomGoldenImageTest : public ::testing::TestWithParam<LoomTestCase> {
