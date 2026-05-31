@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "hash_algorithm": "sha256",
+  "hashes": {
+    "ball_fog": "d0a140c0b9e9a229d835205dfe3b03a688afc16e8725d918c2c5b5aaf60d4333"
+  },
+  "image_height": 450,
+  "image_width": 800
+}
