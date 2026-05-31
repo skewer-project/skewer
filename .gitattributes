@@ -3,3 +3,4 @@ tests/integration/fixtures/skewer/golden_images/*.exr filter=lfs diff=lfs merge=
 tests/integration/fixtures/skewer/golden_images/*.png filter=lfs diff=lfs merge=lfs -text
 tests/integration/fixtures/skewer/golden_scenes/**/*.nvdb filter=lfs diff=lfs merge=lfs -text
 loom/tests/assets/*.exr filter=lfs diff=lfs merge=lfs -text
+tests/integration/fixtures/loom/**/*.exr filter=lfs diff=lfs merge=lfs -text
