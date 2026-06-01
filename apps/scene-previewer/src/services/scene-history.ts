@@ -293,8 +293,8 @@ function stemFromPath(path: string): string {
 	return filename.replace(/\.[^.]+$/, "");
 }
 
-// History serialization needs needs to keep runtime fields like volumetrics.
-// CANNOT use the same path as the disk serialization
+// History serialization needs to keep runtime fields like volumetrics,
+// so it cannot reuse the on-disk serialization path.
 function preserveVolumetricRuntimeFields(
 	sourceNode: SceneNode,
 	serializedNode: unknown,
