@@ -1,4 +1,5 @@
-import type {LayerData,
+import type {
+	LayerData,
 	ResolvedLayer,
 	ResolvedScene,
 	SceneNode,
