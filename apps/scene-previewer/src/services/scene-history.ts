@@ -480,5 +480,6 @@ function hydrateSceneFiles(
 			shutter_angle: 180,
 		},
 		settings: loadedRender ?? fallbackSettings,
+		skybox: manifest.skybox,
 	};
 }
