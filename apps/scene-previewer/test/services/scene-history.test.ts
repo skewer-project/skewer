@@ -122,6 +122,39 @@ function makeSceneWithSkybox(): ResolvedScene {
 	};
 }
 
+function makeSceneWithVolume(): ResolvedScene {
+	const scene = makeSceneWithSkybox();
+	scene.skybox = undefined;
+	scene.layers[0].data.media = {
+		smoke: {
+			type: "nanovdb",
+			file: "volumes/smoke.nvdb",
+			sigma_a: [0, 0, 0],
+			sigma_s: [1, 1, 1],
+			g: 0,
+			density_multiplier: 1,
+			scale: 3,
+			translate: [10, 20, 30],
+			rotate: [0, 90, 0],
+		},
+	};
+	scene.layers[0].data.graph = [
+		{
+			kind: "sphere",
+			material: "null",
+			center: [0, 0, 0],
+			radius: 4,
+			inside_medium: "smoke",
+			transform: {
+				translate: [10, 20, 30],
+				rotate: [0, 90, 0],
+				scale: 3,
+			},
+		},
+	];
+	return scene;
+}
+
 describe("scene-history", () => {
 	it("diffs array insertion as a single add and can undo/redo it cleanly", () => {
 		const before = makeScene();
@@ -231,5 +264,34 @@ describe("scene-history", () => {
 		const redone = applyRedoEntry(undone, entry);
 		expect(redone.skybox).toEqual(before.skybox);
 		expect(redone.layers[0].data.graph).toEqual(after.layers[0].data.graph);
+	});
+
+	it("preserves resolved volumetric sphere geometry during history hydration", () => {
+		const before = makeSceneWithVolume();
+		const after = makeSceneWithVolume();
+		after.layers[0].data.materials.extra = {
+			type: "lambertian",
+			albedo: [0.5, 0.5, 0.5],
+			emission: [0, 0, 0],
+			opacity: [1, 1, 1],
+			visible: true,
+		};
+
+		const entry = buildHistoryEntry(before, after, "Add material");
+
+		expect(entry).not.toBeNull();
+		if (!entry) throw new Error("Expected history entry");
+
+		const undone = applyUndoEntry(after, entry);
+		expect(undone.layers[0].data.graph[0]).toEqual(
+			before.layers[0].data.graph[0],
+		);
+		expect(undone.layers[0].data.materials).not.toHaveProperty("extra");
+
+		const redone = applyRedoEntry(undone, entry);
+		expect(redone.layers[0].data.graph[0]).toEqual(
+			before.layers[0].data.graph[0],
+		);
+		expect(redone.layers[0].data.materials).toHaveProperty("extra");
 	});
 });
