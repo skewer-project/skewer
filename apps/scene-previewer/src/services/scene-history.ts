@@ -1,4 +1,9 @@
-import type { ResolvedLayer, ResolvedScene } from "../types/scene";
+import type {
+	LayerData,
+	ResolvedLayer,
+	ResolvedScene,
+	SceneNode,
+} from "../types/scene";
 import { DEFAULT_RENDER_CONFIG } from "../types/scene";
 import { parseLayerData, parseSceneManifest } from "./scene-parser";
 import { serializeLayerData, serializeSceneManifest } from "./scene-serializer";
@@ -288,6 +293,54 @@ function stemFromPath(path: string): string {
 	return filename.replace(/\.[^.]+$/, "");
 }
 
+// History serialization needs to keep runtime fields like volumetrics,
+// so it cannot reuse the on-disk serialization path.
+function preserveVolumetricRuntimeFields(
+	sourceNode: SceneNode,
+	serializedNode: unknown,
+) {
+	if (!isObject(serializedNode)) return;
+
+	if (sourceNode.kind === "group") {
+		const serializedChildren = serializedNode.children;
+		if (!Array.isArray(serializedChildren)) return;
+		for (
+			let i = 0;
+			i < sourceNode.children.length && i < serializedChildren.length;
+			i++
+		) {
+			preserveVolumetricRuntimeFields(
+				sourceNode.children[i],
+				serializedChildren[i],
+			);
+		}
+		return;
+	}
+
+	if (sourceNode.kind !== "sphere" || sourceNode.inside_medium === undefined) {
+		return;
+	}
+
+	serializedNode.center = cloneJson(sourceNode.center);
+	serializedNode.radius = sourceNode.radius;
+	if (sourceNode.transform !== undefined) {
+		serializedNode.transform = cloneJson(sourceNode.transform);
+	}
+}
+
+function serializeLayerDataForHistory(
+	data: LayerData,
+): Record<string, unknown> {
+	const serialized = serializeLayerData(data);
+	const serializedGraph = serialized.graph;
+	if (Array.isArray(serializedGraph)) {
+		for (let i = 0; i < data.graph.length && i < serializedGraph.length; i++) {
+			preserveVolumetricRuntimeFields(data.graph[i], serializedGraph[i]);
+		}
+	}
+	return serialized;
+}
+
 export function serializeSceneFiles(
 	scene: ResolvedScene,
 ): SerializedSceneFiles {
@@ -298,7 +351,7 @@ export function serializeSceneFiles(
 	for (const layer of scene.contexts) byPath.set(layer.path, layer);
 	for (const layer of scene.layers) byPath.set(layer.path, layer);
 	for (const [path, layer] of byPath) {
-		files.set(path, serializeLayerData(layer.data));
+		files.set(path, serializeLayerDataForHistory(layer.data));
 	}
 
 	return files;
@@ -480,5 +533,7 @@ function hydrateSceneFiles(
 			shutter_angle: 180,
 		},
 		settings: loadedRender ?? fallbackSettings,
+		// Keep manifest-level data when undo/redo hydrates from serialized files.
+		skybox: manifest.skybox,
 	};
 }
