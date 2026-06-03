@@ -1,4 +1,4 @@
-if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
+if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER AND SKEWER_COMBINED_BUILD_LOOM)
   # Enable CTest
   enable_testing()
 
@@ -20,6 +20,7 @@ if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
         PRIVATE
         ${PROJECT_SOURCE_DIR}/skewer/src
         ${PROJECT_SOURCE_DIR}/skewer/external
+        ${PROJECT_SOURCE_DIR}/loom/src
         ${PROJECT_SOURCE_DIR}/libs/exrio/include
     )
 
@@ -27,6 +28,7 @@ if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
   target_link_libraries(integration_tests
         PRIVATE
         GTest::gtest_main
+        loom_compositor
         nlohmann_json::nlohmann_json
         exrio::exrio
         nanovdb
@@ -46,5 +48,5 @@ if(BUILD_TESTING AND SKEWER_COMBINED_BUILD_SKEWER)
 
   # Auto-discover tests
   include(GoogleTest)
-  gtest_discover_tests(integration_tests)
+  gtest_discover_tests(integration_tests NO_PRETTY_VALUES)
 endif()

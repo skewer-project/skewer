@@ -22,9 +22,9 @@ jobs:
       SKEWER_RUN_GOLDEN: "1"
       SKEWER_GENERATE_GOLDEN: ${{ inputs.regen_goldens == true && 'ON' || 'OFF' }}
       GIT_LFS_SKIP_SMUDGE: "1"
-      # Only fetch LFS files that are actual render INPUTS (scene data).
-      # Golden image outputs are replaced by a hash manifest (no LFS needed).
-      LFS_TARGETS: skewer/src/core/spectral/srgb_spec_data.cc,tests/integration/fixtures/golden_scenes/**/*.nvdb
+      # Fetch render inputs and EXR fixtures needed by integration coverage.
+      # Golden image comparisons use hash manifests, so PNG outputs stay skipped.
+      LFS_TARGETS: skewer/src/core/spectral/srgb_spec_data.cc filter=lfs diff=lfs merge=lfs -text,tests/integration/fixtures/skewer/golden_scenes/**/*.nvdb,tests/integration/fixtures/loom/**/*.exr
 
     steps:
       - name: Checkout Repository
@@ -99,6 +99,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add tests/integration/fixtures/golden_hashes.json
+          git add tests/integration/fixtures/skewer/golden_hashes.json tests/integration/fixtures/loom/golden_hashes.json
           git commit -m "chore: regenerate golden image hashes [skip ci]" || echo "no changes"
           git push
