@@ -15,6 +15,7 @@ import (
 	"cloud.google.com/go/storage"
 	executions "cloud.google.com/go/workflows/executions/apiv1"
 	executionspb "cloud.google.com/go/workflows/executions/apiv1/executionspb"
+	"github.com/googleapis/gax-go/v2"
 
 	pb "github.com/skewer-project/skewer/api/proto/coordinator/v1"
 )
@@ -24,7 +25,7 @@ import (
 type GCPManager struct {
 	projectID               string
 	region                  string
-	workflowsClient         *executions.Client
+	workflowsClient         workflowExecutionsClient
 	storageClient           *storage.Client
 	workflowName            string
 	dataBucket              string
@@ -52,6 +53,12 @@ type GCPManager struct {
 	batchSA                 string
 	batchAllowedLocations   []string
 	framesPerTask           int
+}
+
+type workflowExecutionsClient interface {
+	CreateExecution(ctx context.Context, req *executionspb.CreateExecutionRequest, opts ...gax.CallOption) (*executionspb.Execution, error)
+	GetExecution(ctx context.Context, req *executionspb.GetExecutionRequest, opts ...gax.CallOption) (*executionspb.Execution, error)
+	CancelExecution(ctx context.Context, req *executionspb.CancelExecutionRequest, opts ...gax.CallOption) (*executionspb.Execution, error)
 }
 
 // NewGCPManager reads config from environment variables and creates GCP clients.

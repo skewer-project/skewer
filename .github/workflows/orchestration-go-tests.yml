@@ -1,0 +1,32 @@
+name: Orchestration Go Tests
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "orchestration/**/*.go"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "orchestration/**/*.go"
+
+jobs:
+  go-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run Orchestration Tests
+        run: go test ./orchestration/...
