@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -36,13 +36,9 @@ static fs::path projectRoot() {
     return fs::path(__FILE__).parent_path().parent_path().parent_path();
 }
 
-static fs::path fixturesRoot() {
-    return projectRoot() / "tests" / "integration" / "fixtures";
-}
+static fs::path fixturesRoot() { return projectRoot() / "tests" / "integration" / "fixtures"; }
 
-static fs::path productFixturesDir(const std::string& product) {
-    return fixturesRoot() / product;
-}
+static fs::path productFixturesDir(const std::string& product) { return fixturesRoot() / product; }
 
 static fs::path hashManifestPath(const std::string& product) {
     return productFixturesDir(product) / "golden_hashes.json";
@@ -237,8 +233,7 @@ TEST_P(SkewerGoldenImageTest, RendersIdentically) {
                            renderedImage.width(), renderedImage.height());
 }
 
-INSTANTIATE_TEST_SUITE_P(SkewerScenes, SkewerGoldenImageTest,
-                         ::testing::ValuesIn(kSkewerTestCases),
+INSTANTIATE_TEST_SUITE_P(SkewerScenes, SkewerGoldenImageTest, ::testing::ValuesIn(kSkewerTestCases),
                          [](const testing::TestParamInfo<TestCase>& info) {
                              return info.param.name;
                          });

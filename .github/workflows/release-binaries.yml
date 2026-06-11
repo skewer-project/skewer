@@ -59,7 +59,7 @@ jobs:
       - name: Fetch required LFS asset
         shell: bash
         run: |
-          git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
+          git lfs fetch --include="skewer/src/core/spectral/srgb_spec_data.cc" --prune
           git lfs checkout
 
       - name: Restore ccache
@@ -171,7 +171,7 @@ jobs:
       - name: Fetch required LFS asset
         shell: pwsh
         run: |
-          git lfs fetch --include="skewer/external/srgb_spec_data.h" --prune
+          git lfs fetch --include="skewer/src/core/spectral/srgb_spec_data.cc" --prune
           git lfs checkout
 
       - name: Install vcpkg dependencies

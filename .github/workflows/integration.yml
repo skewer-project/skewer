@@ -24,7 +24,7 @@ jobs:
       GIT_LFS_SKIP_SMUDGE: "1"
       # Fetch render inputs and EXR fixtures needed by integration coverage.
       # Golden image comparisons use hash manifests, so PNG outputs stay skipped.
-      LFS_TARGETS: skewer/external/srgb_spec_data.h,tests/integration/fixtures/skewer/golden_scenes/**/*.nvdb,tests/integration/fixtures/loom/**/*.exr
+      LFS_TARGETS: skewer/src/core/spectral/srgb_spec_data.cc filter=lfs diff=lfs merge=lfs -text,tests/integration/fixtures/skewer/golden_scenes/**/*.nvdb,tests/integration/fixtures/loom/**/*.exr
 
     steps:
       - name: Checkout Repository

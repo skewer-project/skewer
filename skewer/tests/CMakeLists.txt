@@ -23,6 +23,7 @@ set(SKEWER_SCENE_TEST_SOURCES
     ../src/core/spectral/rgb2spec.cc
     ../src/materials/texture.cc
     ../src/materials/bsdf.cc
+    ../src/core/spectral/srgb_spec_data.cc
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
