@@ -225,6 +225,16 @@ Materials are defined by name in the `materials` object. Each material has a `ty
 }
 ```
 
+Set `dispersion` to make the index of refraction vary with wavelength, so the glass splits light into colours (prisms, crystal). It is the `B` term of Cauchy's equation, `n(λ) = ior + dispersion / λ²` with λ in micrometres; values around `0.01`-`0.05` give visible rainbow fringes. Dispersive glass converges more slowly, so it needs more samples.
+
+```json
+"crystal": {
+  "type": "dielectric",
+  "ior": 1.6,
+  "dispersion": 0.025
+}
+```
+
 ### Material Properties
 
 | Property            | Type   | Default   | Lambertian | Metal | Dielectric | Description                                                                                                     |
@@ -236,6 +246,7 @@ Materials are defined by name in the `materials` object. Each material has a `ty
 | `visible`           | bool   | `true`    |     ✓      |   ✓   |     ✓      | Whether the material contributes to the image. Invisible materials still cast shadows and appear in reflections |
 | `roughness`         | float  | `0`       |     —      |   ✓   |     ✓      | Microfacet roughness (0=mirror, 1=matte)                                                                        |
 | `ior`               | float  | —         |     —      |   —   |     ✓      | Index of refraction (1.5=glass, 1.33=water, 2.42=diamond)                                                       |
+| `dispersion`        | float  | `0`       |     —      |   —   |     ✓      | Cauchy `B` coefficient; > 0 makes the IOR wavelength-dependent (rainbow fringes). Typical: 0.01-0.05            |
 | `albedo_texture`    | string | —         |     ✓      |   ✓   |     ✓      | Path to albedo/color texture map                                                                                |
 | `normal_texture`    | string | —         |     ✓      |   ✓   |     ✓      | Path to normal map                                                                                              |
 | `roughness_texture` | string | —         |     —      |   ✓   |     ✓      | Path to roughness map                                                                                           |
