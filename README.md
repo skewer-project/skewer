@@ -1,4 +1,4 @@
-# Skewer & Loom
+# Skewer
 
 A physically based spectral path tracer and serverless render farm. Scenes are split into layers, rendered in parallel on Google Cloud, and merged back together with deep compositing.
 
@@ -15,8 +15,9 @@ A physically based spectral path tracer and serverless render farm. Scenes are s
 - **Spectral path tracing** with hero-wavelength sampling, wavelength-dependent dispersion, and Lambertian, metal and dielectric materials
 - **Two-level BVH** (BLAS/TLAS) acceleration with instancing
 - **Volumetric rendering** of NanoVDB clouds using delta and ratio tracking
-- **Deep EXR output**, plus **Loom**, a deep compositor that merges independently rendered layers by depth
-- **Adaptive sampling, keyframe animation and motion blur
+- **Deep EXR output**, plus a deep-image merger (`loom/`) that combines independently rendered layers by depth
+- **Adaptive sampling** that stops refining each pixel once it converges
+- **Keyframe animation** with motion blur
 - **Serverless GCP pipeline:** Cloud Run → Cloud Workflows → Cloud Batch, provisioned with Terraform
 - **Web scene previewer** for editing scenes and submitting cloud renders
 
@@ -29,10 +30,18 @@ A physically based spectral path tracer and serverless render farm. Scenes are s
   </tr>
 </table>
 
+## Scene Previewer
+
+A web app for building scenes in the browser: place and transform objects in a live 3D viewport, edit cameras, materials and render settings, keyframe animation on a timeline, and submit the scene to the cloud render farm. Try it at [skewer.pages.dev](https://skewer.pages.dev) (requires a Chromium-based browser such as Chrome or Edge).
+
+<p align="center">
+  <img src="docs/assets/showcase/previewer_edit.jpg" alt="Skewer Scene Previewer editing a scene: 3D viewport with a transform gizmo on a sphere, camera and render settings on the left, node transform and material properties on the right, and an animation timeline at the bottom" width="100%">
+</p>
+
 ## For Developers
 
 - **`skewer/`** — C++ ray-tracing deep renderer
-- **`loom/`** — C++ deep compositor (see also Loom, node-based compositor)
+- **`loom/`** — C++ deep EXR merger used by the render pipeline (separate from the [Loom node-based compositor](https://github.com/skewer-project/loom), a Vulkan desktop app)
 - **`orchestration/`** — Go CLI and Cloud Run Coordinator
 - **`libs/exrio/`** — Shared deep EXR helpers
 
