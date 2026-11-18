@@ -16,7 +16,7 @@ A physically based spectral path tracer and serverless render farm. Scenes are s
 - **Two-level BVH** (BLAS/TLAS) acceleration with instancing
 - **Volumetric rendering** of NanoVDB clouds using delta and ratio tracking
 - **Deep EXR output**, plus **Loom**, a deep compositor that merges independently rendered layers by depth
-- **Adaptive sampling**, keyframe animation and motion blur
+- **Adaptive sampling, keyframe animation and motion blur
 - **Serverless GCP pipeline:** Cloud Run → Cloud Workflows → Cloud Batch, provisioned with Terraform
 - **Web scene previewer** for editing scenes and submitting cloud renders
 
@@ -32,7 +32,7 @@ A physically based spectral path tracer and serverless render farm. Scenes are s
 ## For Developers
 
 - **`skewer/`** — C++ ray-tracing deep renderer
-- **`loom/`** — C++ deep compositor
+- **`loom/`** — C++ deep compositor (see also Loom, node-based compositor)
 - **`orchestration/`** — Go CLI and Cloud Run Coordinator
 - **`libs/exrio/`** — Shared deep EXR helpers
 
