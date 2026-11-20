@@ -196,7 +196,7 @@ static int RunBatchMode() {
 
                 // 1-based frame number for filename (frame-0001.exr, frame-0002.exr, ...)
                 char frame_str[8];
-                std::snprintf(frame_str, sizeof(frame_str), "%04d", frame_idx + 1);
+                std::snprintf(frame_str, sizeof(frame_str), "%04u", frame_idx + 1);
                 const std::string filename = std::string("frame-") + frame_str + ".exr";
                 const std::string out_path = output_prefix + filename;
 
