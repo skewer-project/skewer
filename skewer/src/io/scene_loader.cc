@@ -270,6 +270,7 @@ static MaterialMap ParseMaterials(const json& j, Scene& scene, const std::string
             mat.type = MaterialType::Dielectric;
             mat.albedo = RGBToCurve(GetRGBOr(m, "albedo", RGB(1.0f)));
             mat.ior = m.at("ior").get<float>();
+            mat.dispersion = GetOr(m, "dispersion", 0.0f);
             mat.roughness = GetOr(m, "roughness", 0.0f);
         } else {
             throw std::runtime_error("Unknown material type: " + type + " (material '" + name +
